@@ -260,12 +260,15 @@ post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
 
 
 unauthorized_post_should_join_cluster(Config) ->
+    DummyInviteToken = onepanel_utils:join(
+        [?ONEPANEL_INVITE_TOKEN_PREFIX, <<"someNonce">>, <<"someHost">>],
+        <<?ONEPANEL_TOKEN_SEPARATOR>>
+    ),
     ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(
-        Config, "/join_cluster?clusterHost=someHost", post,
-        #{clusterHost => <<"someHost">>, cookie => ?COOKIE}
+        Config, "/join_cluster", post, #{inviteToken => DummyInviteToken}
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,
-        #{cookie := ?COOKIE, cluster_host := "someHost"}
+        #{cluster_host := "someHost", invite_token := DummyInviteToken}
     }, ?TIMEOUT).
 
 

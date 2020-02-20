@@ -84,8 +84,12 @@ join_should_add_node(Config) ->
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
     ),
+    {ok, InviteToken} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, Ctx#{
+            invite_token => InviteToken,
+            cluster_host => Host1
+        }
     ),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -93,15 +97,17 @@ join_should_add_node(Config) ->
 
 
 join_should_fail_on_clustered_node(Config) ->
+    [Node1 | _] = ?config(onepanel_nodes, Config),
     Cluster1 = ?config(cluster1, Config),
     Cluster2 = ?config(cluster2, Config),
     [Host1 | _] = Cluster1Hosts = hosts:from_nodes(Cluster1),
     Cluster2Hosts = hosts:from_nodes(Cluster2),
 
     lists:foreach(fun(Node) ->
+        {ok, InviteToken} = rpc:call(Node1, invite_tokens, create, []),
         ?assertMatch({error, _}, rpc:call(Node, service, apply,
             [?SERVICE_PANEL, join_cluster, #{hosts => [hosts:from_node(Node)],
-                cluster_host => Host1}]
+                invite_token => InviteToken, cluster_host => Host1}]
         ))
     end, Cluster2),
 
@@ -119,14 +125,17 @@ join_should_work_after_leave(Config) ->
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
     ),
+
+    {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken1, cluster_host => Host1}
     ),
     onepanel_test_utils:service_action(Node2,
         ?SERVICE_PANEL, leave_cluster, #{}
     ),
+    {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken2, cluster_host => Host1}
     ).
 
 
@@ -139,17 +148,21 @@ sequential_join_should_create_cluster(Config) ->
     Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}),
+    {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken1, cluster_host => Host1}
     ),
+    {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node3,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host2}
+        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken2, cluster_host => Host2}
     ),
+    {ok, InviteToken3} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node4,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host3}
+        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken3, cluster_host => Host3}
     ),
+    {ok, InviteToken4} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node5,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host4}
+        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken4, cluster_host => Host4}
     ),
 
     lists:foreach(fun(Node) ->
