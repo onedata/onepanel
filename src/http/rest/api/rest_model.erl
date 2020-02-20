@@ -54,6 +54,7 @@
     id_model/0,
     ids_model/0,
     inline_response_202_model/0,
+    invite_token_request_model/0,
     join_cluster_request_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
@@ -651,6 +652,15 @@ ids_model() ->
 inline_response_202_model() ->
     #{
         reportId => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information allowing new host to join the cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec invite_token_request_model() -> onepanel_parser:object_spec().
+invite_token_request_model() ->
+    #{
     }.
 
 %%--------------------------------------------------------------------

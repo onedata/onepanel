@@ -251,6 +251,18 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
+        %% Create invite token
+        {<<"/invite_token">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_host,
+                id = undefined,
+                aspect = invite_token,
+                scope = private
+            },
+            data_spec = (rest_model:invite_token_request_model())
+        }},
+
         %% Join existing cluster
         {<<"/join_cluster">>, #rest_req{
             method = 'POST',
