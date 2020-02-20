@@ -218,7 +218,8 @@ fetch_and_set_cookie(#{invite_token := InviteToken} = Ctx) ->
     Url = build_url(Hostname, Suffix),
 
     case http_client:get(Url, Headers, <<>>, Opts) of
-        {ok, ?HTTP_200_OK, _, Cookie} ->
+        {ok, ?HTTP_200_OK, _, Response} ->
+            Cookie = binary_to_atom(json_utils:decode(Response), utf8),
             set_cookie(#{cookie => Cookie});
         {ok, ?HTTP_401_UNAUTHORIZED, _, _} ->
             throw(?ERROR_UNAUTHORIZED);
@@ -286,7 +287,8 @@ extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
     throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(NewNode));
 
 extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
-    Body = json_utils:encode(#{inviteToken => invite_tokens:create()}),
+    {ok, InviteToken} = invite_tokens:create(),
+    Body = json_utils:encode(#{inviteToken => InviteToken}),
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),

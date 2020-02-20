@@ -33,7 +33,7 @@ create() ->
         {ok, Nonce} ->
             SelfHost = hosts:self(),
             Token = onepanel_utils:join(
-                [?ONEPANEL_USER_AUTH_TOKEN_PREFIX, Nonce, SelfHost],
+                [?ONEPANEL_INVITE_TOKEN_PREFIX, Nonce, SelfHost],
                 <<?ONEPANEL_TOKEN_SEPARATOR>>
             ),
             {ok, Token};

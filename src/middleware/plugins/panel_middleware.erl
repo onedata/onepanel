@@ -191,7 +191,8 @@ create(#onp_req{gri = #gri{aspect = emergency_passphrase}, data = Data}) ->
     emergency_passphrase:change(CurrentPassphrase, NewPassphrase);
 
 create(#onp_req{gri = #gri{aspect = invite_token}}) ->
-    {ok, value, invite_tokens:create()}.
+    {ok, InviteToken} = invite_tokens:create(),
+    {ok, value, InviteToken}.
 
 
 -spec get(middleware:req(), middleware:entity()) -> middleware:get_result().
