@@ -162,6 +162,12 @@
         %%  be used in production.
         {treat_test_ca_as_trusted, false},
 
+        %% ===================================================================
+        %% Invite tokens
+        %% ===================================================================
+
+        %% Time (in seconds) during which invite tokens will be valid after creation
+        {panel_authorization_nonce_ttl_sec, 900},
 
         %% ===================================================================
         %% Ceph
