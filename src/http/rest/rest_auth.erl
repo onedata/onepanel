@@ -28,7 +28,7 @@
 
 %% API
 -export([authenticate/1, authenticate_by_basic_auth/1]).
--export([root_client/0, guest_client/0]).
+-export([root_client/0, guest_client/0, peer_client/0]).
 
 %%%===================================================================
 %%% API functions
@@ -79,6 +79,13 @@ guest_client() -> #client{
     auth = aai:nobody_auth()
 }.
 
+
+-spec peer_client() -> middleware:client().
+peer_client() -> #client{
+    role = peer,
+    auth = aai:nobody_auth()
+}.
+
 %%%==================================================================
 %%% Internal functions
 %%%===================================================================
@@ -111,7 +118,8 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Authenticates user using Onepanel-generated token used
-%% for sessions authenticated with the emergency passphrase.
+%% for either sessions authenticated with the emergency passphrase or
+%% peer nodes invited to join cluster.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
@@ -119,11 +127,18 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
     when Result :: #client{} | {error, _} | ignore.
 authenticate_by_onepanel_auth_token(Req) ->
     case tokens:parse_access_token_header(Req) of
-        <<?ONEPANEL_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
+        <<?ONEPANEL_USER_AUTH_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
             case onepanel_session:find_by_valid_auth_token(OnepanelToken) of
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
                 error ->
+                    {?ERROR_TOKEN_INVALID, Req}
+            end;
+        <<?ONEPANEL_INVITE_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, Nonce:?AUTHORIZATION_NONCE_LEN/binary, _/binary>> ->
+            case authorization_nonce:verify(Nonce) of
+                true ->
+                    {peer_client(), Req};
+                false ->
                     {?ERROR_TOKEN_INVALID, Req}
             end;
         _ ->

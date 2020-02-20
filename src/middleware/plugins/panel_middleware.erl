@@ -101,9 +101,16 @@ authorize(#onp_req{
     true;
 
 authorize(#onp_req{
+    operation = get, client = #client{role = Role}, gri = #gri{aspect = cookie}
+}, _) when
+    Role == member;
+    Role == peer
+->
+    true;
+
+authorize(#onp_req{
     operation = get, client = #client{role = member}, gri = #gri{aspect = As}
 }, _) when
-    As == cookie;
     As == progress;
     As == web_cert;
     As == dns_check;
