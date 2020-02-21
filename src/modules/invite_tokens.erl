@@ -49,7 +49,7 @@ get_nonce(InviteToken) ->
     Nonce.
 
 
--spec get_hostname(invite_token()) -> service:host().
+-spec get_hostname(invite_token()) -> binary().
 get_hostname(InviteToken) ->
     [<<?ONEPANEL_INVITE_TOKEN_PREFIX>>, _Nonce, Hostname] =
         string:split(InviteToken, ?ONEPANEL_TOKEN_SEPARATOR, all),

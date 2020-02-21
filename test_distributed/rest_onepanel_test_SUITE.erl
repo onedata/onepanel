@@ -386,6 +386,8 @@ init_per_testcase(api_caveats_should_restrict_available_endpoints, Config) ->
     test_utils:mock_new(Nodes, [oz_endpoint, service_oneprovider]),
     test_utils:mock_expect(Nodes, service_oneprovider, get_id,
         fun() -> <<"some-id">> end),
+    test_utils:mock_expect(Nodes, service_oneprovider, get_identity_token,
+        fun() -> <<"some-identity-token">> end),
     test_utils:mock_expect(Nodes, oz_endpoint, request, fun
         (_Auth, "/tokens/verify_access_token", post, _) ->
             ?info("verifying access token using auth ~p", [_Auth]),

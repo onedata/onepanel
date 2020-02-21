@@ -225,8 +225,10 @@ fetch_and_set_cookie(#{invite_token := InviteToken} = Ctx) ->
             throw(?ERROR_UNAUTHORIZED);
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
             throw(?ERROR_FORBIDDEN);
-        {error, _} ->
-            ?warning("Failed to connect with '~ts' to fetch cookie", [Hostname]),
+        {error, _} = Error ->
+            ?warning("Failed to connect with '~ts' to fetch cookie due to: ~p", [
+                Hostname, Error
+            ]),
             throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname))
     end.
 
