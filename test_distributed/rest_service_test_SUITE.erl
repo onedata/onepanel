@@ -659,12 +659,14 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_nagios_response, {
-            [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
-        }},
-        {service_oz_worker, get_nagios_response, {
-            [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
-        }},
+        #step_end{module = service_op_worker, function = get_nagios_response,
+            good_bad_results = {
+                [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
+            }},
+        #step_end{module = service_oz_worker, function = get_nagios_response,
+            good_bad_results = {
+                [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
+            }},
         #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
@@ -719,25 +721,38 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     test_utils:mock_expect(Nodes, service, exists_task, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, get_results, fun
         (<<"someTaskId1">>) -> {[
-            {module1, function1},
-            {module2, function2},
-            {module3, function3},
+            #step_begin{module = module1, function = function1},
+            #step_end{module = module1, function = function1,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module2, function = function2},
+            #step_end{module = module2, function = function2,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module3, function = function3},
+            #step_end{module = module3, function = function3,
+                good_bad_results = {[{'node@host1', ok}], []}},
             #action_end{service = service, action = action, result = ok}
         ], 3};
         (<<"someTaskId2">>) -> {[
-            {module1, function1},
-            {module2, function2}
+            #step_begin{module = module1, function = function1},
+            #step_end{module = module1, function = function1,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module2, function = function2}
         ], 2};
         (<<"someTaskId3">>) -> {[
-            {module1, function1},
-            {module1, function1, {[{'node@host1', ok}], []}},
-            {module2, function2},
-            {module2, function2, {[{'node@host1', ok}], []}},
-            {module3, function3},
-            {module3, function3, {[], [
-                {'node@host1', ?ERROR_MALFORMED_DATA}, {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
-            ]}},
-            #action_end{service = service, action = action, result = {error, reason}}
+            #step_begin{module = module1, function = function1},
+            #step_end{module = module1, function = function1,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module2, function = function2},
+            #step_end{module = module2, function = function2,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module3, function = function3},
+            #step_end{module = module3, function = function3,
+                good_bad_results = {[], [
+                    {'node@host1', ?ERROR_MALFORMED_DATA},
+                    {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
+                ]}
+            },
+            #action_end{service = service, action = action, result = {error, ?ERROR_MALFORMED_DATA}}
         ], 4};
         (<<"someTaskId4">>) -> {[
             #action_end{service = service, action = action, result = ?ERROR_INTERNAL_SERVER_ERROR}
@@ -806,7 +821,8 @@ mock_service_status(Config, HostsStatuses) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, status, _) ->
         [
-            {service:get_module(Service), status, {HostsStatuses, []}},
+            #step_end{module = service:get_module(Service), function = status,
+                good_bad_results = {HostsStatuses, []}},
             #action_end{service = service, action = action, result = ok}
         ]
     end),

@@ -480,7 +480,9 @@ end_per_suite(_Config) ->
     service_executor:results()) -> onepanel_rpc:results().
 assert_step_present(Module, Function, Results) ->
     case lists:filtermap(fun
-        ({M, F, {GoodResults, []}}) when M == Module, F == Function ->
+        (#step_end{module = M, function = F, good_bad_results = {GoodResults, []}})
+            when M == Module, F == Function
+        ->
             {true, GoodResults};
         (_) ->
             false

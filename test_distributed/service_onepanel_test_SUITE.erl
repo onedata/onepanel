@@ -239,7 +239,8 @@ extend_should_return_hostname_of_new_node(Config) ->
         [?SERVICE_PANEL, extend_cluster, #{address => Host2Address}]
     )),
     ?assertMatch([{[{_Node, #{hostname := Host2Binary}}], []}],
-        [FunctionResults || {service_onepanel, extend_cluster, FunctionResults} <- Results]),
+        [FunctionResults || #step_end{module = service_onepanel, function = extend_cluster,
+            good_bad_results = FunctionResults} <- Results]),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).

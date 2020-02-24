@@ -206,9 +206,8 @@ init_per_testcase(Case, Config) when
     test_utils:mock_expect(Nodes, service, apply_sync, fun
         (_, get_gui_message, _) ->
             [
-                {service_onezone, get_gui_message, {
-                    [{'node@host1', Result}], []
-                }},
+                #step_end{module = service_onezone, function = get_gui_message,
+                    good_bad_results = {[{'node@host1', Result}], []}},
                 #action_end{service = service, action = action, result = ok}
             ];
         (Service, Action, Ctx) ->
@@ -244,9 +243,8 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [
             % satisfy fetch_entity
-            {onezone_users, get_user, {
-                [{'node@host1', #{}}], []
-            }},
+            #step_end{module = onezone_users, function = get_user,
+                good_bad_results = {[{'node@host1', #{}}], []}},
             #action_end{service = service, action = action, result = ok}
         ]
     end),

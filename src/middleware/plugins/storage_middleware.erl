@@ -82,8 +82,7 @@ authorize(#onp_req{
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
 
 authorize(#onp_req{
-    operation = get, client = #client{role = member},
-    gri = #gri{aspect = As}
+    operation = get, client = #client{role = member}, gri = #gri{aspect = As}
 }, _) when
     As == list;
     As == instance
