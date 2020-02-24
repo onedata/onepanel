@@ -27,9 +27,6 @@
 -spec create_response(gri:gri(), gs_protocol:data_format(), Result) -> #rest_resp{}
     when Result :: term() | {gri:gri(), term()}.
 create_response(#gri{aspect = instance}, value, Data) ->
-    ?OK_REPLY(Data);
-
-create_response(#gri{aspect = invite_token}, value, Data) ->
     ?OK_REPLY(Data).
 
 
