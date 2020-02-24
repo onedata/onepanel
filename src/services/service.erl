@@ -220,10 +220,10 @@ update_status(Service, Host, Status) ->
 %%--------------------------------------------------------------------
 -spec all_healthy() -> boolean().
 all_healthy() ->
-    lists:all(fun(#service{ctx = Ctx}) ->
+    lists:all(fun(#service{hosts = Hosts, ctx = Ctx}) ->
         lists:all(fun(Status) ->
             healthy == Status
-        end, maps:values(maps:get(status, Ctx, #{})))
+        end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))))
     end, service:list()).
 
 
@@ -236,10 +236,10 @@ all_healthy() ->
 -spec is_healthy(name()) -> boolean().
 is_healthy(Service) ->
     case ?MODULE:get(Service) of
-        {ok, #service{ctx = Ctx}} ->
-            lists:all(fun({_Host, Status}) ->
+        {ok, #service{hosts = Hosts, ctx = Ctx}} ->
+            lists:all(fun(Status) ->
                 healthy == Status
-            end, maps:to_list(maps:get(status, Ctx, #{})));
+            end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))));
         _Error -> false
     end.
 
