@@ -44,6 +44,7 @@
     get_as_admin_should_return_hosts/1,
     get_as_admin_should_return_cookie/1,
     get_should_return_node_details/1,
+    post_as_admin_should_return_invite_token/1,
     post_as_admin_should_extend_cluster_and_return_hostname/1,
     unauthorized_post_should_join_cluster/1,
     delete_as_admin_should_remove_node_from_cluster/1,
@@ -69,6 +70,7 @@ all() ->
         get_as_admin_should_return_hosts,
         get_as_admin_should_return_cookie,
         get_should_return_node_details,
+        post_as_admin_should_return_invite_token,
         post_as_admin_should_extend_cluster_and_return_hostname,
         unauthorized_post_should_join_cluster,
         delete_as_admin_should_remove_node_from_cluster,
@@ -91,6 +93,7 @@ method_should_return_unauthorized_error(Config) ->
         {<<"/hosts/someHost">>, delete},
         {<<"/hosts">>, get},
         {<<"/hosts">>, post},
+        {<<"/invite_tokens">>, post},
         {<<"/web_cert">>, get},
         {<<"/web_cert">>, patch},
         {<<"/progress">>, get},
@@ -244,6 +247,21 @@ get_should_return_node_details(Config) ->
     onepanel_test_rest:assert_body(JsonBody, Expected).
 
 
+post_as_admin_should_return_invite_token(Config) ->
+    [Node | _] = ?config(onepanel_nodes, Config),
+    InviteTokens = lists:map(fun(Auth) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(Config, <<"/invite_tokens">>, post, Auth)
+        ),
+        #{<<"inviteToken">> := InviteToken} = json_utils:decode(JsonBody),
+        Nonce = rpc:call(Node, invite_tokens, get_nonce, [InviteToken]),
+        ?assert(rpc:call(Node, authorization_nonce, verify, [Nonce])),
+        InviteToken
+    end, ?OZ_OR_ROOT_AUTHS(Config, [])),
+
+    ?assertEqual(lists:sort(InviteTokens), lists:usort(InviteTokens)).
+
+
 post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
     Auths = ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]),
     {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
@@ -260,8 +278,12 @@ post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
 
 
 unauthorized_post_should_join_cluster(Config) ->
+    TokenDescBin = base64:encode(json_utils:encode(#{
+        <<"nonce">> => <<"someNonce">>,
+        <<"clusterHost">> => <<"someHost">>
+    })),
     DummyInviteToken = onepanel_utils:join(
-        [?ONEPANEL_INVITE_TOKEN_PREFIX, <<"someNonce">>, <<"someHost">>],
+        [?ONEPANEL_INVITE_TOKEN_PREFIX, TokenDescBin],
         <<?ONEPANEL_TOKEN_SEPARATOR>>
     ),
     ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(

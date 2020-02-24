@@ -60,8 +60,8 @@ routes() ->
             }
         }},
 
-        %% Create invite token
-        {<<"/invite_token">>, #rest_req{
+        %% Create node invite token
+        {<<"/invite_tokens">>, #rest_req{
             method = 'POST',
             b_gri = #b_gri{
                 type = onp_panel,

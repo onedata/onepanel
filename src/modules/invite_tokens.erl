@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% Utilities for managing invite tokens, that is tokens used to join
+%%% Utilities for managing node invite tokens, that is tokens used to join
 %%% existing cluster.
 %%% @end
 %%%--------------------------------------------------------------------
