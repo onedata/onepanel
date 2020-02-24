@@ -7,6 +7,24 @@
 %%%--------------------------------------------------------------------
 %%% @doc This module allows for synchronous and asynchronous service action
 %%% execution.
+%%%
+%%% Service actions are a mechanism for executing functions on selected hosts.
+%%% Steps are defined in service_*:get_steps/2 callback functions.
+%%% Each #step{} record describes invocation of one function.
+%%% A #steps{} record allows nesting of another action.
+%%% A single step is executed in parallel on all selected hosts.
+%%% All nested steps are resolved into a flat list of #step{} records before
+%%% action execution starts.
+%%%
+%%% Each action invocation (service:apply_sync and service:apply_async)
+%%% causes creation of 2 processes by the service_executor:
+%%% - worker - this process resolves the steps list and performs onepanel_rpc
+%%%            calls to execute the functions
+%%% - handler - a simple process storing the executed steps in its state.
+%%%
+%%% A started action is given a task id, which can be used to retrieve
+%%% the execution results as long as the handler process exists.
+%%% It is removed after task_ttl milliseconds.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_executor).
