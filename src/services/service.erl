@@ -73,13 +73,13 @@
     %% 'hosts' - list of hosts on which step should be performed, used when
     %%           #step.hosts is not set explicitly
     hosts => [service:host()],
-    %% 'rest' - filled by service_utils:get_step/1 when executing on 'first' host,
-    %%          contains remainder of the hosts list
+    %% 'rest' - filled by service:resolve_hosts/1 when executing on 'first' host,
+    %%          contains the remainder of the hosts list
     rest => [service:host()],
-    %% 'first' - filled by service_utils:get_step/1 when executing on 'rest' hosts,
+    %% 'first' - filled by service:resolve_hosts/1 when executing on 'rest' hosts,
     %%           contains the first host (excluded from step execution)
     first => service:host(),
-    %% 'all' - filled by service_utils:get_step/1 when selecting
+    %% 'all' - filled by service:resolve_hosts/1 when selecting
     %%         'first' or 'rest' hosts, contains the original hosts list
     all => [service:host()],
 
@@ -545,23 +545,77 @@ store_in_ctx(Service, Keys, Value) ->
 apply_steps([], _Notify) ->
     ok;
 
-apply_steps([#step{hosts = Hosts, module = Module, function = Function,
-    args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
+apply_steps([#step{} = Step | StepsTail], Notify) ->
+    case resolve_hosts(Step) of
+        #step{hosts = []} ->
+            apply_steps(StepsTail, Notify);
+        #step{
+            module = Module, function = Function, hosts = Hosts,
+            args = Args, attempts = Attempts, retry_delay = Delay
+        } = StepWithHosts ->
+            Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
+            service_utils:notify(#step_begin{module = Module, function = Function}, Notify),
 
-    Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
-    service_utils:notify(#step_begin{module = Module, function = Function}, Notify),
+            Results = onepanel_rpc:call(Nodes, Module, Function, Args),
+            Status = service_utils:partition_results(Results),
 
-    Results = onepanel_rpc:call(Nodes, Module, Function, Args),
-    Status = service_utils:partition_results(Results),
+            service_utils:notify(#step_end{
+                module = Module, function = Function, good_bad_results = Status
+            }, Notify),
 
-    service_utils:notify(#step_end{
-        module = Module, function = Function, good_bad_results = Status
-    }, Notify),
-
-    case {Status, Attempts} of
-        {{_, []}, _} -> apply_steps(Steps, Notify);
-        {{_, _}, 1} -> {error, {Module, Function, Status}};
-        {{_, _}, _} ->
-            timer:sleep(Delay),
-            apply_steps([Step#step{attempts = Attempts - 1} | Steps], Notify)
+            case {Status, Attempts} of
+                {{_, []}, _} -> apply_steps(StepsTail, Notify);
+                {{_, _}, 1} -> {error, {Module, Function, Status}};
+                {{_, _}, _} ->
+                    timer:sleep(Delay),
+                    apply_steps([StepWithHosts#step{attempts = Attempts - 1} | StepsTail], Notify)
+            end
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Calculates host te be used for executing a step.
+%% First available (non-undefined) source is used:
+%% - #step.hosts field
+%% - #step.ctx hosts key
+%% - hosts:all(Service)
+%%
+%% After obtaining the steps list, the selection mode is applied.
+%%--------------------------------------------------------------------
+-spec resolve_hosts(#step{}) -> #step{}.
+resolve_hosts(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
+    resolve_hosts(Step#step{hosts = Hosts});
+
+resolve_hosts(#step{hosts = undefined, service = Service} = Step) ->
+    case hosts:all(Service) of
+        [] ->
+            % do not silently skip steps because of empty list in service model,
+            % unless it is explicitly given in step ctx or hosts field.
+            throw(?ERROR_NO_SERVICE_NODES(Service));
+        Hosts ->
+            resolve_hosts(Step#step{hosts = Hosts})
+    end;
+
+resolve_hosts(#step{hosts = []} = Step) ->
+    Step;
+
+resolve_hosts(#step{hosts = Hosts, verify_hosts = true} = Step) ->
+    ok = onepanel_utils:ensure_known_hosts(Hosts),
+    resolve_hosts(Step#step{verify_hosts = false});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
+    Host = lists_utils:random_element(Hosts),
+    resolve_hosts(Step#step{hosts = [Host], selection = all,
+        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
+    resolve_hosts(Step#step{hosts = [hd(Hosts)],
+        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
+    resolve_hosts(Step#step{hosts = tl(Hosts),
+        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
+
+resolve_hosts(#step{} = Step) ->
+    Step.

@@ -128,9 +128,11 @@ get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
                 #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx2},
 
                 % FIXME 'hosts' here causes start on nodes not having the service
-                #steps{service = ?SERVICE_OP, action = restart}, %, ctx = #{hosts => AllHosts}},
 
-                #steps{action = start, ctx = #{hosts => NewHosts}}
+                % @TODO test the delayed hosts resolving
+                #steps{service = ?SERVICE_OP, action = restart} %, ctx = #{hosts => AllHosts}},
+
+%%                #steps{action = start, ctx = #{hosts => NewHosts}}
 %%                #step{function = wait_for_init, selection = first}
             ]
     end;
@@ -302,8 +304,9 @@ configure_additional_node(#{reference_host := _} = Ctx) ->
 %% @doc Copies file storing provider's token to the current node.
 %% @end
 %%--------------------------------------------------------------------
--spec import_provider_auth_file(#{reference_host := service:host() | node(), _ => _}) ->
-    ok.
+-spec import_provider_auth_file(
+    #{reference_host := service:host() | node(), _ => _}
+) -> ok.
 import_provider_auth_file(#{reference_host := RefHost}) ->
     RefNode = nodes:service_to_node(?SERVICE_PANEL, RefHost),
     Path = onepanel_env:get_remote(RefNode, op_worker_root_token_path, ?APP_NAME),

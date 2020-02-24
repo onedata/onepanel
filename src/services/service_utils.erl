@@ -233,39 +233,6 @@ get_steps(#steps{service = Service, action = Action, ctx = Ctx, verify_hosts = V
 get_step(#step{service = Service, module = undefined} = Step) ->
     get_step(Step#step{module = service:get_module(Service)});
 
-get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
-    get_step(Step#step{hosts = Hosts});
-
-get_step(#step{hosts = undefined, service = Service} = Step) ->
-    case hosts:all(Service) of
-        [] ->
-            % do not silently skip steps because of empty list in service model,
-            % unless it is explicitly given in step ctx or hosts field.
-            throw(?ERROR_NO_SERVICE_NODES(Service));
-        Hosts ->
-            get_step(Step#step{hosts = Hosts})
-    end;
-
-get_step(#step{hosts = []}) ->
-    [];
-
-get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
-    ok = onepanel_utils:ensure_known_hosts(Hosts),
-    get_step(Step#step{verify_hosts = false});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
-    Host = lists_utils:random_element(Hosts),
-    get_step(Step#step{hosts = [Host], selection = all,
-        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
-    get_step(Step#step{hosts = [hd(Hosts)],
-        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
-    get_step(Step#step{hosts = tl(Hosts),
-        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
-
 get_step(#step{ctx = Ctx, args = undefined} = Step) ->
     get_step(Step#step{args = [Ctx]});
 
