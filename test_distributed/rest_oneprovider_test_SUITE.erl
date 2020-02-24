@@ -21,6 +21,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 
 
 %% export for ct
@@ -135,14 +136,14 @@ all() ->
     {<<"/provider/debug/transfers_mock">>, patch}
 ]).
 
--define(REGISTER_REQUEST_JSON, #{
+-define(REGISTER_REQUEST_JSON(Token), #{
     <<"name">> => <<"someName">>,
     <<"subdomainDelegation">> => false,
     <<"domain">> => <<"somedomain">>,
     <<"adminEmail">> => <<"admin@onedata.org">>,
     <<"geoLongitude">> => 10.0,
     <<"geoLatitude">> => 20.0,
-    <<"token">> => <<"someToken">>
+    <<"token">> => Token
 }).
 
 -define(PROVIDER_DETAILS_JSON, #{
@@ -329,7 +330,7 @@ method_should_return_conflict_error(Config) ->
         % provider is mocked as already registered
         ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _}, onepanel_test_rest:auth_request(
             Host, "/provider", post, ?ROOT_AUTHS(Config),
-            ?REGISTER_REQUEST_JSON
+            ?REGISTER_REQUEST_JSON(<<"someToken">>)
         ))
     end).
 
@@ -377,12 +378,15 @@ get_should_return_cluster_ips(Config) ->
 
 post_should_register_provider(Config) ->
     ?eachHost(Config, fun(Host) ->
+        % a proper token must be generated to allow extracting onezone domain
+        Token = onepanel_test_utils:create_registration_token(<<"some.domain">>),
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON
+            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON(Token)
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
-            oneprovider_token := <<"someToken">>,
+            oneprovider_token := Token,
+            onezone_domain := <<"some.domain">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
@@ -1087,7 +1091,9 @@ init_per_testcase(_Case, Config) ->
         (oneprovider) -> true; (op_worker) -> true; (ceph) -> false
     end),
     test_utils:mock_expect(Nodes, service, get, fun
-        (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
+        (oneprovider) -> {ok, #service{
+            ctx = #{registered => true, onezone_domain => "oz.example.local"}
+        }};
         (op_worker) -> {ok, #service{hosts = Hosts, ctx = #{
             status => maps:from_list([{Host, healthy} || Host <- Hosts])
         }}}

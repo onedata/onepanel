@@ -47,7 +47,7 @@
 -record(service, {
     name :: module(),
     hosts = [] :: [service:host()],
-    ctx = #{} :: map()
+    ctx = #{} :: service:model_ctx()
 }).
 
 -record(onepanel_kv, {

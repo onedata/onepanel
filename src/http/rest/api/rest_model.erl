@@ -1675,9 +1675,9 @@ zone_configuration_details_onezone_model() ->
 zone_configuration_onezone_model() ->
     #{
         %% The domain of Onezone cluster.
-        domainName => {string, optional},
+        domainName => string,
         %% The Onezone cluster name.
-        name => {string, optional},
+        name => string,
         %% If enabled the zone will use Let's Encrypt service to obtain SSL
         %% certificates. Otherwise certificates must be manually provided. By
         %% enabling this option you agree to the Let's Encrypt Subscriber

@@ -147,7 +147,7 @@ insert_default_values(Ctx, Osds) when Osds >= 2 ->
 %% of deployed OSDs.
 %% @end
 %%--------------------------------------------------------------------
--spec validate_copies_number(service:ctx()) -> ok | no_return().
+-spec validate_copies_number(service:step_ctx()) -> ok | no_return().
 validate_copies_number(Ctx) ->
     maps:map(fun ceph_pool:validate_copies_number/2,
         maps:with(pool_params(), Ctx)),

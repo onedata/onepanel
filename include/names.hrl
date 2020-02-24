@@ -35,4 +35,7 @@
 % storage type used in Onepanel REST API to indicate storage supported by a local Ceph pool
 -define(LOCAL_CEPH_STORAGE_TYPE, <<"localceph">>).
 
+-define(DNS_CHECK_TIMESTAMP_KEY, dns_check_attempt_timestamp).
+-define(DNS_CHECK_CACHE_KEY, dns_check).
+
 -endif.

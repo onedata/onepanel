@@ -88,7 +88,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     SelfHost = hosts:self(),
@@ -117,7 +117,7 @@ get_steps(init_cluster, _Ctx) ->
         S#step{function = init_cluster}
     ];
 
-get_steps(join_cluster, #{cluster_host := ClusterHost} = Ctx) ->
+get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
@@ -194,9 +194,9 @@ get_steps(Function, _Ctx) when
 %% @doc Sets the node cookie.
 %% @end
 %%--------------------------------------------------------------------
--spec set_cookie(Ctx :: service:ctx()) -> ok | no_return().
-set_cookie(#{cookie := Cookie} = Ctx) ->
-    VmArgsFile = service_ctx:get(onepanel_vm_args_file, Ctx),
+-spec set_cookie(Ctx :: service:step_ctx()) -> ok | no_return().
+set_cookie(#{cookie := Cookie}) ->
+    VmArgsFile = onepanel_env:get(onepanel_vm_args_file),
     erlang:set_cookie(node(), Cookie),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile);
 
@@ -208,7 +208,7 @@ set_cookie(Ctx) ->
 %% @doc Stores onepanel configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(service:ctx()) -> ok.
+-spec configure(service:step_ctx()) -> ok.
 configure(#{gui_debug_mode := GuiDebugMode} = Ctx) ->
     onepanel_env:set(gui_debug_mode, GuiDebugMode, ?APP_NAME),
     onepanel_env:write([?APP_NAME, gui_debug_mode], GuiDebugMode),
@@ -223,7 +223,7 @@ configure(_Ctx) ->
 %% node.
 %% @end
 %%--------------------------------------------------------------------
--spec check_connection(Ctx :: service:ctx()) -> ok.
+-spec check_connection(Ctx :: service:step_ctx()) -> ok.
 check_connection(#{cluster_host := ClusterHost}) ->
     ClusterNode = nodes:service_to_node(name(), ClusterHost),
     pong = net_adm:ping(ClusterNode),
@@ -234,7 +234,7 @@ check_connection(#{cluster_host := ClusterHost}) ->
 %% @doc Initializes onepanel cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec init_cluster(Ctx :: service:ctx()) -> ok | no_return().
+-spec init_cluster(Ctx :: service:step_ctx()) -> ok | no_return().
 init_cluster(_Ctx) ->
     onepanel_db:init(),
     onepanel_db:create_tables().
@@ -251,7 +251,7 @@ init_cluster(_Ctx) ->
 %% the current one.
 %% @end
 %%--------------------------------------------------------------------
--spec extend_cluster(service:ctx()) -> #{hostname := binary()} | no_return().
+-spec extend_cluster(service:step_ctx()) -> #{hostname := binary()} | no_return().
 extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
     NewNode = case Ctx of
         #{hostname := Hostname} -> Hostname;
@@ -267,7 +267,7 @@ extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
     }),
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",
-    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+    Timeout = onepanel_env:get(extend_cluster_timeout),
     Opts = https_opts(Timeout),
     Url = build_url(Hostname, Suffix),
 
@@ -306,7 +306,7 @@ extend_cluster(#{address := Address, attempts := Attempts} = Ctx) ->
 %% @doc Adds this node to the remote onepanel cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec join_cluster(Ctx :: service:ctx()) -> ok.
+-spec join_cluster(Ctx :: service:step_ctx()) -> ok.
 join_cluster(#{cluster_host := ClusterHost}) ->
     Node = node(),
     ClusterNode = nodes:service_to_node(name(), ClusterHost),
@@ -319,7 +319,7 @@ join_cluster(#{cluster_host := ClusterHost}) ->
 %% Removes host from the database cluster.
 %% @end
 %%--------------------------------------------------------------------
--spec reset_node(Ctx :: service:ctx()) -> ok | no_return().
+-spec reset_node(Ctx :: service:step_ctx()) -> ok | no_return().
 reset_node(_Ctx) ->
     Node = node(),
     ClusterNodes = lists:delete(node(), get_nodes()),
@@ -334,7 +334,7 @@ reset_node(_Ctx) ->
 %% Ensures all cluster hosts are up.
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_all_hosts_available(service:ctx()) -> ok | no_return().
+-spec ensure_all_hosts_available(service:step_ctx()) -> ok | no_return().
 ensure_all_hosts_available(_Ctx) ->
     Hosts = get_hosts(),
     lists:foreach(fun(Host) ->
@@ -347,7 +347,7 @@ ensure_all_hosts_available(_Ctx) ->
 %% Fails if some children of the main supervisor are not running.
 %% @end
 %%--------------------------------------------------------------------
--spec ensure_node_ready(service:ctx()) -> true | no_return().
+-spec ensure_node_ready(service:step_ctx()) -> true | no_return().
 ensure_node_ready(_Ctx) ->
     Counts = supervisor:count_children(onepanel_sup),
     true = (proplists:get_value(specs, Counts) == proplists:get_value(active, Counts)).
@@ -358,7 +358,7 @@ ensure_node_ready(_Ctx) ->
 %% Ensures certificates changed on disk are updated in listeners.
 %% @end
 %%--------------------------------------------------------------------
--spec reload_webcert(service:ctx()) -> ok.
+-spec reload_webcert(service:step_ctx()) -> ok.
 reload_webcert(_Ctx) ->
     ssl:clear_pem_cache().
 
@@ -407,10 +407,10 @@ is_host_used(Host) ->
 %% a cluster, ie. contain no configured users.
 %% @end
 %%--------------------------------------------------------------------
--spec get_remote_node_info(service:ctx()) ->
+-spec get_remote_node_info(service:step_ctx()) ->
     {ok, Hostname :: binary(), Application :: atom()} | {error, _} | no_return().
-get_remote_node_info(#{address := Address} = Ctx) ->
-    Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
+get_remote_node_info(#{address := Address}) ->
+    Timeout = onepanel_env:get(extend_cluster_timeout),
     Opts = https_opts(Timeout),
     Suffix = <<"/node">>,
     Url = build_url(Address, Suffix),

@@ -117,6 +117,8 @@
 -define(SOME_IP_STR1, "127.0.0.1").
 -define(SOME_IP_STR2, "10.0.0.2").
 
+-define(TOKEN_ONEZONE_DOMAIN, <<"some.onezone.local">>).
+
 -define(DNS_CHECK_TIMESTAMP, 1500000000).
 -define(DNS_CHECK_JSON_OP, #{
     <<"timestamp">> => time_utils:epoch_to_iso8601(?DNS_CHECK_TIMESTAMP),
@@ -491,6 +493,7 @@ post_should_configure_onezone_service(Config) ->
 
 post_should_configure_oneprovider_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
+        Token = onepanel_test_utils:create_registration_token(?TOKEN_ONEZONE_DOMAIN),
         ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
             Host, <<Prefix/binary, "/configuration">>, post,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -500,7 +503,7 @@ post_should_configure_oneprovider_service(Config) ->
                     ?CLUSTER_JSON),
                 <<"oneprovider">> => #{
                     <<"register">> => true,
-                    <<"token">> => <<"someToken">>,
+                    <<"token">> => Token,
                     <<"name">> => <<"someName">>,
                     <<"subdomainDelegation">> => false,
                     <<"domain">> => <<"someDomain">>,
@@ -559,7 +562,8 @@ post_should_configure_oneprovider_service(Config) ->
                 oneprovider_name := <<"someName">>,
                 oneprovider_domain := <<"someDomain">>,
                 oneprovider_register := true,
-                oneprovider_token := <<"someToken">>
+                oneprovider_token := Token,
+                onezone_domain := ?TOKEN_ONEZONE_DOMAIN
             }
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
@@ -689,6 +693,7 @@ init_per_testcase(get_should_return_dns_check, Config) ->
         (oz_worker) -> OzHosts
     end),
     test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain, fun() -> hd(OzHosts) end),
     test_utils:mock_expect(OpNodes, dns_check, get, fun
         (op_worker, _) -> #{
             timestamp => ?DNS_CHECK_TIMESTAMP,
@@ -776,6 +781,8 @@ init_per_testcase(_Case, Config) ->
 
     test_utils:mock_new(Nodes, [service, service_oz_worker, service_oneprovider]),
     test_utils:mock_expect(Nodes, service_oneprovider, is_registered, fun() -> true end),
+    test_utils:mock_expect(Nodes, service_oneprovider, get_oz_domain,
+        fun() -> binary_to_list(OzDomain) end),
 
     GetDetails = fun() -> #{name => <<"zoneName">>, domain => OzDomain} end,
     test_utils:mock_expect(Nodes, service_oz_worker, get_details, GetDetails),
@@ -789,7 +796,10 @@ init_per_testcase(_Case, Config) ->
             hosts = ["host2", "host3"], ctx = #{main_host => "host3"}
         }};
         (op_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
-        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}}
+        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
+        (oneprovider) -> {ok, #service{
+            ctx = #{registered => true, onezone_domain => OzDomain}
+        }}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

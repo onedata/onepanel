@@ -39,45 +39,58 @@
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
 % @formatter:off
--type name() :: ?SERVICE_OZ | ?SERVICE_OP |
-    ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW |
-    ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL |
-    ?SERVICE_LE | ?SERVICE_CEPH |
-    ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
+-type name() :: ?SERVICE_OZ | ?SERVICE_OP
+    | ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW
+    | ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL
+    | ?SERVICE_LE | ?SERVICE_CEPH
+    | ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
 -type step() :: #step{} | #steps{}.
--type condition() :: boolean() | fun((ctx()) -> boolean()).
+-type condition() :: boolean() | fun((step_ctx()) -> boolean()).
 -type event() :: action_begin | action_steps_count | action_end |
                  step_begin | step_end.
+-type status() :: healthy | unhealthy | stopped | missing.
+
+
+%% record field used for arbitrary information about the service
+-type model_ctx() :: service_op_worker:model_ctx() | service_oz_worker:model_ctx()
+| service_oneprovider:model_ctx() | service_onezone:model_ctx()
+| service_cluster_manager:model_ctx() | service_letsencrypt:model_ctx()
+| service_couchbase:model_ctx() | service_ceph:model_ctx()
+| service_ceph_mon:model_ctx() | service_ceph_mgr:model_ctx()
+| service_ceph_osd:model_ctx().
+
 -type record() :: #service{}.
 
--type status() :: healthy | unhealthy | stopped | missing.
+
+%% A map stored in #step and #steps records and by default provided
+%% as argument of the invoked functions.
+%% This type spec lists common values used in the step ctx.
+%% Note the keys are optional (=>).
+-type step_ctx() :: #{
+    %% 'hosts' - list of hosts on which step should be performed, used when
+    %%           #step.hosts is not set explicitly
+    hosts => [service:host()],
+    %% 'rest' - filled by service_utils:get_step/1 when executing on 'first' host,
+    %%          contains remainder of the hosts list
+    rest => [service:host()],
+    %% 'first' - filled by service_utils:get_step/1 when executing on 'rest' hosts,
+    %%           contains the first host (excluded from step execution)
+    first => service:host(),
+    %% 'all' - filled by service_utils:get_step/1 when selecting
+    %%         'first' or 'rest' hosts, contains the original hosts list
+    all => [service:host()],
+
+    %% function-specific arguments
+    term() => term()
+}.
 % @formatter:on
 
 
-%% ctx/0 is used as:
-%% - data field in #service{} record, for storing persistent service information
-%% - argument for get_steps functions and, by default, each step function invoked
-%%
-%% Common keys used in the step ctx:
-%% 'hosts' - list of hosts on which step should be performed, used when
-%%           #step.hosts is not set explicitely
-%% 'rest' - filled by service_utils:get_step/1 when executing on 'first' host,
-%%          contains remainder of the hosts list
-%% 'first' - filled by service_utils:get_step/1 when executing on 'rest' hosts,
-%%           contains the first host (excluded from step execution)
-%% 'all' - filled by service_utils:get_step/1 when selecting
-%%         'first' or 'rest' hosts, contains the original hosts list
-%%
-%% 'task_delay' - when present in ctx passed to service:apply, causes delay
-%%                before the start of task execution
--type ctx() :: map().
-
-
--export_type([name/0, action/0, status/0, ctx/0, notify/0, host/0, step/0, condition/0,
-    event/0]).
+-export_type([name/0, action/0, status/0, model_ctx/0, step_ctx/0, notify/0, host/0,
+    step/0, condition/0, event/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -248,7 +261,7 @@ is_healthy(Service) ->
 %% @doc @equiv apply(Service, Action, Ctx, undefined)
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx) ->
     apply(Service, Action, Ctx, undefined).
@@ -258,12 +271,9 @@ apply(Service, Action, Ctx) ->
 %% @doc Executes the service action and notifies about the process.
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx(), Notify :: notify()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx, Notify) ->
-    TaskDelay = maps:get(task_delay, Ctx, 0),
-    ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
-    timer:sleep(TaskDelay),
     service_utils:notify(#action_begin{service = Service, action = Action}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
@@ -305,7 +315,7 @@ apply_async(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_async(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> TaskId :: service_executor:task_id().
+    Ctx :: service:step_ctx()) -> TaskId :: service_executor:task_id().
 apply_async(Service, Action, Ctx) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {apply, Service, Action, Ctx}).
 
@@ -325,7 +335,7 @@ apply_sync(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: service_executor:results() | {error, _}.
+    Ctx :: service:step_ctx()) -> Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx) ->
     apply_sync(Service, Action, Ctx, infinity).
 
@@ -336,7 +346,7 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), timeout()) ->
+    Ctx :: service:step_ctx(), timeout()) ->
     Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
@@ -440,7 +450,7 @@ add_host(Service, Host) ->
     end).
 
 
--spec register_healthcheck(Service :: name(), Ctx :: ctx()) -> ok.
+-spec register_healthcheck(Service :: name(), Ctx :: step_ctx()) -> ok.
 register_healthcheck(Service, Ctx) ->
     Period = onepanel_env:get(services_check_period),
     Module = service:get_module(Service),
@@ -473,9 +483,24 @@ register_healthcheck(Service, Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Returns the "ctx" field of a service model.
+%% Verbose typespec to make up for the lack of different models/records
+%% in the service model.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx(name()) -> ctx() | {error, _} | no_return().
+-spec get_ctx
+    (?SERVICE_OPW) -> service_op_worker:model_ctx() | {error, _};
+    (?SERVICE_OZW) -> service_oz_worker:model_ctx() | {error, _};
+    (?SERVICE_OP) -> service_oneprovider:model_ctx() | {error, _};
+    (?SERVICE_OZ) -> service_onezone:model_ctx() | {error, _};
+    (?SERVICE_CM) -> service_cluster_manager:model_ctx() | {error, _};
+    (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
+    (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
+    (?SERVICE_CEPH) -> service_ceph:model_ctx() | {error, _};
+    (?SERVICE_CEPH_MON) -> service_ceph_mon:model_ctx() | {error, _};
+    (?SERVICE_CEPH_MGR) -> service_ceph_mgr:model_ctx() | {error, _};
+    (?SERVICE_CEPH_OSD) -> service_ceph_osd:model_ctx() | {error, _};
+    % #service model is not created for service_onepanel module
+    (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND | {error, _}.
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;
@@ -488,7 +513,7 @@ get_ctx(Service) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
-    when Diff :: map() | fun((service:ctx()) -> service:ctx()).
+    when Diff :: map() | fun((service:model_ctx()) -> service:model_ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
         maps:merge(Ctx, Diff)

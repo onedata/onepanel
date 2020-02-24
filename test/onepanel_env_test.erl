@@ -70,8 +70,8 @@ onepanel_env_test_() ->
             {"read_should_pass_errors", fun read_should_pass_errors/0},
             {"write_should_append_value", fun write_should_prepend_value/0},
             {"write_should_replace_value", fun write_should_replace_value/0},
-            {"migrate_should_rename_key", fun migrate_should_rename_key/0},
-            {"migrate_should_ignore_missing", fun migrate_should_ignore_missing/0},
+            {"rename_should_rename_key", fun rename_should_rename_key/0},
+            {"rename_should_ignore_missing", fun rename_should_ignore_missing/0},
             {"write_should_pass_errors", fun write_should_pass_errors/0},
             {"read_effective_does_not_read_whole_config", fun read_effective_does_not_read_whole_config/0},
             {"read_effective_follows_priority", fun read_effective_follows_priority/0}
@@ -114,18 +114,18 @@ read_should_pass_errors() ->
 
 
 write_should_prepend_value() ->
-    ?assertEqual(ok, onepanel_env:write([a3], [{k9, v9}], "p1")),
+    ?assertEqual(ok, onepanel_env:write([a3], [{k9, v9}], service1)),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a3, [{k9, v9}]},
         {a1, ?APP_CONFIG_1},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
-    ?assertEqual(ok, onepanel_env:write([a1, k9], v9, "p1")),
+    ?assertEqual(ok, onepanel_env:write([a1, k9], v9, service1)),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, [{k9, v9}, {k1, v1}, {k2, v2}, {k3, v3}, {k4, v4}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
-    ?assertEqual(ok, onepanel_env:write([a2, k5, k9], v9, "p1")),
+    ?assertEqual(ok, onepanel_env:write([a2, k5, k9], v9, service1)),
     Msg = pop_msg(),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
@@ -137,17 +137,17 @@ write_should_prepend_value() ->
 
 
 write_should_replace_value() ->
-    ?assertEqual(ok, onepanel_env:write([a1], [{k9, v9}], "p1")),
+    ?assertEqual(ok, onepanel_env:write([a1], [{k9, v9}], service1)),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, [{k9, v9}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
-    ?assertEqual(ok, onepanel_env:write([a1, k1], v9, "p1")),
+    ?assertEqual(ok, onepanel_env:write([a1, k1], v9, service1)),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, [{k1, v9}, {k2, v2}, {k3, v3}, {k4, v4}]},
         {a2, ?APP_CONFIG_2}
     ])}, pop_msg()),
-    ?assertEqual(ok, onepanel_env:write([a2, k5], v9, "p1")),
+    ?assertEqual(ok, onepanel_env:write([a2, k5], v9, service1)),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
         {a2, [
@@ -155,7 +155,7 @@ write_should_replace_value() ->
             {k5, v9}
         ]}
     ])}, pop_msg()),
-    ?assertEqual(ok, onepanel_env:write([a2, k5, k7], v9, "p1")),
+    ?assertEqual(ok, onepanel_env:write([a2, k5, k7], v9, service1)),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
         {a2, [
@@ -166,7 +166,7 @@ write_should_replace_value() ->
             ]}
         ]}
     ])}, pop_msg()),
-    ?assertEqual(ok, onepanel_env:write([a2, k5, k7, k8], v9, "p1")),
+    ?assertEqual(ok, onepanel_env:write([a2, k5, k7, k8], v9, service1)),
     Msg = pop_msg(),
     ?assertEqual({ok, ?FILE_CONTENT([
         {a1, ?APP_CONFIG_1},
@@ -183,11 +183,11 @@ write_should_replace_value() ->
 
 
 write_should_pass_errors() ->
-    ?assertThrow(?ERROR_FILE_ACCESS("/nonexistent/p2", enoent),
-        onepanel_env:write([a1, k1], v9, "/nonexistent/p2")).
+    ?assertThrow(?ERROR_FILE_ACCESS("/nonexistent/p3", enoent),
+        onepanel_env:write([a1, k1], v9, service3)).
 
 
-migrate_should_rename_key() ->
+rename_should_rename_key() ->
     ?assertEqual(true, onepanel_env:rename(service1, [a1, k2], [a1, k9])),
     Expected = {ok, ?FILE_CONTENT([
         {a1, [{k9, v2}, {k1, v1}, {k3, v3}, {k4, v4}]},
@@ -197,7 +197,7 @@ migrate_should_rename_key() ->
     ?assertEqual(Expected, Result).
 
 
-migrate_should_ignore_missing() ->
+rename_should_ignore_missing() ->
     ?assertEqual(false, onepanel_env:rename(service1, [a1, missing], [a1, k9])),
     % no write happens when there is no change
     Msg = pop_msg(),
@@ -264,6 +264,7 @@ start() ->
         (service1_overlay_config_file) -> "overlay.config";
         (service1_custom_config_dir) -> "config.d";
         (service2_generated_config_file) -> "p1";
+        (service3_generated_config_file) -> "/nonexistent/p3";
         (Variable) -> meck:passthrough([Variable])
     end),
 

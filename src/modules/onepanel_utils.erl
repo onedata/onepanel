@@ -46,13 +46,13 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),
-    Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
+    Password :: string() | binary()) -> http_client:headers().
 get_basic_auth_header(Username, Password) ->
     Hash = base64:encode(<<
         (onepanel_utils:convert(Username, binary))/binary, ":",
         (onepanel_utils:convert(Password, binary))/binary>>
     ),
-    {?HDR_AUTHORIZATION, <<"Basic ", Hash/binary>>}.
+    #{?HDR_AUTHORIZATION => <<"Basic ", Hash/binary>>}.
 
 
 %%--------------------------------------------------------------------
@@ -153,7 +153,16 @@ trim(Text, both) ->
 %% @doc Converts value to a provided type.
 %% @end
 %%--------------------------------------------------------------------
--spec convert(Value :: term(), Type :: type()) -> Value :: term().
+-spec convert
+    ([Old :: term()], {seq, type()}) -> [Converted :: term()];
+    (#{Old :: term() => V}, {keys, type()}) -> #{Converted :: term() => V};
+    (#{K => Old :: term()}, {values, type()}) -> #{K => Converted :: term()};
+    (Old :: term(), atom) -> Converted :: atom();
+    (Old :: term(), boolean) -> Converted :: boolean();
+    (Old :: term(), float) -> Converted :: float();
+    (Old :: term(), integer) -> Converted :: integer();
+    (Old :: term(), list) -> Converted :: string();
+    (Old :: term(), binary) -> Converted :: binary().
 convert(Values, {seq, Type}) ->
     lists:map(fun(Value) -> convert(Value, Type) end, Values);
 
