@@ -145,7 +145,7 @@ create(#onp_req{gri = #gri{aspect = instance}, data = Data}) ->
 
 create(#onp_req{gri = #gri{aspect = join_cluster}, data = Data}) ->
     InviteToken = onepanel_utils:get_converted(inviteToken, Data, binary),
-    ClusterHost = binary_to_list(invite_tokens:get_hostname(InviteToken)),
+    ClusterHost = invite_tokens:get_cluster_host(InviteToken),
     Ctx = #{invite_token => InviteToken, cluster_host => ClusterHost},
     middleware_utils:execute_service_action(?SERVICE_PANEL, join_cluster, Ctx).
 

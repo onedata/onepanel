@@ -95,18 +95,24 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
     ClusterHosts = get_hosts(),
     NewHosts = lists_utils:subtract(Hosts, ClusterHosts),
     Attempts = application:get_env(?APP_NAME, extend_cluster_attempts, 20),
+    {ok, InviteToken} = invite_tokens:create(),
     [#step{
         function = extend_cluster, hosts = [SelfHost],
-        ctx = Ctx#{hostname => NewHost, attempts => Attempts}
+        ctx = Ctx#{
+            hostname => NewHost,
+            attempts => Attempts,
+            invite_token => InviteToken
+        }
     } || NewHost <- NewHosts];
 
 get_steps(extend_cluster, Ctx) ->
+    {ok, InviteToken} = invite_tokens:create(),
     [
         #step{function = extend_cluster, hosts = [hosts:self()],
             % when the reason of extend_cluster is an explicit request
             % (as opposed to "batch config" action 'deploy'), do not retry
             % - the requesting client should ensure the node is already online.
-            ctx = Ctx#{attempts => 1}}
+            ctx = Ctx#{attempts => 1, invite_token => InviteToken}}
     ];
 
 get_steps(init_cluster, _Ctx) ->
@@ -209,13 +215,12 @@ set_cookie(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec fetch_and_set_cookie(Ctx :: service:ctx()) -> ok | no_return().
-fetch_and_set_cookie(#{invite_token := InviteToken} = Ctx) ->
-    Hostname = invite_tokens:get_hostname(InviteToken),
+fetch_and_set_cookie(#{invite_token := InviteToken, cluster_host := ClusterHost} = Ctx) ->
     Headers = #{?HDR_X_AUTH_TOKEN => InviteToken},
     Suffix = "/cookie",
     Timeout = service_ctx:get(extend_cluster_timeout, Ctx, integer),
     Opts = https_opts(Timeout),
-    Url = build_url(Hostname, Suffix),
+    Url = build_url(ClusterHost, Suffix),
 
     case http_client:get(Url, Headers, <<>>, Opts) of
         {ok, ?HTTP_200_OK, _, Response} ->
@@ -227,9 +232,9 @@ fetch_and_set_cookie(#{invite_token := InviteToken} = Ctx) ->
             throw(?ERROR_FORBIDDEN);
         {error, _} = Error ->
             ?warning("Failed to connect with '~ts' to fetch cookie due to: ~p", [
-                Hostname, Error
+                ClusterHost, Error
             ]),
-            throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(Hostname))
+            throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(ClusterHost))
     end.
 
 
@@ -288,8 +293,7 @@ extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
     end,
     throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(NewNode));
 
-extend_cluster(#{hostname := Hostname, attempts := Attempts} = Ctx) ->
-    {ok, InviteToken} = invite_tokens:create(),
+extend_cluster(#{hostname := Hostname, attempts := Attempts, invite_token := InviteToken} = Ctx) ->
     Body = json_utils:encode(#{inviteToken => InviteToken}),
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Suffix = "/join_cluster",

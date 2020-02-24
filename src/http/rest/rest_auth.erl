@@ -134,7 +134,7 @@ authenticate_by_onepanel_auth_token(Req) ->
                 error ->
                     {?ERROR_TOKEN_INVALID, Req}
             end;
-        <<?ONEPANEL_INVITE_TOKEN_PREFIX, _/binary>> = InviteToken->
+        <<?ONEPANEL_INVITE_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = InviteToken ->
             case authorization_nonce:verify(invite_tokens:get_nonce(InviteToken)) of
                 true ->
                     {peer_client(), Req};

@@ -15,9 +15,7 @@
 
 -define(ONEPANEL_TOKEN_SEPARATOR, ":").
 -define(ONEPANEL_USER_AUTH_TOKEN_PREFIX, "onepanel").
--define(ONEPANEL_INVITE_TOKEN_PREFIX, "onepanelInvite").
-
--define(AUTHORIZATION_NONCE_LEN, 44).   % 4*ceil(onepanel_utils:?UUID_LEN/3)
+-define(ONEPANEL_INVITE_TOKEN_PREFIX, "onpInvToken").
 
 %% Usernames which can be used with the emergency passphrase for convenience
 %% when using clients which always expect basic auth to have two parts.

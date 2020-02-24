@@ -145,7 +145,6 @@ validate(#onp_req{
 validate(#onp_req{
     operation = create, gri = #gri{aspect = invite_token}
 }, _) ->
-    % validation is part of the passphrase-changing function
     ok;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = web_cert}}, _) ->

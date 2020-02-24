@@ -6,7 +6,8 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% Utilities for managing invite tokens.
+%%% Utilities for managing invite tokens, that is tokens used to join
+%%% existing cluster.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(invite_tokens).
@@ -19,7 +20,7 @@
 -export_type([invite_token/0]).
 
 %% API
--export([create/0, get_nonce/1, get_hostname/1]).
+-export([create/0, get_nonce/1, get_cluster_host/1]).
 
 
 %%%===================================================================
@@ -31,11 +32,10 @@
 create() ->
     case authorization_nonce:create() of
         {ok, Nonce} ->
-            SelfHost = hosts:self(),
-            Token = onepanel_utils:join(
-                [?ONEPANEL_INVITE_TOKEN_PREFIX, Nonce, SelfHost],
-                <<?ONEPANEL_TOKEN_SEPARATOR>>
-            ),
+            Token = encode_invite_token(#{
+                <<"nonce">> => Nonce,
+                <<"clusterHost">> => list_to_binary(hosts:self())
+            }),
             {ok, Token};
         {error, _} = Error ->
             Error
@@ -44,13 +44,32 @@ create() ->
 
 -spec get_nonce(invite_token()) -> authorization_nonce:nonce().
 get_nonce(InviteToken) ->
-    [<<?ONEPANEL_INVITE_TOKEN_PREFIX>>, Nonce, _Hostname] =
-        string:split(InviteToken, ?ONEPANEL_TOKEN_SEPARATOR, all),
-    Nonce.
+    maps:get(<<"nonce">>, decode_invite_token(InviteToken)).
 
 
--spec get_hostname(invite_token()) -> binary().
-get_hostname(InviteToken) ->
-    [<<?ONEPANEL_INVITE_TOKEN_PREFIX>>, _Nonce, Hostname] =
-        string:split(InviteToken, ?ONEPANEL_TOKEN_SEPARATOR, all),
-    Hostname.
+-spec get_cluster_host(invite_token()) -> service:host().
+get_cluster_host(InviteToken) ->
+    binary_to_list(maps:get(<<"clusterHost">>, decode_invite_token(InviteToken))).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
+%% @private
+-spec encode_invite_token(map()) -> invite_token().
+encode_invite_token(Desc) ->
+    onepanel_utils:join(
+        [?ONEPANEL_INVITE_TOKEN_PREFIX, base64:encode(json_utils:encode(Desc))],
+        <<?ONEPANEL_TOKEN_SEPARATOR>>
+    ).
+
+
+%% @private
+-spec decode_invite_token(invite_token()) -> map().
+decode_invite_token(InviteToken) ->
+    [<<?ONEPANEL_INVITE_TOKEN_PREFIX>>, Desc] = string:split(
+        InviteToken, ?ONEPANEL_TOKEN_SEPARATOR, all
+    ),
+    json_utils:decode(base64:decode(Desc)).
