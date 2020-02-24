@@ -12,17 +12,27 @@
 %%%
 %%% Cluster extension flow is as follows
 %%% (assuming oldNode is already configured and newNode is to be added):
-%%% 1. admin --> oldNode: POST /hosts {"address": "newNode"}
-%%% 2. oldNode --> newNode: GET /node # determine full erlang hostname
-%%%    newNode --> oldNode: 200 OK {"hostname": "newNode.tld", "clusterType": onezone"}
-%%% 3. oldNode --> newNode: POST /join_cluster {"cookie": "secret", "clusterHost": "oldNode.tld"}
+%%% 1a. admin --> oldNode: POST /hosts {"address": "newNode"}
+%%% 2a. oldNode --> newNode: GET /node # determine full erlang hostname
+%%%     newNode --> oldNode: 200 OK {"hostname": "newNode.tld", "clusterType": onezone"}
+%%% 3a. oldNode --> newNode: POST /join_cluster {"inviteToken": "TOKEN"}
+%%% 4a. newNode --> oldNode: GET /cookie
+%%%     oldNode --> newNode: 200 OK COOKIE_BINARY
+%%%
+%%% Alternatively cluster member can create invite token, which can be used by
+%%% other nodes to join cluster. In such a case, the flow is as follows:
+%%% 1b. admin --> oldNode: GET /invite_token
+%%%     oldNode --> admin: 200 OK {"inviteToken": "TOKEN"}
+%%% 2b. admin --> newNode: POST /join_cluster {"inviteToken": "TOKEN"}
+%%% 3b. newNode --> oldNode: GET /cookie
+%%%     oldNode --> newNode: 200 OK COOKIE_BINARY
 %%%
 %%% Only a node without emergency passphrase set and services deployed
 %%% can join another cluster (see {@link available_for_clustering/0}),
-%%% otherwise request (3) will be rejected with code 401.
-%%% Request (3) triggers service_onepanel:join_cluster action at newNode.
-%%% newNode changes its cookie to the received one and discards its mnesia
-%%% tables in favor of synchronizing from oldNode.
+%%% otherwise request (3a or 2b) will be rejected with code 401.
+%%% Request (3a or 2b) triggers service_onepanel:join_cluster action at newNode.
+%%% newNode changes its cookie to the one fetched from oldNode and discards its
+%%% mnesia tables in favor of synchronizing from oldNode.
 %%%
 %%% In case of batch config (service_onepanel:deploy) the flow is similar,
 %%% but the configuration request contains full erlang hostnames
