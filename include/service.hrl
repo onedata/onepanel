@@ -35,4 +35,38 @@
     verify_hosts :: boolean() | undefined
 }).
 
+
+%%%===================================================================
+%%% Records for tracking action execution
+%%%===================================================================
+
+-record(action_steps_count, {
+    service :: service:name(),
+    action :: service:action(),
+    count :: non_neg_integer()
+}).
+
+-record(action_begin, {
+    service :: service:name(),
+    action :: service:action()
+}).
+
+-record(action_end, {
+    service :: service:name(),
+    action :: service:action(),
+    result :: ok | {error, term()}
+}).
+
+-record(step_begin, {
+    module :: module(),
+    function :: atom()
+}).
+
+-record(step_end, {
+    module :: module(),
+    function :: atom(),
+    good_bad_results :: service_executor:hosts_results()
+}).
+
+
 -endif.

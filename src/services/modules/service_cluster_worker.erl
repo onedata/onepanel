@@ -77,7 +77,9 @@ get_steps(deploy, #{hosts := Hosts, name := Name} = Ctx) ->
             condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},
         #step{hosts = AllHosts, function = configure},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
-        #step{hosts = [hd(AllHosts)], function = wait_for_init}
+        #step{hosts = [hd(AllHosts)], function = wait_for_init},
+        % refresh status cache
+        #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
 
 get_steps(resume, #{name := Name}) ->
@@ -85,7 +87,9 @@ get_steps(resume, #{name := Name}) ->
         #step{function = migrate_generated_config,
             condition = fun(_) -> onepanel_env:legacy_config_exists(Name) end},
         #steps{action = start},
-        #step{function = wait_for_init, selection = first}
+        #step{function = wait_for_init, selection = first},
+        % refresh status cache
+        #steps{action = status}
     ];
 
 get_steps(start, _Ctx) ->

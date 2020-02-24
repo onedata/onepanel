@@ -220,10 +220,10 @@ update_status(Service, Host, Status) ->
 %%--------------------------------------------------------------------
 -spec all_healthy() -> boolean().
 all_healthy() ->
-    lists:all(fun(#service{ctx = Ctx}) ->
+    lists:all(fun(#service{hosts = Hosts, ctx = Ctx}) ->
         lists:all(fun(Status) ->
             healthy == Status
-        end, maps:values(maps:get(status, Ctx, #{})))
+        end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))))
     end, service:list()).
 
 
@@ -236,10 +236,10 @@ all_healthy() ->
 -spec is_healthy(name()) -> boolean().
 is_healthy(Service) ->
     case ?MODULE:get(Service) of
-        {ok, #service{ctx = Ctx}} ->
-            lists:all(fun({_Host, Status}) ->
+        {ok, #service{hosts = Hosts, ctx = Ctx}} ->
+            lists:all(fun(Status) ->
                 healthy == Status
-            end, maps:to_list(maps:get(status, Ctx, #{})));
+            end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))));
         _Error -> false
     end.
 
@@ -264,12 +264,13 @@ apply(Service, Action, Ctx, Notify) ->
     TaskDelay = maps:get(task_delay, Ctx, 0),
     ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
     timer:sleep(TaskDelay),
-    service_utils:notify({action_begin, {Service, Action}}, Notify),
+    service_utils:notify(#action_begin{service = Service, action = Action}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
 
-        service_utils:notify({action_steps_count,
-            {Service, Action, length(Steps)}}, Notify),
+        service_utils:notify(#action_steps_count{
+            service = Service, action = Action, count = length(Steps)
+        }, Notify),
 
         ?debug("Execution of ~tp:~tp requires following steps:~n~ts",
             [Service, Action, service_utils:format_steps(Steps, "")]),
@@ -283,7 +284,9 @@ apply(Service, Action, Ctx, Notify) ->
     end,
     % If one of the steps failed, the action Result is {error, {Module, Function, Status}.
     % Result might of different format if steps resolution itself failed.
-    service_utils:notify({action_end, {Service, Action, Result}}, Notify),
+    service_utils:notify(#action_end{
+        service = Service, action = Action, result = Result
+    }, Notify),
     Result.
 
 
@@ -521,12 +524,14 @@ apply_steps([#step{hosts = Hosts, module = Module, function = Function,
     args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
 
     Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
-    service_utils:notify({step_begin, {Module, Function}}, Notify),
+    service_utils:notify(#step_begin{module = Module, function = Function}, Notify),
 
     Results = onepanel_rpc:call(Nodes, Module, Function, Args),
     Status = service_utils:partition_results(Results),
 
-    service_utils:notify({step_end, {Module, Function, Status}}, Notify),
+    service_utils:notify(#step_end{
+        module = Module, function = Function, good_bad_results = Status
+    }, Notify),
 
     case {Status, Attempts} of
         {{_, []}, _} -> apply_steps(Steps, Notify);

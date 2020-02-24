@@ -12,6 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("service.hrl").
 -include("authentication.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
@@ -319,7 +320,7 @@ init_per_testcase(delete_as_admin_should_remove_node_from_cluster, Config) ->
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {module, function, ok}}]
+        [#action_end{service = module, action = function, result = ok}]
     end),
     init_per_testcase(default, Config);
 
@@ -356,7 +357,7 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
         fun() -> true end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {module, function, ok}}]
+        [#action_end{service = module, action = function, result = ok}]
     end),
     init_per_testcase(default, Config);
 

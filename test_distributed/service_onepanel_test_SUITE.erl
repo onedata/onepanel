@@ -18,6 +18,7 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -163,7 +164,7 @@ extend_should_work_in_deployed_cluster(Config) ->
     Cluster1 = ?config(cluster1, Config),
     Cluster1Hosts = hosts:from_nodes(Cluster1),
     [Node1 | _] = Nodes = ?config(onepanel_nodes, Config),
-    [_Host1, _Host2, Host3 | _] = Hosts = hosts:from_nodes(Nodes),
+    [_Host1, _Host2, Host3 | _] = hosts:from_nodes(Nodes),
 
     onepanel_test_utils:service_action(Node1, ?SERVICE_PANEL, extend_cluster,
         #{address => Host3}),
@@ -238,7 +239,8 @@ extend_should_return_hostname_of_new_node(Config) ->
         [?SERVICE_PANEL, extend_cluster, #{address => Host2Address}]
     )),
     ?assertMatch([{[{_Node, #{hostname := Host2Binary}}], []}],
-        [FunctionResults || {service_onepanel, extend_cluster, FunctionResults} <- Results]),
+        [FunctionResults || #step_end{module = service_onepanel, function = extend_cluster,
+            good_bad_results = FunctionResults} <- Results]),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
     ?assertEqual(Hosts, lists:sort(rpc:call(Node2, service_onepanel, get_hosts, []))).
@@ -336,7 +338,6 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 init_per_testcase(extend_should_work_in_deployed_cluster, Config) ->
     Config2 = init_per_testcase(default, Config),
 
-    Nodes = ?config(onepanel_nodes, Config2),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config2),
     Cluster1 = [Node1, Node2],
     Cluster1Hosts = hosts:from_nodes(Cluster1),
@@ -368,9 +369,9 @@ init_per_testcase(Case, Config) when
 ->
     NewConfig = init_per_testcase(default, Config),
     [Node1 | _] = Nodes = ?config(onepanel_nodes, NewConfig),
-    [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
+    [Host1 | _] = hosts:from_nodes(Nodes),
 
-    [Node1, Node2 | _] = ?config(onepanel_nodes, NewConfig),
+    [Node1 | _] = ?config(onepanel_nodes, NewConfig),
     ?assertEqual(ok, test_utils:mock_new(Nodes,
         [service_op_worker, letsencrypt_api], [passthrough])),
     test_utils:mock_expect(Nodes, service_op_worker, supports_letsencrypt_challenge,

@@ -19,6 +19,7 @@
 -include("names.hrl").
 -include("onepanel_test_rest.hrl").
 -include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -655,7 +656,7 @@ init_per_testcase(Case, Config) when
     end,
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

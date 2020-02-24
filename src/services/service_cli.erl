@@ -67,7 +67,7 @@ restart(Service) ->
 %%--------------------------------------------------------------------
 %% @doc Checks service status using given command.
 %% Services started with custom binary paths require the 'ping'
-%% command, otherwise status can be used.
+%% command, otherwise 'status' can be used.
 %% @end
 %%--------------------------------------------------------------------
 -spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
