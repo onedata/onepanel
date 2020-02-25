@@ -257,9 +257,20 @@ post_as_admin_should_return_invite_token(Config) ->
         Nonce = rpc:call(Node, invite_tokens, get_nonce, [InviteToken]),
         ?assert(rpc:call(Node, authorization_nonce, verify, [Nonce])),
         InviteToken
-    end, ?OZ_OR_ROOT_AUTHS(Config, [])),
+    end, ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])),
 
-    ?assertEqual(lists:sort(InviteTokens), lists:usort(InviteTokens)).
+    % Assert that every POST creates new unique token
+    ?assertEqual(lists:sort(InviteTokens), lists:usort(InviteTokens)),
+
+    lists:foreach(fun(Auth) ->
+        ExpErrorDescription = json_utils:encode(#{
+            <<"error">> => errors:to_json(?ERROR_FORBIDDEN)
+        }),
+        ?assertMatch(
+            {ok, ?HTTP_403_FORBIDDEN, _, ExpErrorDescription},
+            onepanel_test_rest:auth_request(Config, <<"/invite_tokens">>, post, Auth)
+        )
+    end, ?OZ_AUTHS(Config, [])).
 
 
 post_as_admin_should_extend_cluster_and_return_hostname(Config) ->

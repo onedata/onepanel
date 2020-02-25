@@ -89,9 +89,9 @@ authorize(#onp_req{operation = create,
     not emergency_passphrase:is_set();
 
 authorize(#onp_req{operation = create,
-    client = #client{role = member}, gri = #gri{aspect = invite_token}
+    client = Client, gri = #gri{aspect = invite_token}
 }, _) ->
-    true;
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
 
 authorize(#onp_req{operation = get,
     client = #client{role = guest}, gri = #gri{aspect = Aspect}
