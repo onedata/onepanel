@@ -766,6 +766,27 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     NewConfig;
 
 init_per_testcase(Case, Config) when
+    Case == post_should_configure_cluster_manager_service;
+    Case == post_should_configure_database_service;
+    Case == post_should_configure_cluster_worker_service
+->
+    % non-default init because the service must not already have hosts on which it is deployed
+    Nodes = ?config(all_nodes, Config),
+    Self = self(),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [#action_end{service = service, action = action, result = ok}]
+    end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<"someTaskId">>
+    end),
+
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
+    Config;
+
+init_per_testcase(Case, Config) when
     Case == post_should_return_conflict_on_configured_onezone;
     Case == post_should_return_conflict_on_configured_oneprovider ->
     Nodes = ?config(all_nodes, Config),
