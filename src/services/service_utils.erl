@@ -110,12 +110,20 @@ results_contain_error({error, _} = Error) ->
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
-        [#action_end{result = {error, _} = Error}] ->
-            {true, cast_to_serializable_error(Error)};
-
-        [#action_end{result = {error, _}}, FailedStep | _Steps] ->
-            #step_end{good_bad_results = {_, BadResults}} = FailedStep,
+        [
+            #action_end{result = {error, _} = Error},
+            #step_end{good_bad_results = {_, [_ | _] = BadResults}}
+            | _Steps
+        ] ->
             {true, bad_results_to_error(BadResults)};
+
+        [
+            #action_end{result = {error, _} = Error}
+            | _Steps
+        ] ->
+            % an action error may be without any erroneous #step_end,
+            % for example if verify_hosts failed.
+            {true, cast_to_serializable_error(Error)};
 
         _ ->
             false
