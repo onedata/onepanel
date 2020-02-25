@@ -69,7 +69,7 @@ deploy_should_create_cluster(Config) ->
     Hosts = hosts:from_nodes(Nodes),
 
     onepanel_test_utils:service_action(Node,
-        ?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => Hosts}
+        ?SERVICE_PANEL, deploy, #{hosts => Hosts}
     ),
     ?assertEqual(Hosts,
         lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
@@ -80,13 +80,12 @@ join_should_add_node(Config) ->
     Nodes = [Node1, Node2],
     [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
     {ok, InviteToken} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{
+        ?SERVICE_PANEL, join_cluster, #{
             invite_token => InviteToken,
             cluster_host => Host1
         }
@@ -121,21 +120,20 @@ join_should_work_after_leave(Config) ->
     Nodes = [Node1, Node2],
     [Host1 | _] = hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
 
     {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken1, cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host1}
     ),
     onepanel_test_utils:service_action(Node2,
         ?SERVICE_PANEL, leave_cluster, #{}
     ),
     {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken2, cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken2, cluster_host => Host1}
     ).
 
 
@@ -145,24 +143,26 @@ sequential_join_should_create_cluster(Config) ->
     [Host1, Host2, Host3, Host4 | _] = Hosts =
         hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}),
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
+    ),
+
     {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
-    onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken1, cluster_host => Host1}
-    ),
     {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
+    ?assertNotEqual(InviteToken1, InviteToken2),
+
+    % Assert that invite tokens can be used multiple times
+    onepanel_test_utils:service_action(Node2,
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host1}
+    ),
     onepanel_test_utils:service_action(Node3,
-        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken2, cluster_host => Host2}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host2}
     ),
-    {ok, InviteToken3} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node4,
-        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken3, cluster_host => Host3}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken2, cluster_host => Host3}
     ),
-    {ok, InviteToken4} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node5,
-        ?SERVICE_PANEL, join_cluster, Ctx#{invite_token => InviteToken4, cluster_host => Host4}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     ),
 
     lists:foreach(fun(Node) ->
@@ -176,7 +176,7 @@ extend_should_work_in_deployed_cluster(Config) ->
     Cluster1 = ?config(cluster1, Config),
     Cluster1Hosts = hosts:from_nodes(Cluster1),
     [Node1 | _] = Nodes = ?config(onepanel_nodes, Config),
-    [_Host1, _Host2, Host3 | _] = Hosts = hosts:from_nodes(Nodes),
+    [_Host1, _Host2, Host3 | _] = hosts:from_nodes(Nodes),
 
     onepanel_test_utils:service_action(Node1, ?SERVICE_PANEL, extend_cluster,
         #{address => Host3}),
@@ -192,7 +192,7 @@ leave_should_remove_node(Config) ->
     Hosts = [Host2, Host3],
 
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => [Host1 | Hosts]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1 | Hosts]}
     ),
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, leave_cluster, #{}
@@ -208,12 +208,11 @@ extend_should_add_node_by_hostname(Config) ->
     Nodes = [Node1, Node2],
     [Host1, Host2] = Hosts = hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, extend_cluster, Ctx#{hostname => Host2}
+        ?SERVICE_PANEL, extend_cluster, #{hostname => Host2}
     ),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -226,12 +225,11 @@ extend_should_add_node_by_ip(Config) ->
     [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
     Host2Address = test_utils:get_docker_ip(Node2),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, extend_cluster, Ctx#{address => Host2Address}
+        ?SERVICE_PANEL, extend_cluster, #{address => Host2Address}
     ),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -349,7 +347,6 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 init_per_testcase(extend_should_work_in_deployed_cluster, Config) ->
     Config2 = init_per_testcase(default, Config),
 
-    Nodes = ?config(onepanel_nodes, Config2),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config2),
     Cluster1 = [Node1, Node2],
     Cluster1Hosts = hosts:from_nodes(Cluster1),
@@ -381,9 +378,9 @@ init_per_testcase(Case, Config) when
 ->
     NewConfig = init_per_testcase(default, Config),
     [Node1 | _] = Nodes = ?config(onepanel_nodes, NewConfig),
-    [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
+    [Host1 | _] = hosts:from_nodes(Nodes),
 
-    [Node1, Node2 | _] = ?config(onepanel_nodes, NewConfig),
+    [Node1, _Node2 | _] = ?config(onepanel_nodes, NewConfig),
     ?assertEqual(ok, test_utils:mock_new(Nodes,
         [service_op_worker, letsencrypt_api], [passthrough])),
     test_utils:mock_expect(Nodes, service_op_worker, supports_letsencrypt_challenge,
