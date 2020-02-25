@@ -289,7 +289,7 @@ configure_additional_node(#{reference_host := _} = Ctx) ->
         true -> #{app_config => #{oz_domain => service_oneprovider:get_oz_domain()}};
         false -> #{}
     end,
-    NewCtx = onepanel_maps:merge([
+    NewCtx = maps_utils:merge([
         #{
             main_cm_host => MainCmHost, cm_hosts => CmHosts,
             db_hosts => DbHosts
