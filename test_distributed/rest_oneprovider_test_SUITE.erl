@@ -1058,14 +1058,8 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
 init_per_testcase(get_should_return_transfers_mock, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        #step_end{module = service_op_worker, function = get_transfers_mock,
-            good_bad_results = {
-            [{'node@host1', ?TRANSFERS_MOCK_CONFIG}], []
-        }},
-        #action_end{service = service, action = action, result = ok}
-    ]
-    end),
+    test_utils:mock_expect(Nodes, service_op_worker, is_transfers_mock_enabled,
+        fun() -> true end),
     NewConfig;
 
 init_per_testcase(Case, Config) when
