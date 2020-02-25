@@ -202,13 +202,29 @@ method_should_return_unauthorized_error(Config) ->
 
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            Auths = ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE]),
+        lists:foreach(fun({Endpoint, Method} = EM) ->
+            Auths = ?PEER_AUTHS(Host) ++ case EM of
+                {_, get} ->
+                    [];
+                _ ->
+                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+            end,
             ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, Endpoint/binary>>, Method, ?OZ_AUTHS(Host, Auths)
+                Host, <<Prefix/binary, Endpoint/binary>>, Method, Auths
             ))
-        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
-    end).
+        end, ?COMMON_ENDPOINTS_WITH_METHODS)
+    end),
+
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, ?PEER_AUTHS(Host)
+        ))
+    end, [
+        {<<"/configuration">>, get},
+        {<<"/dns_check">>, get},
+        {<<"/dns_check/configuration">>, get},
+        {<<"/dns_check/configuration">>, patch}
+    ]).
 
 
 method_should_return_not_found_error(Config) ->

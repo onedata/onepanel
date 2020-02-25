@@ -48,6 +48,10 @@ fetch_zone_info(Domain) ->
                 <<"domain">> => Domain,
                 <<"compatible">> => is_compatible(OzVersion, CompatOps)
             };
+        {ok, _, _, _} ->
+            #{
+                <<"online">> => false
+            };
         {error, _Reason} ->
             #{
                 <<"online">> => false,

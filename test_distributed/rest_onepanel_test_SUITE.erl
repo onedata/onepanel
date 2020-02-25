@@ -42,7 +42,7 @@
     put_should_update_emergency_passphrase/1,
     passphrase_update_requires_previous_passphrase/1,
     get_as_admin_should_return_hosts/1,
-    get_as_admin_should_return_cookie/1,
+    get_as_admin_or_peer_should_return_cookie/1,
     get_should_return_node_details/1,
     post_as_admin_should_return_invite_token/1,
     post_as_admin_should_extend_cluster_and_return_hostname/1,
@@ -56,6 +56,18 @@
 -define(NEW_HOST_HOSTNAME, "someHostname").
 -define(TIMEOUT, timer:seconds(5)).
 
+-define(COMMON_ENDPOINTS_WITH_METHODS, [
+    {<<"/hosts/someHost">>, delete},
+    {<<"/hosts">>, get},
+    {<<"/hosts">>, post},
+    {<<"/invite_tokens">>, post},
+    {<<"/web_cert">>, get},
+    {<<"/web_cert">>, patch},
+    {<<"/progress">>, get},
+    {<<"/progress">>, patch},
+    {<<"/emergency_passphrase">>, put}
+]).
+
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
@@ -68,7 +80,7 @@ all() ->
         put_should_update_emergency_passphrase,
         passphrase_update_requires_previous_passphrase,
         get_as_admin_should_return_hosts,
-        get_as_admin_should_return_cookie,
+        get_as_admin_or_peer_should_return_cookie,
         get_should_return_node_details,
         post_as_admin_should_return_invite_token,
         post_as_admin_should_extend_cluster_and_return_hostname,
@@ -88,17 +100,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, [
-        {<<"/cookie">>, get},
-        {<<"/hosts/someHost">>, delete},
-        {<<"/hosts">>, get},
-        {<<"/hosts">>, post},
-        {<<"/invite_tokens">>, post},
-        {<<"/web_cert">>, get},
-        {<<"/web_cert">>, patch},
-        {<<"/progress">>, get},
-        {<<"/progress">>, patch}
-    ]).
+    end, [{<<"/cookie">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 api_caveats_should_restrict_available_endpoints(Config) ->
@@ -133,7 +135,9 @@ noauth_method_should_return_unauthorized_error(Config) ->
 
 method_should_return_forbidden_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        Auths = case {Endpoint, Method} of
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
             {<<"/emergency_passphrase">>, put} ->
                 % even admin coming from Onezone cannot change root password
                 ?OZ_AUTHS(Config, privileges:cluster_admin());
@@ -143,12 +147,7 @@ method_should_return_forbidden_error(Config) ->
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, Endpoint, Method, Auths
         ))
-    end, [
-        {<<"/hosts/someHost">>, delete},
-        {<<"/web_cert">>, patch},
-        {<<"/progress">>, patch},
-        {<<"/emergency_passphrase">>, put}
-    ]).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_not_found_error(Config) ->
@@ -224,10 +223,11 @@ get_as_admin_should_return_hosts(Config) ->
     onepanel_test_rest:assert_body(JsonBody, Hosts).
 
 
-get_as_admin_should_return_cookie(Config) ->
+get_as_admin_or_peer_should_return_cookie(Config) ->
+    [Host] = ?config(cluster_hosts, Config),
     {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/cookie">>, get,
-            ?OZ_OR_ROOT_AUTHS(Config, [])
+            ?PEER_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Config, [])
         )
     ),
     Cookie = ?callAny(Config, erlang, get_cookie, []),
@@ -242,7 +242,7 @@ get_should_return_node_details(Config) ->
     },
     {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/node">>, get,
-            ?NONE_AUTHS() ++ ?OZ_OR_ROOT_AUTHS(Config, []))
+            ?NONE_AUTHS() ++ ?PEER_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Config, []))
     ),
     onepanel_test_rest:assert_body(JsonBody, Expected).
 

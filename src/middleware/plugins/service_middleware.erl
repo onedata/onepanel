@@ -219,7 +219,7 @@ get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
         ),
         {ok, value, #{code => Code, headers => Headers, body => Body}}
     catch _:_ ->
-        throw(?HTTP_503_SERVICE_UNAVAILABLE)
+        throw(?ERROR_SERVICE_UNAVAILABLE)
     end.
 
 
