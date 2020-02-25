@@ -111,7 +111,8 @@ get_steps(deploy, _Ctx) ->
 get_steps(resume, _Ctx) -> [
     #step{function = migrate_generated_config,
         condition = fun(_) -> onepanel_env:legacy_config_exists(name()) end},
-    #steps{action = start}
+    #steps{action = start},
+    #steps{action = status}
 ];
 
 get_steps(start, _Ctx) ->

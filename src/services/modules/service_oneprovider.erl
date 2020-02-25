@@ -213,7 +213,9 @@ get_steps(stop, _Ctx) ->
 get_steps(restart, _Ctx) ->
     [
         #steps{action = stop},
-        #steps{action = start}
+        #steps{service = ?SERVICE_CB, action = resume},
+        #steps{service = ?SERVICE_CM, action = resume},
+        #steps{service = ?SERVICE_OPW, action = resume}
     ];
 
 % returns any steps only on the master node
