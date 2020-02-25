@@ -93,8 +93,8 @@ notify(Msg, _Notify) ->
     service_executor:hosts_results().
 partition_results(Results) ->
     lists:partition(fun
-        ({_, {error, _}}) -> false;
-        (_) -> true
+        ({_Node, {error, _}}) -> false;
+        ({_Node, _Success}) -> true
     end, Results).
 
 
@@ -116,6 +116,7 @@ results_contain_error(Results) ->
         [#action_end{result = {error, _}}, FailedStep | _Steps] ->
             #step_end{good_bad_results = {_, BadResults}} = FailedStep,
             {true, bad_results_to_error(BadResults)};
+
         _ ->
             false
     end.

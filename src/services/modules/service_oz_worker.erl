@@ -475,24 +475,24 @@ get_policies() ->
 %%-------------------------------------------------------------------
 %% @doc
 %% Applies zone policy changes. This function should be run on all
-%% nodes with oz_worker to ensure consisten app.config state.
+%% nodes with oz_worker to ensure consistent app.config state.
 %% @end
 %%-------------------------------------------------------------------
 -spec set_policies(Ctx :: service:step_ctx()) -> ok.
 set_policies(Ctx) ->
-    maps:map(fun
-        (oneprovider_registration, OpenOrRestricted) ->
+    lists:foreach(fun
+        ({oneprovider_registration, OpenOrRestricted}) ->
             Atom = onepanel_utils:convert(OpenOrRestricted, atom),
             env_write_and_set(provider_registration_policy, Atom);
-        (subdomain_delegation, Supported) ->
+        ({subdomain_delegation, Supported}) ->
             env_write_and_set(subdomain_delegation_supported, Supported);
-        (gui_package_verification, Enabled) ->
+        ({gui_package_verification, Enabled}) ->
             env_write_and_set(gui_package_verification, Enabled);
-        (harvester_gui_package_verification, Enabled) ->
+        ({harvester_gui_package_verification, Enabled}) ->
             env_write_and_set(harvester_gui_package_verification, Enabled);
-        (_, _) -> ok
-    end, Ctx),
-    ok.
+        ({_, _}) ->
+            ok
+    end, maps:to_list(Ctx)).
 
 
 %%%===================================================================
