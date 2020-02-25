@@ -33,7 +33,7 @@
 -export([apply_sync/2, apply_sync/3, apply_sync/4]).
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
--export([register_healthcheck/2]).
+-export([register_healthcheck/2, deregister_healthcheck/2]).
 -export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
 -export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
@@ -454,10 +454,7 @@ add_host(Service, Host) ->
 register_healthcheck(Service, Ctx) ->
     Period = onepanel_env:get(services_check_period),
     Module = service:get_module(Service),
-    Name = case Ctx of
-        #{id := Id} -> str_utils:format("~tp (id ~tp)", [Service, Id]);
-        _ -> str_utils:format("~tp", [Service])
-    end,
+    Name = healthcheck_name(Service, Ctx),
 
     Condition = fun() ->
         case (catch Module:status(Ctx)) of
@@ -469,7 +466,7 @@ register_healthcheck(Service, Ctx) ->
 
     Action = fun() ->
         ?critical("Service ~ts is not running. Restarting...", [Name]),
-        Results = service:apply_sync(Service, resume, Ctx),
+        Results = service:apply_sync(Service, resume, Ctx#{hosts => [hosts:self()]}),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
                 ?critical("Failed to restart service ~ts due to:~n~tp",
@@ -479,6 +476,19 @@ register_healthcheck(Service, Ctx) ->
     end,
 
     onepanel_cron:add_job(Name, Action, Period, Condition).
+
+
+-spec deregister_healthcheck(service:name(), #{id => ceph:id(), _ => _}) -> ok.
+deregister_healthcheck(Service, Ctx) ->
+    onepanel_cron:remove_job(healthcheck_name(Service, Ctx)).
+
+
+%% @private
+-spec healthcheck_name(service:name(), #{id => ceph:id(), _ => _}) -> binary().
+healthcheck_name(Service, #{id := Id}) ->
+    str_utils:format_bin("~tp (id ~tp)", [Service, Id]);
+healthcheck_name(Service, _) ->
+    str_utils:format_bin("~tp", [Service]).
 
 
 %%--------------------------------------------------------------------

@@ -233,7 +233,7 @@ start(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:step_ctx()) -> ok.
 stop(Ctx) ->
-    onepanel_cron:remove_job(name()),
+    service:deregister_healthcheck(name(), Ctx),
     service_cli:stop(name()),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),
