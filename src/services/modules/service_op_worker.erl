@@ -114,11 +114,9 @@ get_steps(add_storages, #{storages := Storages} = Ctx) ->
 get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
     case service:get_hosts(?SERVICE_OPW) of
         [] ->
-            [
-                #steps{action = deploy, ctx = Ctx#{hosts => NewHosts}}
-            ];
-        [ExistingHost | _] = ExistingHosts ->
-            AllHosts = lists:usort(ExistingHosts ++ NewHosts),
+            {ok, Ctx2} = kv_utils:rename_entry(new_hosts, hosts, Ctx),
+            [#steps{action = deploy, ctx = Ctx2}];
+        [ExistingHost | _] ->
             Ctx2 = Ctx#{reference_host => ExistingHost},
             [
                 #step{function = configure_additional_node, hosts = NewHosts, ctx = Ctx2},
@@ -126,14 +124,7 @@ get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
                     condition = fun(_) -> service_oneprovider:is_registered() end},
                 #step{function = register_host, args = [], hosts = NewHosts, ctx = Ctx2},
                 #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx2},
-
-                % FIXME 'hosts' here causes start on nodes not having the service
-
-                % @TODO test the delayed hosts resolving
-                #steps{service = ?SERVICE_OP, action = restart} %, ctx = #{hosts => AllHosts}},
-
-%%                #steps{action = start, ctx = #{hosts => NewHosts}}
-%%                #step{function = wait_for_init, selection = first}
+                #steps{service = ?SERVICE_OP, action = restart}
             ]
     end;
 
@@ -227,7 +218,7 @@ is_connected_to_oz() ->
     end.
 
 
--spec is_transfers_mock_enabled() -> #{transfersMock := boolean()}.
+-spec is_transfers_mock_enabled() -> boolean().
 is_transfers_mock_enabled() ->
     {ok, OpwNode} = nodes:any(name()),
     case onepanel_env:get_remote(OpwNode, rtransfer_mock, name()) of

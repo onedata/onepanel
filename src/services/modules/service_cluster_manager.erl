@@ -196,8 +196,9 @@ configure(#{main_host := MainHost, hosts := Hosts,
 
 -spec update_workers_number(#{worker_num => non_neg_integer(), _ => _}) -> ok.
 update_workers_number(#{worker_num := WorkerNum}) ->
-    % @FIXME document why its only offline
-    ?notice("Updating worker_num to be ~p", [WorkerNum]),
+    % Cluster manager/workers do not currently support dynamic resizing.
+    % Therefore the value is just set in the config file and the whole
+    % cluster is restarted in further steps.
     onepanel_env:write([name(), worker_num], WorkerNum, ?SERVICE_CM);
 
 update_workers_number(_) ->
