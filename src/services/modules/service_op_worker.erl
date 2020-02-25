@@ -100,17 +100,6 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
-get_steps(add_storages, #{storages := Storages} = Ctx) ->
-    ?info("~b storage(s) will be added", [maps:size(Storages)]),
-    StoragesList = maps:to_list(Storages),
-    [
-        #steps{action = add_storage, ctx = Ctx#{name => Name, params => Params}}
-        || {Name, Params} <- StoragesList
-    ] ++ [
-        #step{module = onepanel_deployment, function = set_marker,
-            args = [?PROGRESS_STORAGE_SETUP], hosts = [hosts:self()]}
-    ];
-
 get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
     case service:get_hosts(?SERVICE_OPW) of
         [] ->
@@ -127,6 +116,17 @@ get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
                 #steps{service = ?SERVICE_OP, action = restart}
             ]
     end;
+
+get_steps(add_storages, #{storages := Storages} = Ctx) ->
+    ?info("~b storage(s) will be added", [maps:size(Storages)]),
+    StoragesList = maps:to_list(Storages),
+    [
+        #steps{action = add_storage, ctx = Ctx#{name => Name, params => Params}}
+        || {Name, Params} <- StoragesList
+    ] ++ [
+        #step{module = onepanel_deployment, function = set_marker,
+            args = [?PROGRESS_STORAGE_SETUP], hosts = [hosts:self()]}
+    ];
 
 get_steps(add_storages, _Ctx) ->
     [];
@@ -159,11 +159,8 @@ get_steps(update_storage, Ctx) ->
 get_steps(remove_storage, _Ctx) ->
     [#step{function = remove_storage, selection = any}];
 
-get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = invalidate_luma_cache, selection = any}];
-
-get_steps(invalidate_luma_cache, Ctx) ->
-    get_steps(invalidate_luma_cache, Ctx#{hosts => get_hosts()});
+get_steps(invalidate_luma_cache, _Ctx) ->
+    [#step{function = invalidate_luma_cache, selection = any}];
 
 get_steps(Function, _Ctx) when
     Function == set_transfers_mock
