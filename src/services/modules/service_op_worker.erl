@@ -273,17 +273,19 @@ configure_additional_node(#{reference_host := _} = Ctx) ->
     CmHosts = service_cluster_manager:get_hosts(),
     DbHosts  = service_couchbase:get_hosts(),
 
-    Domain = case service_oneprovider:is_registered() of
-        true -> #{app_config => #{oz_domain => service_oneprovider:get_oz_domain()}};
+    AppConfig = case service_oneprovider:is_registered() of
+        true -> #{oz_domain => service_oneprovider:get_oz_domain()};
         false -> #{}
     end,
     NewCtx = maps_utils:merge([
         #{
             main_cm_host => MainCmHost, cm_hosts => CmHosts,
-            db_hosts => DbHosts
-%%            rtransfer_mock => is_transfers_mock_enabled()
+            db_hosts => DbHosts,
+            app_config => AppConfig#{
+                rtransfer_mock => is_transfers_mock_enabled()
+            }
         },
-        Ctx, Domain
+        Ctx
     ]),
     configure(NewCtx).
 

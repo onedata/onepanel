@@ -193,6 +193,10 @@ configure(#{main_host := MainHost, hosts := Hosts,
     service:add_host(name(), Host).
 
 
+%%--------------------------------------------------------------------
+%% @doc Writes current worker nodes number to cluster manager's app config.
+%% @end
+%%--------------------------------------------------------------------
 -spec update_workers_number(#{worker_num => non_neg_integer(), _ => _}) -> ok.
 update_workers_number(#{worker_num := WorkerNum}) ->
     % Cluster manager/workers do not currently support dynamic resizing.

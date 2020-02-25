@@ -117,12 +117,12 @@ results_contain_error(Results) ->
         ] ->
             {true, bad_results_to_error(BadResults)};
 
+        % an action error may be without any erroneous #step_end,
+        % for example if verify_hosts failed.
         [
             #action_end{result = {error, _} = Error}
             | _Steps
         ] ->
-            % an action error may be without any erroneous #step_end,
-            % for example if verify_hosts failed.
             {true, cast_to_serializable_error(Error)};
 
         _ ->
