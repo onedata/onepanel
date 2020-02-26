@@ -360,7 +360,14 @@ service_op_worker_update_storage_test(Config) ->
 
 
 services_status_test(Config) ->
-    lists:foreach(fun({Nodes, MainService, Services}) ->
+    lists:foreach(fun({NodesType, MainService, Services}) ->
+        Nodes = case Services of
+            ?SERVICE_OPW ->
+                % op-worker is not deployed everywhere
+                nodes:service_to_nodes(?SERVICE_PANEL, ?config(op_worker_hosts, Config));
+            _ ->
+                ?config(NodesType, Config)
+        end,
         lists:foreach(fun(Service) ->
             SModule = service:get_module(Service),
             lists:foreach(fun(Node) ->
@@ -378,9 +385,9 @@ services_status_test(Config) ->
             assert_expected_result(SModule, status, Nodes, healthy, Results)
         end, Services)
     end, [
-        {?config(onezone_nodes, Config), ?SERVICE_OZ,
+        {onezone_nodes, ?SERVICE_OZ,
             [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW]},
-        {?config(oneprovider_nodes, Config), ?SERVICE_OP,
+        {oneprovider_nodes, ?SERVICE_OP,
             [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OPW]}
     ]).
 
