@@ -20,7 +20,7 @@
 -include("names.hrl").
 
 %% API
--export([create/0, verify/1]).
+-export([create/0, verify/1, delete_expired_nonces/0]).
 
 %% Model behaviour callbacks
 -export([
@@ -81,6 +81,17 @@ verify(Nonce) ->
         _ ->
             false
     end.
+
+
+-spec delete_expired_nonces() -> ok.
+delete_expired_nonces() ->
+    Now = ?NOW(),
+    lists:foreach(fun(#authorization_nonce{nonce = Nonce, expires = Expires}) ->
+        case Expires < Now of
+            true -> delete(Nonce);
+            false -> ok
+        end
+    end, list()).
 
 
 %%%===================================================================
@@ -201,20 +212,3 @@ update(_Key, _Diff) ->
 -spec delete(Key :: model_behaviour:key()) -> ok | no_return().
 delete(Key) ->
     model:delete(?MODULE, Key).
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-
-%% @private
--spec delete_expired_nonces() -> ok.
-delete_expired_nonces() ->
-    Now = ?NOW(),
-    lists:foreach(fun(#authorization_nonce{nonce = Nonce, expires = Expires}) ->
-        case Expires < Now of
-            true -> delete(Nonce);
-            false -> ok
-        end
-    end, list()).
