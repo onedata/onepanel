@@ -103,7 +103,7 @@ authorize(#onp_req{operation = get,
     true;
 
 authorize(#onp_req{
-    operation = get, client = #client{role = _Any}, gri = #gri{aspect = {task, _}}
+    operation = get, client = #client{role = member}, gri = #gri{aspect = {task, _}}
 }, _) ->
     true;
 

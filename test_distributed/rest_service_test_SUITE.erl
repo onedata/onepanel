@@ -284,10 +284,20 @@ get_should_return_service_host_status(Config) ->
 get_should_return_service_task_results(Config) ->
     ?run(Config, fun({Host, _}) ->
         lists:foreach(fun({TaskId, Fields, Values}) ->
+            Endpoint = <<"/tasks/", TaskId/binary>>,
+            lists:foreach(fun(Auth) ->
+                ?assertMatch(
+                    {ok, ?HTTP_401_UNAUTHORIZED, _, _},
+                    onepanel_test_rest:auth_request(Host, Endpoint, get, Auth)
+                )
+            end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS()),
+            ?assertMatch(
+                {ok, ?HTTP_403_FORBIDDEN, _, _},
+                onepanel_test_rest:auth_request(Host, Endpoint, get, ?PEER_AUTHS(Host))
+            ),
             {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
                 onepanel_test_rest:auth_request(
-                    Host, <<"/tasks/", TaskId/binary>>, get,
-                    ?OZ_OR_ROOT_AUTHS(Host, [])
+                    Host, Endpoint, get, ?OZ_OR_ROOT_AUTHS(Host, [])
                 )
             ),
             onepanel_test_rest:assert_body_fields(JsonBody, Fields),
