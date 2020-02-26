@@ -94,7 +94,7 @@ authorize(#onp_req{operation = create,
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
 
 authorize(#onp_req{operation = get,
-    client = #client{role = guest}, gri = #gri{aspect = Aspect}
+    client = #client{role = _Any}, gri = #gri{aspect = Aspect}
 }, _) when
     Aspect == configuration;
     Aspect == test_image;

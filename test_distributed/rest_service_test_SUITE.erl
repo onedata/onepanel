@@ -220,7 +220,6 @@ method_should_return_forbidden_error(Config) ->
             Host, Endpoint, Method, ?PEER_AUTHS(Host)
         ))
     end, [
-        {<<"/configuration">>, get},
         {<<"/dns_check">>, get},
         {<<"/dns_check/configuration">>, get},
         {<<"/dns_check/configuration">>, patch}

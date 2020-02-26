@@ -37,7 +37,7 @@
     noauth_method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
-    noauth_get_should_return_password_status/1,
+    method_should_return_password_status/1,
     noauth_put_should_set_emergency_passphrase/1,
     put_should_update_emergency_passphrase/1,
     passphrase_update_requires_previous_passphrase/1,
@@ -75,7 +75,7 @@ all() ->
         noauth_method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
-        noauth_get_should_return_password_status,
+        method_should_return_password_status,
         noauth_put_should_set_emergency_passphrase,
         put_should_update_emergency_passphrase,
         passphrase_update_requires_previous_passphrase,
@@ -159,12 +159,15 @@ method_should_return_not_found_error(Config) ->
     end, [{<<"/hosts/someHost">>, delete}]).
 
 
-noauth_get_should_return_password_status(Config) ->
-    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:noauth_request(Config, <<"/emergency_passphrase">>, get)
-    ),
-    Expected = #{<<"isSet">> => true},
-    onepanel_test_rest:assert_body(JsonBody, Expected).
+method_should_return_password_status(Config) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        Auths = ?NONE_AUTHS() ++ ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Config, []),
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(Host, Endpoint, Method, Auths)
+        ),
+        Expected = #{<<"isSet">> => true},
+        onepanel_test_rest:assert_body(JsonBody, Expected)
+    end, [{<<"/emergency_passphrase">>, get}]).
 
 
 noauth_put_should_set_emergency_passphrase(Config) ->
