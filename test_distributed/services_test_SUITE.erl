@@ -327,7 +327,9 @@ service_op_worker_update_storage_test(Config) ->
         },
         <<"someWebDAV">> => #{
             type => <<"webdav">>,
-            rangeWriteSupport => <<"moddav">>
+            rangeWriteSupport => <<"moddav">>,
+            fileMode => <<"0333">>,
+            dirMode => <<"0333">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
