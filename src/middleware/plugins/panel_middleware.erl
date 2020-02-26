@@ -20,6 +20,7 @@
 -include("middleware/middleware.hrl").
 -include("names.hrl").
 -include("deployment_progress.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/graph_sync/gri.hrl").
 -include_lib("ctool/include/privileges.hrl").
@@ -369,7 +370,7 @@ format_service_task_results({Results, TotalSteps}) ->
             end;
         false ->
             case lists:reverse(Results) of
-                [{task_finished, {_, _, ok}} | _] ->
+                [#action_end{} | _] ->
                     Base#{
                         <<"status">> => <<"ok">>,
                         <<"steps">> => format_service_task_steps(Results)
@@ -403,9 +404,8 @@ format_error(Reason) ->
     [StepName :: binary()].
 format_service_task_steps(Steps) ->
     lists:filtermap(fun
-        ({task_finished, _}) ->
-            false;
-        ({Module, Function}) ->
+        (#step_begin{module = Module, function = Function}) ->
             {true, onepanel_utils:join([Module, Function], <<":">>)};
-        (_) -> false
+        (_) ->
+            false
     end, Steps).

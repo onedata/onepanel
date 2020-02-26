@@ -100,7 +100,7 @@ add_user_to_groups(OzNode, Auth, UserId, Groups) ->
 %% Lists Ids of Onezone users.
 %% @end
 %%--------------------------------------------------------------------
--spec list_users(service:ctx()) -> [UserId :: binary()].
+-spec list_users(service:step_ctx()) -> [UserId :: binary()].
 list_users(_Ctx) ->
     {OzNode, Client} = get_node_and_client(),
     {ok, Ids} = oz_worker_rpc:list_users(OzNode, Client),
@@ -130,7 +130,7 @@ get_user(#{user_id := UserId}) ->
 %% it is created with password set to onepanel's emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec create_default_admin(service:ctx()) -> ok.
+-spec create_default_admin(service:step_ctx()) -> ok.
 create_default_admin(_Ctx) ->
     case oz_worker_rpc:username_exists(?DEFAULT_ADMIN_USERNAME) of
         true -> ok;
@@ -146,7 +146,7 @@ create_default_admin(_Ctx) ->
 %% Adds onepanel_users as Onezone users with basic auth.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_users(service:ctx()) -> ok.
+-spec migrate_users(service:step_ctx()) -> ok.
 migrate_users(_Ctx) ->
     lists:foreach(fun migrate_user/1, onepanel_user:list()).
 

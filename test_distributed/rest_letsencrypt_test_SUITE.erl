@@ -451,6 +451,7 @@ mock_plugin_modules(Config) ->
 
     test_utils:mock_expect(OzNodes ++ OpNodes, service, is_healthy, fun(_) -> true end),
     test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain, fun() -> binary_to_list(OzDomain) end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun() -> OpDomain end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun() -> OzDomain end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),

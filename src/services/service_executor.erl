@@ -7,6 +7,24 @@
 %%%--------------------------------------------------------------------
 %%% @doc This module allows for synchronous and asynchronous service action
 %%% execution.
+%%%
+%%% Service actions are a mechanism for executing functions on selected hosts.
+%%% Steps are defined in service_*:get_steps/2 callback functions.
+%%% Each #step{} record describes invocation of one function.
+%%% A #steps{} record allows nesting of another action.
+%%% A single step is executed in parallel on all selected hosts.
+%%% All nested steps are resolved into a flat list of #step{} records before
+%%% action execution starts.
+%%%
+%%% Each action invocation (service:apply_sync and service:apply_async)
+%%% causes creation of 2 processes by the service_executor:
+%%% - worker - this process resolves the steps list and performs onepanel_rpc
+%%%            calls to execute the functions
+%%% - handler - a simple process storing the executed steps in its state.
+%%%
+%%% A started action is given a task id, which can be used to retrieve
+%%% the execution results as long as the handler process exists.
+%%% It is removed after task_ttl milliseconds.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_executor).
@@ -15,6 +33,7 @@
 -behaviour(gen_server).
 
 -include("modules/errors.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("names.hrl").
 
@@ -28,13 +47,12 @@
 
 % @formatter:off
 -type task_id() :: binary().
--type hosts_results() :: {GoodResults :: onepanel_rpc:results(),
-    BadResults :: onepanel_rpc:results()}.
--type step_result() :: {Module :: module(), Function :: atom()} |
-    {Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
--type action_result() :: {task_finished, {
-    Service :: service:name(), Action :: service:action(), Result :: ok | {error, _}
-}}.
+-type hosts_results() :: {
+    GoodResults :: onepanel_rpc:results(),
+    BadResults :: onepanel_rpc:results()
+}.
+-type step_result() :: #step_begin{} | #step_end{}.
+-type action_result() :: #action_end{}.
 -type result() :: action_result() | step_result().
 -type results() :: [result()].
 % @formatter:on
@@ -78,24 +96,24 @@ handle_results() ->
 
 -spec handle_results(service_executor:results(), StepsCount :: non_neg_integer()) ->
     no_return().
-handle_results(Results, StepsCount) ->
+handle_results(History, StepsCount) ->
     receive
-        {action_steps_count, {_, _, NewStepsCount}} ->
-            ?MODULE:handle_results(Results, NewStepsCount);
-        {step_begin, Result} ->
-            ?MODULE:handle_results([Result | Results], StepsCount);
-        {step_end, Result} ->
-            ?MODULE:handle_results([Result | Results], StepsCount);
-        {action_end, Result} ->
-            ?MODULE:handle_results([{task_finished, Result} | Results], StepsCount);
+        #action_steps_count{count = NewStepsCount} ->
+            ?MODULE:handle_results(History, NewStepsCount);
+        #step_begin{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        #step_end{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        #action_end{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
         {forward_count, TaskId, Pid} ->
             Pid ! {step_count, TaskId, StepsCount},
-            ?MODULE:handle_results(Results, StepsCount);
+            ?MODULE:handle_results(History, StepsCount);
         {forward_results, TaskId, Pid} ->
-            Pid ! {task, TaskId, lists:reverse(Results)},
-            ?MODULE:handle_results(Results, StepsCount);
+            Pid ! {task, TaskId, lists:reverse(History)},
+            ?MODULE:handle_results(History, StepsCount);
         _ ->
-            ?MODULE:handle_results(Results, StepsCount)
+            ?MODULE:handle_results(History, StepsCount)
     end.
 
 %%--------------------------------------------------------------------

@@ -15,6 +15,7 @@
 -include("onepanel_test_utils.hrl").
 -include("modules/errors.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 
 %% API
 -export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
@@ -23,6 +24,7 @@
 -export([service_host_action/3, service_host_action/4,
     service_action/3, service_action/4, attempt_service_action/4]).
 -export([get_domain/1]).
+-export([create_registration_token/1, create_registration_token/2]).
 
 -type config() :: proplists:proplist().
 
@@ -195,7 +197,7 @@ service_host_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_host_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) ->
+    Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_host_action(Node, Service, Action, Ctx) ->
     Host = hosts:from_node(Node),
@@ -217,7 +219,7 @@ service_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) ->
+    Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
     case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
@@ -244,7 +246,7 @@ service_action(Node, Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec attempt_service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | {error, _}.
+    Action :: atom(), Ctx :: service:step_ctx()) -> ok | {error, _}.
 attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
     rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
@@ -260,6 +262,28 @@ get_domain(Hostname) when not is_binary(Hostname) ->
 get_domain(Hostname) ->
     [_Hostname, Domain] = binary:split(Hostname, <<".">>),
     Domain.
+
+
+-spec create_registration_token(OnezoneDomain :: binary()) -> tokens:serialized().
+create_registration_token(OnezoneDomain) ->
+    create_registration_token(OnezoneDomain, <<"someAdminId">>).
+
+
+-spec create_registration_token(OnezoneDomain :: binary(), AdminId :: binary()) ->
+    tokens:serialized().
+create_registration_token(OnezoneDomain, AdminId) ->
+    {ok, Token} = tokens:serialize(tokens:construct(#token{
+        type = #invite_token_typespec{
+            invite_type = ?REGISTER_ONEPROVIDER,
+            target_entity = AdminId
+        },
+        onezone_domain = OnezoneDomain,
+        subject = ?SUB(user, AdminId),
+        id = <<"id">>,
+        persistence = {temporary, 1}
+    }, tokens:generate_secret(), [])),
+    Token.
+
 
 %%%===================================================================
 %%% Internal functions

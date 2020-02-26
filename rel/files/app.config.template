@@ -167,7 +167,7 @@
         %% ===================================================================
 
         %% Time (in seconds) during which invite tokens will be valid after creation
-        {panel_authorization_nonce_ttl_sec, 900},
+        {panel_authorization_nonce_ttl_sec, 3600},
 
         %% ===================================================================
         %% Ceph
@@ -351,12 +351,6 @@
         {oz_worker_wait_for_init_attempts, 60},
         {oz_worker_wait_for_init_delay, 5000},
 
-        {onezone_name, "example"},
-        {onezone_domain, "onedata.org"},
-
-        {oneprovider_name, "example"},
-        {oneprovider_geo_latitude, 0.0},
-        {oneprovider_geo_longitude, 0.0},
         {connect_to_onezone_attempts, 5}
     ]}
 ].

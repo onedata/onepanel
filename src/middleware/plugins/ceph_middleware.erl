@@ -44,7 +44,7 @@
 %%--------------------------------------------------------------------
 -spec read_ceph_args(middleware:data()) -> {CephCtx :: #{
     cluster_name => binary(), fsid => ceph:uuid(),
-    osds | monitors | managers => [service:ctx(), ...]
+    osds | monitors | managers => [service:step_ctx(), ...]
 }, CephHosts :: [service:host()]}.
 read_ceph_args(Data) ->
     Osds = lists:map(fun get_osd_params/1, maps:get(osds, Data, [])),
@@ -274,7 +274,7 @@ delete(#onp_req{}) ->
 %%% Internal functions
 %%%===================================================================
 
--spec get_osd_params(map()) -> service:ctx().
+-spec get_osd_params(map()) -> service:step_ctx().
 get_osd_params(#{host := Host, type := Type} = Spec) ->
     Params = maps:merge(maps:with([device, size, path, uuid], Spec), #{
         type => onepanel_utils:convert(Type, atom),
@@ -286,12 +286,12 @@ get_osd_params(#{host := Host, type := Type} = Spec) ->
     end.
 
 
--spec get_mon_params(map()) -> service:ctx().
+-spec get_mon_params(map()) -> service:step_ctx().
 get_mon_params(#{host := Host} = Spec) ->
     maps:with([host, ip], Spec#{host => onepanel_utils:convert(Host, list)}).
 
 
--spec get_mgr_params(map()) -> service:ctx().
+-spec get_mgr_params(map()) -> service:step_ctx().
 get_mgr_params(#{host := Host}) ->
     #{host => onepanel_utils:convert(Host, list)}.
 

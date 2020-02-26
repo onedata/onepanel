@@ -56,6 +56,8 @@ deploy_onezone(Passphrase, Username, Password, Config) ->
             ?SERVICE_OZW => #{
                 hosts => OzHosts, main_cm_host => hd(OzHosts),
                 cm_hosts => OzHosts, db_hosts => OzHosts,
+                onezone_name => <<"someOnezone">>,
+                onezone_domain => string:uppercase(OzDomain),
                 onezone_users => [#{
                     username => Username,
                     password => Password,
@@ -68,6 +70,7 @@ deploy_onezone(Passphrase, Username, Password, Config) ->
             }
         },
         ?SERVICE_OZ => #{
+            name => <<"someOnezone">>,
             domain => string:uppercase(OzDomain)
         }
     }),
@@ -128,7 +131,8 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
             oneprovider_domain => string:uppercase(OpDomain),
             oneprovider_register => true,
             oneprovider_admin_email => <<"admin@onedata.org">>,
-            oneprovider_token => RegistrationToken
+            oneprovider_token => RegistrationToken,
+            onezone_domain => str_utils:to_binary(OzDomain)
         }
     }),
     [{oneprovider_domain, OpDomain} | Config].

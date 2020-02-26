@@ -14,8 +14,22 @@
 
 -include("modules/errors.hrl").
 -include("modules/models.hrl").
+-include("names.hrl").
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
+
+% @formatter:off
+-type model_ctx() :: #{
+    % the working host, as opposed to backup instances
+    main_host => service:host(),
+
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()}
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -58,7 +72,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
     service:create(#service{name = name()}),
@@ -115,13 +129,12 @@ get_steps(status, _Ctx) ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(#{main_host := MainHost, hosts := Hosts,
     wait_for_process := Process} = Ctx) ->
 
-    GeneratedConfigFile = service_ctx:get(cluster_manager_generated_config_file, Ctx),
-    VmArgsFile = service_ctx:get(cluster_manager_vm_args_file, Ctx),
-    EnvFile = service_ctx:get(cluster_manager_env_file, Ctx),
+    VmArgsFile = onepanel_env:get(cluster_manager_vm_args_file),
+    EnvFile = onepanel_env:get(cluster_manager_env_file),
 
     Host = hosts:self(),
     Node = nodes:local(name()),
@@ -129,21 +142,21 @@ configure(#{main_host := MainHost, hosts := Hosts,
     MainNode = nodes:service_to_node(name(), MainHost),
 
     WorkerNum = maps:get(worker_num, Ctx, undefined),
-    Cookie = maps:get(cookie, Ctx, erlang:get_cookie()),
+    Cookie = erlang:get_cookie(),
 
-    onepanel_env:write([name(), cm_nodes], Nodes, GeneratedConfigFile),
-    onepanel_env:write([name(), worker_num], WorkerNum, GeneratedConfigFile),
+    onepanel_env:write([name(), cm_nodes], Nodes, ?SERVICE_CM),
+    onepanel_env:write([name(), worker_num], WorkerNum, ?SERVICE_CM),
 
     onepanel_env:write([kernel, distributed], [{
         name(),
-        service_ctx:get(cluster_manager_failover_timeout, Ctx, integer),
+        onepanel_env:get(cluster_manager_failover_timeout),
         [MainNode, list_to_tuple(Nodes -- [MainNode])]
-    }], GeneratedConfigFile),
+    }], ?SERVICE_CM),
     onepanel_env:write([kernel, sync_nodes_mandatory],
-        Nodes -- [Node], GeneratedConfigFile),
+        Nodes -- [Node], ?SERVICE_CM),
     onepanel_env:write([kernel, sync_nodes_timeout],
-        service_ctx:get(cluster_manager_sync_nodes_timeout, Ctx, integer),
-        GeneratedConfigFile),
+        onepanel_env:get(cluster_manager_sync_nodes_timeout),
+        ?SERVICE_CM),
 
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile),
@@ -158,10 +171,10 @@ configure(#{main_host := MainHost, hosts := Hosts,
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
-start(Ctx) ->
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
+start(_Ctx) ->
     Limits = #{
-        open_files => service_ctx:get(cluster_manager_open_files_limit, Ctx)
+        open_files => onepanel_env:get(cluster_manager_open_files_limit)
     },
     service_cli:start(name(), Limits),
     service:update_status(name(), healthy),
@@ -173,7 +186,7 @@ start(Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok.
+-spec stop(Ctx :: service:step_ctx()) -> ok.
 stop(Ctx) ->
     onepanel_cron:remove_job(name()),
     service_cli:stop(name()),
@@ -186,7 +199,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(_Ctx) ->
     service:update_status(name(),
         case service_cli:status(name(), ping) of
@@ -200,7 +213,7 @@ status(_Ctx) ->
 %% @doc {@link onepanel_env:migrate_generated_config/2}
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(_Ctx) ->
     onepanel_env:upgrade_app_config(name(), [
         [cluster_manager, cm_nodes],

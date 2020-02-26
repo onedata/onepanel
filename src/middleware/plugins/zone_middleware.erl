@@ -115,10 +115,16 @@ authorize(#onp_req{client = Client,
 
 
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
-validate(#onp_req{operation = create, gri = #gri{aspect = cluster}}, _) ->
+validate(#onp_req{operation = create, gri = #gri{aspect = cluster}, data = Data}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
         true -> throw(?ERROR_ALREADY_EXISTS);
         false -> ok
+    end,
+    % This check should be done by the data spec, but swagger's erlang
+    % generator is buggy and does not enforce presence of the "onezone" key.
+    case maps:find(onezone, Data) of
+        {ok, Map} when is_map(Map) -> ok;
+        _ -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"onezone">>))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = instance}, data = Data}, _) ->

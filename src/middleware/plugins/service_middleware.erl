@@ -205,11 +205,18 @@ get(#onp_req{gri = #gri{aspect = {all_hosts_status, ServiceBin}}}, _) ->
     Service = binary_to_atom(ServiceBin, utf8),
     Module = service:get_module(Service),
     Results = service:apply_sync(Service, status, #{}),
-    {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
-    {ok, value, lists:foldl(fun({Node, NodeStatus}, Acc) ->
-        Host = onepanel_utils:convert(hosts:from_node(Node), binary),
-        Acc#{Host => NodeStatus}
-    end, #{}, HostsResults)};
+
+    HostToStatus = case service_utils:results_contain_error(Results) of
+        {true, ?ERROR_NO_SERVICE_NODES(_)} -> #{};
+        {true, Error} -> throw(Error);
+        false ->
+            {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
+            lists:foldl(fun({Node, NodeStatus}, Acc) ->
+                Host = onepanel_utils:convert(hosts:from_node(Node), binary),
+                Acc#{Host => NodeStatus}
+            end, #{}, HostsResults)
+    end,
+    {ok, value, HostToStatus};
 
 get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
     Worker = binary_to_atom(WorkerBin, utf8),

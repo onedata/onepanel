@@ -234,8 +234,8 @@ delete(#onp_req{gri = #gri{id = Id, aspect = support}}) ->
 %% @doc Parse args for storage_update.
 %% @end
 %%-------------------------------------------------------------------
--spec get_storage_update_args(Data :: middleware:data(), Ctx :: service:ctx())
-        -> service:ctx().
+-spec get_storage_update_args(Data :: middleware:data(), Ctx :: service:step_ctx())
+        -> service:step_ctx().
 get_storage_update_args(Data, Ctx) ->
     kv_utils:copy_found([
         {[storageUpdate, strategy], [storage_update, strategy]},
@@ -252,8 +252,8 @@ get_storage_update_args(Data, Ctx) ->
 %% @doc Parse args for storage_import.
 %% @end
 %%-------------------------------------------------------------------
--spec get_storage_import_args(Data :: middleware:data(), Ctx :: service:ctx())
-        -> service:ctx().
+-spec get_storage_import_args(Data :: middleware:data(), Ctx :: service:step_ctx())
+        -> service:step_ctx().
 get_storage_import_args(Data, Ctx) ->
     kv_utils:copy_found([
         {[storageImport, strategy], [storage_import, strategy]},
@@ -267,8 +267,8 @@ get_storage_import_args(Data, Ctx) ->
 %% @doc Parse configuration for autocleaning
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(middleware:data(), Ctx :: service:ctx())
-        -> service:ctx().
+-spec get_auto_cleaning_configuration(middleware:data(), Ctx :: service:step_ctx())
+        -> service:step_ctx().
 get_auto_cleaning_configuration(Data, Ctx) ->
     kv_utils:copy_found([
         {[enabled], [enabled]},

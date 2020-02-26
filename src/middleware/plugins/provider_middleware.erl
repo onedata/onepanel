@@ -182,6 +182,7 @@ validate(#onp_req{operation = delete, gri = #gri{aspect = instance}}, _) ->
 
 -spec create(middleware:req()) -> middleware:create_result().
 create(#onp_req{gri = #gri{aspect = instance}, data = Data}) ->
+    ZoneDomain = onezone_tokens:read_domain(maps:get(token, Data)),
     Ctx = kv_utils:copy_found([
         {token, oneprovider_token},
         {name, oneprovider_name},
@@ -191,7 +192,7 @@ create(#onp_req{gri = #gri{aspect = instance}, data = Data}) ->
         {adminEmail, oneprovider_admin_email},
         {geoLatitude, oneprovider_geo_latitude},
         {geoLongitude, oneprovider_geo_longitude}
-    ], Data),
+    ], Data, #{onezone_domain => ZoneDomain}),
     middleware_utils:execute_service_action(?SERVICE_OP, register, Ctx);
 
 create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
@@ -243,6 +244,14 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         storages => StorageCtx2
     },
 
+    OpwCtx0 = case kv_utils:find([oneprovider, token], Data) of
+        {ok, Token} -> #{
+            oneprovider_token => Token,
+            onezone_domain => onezone_tokens:read_domain(Token)
+        };
+        _ -> #{}
+    end,
+
     OpwCtx = kv_utils:copy_found([
         {[oneprovider, token], oneprovider_token},
         {[oneprovider, register], oneprovider_register},
@@ -253,7 +262,10 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         {[oneprovider, adminEmail], oneprovider_admin_email},
         {[oneprovider, geoLatitude], oneprovider_geo_latitude},
         {[oneprovider, geoLongitude], oneprovider_geo_longitude}
-    ], Data, #{hosts => OpwHosts, cluster_ips => ClusterIPs}),
+    ], Data, OpwCtx0#{
+        hosts => OpwHosts,
+        cluster_ips => ClusterIPs
+    }),
 
     CommonCtx = CtxWithCeph#{
         cluster => ClusterCtx, ?SERVICE_OP => OpwCtx

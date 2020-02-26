@@ -38,7 +38,7 @@
 %% @doc Executes service action and checks for errors.
 %% @end
 %%--------------------------------------------------------------------
--spec execute_service_action(service:name(), service:action(), service:ctx()) -> ok.
+-spec execute_service_action(service:name(), service:action(), service:step_ctx()) -> ok.
 execute_service_action(Service, Action, Ctx) ->
     ActionResults = service:apply_sync(Service, Action, Ctx),
     service_utils:throw_on_error(ActionResults),
@@ -62,7 +62,7 @@ result_from_service_action(Service, Action) ->
 %% @equiv result_from_service_action(Service, Action, Ctx, get_module(Service), Action).
 %% @end
 %%--------------------------------------------------------------------
--spec result_from_service_action(service:name(), service:action(), service:ctx()) ->
+-spec result_from_service_action(service:name(), service:action(), service:step_ctx()) ->
     term() | errors:error().
 result_from_service_action(Service, Action, Ctx) ->
     result_from_service_action(Service, Action, Ctx,
@@ -77,7 +77,7 @@ result_from_service_action(Service, Action, Ctx) ->
 %% If any step returned an error, the error is thrown.
 %% @end
 %%--------------------------------------------------------------------
--spec result_from_service_action(service:name(), service:action(), service:ctx(),
+-spec result_from_service_action(service:name(), service:action(), service:step_ctx(),
     module(), Function :: atom()) -> term().
 result_from_service_action(Service, Action, Ctx, Module, Function) ->
     ActionResults = service:apply_sync(Service, Action, Ctx),

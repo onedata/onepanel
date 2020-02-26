@@ -60,4 +60,4 @@
 %% Clears worker ssl cache to ensure certificates changed on disk
 %% are reloaded.
 %%--------------------------------------------------------------------
--callback reload_webcert(service:ctx()) -> ok.
+-callback reload_webcert(service:step_ctx()) -> ok.

@@ -40,7 +40,7 @@
                 {cookie, Name :: binary(), Value :: binary()} |
                 {token, Token :: binary()} |
                 none.
--type headers() :: http_client:headers().
+-type headers() :: [{binary(), binary()}].
 -type body() :: http_client:body().
 -type response() :: {ok, Code :: http_client:code(), Headers :: headers(), Body :: body()} |
                     {error, Reason :: term()}.
@@ -114,7 +114,9 @@ auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
     auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Passphrase}, Headers, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers, Body) ->
-    NewHeaders = [onepanel_utils:get_basic_auth_header(Username, Password) | Headers],
+    NewHeaders =
+        maps:to_list(onepanel_utils:get_basic_auth_header(Username, Password))
+        ++ Headers,
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, [_ | _] = Auths, Headers, Body) ->
