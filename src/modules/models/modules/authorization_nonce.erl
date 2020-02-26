@@ -52,8 +52,6 @@
 %%--------------------------------------------------------------------
 -spec create() -> {ok, nonce()} | {error, term()}.
 create() ->
-    delete_expired_nonces(),
-
     Record = #authorization_nonce{
         nonce = onepanel_utils:gen_uuid(),
         expires = ?NOW() + ?NONCE_TTL
@@ -72,8 +70,6 @@ create() ->
 %%--------------------------------------------------------------------
 -spec verify(nonce()) -> boolean().
 verify(Nonce) ->
-    delete_expired_nonces(),
-
     Now = ?NOW(),
     case ?MODULE:get(Nonce) of
         {ok, #authorization_nonce{expires = Expires}} when Expires > Now ->
