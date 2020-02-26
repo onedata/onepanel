@@ -82,7 +82,7 @@ add(#{name := Name, params := Params}) ->
             [StorageName, StorageType]),
             ok;
         {error, Reason} ->
-            throw(Reason)
+            throw({error, Reason})
     end.
 
 

@@ -111,7 +111,7 @@ results_contain_error({error, _} = Error) ->
 results_contain_error(Results) ->
     case lists:reverse(Results) of
         [
-            #action_end{result = {error, _} = Error},
+            #action_end{result = {error, _}},
             #step_end{good_bad_results = {_, [_ | _] = BadResults}}
             | _Steps
         ] ->
