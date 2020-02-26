@@ -113,7 +113,10 @@ get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
                     condition = fun(_) -> service_oneprovider:is_registered() end},
                 #step{function = register_host, args = [], hosts = NewHosts, ctx = Ctx2},
                 #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx2},
-                #steps{service = ?SERVICE_OP, action = restart}
+                #steps{service = ?SERVICE_OPW, action = stop},
+                #steps{service = ?SERVICE_CM, action = stop},
+                #steps{service = ?SERVICE_CM, action = resume},
+                #steps{service = ?SERVICE_OPW, action = resume}
             ]
     end;
 
