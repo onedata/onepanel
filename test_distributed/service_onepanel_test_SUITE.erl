@@ -57,8 +57,14 @@ all() ->
         leave_should_remove_node
     ]).
 
--define(COOKIE, test_cookie).
--define(COOKIE2, other_cookie).
+
+%% Sample certificate files
+-define(TEST_CERT_PATHS, #{
+    web_cert_file => "testca/web_cert.pem",
+    web_key_file => "testca/web_key.pem",
+    web_cert_chain_file => "testca/web_chain.pem"
+}).
+
 
 %%%===================================================================
 %%% Test functions
@@ -306,19 +312,20 @@ extend_should_copy_certificates_to_new_node(Config) ->
         % mock will produce cert and key files
         ?SERVICE_LE, update, #{letsencrypt_enabled => true}),
     % sanity check
-    verify_certificate_files(Node1),
+    verify_certificate_files(Node1, Config),
 
     % add node
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, extend_cluster, #{hostname => Host2Bin}
     ),
 
-    verify_certificate_files(Node2).
+    verify_certificate_files(Node2, Config).
 
 
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
+
 
 init_per_suite(Config) ->
     [{?CTH_ENV_UP, ?DISABLE} | Config].
@@ -393,12 +400,7 @@ init_per_testcase(Case, Config) when
         fun(_) -> ok end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(_, _) ->
-            ?assertEqual(ok, file:write_file(onepanel_env:get(web_cert_file),
-                <<"web_cert_file">>)),
-            ?assertEqual(ok, file:write_file(onepanel_env:get(web_key_file),
-                <<"web_key_file">>)),
-            ?assertEqual(ok, file:write_file(onepanel_env:get(web_cert_chain_file),
-                <<"web_cert_chain_file">>)),
+            deploy_predefined_certs(?TEST_CERT_PATHS, Config),
 
             KeysDir = filename:join(
                 onepanel_env:get(letsencrypt_keys_dir),
@@ -433,24 +435,43 @@ end_per_suite(_Config) ->
 
 %%--------------------------------------------------------------------
 %% @private
+%% @doc Writes predefined certificate files on node.
+%% @end
+%%--------------------------------------------------------------------
+-spec deploy_predefined_certs(map(), Config :: proplists:proplist()) -> ok.
+deploy_predefined_certs(SourcePaths, Config) ->
+    lists:foreach(fun({FileType, Path}) ->
+        {ok, Content} = file:read_file(?TEST_FILE(Config, Path)),
+        ?assertMatch(ok, file:write_file(onepanel_env:get(FileType), Content))
+    end, maps:to_list(SourcePaths)).
+
+
+%%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% Verifies certificate files have the expected content in
 %% extend_should_copy_certificates_to_new_node test case.
+%% @end
 %%--------------------------------------------------------------------
--spec verify_certificate_files(node()) -> ok.
-verify_certificate_files(Node) ->
-    {ok, WebCertFile} = test_utils:get_env(Node, ?APP_NAME, web_cert_file),
-    {ok, WebKeyFile}  = test_utils:get_env(Node, ?APP_NAME, web_key_file),
-    {ok, WebCertChainFile}   = test_utils:get_env(Node, ?APP_NAME, web_cert_chain_file),
+-spec verify_certificate_files(node(), Config :: proplists:proplist()) -> ok.
+verify_certificate_files(Node, Config) ->
+    lists:foreach(fun({FileType, ExpContentPath}) ->
+        {ok, FilePathOnNode} = test_utils:get_env(Node, ?APP_NAME, FileType),
+        ?assertEqual(
+            file:read_file(?TEST_FILE(Config, ExpContentPath)),
+            rpc:call(Node, file, read_file, [FilePathOnNode])
+        )
+    end, maps:to_list(?TEST_CERT_PATHS)),
+
     {ok, LEDir} = test_utils:get_env(Node, ?APP_NAME, letsencrypt_keys_dir),
     LEPrivateKey = filename:join([LEDir, production, "letsencrypt_private_key.pem"]),
     LEPublicKey = filename:join([LEDir, production, "letsencrypt_public_key.pem"]),
 
-    ?assertEqual({ok, <<"web_cert_file">>}, rpc:call(Node, file, read_file, [WebCertFile])),
-    ?assertEqual({ok, <<"web_key_file">>}, rpc:call(Node, file, read_file, [WebKeyFile])),
-    ?assertEqual({ok, <<"web_cert_chain_file">>}, rpc:call(Node, file, read_file, [WebCertChainFile])),
-
-    ?assertEqual({ok, <<"letsencrypt_private_key">>},
-        rpc:call(Node, file, read_file, [LEPrivateKey])),
-    ?assertEqual({ok, <<"letsencrypt_public_key">>},
-        rpc:call(Node, file, read_file, [LEPublicKey])).
+    ?assertEqual(
+        {ok, <<"letsencrypt_private_key">>},
+        rpc:call(Node, file, read_file, [LEPrivateKey])
+    ),
+    ?assertEqual(
+        {ok, <<"letsencrypt_public_key">>},
+        rpc:call(Node, file, read_file, [LEPublicKey])
+    ).
