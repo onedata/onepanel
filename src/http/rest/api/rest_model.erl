@@ -2753,6 +2753,14 @@ webdav_modify_model() ->
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
         maximumUploadSize => {integer, optional},
+        %% Defines the file permissions, which files imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0644`.
+        fileMode => {string, optional},
+        %% Defines the directory mode which directories imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0775`.
+        dirMode => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.
