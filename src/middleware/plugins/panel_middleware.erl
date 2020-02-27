@@ -38,6 +38,7 @@
 -spec operation_supported(middleware:operation(), gri:aspect(),
     middleware:scope()) -> boolean().
 operation_supported(create, emergency_passphrase, private) -> true;
+operation_supported(create, invite_token, private) -> true;
 
 operation_supported(get, configuration, private) -> true;
 operation_supported(get, cookie, private) -> true;
@@ -59,6 +60,7 @@ operation_supported(_, _, _) -> false.
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
 required_availability(create, emergency_passphrase, private) -> [];
+required_availability(create, invite_token, private) -> [];
 
 required_availability(get, configuration, private) -> [];
 required_availability(get, cookie, private) -> [];
@@ -87,8 +89,13 @@ authorize(#onp_req{operation = create,
 }, _) ->
     not emergency_passphrase:is_set();
 
+authorize(#onp_req{operation = create,
+    client = Client, gri = #gri{aspect = invite_token}
+}, _) ->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
+
 authorize(#onp_req{operation = get,
-    client = #client{role = guest}, gri = #gri{aspect = Aspect}
+    client = #client{role = _Any}, gri = #gri{aspect = Aspect}
 }, _) when
     Aspect == configuration;
     Aspect == test_image;
@@ -97,14 +104,21 @@ authorize(#onp_req{operation = get,
     true;
 
 authorize(#onp_req{
-    operation = get, client = #client{role = _Any}, gri = #gri{aspect = {task, _}}
+    operation = get, client = #client{role = member}, gri = #gri{aspect = {task, _}}
 }, _) ->
+    true;
+
+authorize(#onp_req{
+    operation = get, client = #client{role = Role}, gri = #gri{aspect = cookie}
+}, _) when
+    Role == member;
+    Role == peer
+->
     true;
 
 authorize(#onp_req{
     operation = get, client = #client{role = member}, gri = #gri{aspect = As}
 }, _) when
-    As == cookie;
     As == progress;
     As == web_cert;
     As == dns_check;
@@ -127,6 +141,11 @@ validate(#onp_req{
     operation = create, gri = #gri{aspect = emergency_passphrase}
 }, _) ->
     % validation is part of the passphrase-changing function
+    ok;
+
+validate(#onp_req{
+    operation = create, gri = #gri{aspect = invite_token}
+}, _) ->
     ok;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = web_cert}}, _) ->
@@ -169,7 +188,11 @@ validate(#onp_req{operation = update, gri = #gri{aspect = Aspect}}, _) when
 create(#onp_req{gri = #gri{aspect = emergency_passphrase}, data = Data}) ->
     #{newPassphrase := NewPassphrase} = Data,
     CurrentPassphrase = maps:get(currentPassphrase, Data, undefined),
-    emergency_passphrase:change(CurrentPassphrase, NewPassphrase).
+    emergency_passphrase:change(CurrentPassphrase, NewPassphrase);
+
+create(#onp_req{gri = #gri{aspect = invite_token}}) ->
+    {ok, InviteToken} = invite_tokens:create(),
+    {ok, value, InviteToken}.
 
 
 -spec get(middleware:req(), middleware:entity()) -> middleware:get_result().

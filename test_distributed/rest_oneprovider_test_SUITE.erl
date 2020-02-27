@@ -109,12 +109,16 @@ all() ->
     {<<"/provider">>, post},
     {<<"/provider">>, patch},
     {<<"/provider">>, delete},
+    {<<"/provider/nagios">>, get},
     {<<"/provider/spaces">>, get},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
     {<<"/provider/spaces/someSpaceId/sync">>, get},
+
+    {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, get},
+    {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, patch},
 
     {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, patch},
@@ -127,6 +131,7 @@ all() ->
     {<<"/provider/storages">>, post},
     {<<"/provider/storages/someStorageId">>, get},
     {<<"/provider/storages/someStorageId">>, patch},
+    {<<"/provider/storages/someStorageId">>, delete},
     {<<"/provider/storages/someStorageId/invalidate_luma">>, patch},
 
     {<<"/provider/cluster_ips">>, get},
@@ -306,13 +311,15 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, ?COMMON_ENDPOINTS_WITH_METHODS).
+    end, [{<<"/provider/onezone_info">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_forbidden_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         % highest rights which still should not grant access to these endpoints
-        Auths = case {Endpoint, Method} of
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
             {<<"/provider">>, delete} ->
                 ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
             _ ->
@@ -320,9 +327,9 @@ method_should_return_forbidden_error(Config) ->
         end,
 
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Host, Endpoint, Method, Auths
+            Host, Endpoint, Method, Auths ++ ?PEER_AUTHS(Host)
         ))
-    end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get]).
+    end, [{<<"/provider/onezone_info">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_conflict_error(Config) ->

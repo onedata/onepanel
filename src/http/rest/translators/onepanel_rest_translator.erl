@@ -18,12 +18,18 @@
 -include("modules/onepanel_dns.hrl").
 -include_lib("ctool/include/graph_sync/gri.hrl").
 
--export([get_response/2]).
+-export([create_response/3, get_response/2]).
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec create_response(gri:gri(), gs_protocol:data_format(), Result) -> #rest_resp{}
+    when Result :: term() | {gri:gri(), term()}.
+create_response(#gri{aspect = invite_token}, value, InviteToken) ->
+    ?OK_REPLY(#{<<"inviteToken">> => InviteToken}).
 
 
 -spec get_response(gri:gri(), Resource :: term()) -> #rest_resp{}.
@@ -66,4 +72,3 @@ get_response(#gri{aspect = emergency_passphrase}, IsSet) when is_boolean(IsSet)-
 
 get_response(#gri{}, Data) when is_map(Data) ->
     ?OK_REPLY(Data).
-

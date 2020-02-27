@@ -26,6 +26,10 @@
     onepanel_test_rest:obtain_local_token(HostOrConfig, BasicOrPassphrase)
 ]).
 
+-define(PEER_AUTHS(Host), [
+    onepanel_test_rest:obtain_invite_token(Host)
+]).
+
 -define(OZ_AUTHS(HostOrConfig, Privileges), [
     onepanel_test_rest:oz_token_auth(<<"privileged">>, Privileges)
 ]).

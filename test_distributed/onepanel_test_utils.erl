@@ -21,10 +21,16 @@
 -export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
     mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
--export([service_host_action/3, service_host_action/4,
-    service_action/3, service_action/4, attempt_service_action/4]).
+-export([
+    service_host_action/3, service_host_action/4,
+    service_action/3, service_action/4, attempt_service_action/4
+]).
 -export([get_domain/1]).
 -export([create_registration_token/1, create_registration_token/2]).
+-export([
+    mock_system_time/1, unmock_system_time/1,
+    simulate_system_time_passing/2, get_mocked_system_time/1
+]).
 
 -type config() :: proplists:proplist().
 
@@ -44,6 +50,8 @@
     {oz_worker_overlay_config_file, "/etc/oz_worker/overlay.config"},
     {services_check_period, timer:hours(1)}
 ]).
+
+-define(TIME_MOCK_STARTING_TIMESTAMP, 1500000000).
 
 %%%===================================================================
 %%% API functions
@@ -283,6 +291,41 @@ create_registration_token(OnezoneDomain, AdminId) ->
         persistence = {temporary, 1}
     }, tokens:generate_secret(), [])),
     Token.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Mocks system time - stops the clock at one value and allows to manually
+%% simulate time passing.
+%% @end
+%%--------------------------------------------------------------------
+-spec mock_system_time([node()]) -> ok.
+mock_system_time(Nodes) ->
+    ok = test_utils:mock_new(Nodes, time_utils, [passthrough]),
+    ok = test_utils:mock_expect(Nodes, time_utils, system_time_seconds, fun() ->
+        onepanel_env:get(mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP)
+    end).
+
+
+-spec unmock_system_time([node()]) -> ok.
+unmock_system_time(Nodes) ->
+    ok = test_utils:mock_unload(Nodes, time_utils).
+
+
+-spec simulate_system_time_passing(node(), time_utils:seconds()) -> ok.
+simulate_system_time_passing(Nodes, Seconds) ->
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, onepanel_env, set, [
+            mocked_time, get_mocked_system_time(Node) + Seconds
+        ])
+    end, Nodes).
+
+
+-spec get_mocked_system_time(node()) -> time_utils:seconds().
+get_mocked_system_time(Node) ->
+    rpc:call(Node, onepanel_env, get, [
+        mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP
+    ]).
 
 
 %%%===================================================================

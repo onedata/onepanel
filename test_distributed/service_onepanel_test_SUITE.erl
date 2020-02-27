@@ -57,8 +57,14 @@ all() ->
         leave_should_remove_node
     ]).
 
--define(COOKIE, test_cookie).
--define(COOKIE2, other_cookie).
+
+%% Sample certificate files
+-define(TEST_CERT_PATHS, #{
+    web_cert_file => "testca/web_cert.pem",
+    web_key_file => "testca/web_key.pem",
+    web_cert_chain_file => "testca/web_chain.pem"
+}).
+
 
 %%%===================================================================
 %%% Test functions
@@ -70,7 +76,7 @@ deploy_should_create_cluster(Config) ->
     Hosts = hosts:from_nodes(Nodes),
 
     onepanel_test_utils:service_action(Node,
-        ?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => Hosts}
+        ?SERVICE_PANEL, deploy, #{hosts => Hosts}
     ),
     ?assertEqual(Hosts,
         lists:sort(rpc:call(Node, service_onepanel, get_hosts, []))).
@@ -81,12 +87,15 @@ join_should_add_node(Config) ->
     Nodes = [Node1, Node2],
     [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
+    {ok, InviteToken} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, #{
+            invite_token => InviteToken,
+            cluster_host => Host1
+        }
     ),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -94,15 +103,17 @@ join_should_add_node(Config) ->
 
 
 join_should_fail_on_clustered_node(Config) ->
+    [Node1 | _] = ?config(onepanel_nodes, Config),
     Cluster1 = ?config(cluster1, Config),
     Cluster2 = ?config(cluster2, Config),
     [Host1 | _] = Cluster1Hosts = hosts:from_nodes(Cluster1),
     Cluster2Hosts = hosts:from_nodes(Cluster2),
 
     lists:foreach(fun(Node) ->
+        {ok, InviteToken} = rpc:call(Node1, invite_tokens, create, []),
         ?assertMatch({error, _}, rpc:call(Node, service, apply,
             [?SERVICE_PANEL, join_cluster, #{hosts => [hosts:from_node(Node)],
-                cluster_host => Host1}]
+                invite_token => InviteToken, cluster_host => Host1}]
         ))
     end, Cluster2),
 
@@ -116,18 +127,20 @@ join_should_work_after_leave(Config) ->
     Nodes = [Node1, Node2],
     [Host1 | _] = hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
+
+    {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host1}
     ),
     onepanel_test_utils:service_action(Node2,
         ?SERVICE_PANEL, leave_cluster, #{}
     ),
+    {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken2, cluster_host => Host1}
     ).
 
 
@@ -137,26 +150,44 @@ sequential_join_should_create_cluster(Config) ->
     [Host1, Host2, Host3, Host4 | _] = Hosts =
         hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}),
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
+    ),
+
+    onepanel_test_utils:mock_system_time(Nodes),
+
+    {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
+    {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
+    ?assertNotEqual(InviteToken1, InviteToken2),
+
+    % Assert that invite tokens can be used multiple times
     onepanel_test_utils:service_action(Node2,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host1}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host1}
     ),
     onepanel_test_utils:service_action(Node3,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host2}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host2}
     ),
     onepanel_test_utils:service_action(Node4,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host3}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken2, cluster_host => Host3}
     ),
+
+    % Assert that invite tokens expires after predefined period of time
+    onepanel_test_utils:simulate_system_time_passing(Nodes, 100000),
+    ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(Node5,
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
+    )),
+    % Returning back in time to when token was still valid should make it usable
+    onepanel_test_utils:simulate_system_time_passing(Nodes, -100000),
     onepanel_test_utils:service_action(Node5,
-        ?SERVICE_PANEL, join_cluster, Ctx#{cluster_host => Host4}
+        ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     ),
 
     lists:foreach(fun(Node) ->
         ?assertEqual(Hosts,
             lists:sort(rpc:call(Node, service_onepanel, get_hosts, [])))
-    end, Nodes).
+    end, Nodes),
+
+    onepanel_test_utils:unmock_system_time(Nodes).
 
 
 % ensure presence of deployed services does not prevent adding more nodes
@@ -180,7 +211,7 @@ leave_should_remove_node(Config) ->
     Hosts = [Host2, Host3],
 
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, #{cookie => ?COOKIE, hosts => [Host1 | Hosts]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1 | Hosts]}
     ),
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, leave_cluster, #{}
@@ -196,12 +227,11 @@ extend_should_add_node_by_hostname(Config) ->
     Nodes = [Node1, Node2],
     [Host1, Host2] = Hosts = hosts:from_nodes(Nodes),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, extend_cluster, Ctx#{hostname => Host2}
+        ?SERVICE_PANEL, extend_cluster, #{hostname => Host2}
     ),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -214,12 +244,11 @@ extend_should_add_node_by_ip(Config) ->
     [Host1 | _] = Hosts = hosts:from_nodes(Nodes),
     Host2Address = test_utils:get_docker_ip(Node2),
 
-    Ctx = #{cookie => ?COOKIE},
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, deploy, Ctx#{hosts => [Host1]}
+        ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
     onepanel_test_utils:service_action(Node1,
-        ?SERVICE_PANEL, extend_cluster, Ctx#{address => Host2Address}
+        ?SERVICE_PANEL, extend_cluster, #{address => Host2Address}
     ),
 
     ?assertEqual(Hosts, lists:sort(rpc:call(Node1, service_onepanel, get_hosts, []))),
@@ -295,22 +324,23 @@ extend_should_copy_certificates_to_new_node(Config) ->
         % mock will produce cert and key files
         ?SERVICE_LE, update, #{letsencrypt_enabled => true}),
     % sanity check
-    verify_certificate_files(Node1),
+    verify_certificate_files(Node1, Config),
 
     % add node
     onepanel_test_utils:service_action(Node1,
         ?SERVICE_PANEL, extend_cluster, #{hostname => Host2Bin}
     ),
 
-    verify_certificate_files(Node2).
+    verify_certificate_files(Node2, Config).
 
 
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
 
+
 init_per_suite(Config) ->
-    [{?CTH_ENV_UP, ?DISABLE} | Config].
+    [{?CTH_ENV_UP, ?DISABLE}, {?LOAD_MODULES, [onepanel_test_utils]} | Config].
 
 init_per_testcase(join_should_fail_on_clustered_node, Config) ->
     Config2 = init_per_testcase(default, Config),
@@ -382,12 +412,7 @@ init_per_testcase(Case, Config) when
         fun(_) -> ok end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(_, _) ->
-            ?assertEqual(ok, file:write_file(onepanel_env:get(web_cert_file),
-                <<"web_cert_file">>)),
-            ?assertEqual(ok, file:write_file(onepanel_env:get(web_key_file),
-                <<"web_key_file">>)),
-            ?assertEqual(ok, file:write_file(onepanel_env:get(web_cert_chain_file),
-                <<"web_cert_chain_file">>)),
+            deploy_predefined_certs(?TEST_CERT_PATHS, Config),
 
             KeysDir = filename:join(
                 onepanel_env:get(letsencrypt_keys_dir),
@@ -422,24 +447,43 @@ end_per_suite(_Config) ->
 
 %%--------------------------------------------------------------------
 %% @private
+%% @doc Writes predefined certificate files on node.
+%% @end
+%%--------------------------------------------------------------------
+-spec deploy_predefined_certs(map(), Config :: proplists:proplist()) -> ok.
+deploy_predefined_certs(SourcePaths, Config) ->
+    lists:foreach(fun({FileType, Path}) ->
+        {ok, Content} = file:read_file(?TEST_FILE(Config, Path)),
+        ?assertMatch(ok, file:write_file(onepanel_env:get(FileType), Content))
+    end, maps:to_list(SourcePaths)).
+
+
+%%--------------------------------------------------------------------
+%% @private
 %% @doc
 %% Verifies certificate files have the expected content in
 %% extend_should_copy_certificates_to_new_node test case.
+%% @end
 %%--------------------------------------------------------------------
--spec verify_certificate_files(node()) -> ok.
-verify_certificate_files(Node) ->
-    {ok, WebCertFile} = test_utils:get_env(Node, ?APP_NAME, web_cert_file),
-    {ok, WebKeyFile}  = test_utils:get_env(Node, ?APP_NAME, web_key_file),
-    {ok, WebCertChainFile}   = test_utils:get_env(Node, ?APP_NAME, web_cert_chain_file),
+-spec verify_certificate_files(node(), Config :: proplists:proplist()) -> ok.
+verify_certificate_files(Node, Config) ->
+    lists:foreach(fun({FileType, ExpContentPath}) ->
+        {ok, FilePathOnNode} = test_utils:get_env(Node, ?APP_NAME, FileType),
+        ?assertEqual(
+            file:read_file(?TEST_FILE(Config, ExpContentPath)),
+            rpc:call(Node, file, read_file, [FilePathOnNode])
+        )
+    end, maps:to_list(?TEST_CERT_PATHS)),
+
     {ok, LEDir} = test_utils:get_env(Node, ?APP_NAME, letsencrypt_keys_dir),
     LEPrivateKey = filename:join([LEDir, production, "letsencrypt_private_key.pem"]),
     LEPublicKey = filename:join([LEDir, production, "letsencrypt_public_key.pem"]),
 
-    ?assertEqual({ok, <<"web_cert_file">>}, rpc:call(Node, file, read_file, [WebCertFile])),
-    ?assertEqual({ok, <<"web_key_file">>}, rpc:call(Node, file, read_file, [WebKeyFile])),
-    ?assertEqual({ok, <<"web_cert_chain_file">>}, rpc:call(Node, file, read_file, [WebCertChainFile])),
-
-    ?assertEqual({ok, <<"letsencrypt_private_key">>},
-        rpc:call(Node, file, read_file, [LEPrivateKey])),
-    ?assertEqual({ok, <<"letsencrypt_public_key">>},
-        rpc:call(Node, file, read_file, [LEPublicKey])).
+    ?assertEqual(
+        {ok, <<"letsencrypt_private_key">>},
+        rpc:call(Node, file, read_file, [LEPrivateKey])
+    ),
+    ?assertEqual(
+        {ok, <<"letsencrypt_public_key">>},
+        rpc:call(Node, file, read_file, [LEPublicKey])
+    ).

@@ -5,16 +5,15 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module is responsible for deleting inactive sessions.
+%%% @doc
+%%% This module is responsible for deleting inactive sessions and
+%%% expired authorization nonce.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_session_gc).
+-module(onepanel_auth_gc).
 -author("Krzysztof Trzepla").
 
 -behaviour(gen_server).
-
-% Cookies are long-lived (a week by default), perform cleaning more often.
--define(CLEANING_INTERVAL, gui_session:cookie_ttl() div 7).
 
 -include_lib("ctool/include/logging.hrl").
 
@@ -22,15 +21,23 @@
 -export([start_link/0]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
-    code_change/3]).
+-export([
+    init/1,
+    handle_call/3, handle_cast/2, handle_info/2,
+    terminate/2, code_change/3
+]).
 
--record(state, {
-}).
+-record(state, {}).
+
+% Cookies are long-lived (a week by default), perform cleaning more often.
+-define(CLEANING_INTERVAL, gui_session:cookie_ttl() div 7).
+-define(CLEAN_STALE_AUTH_REQ, clean_stale_auth).
+
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @doc Starts the server.
@@ -41,9 +48,11 @@
 start_link() ->
     gen_server:start_link(?MODULE, [], []).
 
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Initializes the server.
@@ -53,8 +62,9 @@ start_link() ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore.
 init([]) ->
-    schedule_inactive_sessions_deletion(),
+    schedule_stale_auth_cleaning(),
     {ok, #state{}}.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Handles call messages.
@@ -72,6 +82,7 @@ handle_call(Request, _From, State) ->
     ?log_bad_request(Request),
     {reply, {error, {invalid_request, Request}}, State}.
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Handles cast messages.
 %% @end
@@ -84,6 +95,7 @@ handle_cast(Request, State) ->
     ?log_bad_request(Request),
     {noreply, State}.
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Handles all non call/cast messages.
 %% @end
@@ -92,14 +104,16 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
-handle_info(delete_inactive_sessions, #state{} = State) ->
+handle_info(?CLEAN_STALE_AUTH_REQ, #state{} = State) ->
     clean_sessions(),
-    schedule_inactive_sessions_deletion(),
+    authorization_nonce:delete_expired_nonces(),
+    schedule_stale_auth_cleaning(),
     {noreply, State};
 
 handle_info(Info, State) ->
     ?log_bad_request(Info),
     {noreply, State}.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc This function is called by a gen_server when it is about to
@@ -113,6 +127,7 @@ handle_info(Info, State) ->
 terminate(_Reason, _State) ->
     ok.
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Converts process state when code is changed.
 %% @end
@@ -123,9 +138,11 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @private @doc Traverses sessions removing expired ones
@@ -138,26 +155,20 @@ clean_sessions() ->
     lists:foreach(fun(Session) ->
         case onepanel_session:is_active(Session) of
             false -> onepanel_session:delete(Session);
-            true -> clean_tokens(Session)
+            true -> remove_expired_session_tokens(Session)
         end
     end, Sessions).
 
 
-%%--------------------------------------------------------------------
-%% @private @doc Removes stale tokens from a session.
-%% @end
-%%--------------------------------------------------------------------
--spec clean_tokens(Session :: onepanel_session:record()) -> ok.
-clean_tokens(Session) ->
+%% @private
+-spec remove_expired_session_tokens(onepanel_session:record()) -> ok.
+remove_expired_session_tokens(Session) ->
     Cleaned = onepanel_session:remove_expired_tokens(Session),
     onepanel_session:save(Cleaned).
 
 
-%%--------------------------------------------------------------------
-%% @private @doc Schedules deletion of inactive sessions.
-%% @end
-%%--------------------------------------------------------------------
--spec schedule_inactive_sessions_deletion() -> ok.
-schedule_inactive_sessions_deletion() ->
-    erlang:send_after(?CLEANING_INTERVAL, self(), delete_inactive_sessions),
+%% @private
+-spec schedule_stale_auth_cleaning() -> ok.
+schedule_stale_auth_cleaning() ->
+    erlang:send_after(?CLEANING_INTERVAL, self(), ?CLEAN_STALE_AUTH_REQ),
     ok.

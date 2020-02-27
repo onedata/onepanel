@@ -51,6 +51,7 @@ all() ->
 -define(TIMEOUT, timer:seconds(5)).
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
+    {<<"/zone/nagios">>, get},
     {<<"/zone/users">>, get},
     {<<"/zone/users">>, post},
     {<<"/zone/users/someUserId">>, get},
@@ -85,7 +86,9 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         % highest rights which still should not grant access to these endpoints
-        Auths = case {Endpoint, Method} of
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
             _ ->
                 ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
@@ -93,7 +96,7 @@ method_should_return_forbidden_error(Config) ->
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, Endpoint, Method, Auths
         ))
-    end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get]).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_service_unavailable_error(Config) ->
