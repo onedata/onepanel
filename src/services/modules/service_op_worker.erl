@@ -61,7 +61,6 @@
     set_transfers_mock/1]).
 -export([migrate_generated_config/1]).
 
--define(INIT_SCRIPT, "op_worker").
 
 %%%===================================================================
 %%% Service behaviour callbacks

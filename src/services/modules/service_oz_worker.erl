@@ -52,7 +52,6 @@
 -export([get_policies/0, set_policies/1]).
 -export([get_details/1, get_details/0]).
 
--define(INIT_SCRIPT, "oz_worker").
 -define(DETAILS_CACHE_KEY, onezone_details).
 -define(DETAILS_CACHE_TTL, timer:minutes(1)).
 

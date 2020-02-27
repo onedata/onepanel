@@ -291,9 +291,9 @@ write(Keys, Value, ServiceName) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec write(Nodes :: [node()], Keys :: keys(), Value :: value(),
-    Path :: file:name_all()) -> Results :: onepanel_rpc:results() | no_return().
-write(Nodes, Keys, Value, Path) ->
-    onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, Path]).
+    service:name()) -> Results :: onepanel_rpc:results() | no_return().
+write(Nodes, Keys, Value, ServiceName) ->
+    onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, ServiceName]).
 
 
 %%--------------------------------------------------------------------
