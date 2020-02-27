@@ -331,6 +331,8 @@ cluster_configuration_details_model() ->
         %% Host responsible for deploying cluster and coordinating cluster
         %% restarts.
         master => string,
+        %% List of hosts belonging to the Onepanel cluster.
+        hosts => [string],
         databases => database_hosts_model(),
         managers => manager_hosts_model(),
         workers => worker_hosts_model()

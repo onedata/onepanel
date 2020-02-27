@@ -166,6 +166,8 @@ format_service_configuration(SModule) ->
     Ceph#{
         <<"cluster">> => #{
             <<"master">> => MasterHostBin,
+            <<"hosts">> =>
+                onepanel_utils:convert(service_onepanel:get_hosts(), {seq, binary}),
             <<"databases">> => #{
                 <<"hosts">> => onepanel_utils:convert(DbHosts, {seq, binary})},
             <<"managers">> => #{
