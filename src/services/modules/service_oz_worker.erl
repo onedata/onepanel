@@ -29,6 +29,13 @@
     % service status cache
     status => #{service:host() => service:status()}
 }.
+
+-type policies() :: #{
+    oneprovider_registration => open | restricted | binary(),
+    subdomain_delegation => boolean(),
+    gui_package_verification => boolean(),
+    harvester_gui_package_verification => boolean()
+}.
 % @formatter:on
 
 -export_type([model_ctx/0]).
@@ -451,7 +458,7 @@ rename_variables() ->
     end, Changes).
 
 
--spec get_policies() -> #{atom() := term()}.
+-spec get_policies() -> policies().
 get_policies() ->
     {ok, Node} = nodes:any(name()),
 
@@ -464,10 +471,10 @@ get_policies() ->
     HarversterGuiVerification = onepanel_env:get_remote(Node,
         harvester_gui_package_verification, name()),
     #{
-        oneproviderRegistration => ProviderRegistration,
-        subdomainDelegation => SubdomainDelegation,
-        guiPackageVerification => GuiVerification,
-        harvesterGuiPackageVerification => HarversterGuiVerification
+        oneprovider_registration => ProviderRegistration,
+        subdomain_delegation => SubdomainDelegation,
+        gui_package_verification => GuiVerification,
+        harvester_gui_package_verification => HarversterGuiVerification
     }.
 
 
@@ -477,7 +484,7 @@ get_policies() ->
 %% nodes with oz_worker to ensure consistent app.config state.
 %% @end
 %%-------------------------------------------------------------------
--spec set_policies(Ctx :: service:step_ctx()) -> ok.
+-spec set_policies(policies()) -> ok.
 set_policies(Ctx) ->
     lists:foreach(fun
         ({oneprovider_registration, OpenOrRestricted}) ->
