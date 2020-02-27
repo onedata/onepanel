@@ -109,13 +109,8 @@ get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
             [
                 #step{function = configure_additional_node, hosts = NewHosts, ctx = Ctx2},
                 #step{function = import_provider_auth_file, hosts = NewHosts, ctx = Ctx2,
-                    condition = fun(_) -> service_oneprovider:is_registered() end},
-                #step{function = register_host, args = [], hosts = NewHosts, ctx = Ctx2},
-                #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx2},
-                #steps{service = ?SERVICE_OPW, action = stop},
-                #steps{service = ?SERVICE_CM, action = stop},
-                #steps{service = ?SERVICE_CM, action = resume},
-                #steps{service = ?SERVICE_OPW, action = resume}
+                    condition = fun(_) -> service_oneprovider:is_registered() end}
+                | service_cluster_worker:add_nodes_steps(Ctx2)
             ]
     end;
 
@@ -303,11 +298,6 @@ import_provider_auth_file(#{reference_host := RefHost}) ->
     RefNode = nodes:service_to_node(?SERVICE_PANEL, RefHost),
     Path = onepanel_env:get_remote(RefNode, op_worker_root_token_path, ?APP_NAME),
     ok = rpc:call(RefNode, onepanel_utils, distribute_file, [[hosts:self()], Path]).
-
-
--spec register_host() -> ok.
-register_host() ->
-    service:add_host(name(), hosts:self()).
 
 
 %%--------------------------------------------------------------------

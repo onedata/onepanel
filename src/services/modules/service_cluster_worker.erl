@@ -27,7 +27,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([configure/1, wait_for_init/1, start/1, stop/1, status/1,
+-export([add_nodes_steps/1, configure/1, wait_for_init/1, start/1, stop/1, status/1,
     get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
     get_cluster_ips/1, get_hosts_ips/1, reload_webcert/1, migrate_generated_config/1]).
 
@@ -139,6 +139,31 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
 %%% API functions
 %%%===================================================================
 
+
+
+%%--------------------------------------------------------------------
+%% @doc Defines part of the steps, which complete list is generated
+%% in service_oz/op_worker.
+%% @end
+%%--------------------------------------------------------------------
+
+-spec add_nodes_steps(#{
+    name := service:name(),
+    reference_host := service:host(), new_hosts := [service:host()]
+}) -> [service:step()].
+add_nodes_steps(#{reference_host := _, name := _, new_hosts := NewHosts} = Ctx) ->
+    % set Ctx in records to use modifications made to it in op/oz service module
+    [
+        #step{module = ?MODULE, function = register_host,
+            hosts = NewHosts, ctx = Ctx},
+        #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx},
+        #steps{service = ?SERVICE_OPW, action = stop, ctx = Ctx},
+        #steps{service = ?SERVICE_CM, action = stop, ctx = Ctx},
+        #steps{service = ?SERVICE_CM, action = resume, ctx = Ctx},
+        #steps{service = ?SERVICE_OPW, action = resume, ctx = Ctx}
+    ].
+
+
 %%--------------------------------------------------------------------
 %% @doc Configures the service.
 %% @end
@@ -227,6 +252,11 @@ wait_for_init(#{name := ServiceName, wait_for_init_attempts := Attempts,
         Attempts, Delay),
     service:update_status(ServiceName, healthy),
     ok.
+
+
+-spec register_host(Ctx) -> ok.
+register_host(#{name := ServiceName}) ->
+    service:add_host(ServiceName, hosts:self()).
 
 
 %%--------------------------------------------------------------------
