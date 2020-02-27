@@ -53,7 +53,6 @@
 
 %% Step functions
 -export([configure/1, configure_additional_node/1, import_provider_auth_file/1,
-    register_host/0,
     start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storage/1, get_storages/1,
     update_storage/1, remove_storage/1,
@@ -100,12 +99,12 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
-    case service:get_hosts(?SERVICE_OPW) of
+    case get_hosts() of
         [] ->
             {ok, Ctx2} = kv_utils:rename_entry(new_hosts, hosts, Ctx),
             [#steps{action = deploy, ctx = Ctx2}];
         [ExistingHost | _] ->
-            Ctx2 = Ctx#{reference_host => ExistingHost},
+            Ctx2 = Ctx#{name => name(), reference_host => ExistingHost},
             [
                 #step{function = configure_additional_node, hosts = NewHosts, ctx = Ctx2},
                 #step{function = import_provider_auth_file, hosts = NewHosts, ctx = Ctx2,

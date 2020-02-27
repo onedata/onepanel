@@ -53,6 +53,7 @@
 
 %% Step functions
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
+    configure_additional_node/1,
     get_nagios_response/1, get_nagios_status/1]).
 -export([reconcile_dns/1, get_ns_hosts/0]).
 -export([migrate_generated_config/1, rename_variables/0]).
@@ -99,8 +100,18 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
-get_steps(deploy, Ctx) ->
-    service_cluster_worker:get_steps(deploy, Ctx#{name => name()});
+get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
+    case get_hosts() of
+        [] ->
+            {ok, Ctx2} = kv_utils:rename_entry(new_hosts, hosts, Ctx),
+            [#steps{action = deploy, ctx = Ctx2}];
+        [ExistingHost | _] ->
+            Ctx2 = Ctx#{name => name(), reference_host => ExistingHost},
+            [
+                #step{function = configure_additional_node, hosts = NewHosts, ctx = Ctx2}
+                | service_cluster_worker:add_nodes_steps(Ctx2)
+            ]
+    end;
 
 get_steps(get_policies, _Ctx) ->
     [#step{function = get_policies, selection = any, args = []}];
@@ -151,6 +162,26 @@ get_user_details(Auth) ->
     end.
 
 
+-spec get_policies() -> policies().
+get_policies() ->
+    {ok, Node} = nodes:any(name()),
+
+    ProviderRegistration = onepanel_env:get_remote(Node,
+        provider_registration_policy, name()),
+    SubdomainDelegation = onepanel_env:get_remote(Node,
+        subdomain_delegation_supported, name()),
+    GuiVerification = onepanel_env:get_remote(Node,
+        gui_package_verification, name()),
+    HarversterGuiVerification = onepanel_env:get_remote(Node,
+        harvester_gui_package_verification, name()),
+    #{
+        oneprovider_registration => ProviderRegistration,
+        subdomain_delegation => SubdomainDelegation,
+        gui_package_verification => GuiVerification,
+        harvester_gui_package_verification => HarversterGuiVerification
+    }.
+
+
 %%%===================================================================
 %%% Step functions
 %%%===================================================================
@@ -183,6 +214,39 @@ configure(Ctx) ->
         vm_args_file => VmArgsFile,
         initialize_ip => true
     }).
+
+
+%%--------------------------------------------------------------------
+%% @doc Configures new oz_worker node, assuming there are already
+%% some cluster_manager and oz_worker instances.
+%% @end
+%%--------------------------------------------------------------------
+-spec configure_additional_node(#{reference_host := service:host(), _ => _}) -> ok.
+configure_additional_node(#{reference_host := RefHost} = Ctx) ->
+    ReferenceNode = nodes:service_to_node(?SERVICE_PANEL, RefHost),
+    {ok, MainCmHost} = service_cluster_manager:get_main_host(),
+    CmHosts = service_cluster_manager:get_hosts(),
+    DbHosts  = service_couchbase:get_hosts(),
+
+    {ok, OzName} = rpc:call(ReferenceNode,
+        onepanel_env, read_effective, [[oz_worker, oz_name], name()]),
+    {ok, HttpDomain} = rpc:call(ReferenceNode,
+        onepanel_env, read_effective, [[oz_worker, http_domain], name()]),
+
+    NewCtx = maps_utils:merge([
+        #{
+            main_cm_host => MainCmHost, cm_hosts => CmHosts,
+            db_hosts => DbHosts,
+            policies => get_policies(),
+            onezone_domain => HttpDomain,
+            onezone_name => OzName
+        },
+        Ctx
+    ]),
+    ok = configure(NewCtx),
+    ok = onepanel_env:import_generated_from_node(
+        name(), ReferenceNode, _SetInRuntime = false
+    ).
 
 
 %%--------------------------------------------------------------------
@@ -456,26 +520,6 @@ rename_variables() ->
     lists:foreach(fun({Old, New}) ->
         onepanel_env:rename(name(), Old, New)
     end, Changes).
-
-
--spec get_policies() -> policies().
-get_policies() ->
-    {ok, Node} = nodes:any(name()),
-
-    ProviderRegistration = onepanel_env:get_remote(Node,
-        provider_registration_policy, name()),
-    SubdomainDelegation = onepanel_env:get_remote(Node,
-        subdomain_delegation_supported, name()),
-    GuiVerification = onepanel_env:get_remote(Node,
-        gui_package_verification, name()),
-    HarversterGuiVerification = onepanel_env:get_remote(Node,
-        harvester_gui_package_verification, name()),
-    #{
-        oneprovider_registration => ProviderRegistration,
-        subdomain_delegation => SubdomainDelegation,
-        gui_package_verification => GuiVerification,
-        harvester_gui_package_verification => HarversterGuiVerification
-    }.
 
 
 %%-------------------------------------------------------------------

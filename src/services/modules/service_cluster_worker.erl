@@ -28,7 +28,7 @@
 
 %% API
 -export([add_nodes_steps/1, configure/1, wait_for_init/1, start/1, stop/1, status/1,
-    get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
+    register_host/1, get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
     get_cluster_ips/1, get_hosts_ips/1, reload_webcert/1, migrate_generated_config/1]).
 
 %%%===================================================================
@@ -151,16 +151,16 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
     name := service:name(),
     reference_host := service:host(), new_hosts := [service:host()]
 }) -> [service:step()].
-add_nodes_steps(#{reference_host := _, name := _, new_hosts := NewHosts} = Ctx) ->
+add_nodes_steps(#{reference_host := _, name := WorkerName, new_hosts := NewHosts} = Ctx) ->
     % set Ctx in records to use modifications made to it in op/oz service module
     [
         #step{module = ?MODULE, function = register_host,
             hosts = NewHosts, ctx = Ctx},
         #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx},
-        #steps{service = ?SERVICE_OPW, action = stop, ctx = Ctx},
+        #steps{service = WorkerName, action = stop, ctx = Ctx},
         #steps{service = ?SERVICE_CM, action = stop, ctx = Ctx},
         #steps{service = ?SERVICE_CM, action = resume, ctx = Ctx},
-        #steps{service = ?SERVICE_OPW, action = resume, ctx = Ctx}
+        #steps{service = WorkerName, action = resume, ctx = Ctx}
     ].
 
 
@@ -254,7 +254,7 @@ wait_for_init(#{name := ServiceName, wait_for_init_attempts := Attempts,
     ok.
 
 
--spec register_host(Ctx) -> ok.
+-spec register_host(#{name := service:name(), _ => _}) -> ok.
 register_host(#{name := ServiceName}) ->
     service:add_host(ServiceName, hosts:self()).
 
