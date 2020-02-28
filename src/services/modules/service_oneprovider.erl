@@ -213,7 +213,9 @@ get_steps(stop, _Ctx) ->
 get_steps(restart, _Ctx) ->
     [
         #steps{action = stop},
-        #steps{action = start}
+        #steps{service = ?SERVICE_CB, action = resume},
+        #steps{service = ?SERVICE_CM, action = resume},
+        #steps{service = ?SERVICE_OPW, action = resume}
     ];
 
 % returns any steps only on the master node
@@ -256,13 +258,13 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OPW, action = status}
     ];
 
-get_steps(register, #{hosts := Hosts}) ->
+get_steps(register, #{hosts := _Hosts}) ->
     [
-        #step{hosts = Hosts, function = check_oz_availability,
+        #step{function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{hosts = Hosts, function = register, selection = any},
+        #step{function = register, selection = any},
         % explicitly fail on connection problems before executing further steps
-        #step{hosts = Hosts, function = check_oz_connection, args = [],
+        #step{function = check_oz_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #steps{action = set_up_service_in_onezone},
         #steps{action = set_cluster_ips}
@@ -932,6 +934,9 @@ set_up_service_in_onezone() ->
 %% This function should be executed after cluster deployment, and after
 %% upgrading to version 19.10 when the path variable name and contents
 %% have changed.
+%%
+%% The absolute path is mostly relevant to one-env source deployments,
+%% since in production the default in app.config is already absolute.
 %% @end
 %%--------------------------------------------------------------------
 -spec store_absolute_auth_file_path() -> ok.

@@ -32,5 +32,8 @@ create_response(#gri{aspect = cluster}, value, AsyncTaskId) ->
 
 
 -spec get_response(gri:gri(), Resource :: term()) -> #rest_resp{}.
+get_response(#gri{aspect = transfers_mock}, IsEnabled) ->
+    ?OK_REPLY(#{<<"transfersMock">> => IsEnabled});
+
 get_response(#gri{}, Data) when is_map(Data) ->
     ?OK_REPLY(Data).

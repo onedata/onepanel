@@ -323,7 +323,8 @@ start(#{uuid := UUID} = Ctx) ->
 
 
 -spec stop(#{id | uuid := binary()}) -> ok.
-stop(#{id := Id}) ->
+stop(#{id := Id} = Ctx) ->
+    service:deregister_healthcheck(name(), Ctx),
     ceph_cli:stop_with_timeout(ceph_cli:osd_start_cmd(Id));
 
 stop(#{uuid := UUID} = Ctx) ->

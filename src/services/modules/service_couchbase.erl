@@ -154,7 +154,7 @@ start(Ctx) ->
 %%--------------------------------------------------------------------
 -spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
-    onepanel_cron:remove_job(name()),
+    service:deregister_healthcheck(name(), Ctx),
     service_cli:stop(name()),
     % update status cache
     status(Ctx),

@@ -191,13 +191,13 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
 start(#{name := ServiceName} = Ctx) ->
     service_cli:start(ServiceName, Ctx),
     service:update_status(ServiceName, unhealthy),
-    service:register_healthcheck(ServiceName, #{hosts => [hosts:self()]}),
+    service:register_healthcheck(ServiceName, Ctx),
     ok.
 
 
 -spec stop(service:step_ctx()) -> ok.
 stop(#{name := ServiceName} = Ctx) ->
-    onepanel_cron:remove_job(ServiceName),
+    service:deregister_healthcheck(ServiceName, Ctx),
     service_cli:stop(ServiceName),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),

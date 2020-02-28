@@ -294,10 +294,11 @@ wait_for_init(#{id := Id}) ->
 
 
 -spec stop(#{id := id()}) -> ok.
-stop(#{id := Id}) ->
+stop(#{id := Id} = Ctx) ->
     #{ip := Ip} = get_instance(Id),
     DataDir = ceph:get_data_dir(mon, Id),
     StartedBy = ceph_cli:mon_start_cmd(Id, DataDir, Ip),
+    service:deregister_healthcheck(name(), Ctx),
     ceph_cli:stop_with_timeout(StartedBy).
 
 

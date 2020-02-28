@@ -164,7 +164,8 @@ wait_for_init(#{id := Id}) ->
 
 
 -spec stop(#{id := id()}) -> ok.
-stop(#{id := Id}) ->
+stop(#{id := Id} = Ctx) ->
+    service:deregister_healthcheck(name(), Ctx),
     StartedBy = ceph_cli:mgr_start_cmd(Id),
     ceph_cli:stop_with_timeout(StartedBy).
 

@@ -93,8 +93,8 @@ notify(Msg, _Notify) ->
     service_executor:hosts_results().
 partition_results(Results) ->
     lists:partition(fun
-        ({_, {error, _}}) -> false;
-        (_) -> true
+        ({_Node, {error, _}}) -> false;
+        ({_Node, _Success}) -> true
     end, Results).
 
 
@@ -110,12 +110,21 @@ results_contain_error({error, _} = Error) ->
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
-        [#action_end{result = {error, _} = Error}] ->
+        [
+            #action_end{result = {error, _}},
+            #step_end{good_bad_results = {_, [_ | _] = BadResults}}
+            | _Steps
+        ] ->
+            {true, bad_results_to_error(BadResults)};
+
+        % an action error may be without any erroneous #step_end,
+        % for example if verify_hosts failed.
+        [
+            #action_end{result = {error, _} = Error}
+            | _Steps
+        ] ->
             {true, cast_to_serializable_error(Error)};
 
-        [#action_end{result = {error, _}}, FailedStep | _Steps] ->
-            #step_end{good_bad_results = {_, BadResults}} = FailedStep,
-            {true, bad_results_to_error(BadResults)};
         _ ->
             false
     end.
@@ -232,39 +241,6 @@ get_steps(#steps{service = Service, action = Action, ctx = Ctx, verify_hosts = V
 -spec get_step(Step :: #step{}) -> Step :: [] | #step{}.
 get_step(#step{service = Service, module = undefined} = Step) ->
     get_step(Step#step{module = service:get_module(Service)});
-
-get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
-    get_step(Step#step{hosts = Hosts});
-
-get_step(#step{hosts = undefined, service = Service} = Step) ->
-    case hosts:all(Service) of
-        [] ->
-            % do not silently skip steps because of empty list in service model,
-            % unless it is explicitly given in step ctx or hosts field.
-            throw(?ERROR_NO_SERVICE_NODES(Service));
-        Hosts ->
-            get_step(Step#step{hosts = Hosts})
-    end;
-
-get_step(#step{hosts = []}) ->
-    [];
-
-get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
-    ok = onepanel_utils:ensure_known_hosts(Hosts),
-    get_step(Step#step{verify_hosts = false});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
-    Host = lists_utils:random_element(Hosts),
-    get_step(Step#step{hosts = [Host], selection = all,
-        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
-    get_step(Step#step{hosts = [hd(Hosts)],
-        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
-    get_step(Step#step{hosts = tl(Hosts),
-        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
 
 get_step(#step{ctx = Ctx, args = undefined} = Step) ->
     get_step(Step#step{args = [Ctx]});

@@ -18,6 +18,7 @@
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
 -include("service.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -41,7 +42,8 @@
     patch_should_configure_dns_check/1,
     post_should_configure_database_service/1,
     post_should_configure_cluster_manager_service/1,
-    post_should_configure_cluster_worker_service/1,
+    post_should_configure_op_worker_service/1,
+    post_should_configure_oz_worker_service/1,
     post_should_configure_oneprovider_service/1,
     post_should_configure_onezone_service/1,
     post_should_return_conflict_on_configured_onezone/1,
@@ -178,7 +180,8 @@ all() ->
         patch_should_configure_dns_check,
         post_should_configure_database_service,
         post_should_configure_cluster_manager_service,
-        post_should_configure_cluster_worker_service,
+        post_should_configure_op_worker_service,
+        post_should_configure_oz_worker_service,
         post_should_configure_oneprovider_service,
         post_should_configure_onezone_service,
         post_should_return_conflict_on_configured_onezone,
@@ -445,21 +448,29 @@ post_should_configure_cluster_manager_service(Config) ->
     end).
 
 
-post_should_configure_cluster_worker_service(Config) ->
-    ?run(Config, fun({Host, {Prefix, Service}}) ->
-        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
-            Host, <<Prefix/binary, "/workers">>, post,
-            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-            #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
-        )),
-        ?assertReceivedMatch({service, Service, deploy, #{
-            hosts := ["host1", "host2", "host3"], db_hosts := ["host1", "host2"],
-            cm_hosts := ["host2", "host3"], main_cm_host := "host3"
-        }}, ?TIMEOUT)
-    end, [
-        {oneprovider_hosts, {<<"/provider">>, op_worker}},
-        {onezone_hosts, {<<"/zone">>, oz_worker}}
-    ]).
+post_should_configure_op_worker_service(Config) ->
+    Host = hd(?config(oneprovider_hosts, Config)),
+    ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+        Host, <<"/provider/workers">>, post,
+        ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+        #{hosts => [<<"host2">>, <<"host3">>]}
+    )),
+    ?assertReceivedMatch({service, ?SERVICE_OPW, add_nodes, #{
+        new_hosts := ["host2", "host3"]
+    }}, ?TIMEOUT).
+
+
+post_should_configure_oz_worker_service(Config) ->
+    Host = hd(?config(onezone_hosts, Config)),
+    ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+        Host, <<"/zone/workers">>, post,
+        ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+        #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
+    )),
+    ?assertReceivedMatch({service, ?SERVICE_OZW, deploy, #{
+        hosts := ["host1", "host2", "host3"], db_hosts := ["host1", "host2"],
+        cm_hosts := ["host2", "host3"], main_cm_host := "host3"
+    }}, ?TIMEOUT).
 
 
 post_should_configure_onezone_service(Config) ->
@@ -791,6 +802,62 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     NewConfig;
 
 init_per_testcase(Case, Config) when
+    Case == post_should_configure_cluster_manager_service;
+    Case == post_should_configure_database_service;
+    Case == post_should_configure_op_worker_service
+->
+    % non-default init because the service must not already have hosts on which it is deployed
+    Nodes = ?config(all_nodes, Config),
+    Self = self(),
+    test_utils:mock_new(Nodes, [service]),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [#action_end{service = service, action = action, result = ok}]
+    end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<"someTaskId">>
+    end),
+
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
+    Config;
+
+init_per_testcase(post_should_configure_oz_worker_service, Config) ->
+    OzNodes = ?config(onezone_nodes, Config),
+    Nodes = ?config(all_nodes, Config),
+    Self = self(),
+    OzDomain = onepanel_test_utils:get_domain(hosts:from_node(hd(OzNodes))),
+
+    test_utils:mock_new(Nodes, [service, service_oz_worker]),
+    test_utils:mock_expect(Nodes, service, exists, fun(_) -> true end),
+
+    GetDetails = fun() -> #{name => <<"zoneName">>, domain => OzDomain} end,
+    test_utils:mock_expect(Nodes, service_oz_worker, get_details, GetDetails),
+    test_utils:mock_expect(Nodes, service_oz_worker, get_details,
+        fun(#{}) -> GetDetails() end),
+
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [#action_end{service = service, action = action, result = ok}]
+    end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<"someTaskId">>
+    end),
+
+    ?callAll(Config, service, save, [#service{name = ?SERVICE_CB,
+        hosts = ["host1", "host2"]}]),
+    ?callAll(Config, service, save, [#service{name = ?SERVICE_CM,
+        hosts = ["host2", "host3"], ctx = #{main_host => "host3"}}]),
+    ?callAll(Config, service, save, [#service{name = ?SERVICE_OP,
+        hosts = ["host2", "host3"], ctx = #{}}]),
+
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
+    Config;
+
+init_per_testcase(Case, Config) when
     Case == post_should_return_conflict_on_configured_onezone;
     Case == post_should_return_conflict_on_configured_oneprovider ->
     Nodes = ?config(all_nodes, Config),
@@ -843,7 +910,7 @@ init_per_testcase(_Case, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes),
-    ?callAll(Config, model, clear, [onepanel_user]).
+    ?callAll(Config, model, clear, [onepanel_user, service]).
 
 end_per_suite(_Config) ->
     ok.

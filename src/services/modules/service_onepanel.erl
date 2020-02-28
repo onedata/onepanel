@@ -128,9 +128,9 @@ get_steps(extend_cluster, Ctx) ->
 get_steps(init_cluster, _Ctx) ->
     S = #step{hosts = [hosts:self()], verify_hosts = false},
     [
-        S#step{function = set_cookie},
-        S#step{function = reset_node},
-        S#step{function = init_cluster}
+        S#step{function = set_cookie, verify_hosts = false},
+        S#step{function = reset_node, verify_hosts = false},
+        S#step{function = init_cluster, verify_hosts = false}
     ];
 
 get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
@@ -157,8 +157,8 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
 %% and initializes separate one-node clusters.
 get_steps(leave_cluster, #{hosts := Hosts}) ->
     [
-        #step{function = reset_node, hosts = Hosts},
-        #step{function = init_cluster, hosts = Hosts}
+        #step{function = reset_node, hosts = Hosts, verify_hosts = false},
+        #step{function = init_cluster, hosts = Hosts, verify_hosts = false}
     ];
 get_steps(leave_cluster, Ctx) ->
     get_steps(leave_cluster, Ctx#{hosts => [hosts:self()]});
