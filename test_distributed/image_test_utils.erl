@@ -19,7 +19,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% API
--export([deploy_onezone/4, deploy_oneprovider/3]).
+-export([deploy_onezone/5, deploy_oneprovider/3]).
 -export([get_registration_token/1]).
 -export([proxy_rpc/5]).
 
@@ -30,12 +30,13 @@
 %%%===================================================================
 
 -spec deploy_onezone(Passphrase :: binary(), Username :: binary(),
-    Password :: binary(), Config :: onepanel_test_utils:config()) ->
+    Password :: binary(), MaxWorkersNum :: pos_integer(),
+    Config :: onepanel_test_utils:config()) ->
     onepanel_test_utils:config().
-deploy_onezone(Passphrase, Username, Password, Config) ->
+deploy_onezone(Passphrase, Username, Password, MaxWorkersNum, Config) ->
     [OzNode | _] = OzNodes = ?config(onezone_nodes, Config),
     OzHosts = hosts:from_nodes(OzNodes),
-    OzwHosts = lists:sublist(OzHosts, length(OzHosts) - 1),
+    OzwHosts = lists:sublist(OzHosts, min(length(OzHosts), MaxWorkersNum)),
     OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
     onepanel_test_utils:set_test_envs(OzNodes, [{test_web_cert_domain, OzDomain}]),
 

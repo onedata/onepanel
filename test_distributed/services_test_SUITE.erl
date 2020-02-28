@@ -481,7 +481,7 @@ init_per_suite(Config) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
         NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
-            ?OZ_USERNAME, ?OZ_PASSWORD, NewConfig2),
+            ?OZ_USERNAME, ?OZ_PASSWORD, 1, NewConfig2),
 
         Posix = kv_utils:get([storages, posix, '/mnt/st1'], NewConfig2),
         Storages = #{
