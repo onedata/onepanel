@@ -117,7 +117,7 @@ get_steps(init_cluster, _Ctx) ->
         S#step{function = init_cluster}
     ];
 
-get_steps(join_cluster, #{cluster_host := ClusterHost} = Ctx) ->
+get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
