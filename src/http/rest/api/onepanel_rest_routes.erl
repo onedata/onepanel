@@ -60,6 +60,18 @@ routes() ->
             }
         }},
 
+        %% Create node invite token
+        {<<"/invite_tokens">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_panel,
+                id = undefined,
+                aspect = invite_token,
+                scope = private
+            },
+            produces = [<<"application/json">>]
+        }},
+
         %% Generate cluster invitation token for a user
         {<<"/cluster/invite_user_token">>, #rest_req{
             method = 'POST',
@@ -260,7 +272,7 @@ routes() ->
                 aspect = join_cluster,
                 scope = private
             },
-            data_spec = (rest_model:join_cluster_request_model())
+            data_spec = (rest_model:invite_token_model())
         }},
 
         %% Configure dns check

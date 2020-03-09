@@ -54,7 +54,7 @@
     id_model/0,
     ids_model/0,
     inline_response_202_model/0,
-    join_cluster_request_model/0,
+    invite_token_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
     node_model/0,
@@ -654,22 +654,13 @@ inline_response_202_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Information allowing new host to join the cluster.
+%% @doc An invite token.
 %% @end
 %%--------------------------------------------------------------------
--spec join_cluster_request_model() -> onepanel_parser:object_spec().
-join_cluster_request_model() ->
+-spec invite_token_model() -> onepanel_parser:object_spec().
+invite_token_model() ->
     #{
-        %% Hostname of an existing cluster node.
-        clusterHost => string,
-        %% The cookie is a character sequence that is common for all the cluster
-        %% nodes. If this parameter is not provided, in case of a cluster
-        %% initialization request, it will be generated, and in case of a
-        %% cluster extension request the current cookie value will be used.
-        %% However, if the cluster cookie and the cookie of the host that is
-        %% about to join the cluster doesn't match there will be a
-        %% connection error.
-        cookie => {atom, optional}
+        inviteToken => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1675,9 +1666,9 @@ zone_configuration_details_onezone_model() ->
 zone_configuration_onezone_model() ->
     #{
         %% The domain of Onezone cluster.
-        domainName => {string, optional},
+        domainName => string,
         %% The Onezone cluster name.
-        name => {string, optional},
+        name => string,
         %% If enabled the zone will use Let's Encrypt service to obtain SSL
         %% certificates. Otherwise certificates must be manually provided. By
         %% enabling this option you agree to the Let's Encrypt Subscriber
@@ -2762,6 +2753,14 @@ webdav_modify_model() ->
         %% `PATCH` request. If set to 0, assumes that the WebDAV
         %% server has no upload limit.
         maximumUploadSize => {integer, optional},
+        %% Defines the file permissions, which files imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0644`.
+        fileMode => {string, optional},
+        %% Defines the directory mode which directories imported from WebDAV
+        %% storage will have in Onedata. Values should be provided in octal
+        %% format e.g. `0775`.
+        dirMode => {string, optional},
         %% Defines whether storage administrator credentials (username and key)
         %% may be used by users without storage accounts to access storage in
         %% direct IO mode.

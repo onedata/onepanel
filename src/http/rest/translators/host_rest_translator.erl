@@ -31,9 +31,6 @@ create_response(#gri{aspect = instance}, value, Data) ->
 
 
 -spec get_response(gri:gri(), Resource :: term()) -> #rest_resp{}.
-get_response(#gri{aspect = cookie}, Cookie) ->
-    ?OK_REPLY(atom_to_binary(Cookie, utf8));
-
 get_response(#gri{aspect = list}, HostsList) ->
     ?OK_REPLY([list_to_binary(Host) || Host <- HostsList]);
 

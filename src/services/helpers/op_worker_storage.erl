@@ -82,7 +82,7 @@ add(#{name := Name, params := Params}) ->
             [StorageName, StorageType]),
             ok;
         {error, Reason} ->
-            throw(Reason)
+            throw({error, Reason})
     end.
 
 
@@ -400,6 +400,7 @@ get_required_luma_arg(Key, StorageParams, Type) ->
 make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
     #{name := Name, readonly := Readonly} = Details,
+    ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
     try
         {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
         maybe_verify_storage(Helper, Readonly)

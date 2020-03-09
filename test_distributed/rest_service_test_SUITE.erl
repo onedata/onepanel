@@ -17,6 +17,8 @@
 -include("modules/onepanel_dns.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include("service.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -40,7 +42,8 @@
     patch_should_configure_dns_check/1,
     post_should_configure_database_service/1,
     post_should_configure_cluster_manager_service/1,
-    post_should_configure_cluster_worker_service/1,
+    post_should_configure_op_worker_service/1,
+    post_should_configure_oz_worker_service/1,
     post_should_configure_oneprovider_service/1,
     post_should_configure_onezone_service/1,
     post_should_return_conflict_on_configured_onezone/1,
@@ -116,6 +119,8 @@
 -define(SOME_IP_STR1, "127.0.0.1").
 -define(SOME_IP_STR2, "10.0.0.2").
 
+-define(TOKEN_ONEZONE_DOMAIN, <<"some.onezone.local">>).
+
 -define(DNS_CHECK_TIMESTAMP, 1500000000).
 -define(DNS_CHECK_JSON_OP, #{
     <<"timestamp">> => time_utils:epoch_to_iso8601(?DNS_CHECK_TIMESTAMP),
@@ -175,7 +180,8 @@ all() ->
         patch_should_configure_dns_check,
         post_should_configure_database_service,
         post_should_configure_cluster_manager_service,
-        post_should_configure_cluster_worker_service,
+        post_should_configure_op_worker_service,
+        post_should_configure_oz_worker_service,
         post_should_configure_oneprovider_service,
         post_should_configure_onezone_service,
         post_should_return_conflict_on_configured_onezone,
@@ -202,13 +208,28 @@ method_should_return_unauthorized_error(Config) ->
 
 method_should_return_forbidden_error(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            Auths = ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE]),
+        lists:foreach(fun({Endpoint, Method} = EM) ->
+            Auths = ?PEER_AUTHS(Host) ++ case EM of
+                {_, get} ->
+                    [];
+                _ ->
+                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+            end,
             ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, Endpoint/binary>>, Method, ?OZ_AUTHS(Host, Auths)
+                Host, <<Prefix/binary, Endpoint/binary>>, Method, Auths
             ))
-        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
-    end).
+        end, ?COMMON_ENDPOINTS_WITH_METHODS)
+    end),
+
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, ?PEER_AUTHS(Host)
+        ))
+    end, [
+        {<<"/dns_check">>, get},
+        {<<"/dns_check/configuration">>, get},
+        {<<"/dns_check/configuration">>, patch}
+    ]).
 
 
 method_should_return_not_found_error(Config) ->
@@ -268,10 +289,20 @@ get_should_return_service_host_status(Config) ->
 get_should_return_service_task_results(Config) ->
     ?run(Config, fun({Host, _}) ->
         lists:foreach(fun({TaskId, Fields, Values}) ->
+            Endpoint = <<"/tasks/", TaskId/binary>>,
+            lists:foreach(fun(Auth) ->
+                ?assertMatch(
+                    {ok, ?HTTP_401_UNAUTHORIZED, _, _},
+                    onepanel_test_rest:auth_request(Host, Endpoint, get, Auth)
+                )
+            end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS()),
+            ?assertMatch(
+                {ok, ?HTTP_403_FORBIDDEN, _, _},
+                onepanel_test_rest:auth_request(Host, Endpoint, get, ?PEER_AUTHS(Host))
+            ),
             {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
                 onepanel_test_rest:auth_request(
-                    Host, <<"/tasks/", TaskId/binary>>, get,
-                    ?OZ_OR_ROOT_AUTHS(Host, [])
+                    Host, Endpoint, get, ?OZ_OR_ROOT_AUTHS(Host, [])
                 )
             ),
             onepanel_test_rest:assert_body_fields(JsonBody, Fields),
@@ -417,21 +448,29 @@ post_should_configure_cluster_manager_service(Config) ->
     end).
 
 
-post_should_configure_cluster_worker_service(Config) ->
-    ?run(Config, fun({Host, {Prefix, Service}}) ->
-        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
-            Host, <<Prefix/binary, "/workers">>, post,
-            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-            #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
-        )),
-        ?assertReceivedMatch({service, Service, deploy, #{
-            hosts := ["host1", "host2", "host3"], db_hosts := ["host1", "host2"],
-            cm_hosts := ["host2", "host3"], main_cm_host := "host3"
-        }}, ?TIMEOUT)
-    end, [
-        {oneprovider_hosts, {<<"/provider">>, op_worker}},
-        {onezone_hosts, {<<"/zone">>, oz_worker}}
-    ]).
+post_should_configure_op_worker_service(Config) ->
+    Host = hd(?config(oneprovider_hosts, Config)),
+    ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+        Host, <<"/provider/workers">>, post,
+        ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+        #{hosts => [<<"host2">>, <<"host3">>]}
+    )),
+    ?assertReceivedMatch({service, ?SERVICE_OPW, add_nodes, #{
+        new_hosts := ["host2", "host3"]
+    }}, ?TIMEOUT).
+
+
+post_should_configure_oz_worker_service(Config) ->
+    Host = hd(?config(onezone_hosts, Config)),
+    ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+        Host, <<"/zone/workers">>, post,
+        ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+        #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
+    )),
+    ?assertReceivedMatch({service, ?SERVICE_OZW, deploy, #{
+        hosts := ["host1", "host2", "host3"], db_hosts := ["host1", "host2"],
+        cm_hosts := ["host2", "host3"], main_cm_host := "host3"
+    }}, ?TIMEOUT).
 
 
 post_should_configure_onezone_service(Config) ->
@@ -490,6 +529,7 @@ post_should_configure_onezone_service(Config) ->
 
 post_should_configure_oneprovider_service(Config) ->
     ?run(Config, fun({Host, Prefix}) ->
+        Token = onepanel_test_utils:create_registration_token(?TOKEN_ONEZONE_DOMAIN),
         ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
             Host, <<Prefix/binary, "/configuration">>, post,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -499,7 +539,7 @@ post_should_configure_oneprovider_service(Config) ->
                     ?CLUSTER_JSON),
                 <<"oneprovider">> => #{
                     <<"register">> => true,
-                    <<"token">> => <<"someToken">>,
+                    <<"token">> => Token,
                     <<"name">> => <<"someName">>,
                     <<"subdomainDelegation">> => false,
                     <<"domain">> => <<"someDomain">>,
@@ -558,7 +598,8 @@ post_should_configure_oneprovider_service(Config) ->
                 oneprovider_name := <<"someName">>,
                 oneprovider_domain := <<"someDomain">>,
                 oneprovider_register := true,
-                oneprovider_token := <<"someToken">>
+                oneprovider_token := Token,
+                onezone_domain := ?TOKEN_ONEZONE_DOMAIN
             }
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
@@ -658,13 +699,15 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_nagios_response, {
-            [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
-        }},
-        {service_oz_worker, get_nagios_response, {
-            [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_op_worker, function = get_nagios_response,
+            good_bad_results = {
+                [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
+            }},
+        #step_end{module = service_oz_worker, function = get_nagios_response,
+            good_bad_results = {
+                [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -686,6 +729,7 @@ init_per_testcase(get_should_return_dns_check, Config) ->
         (oz_worker) -> OzHosts
     end),
     test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain, fun() -> hd(OzHosts) end),
     test_utils:mock_expect(OpNodes, dns_check, get, fun
         (op_worker, _) -> #{
             timestamp => ?DNS_CHECK_TIMESTAMP,
@@ -718,31 +762,100 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     test_utils:mock_expect(Nodes, service, exists_task, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, get_results, fun
         (<<"someTaskId1">>) -> {[
-            {module1, function1},
-            {module2, function2},
-            {module3, function3},
-            {task_finished, {service, action, ok}}
+            #step_begin{module = module1, function = function1},
+            #step_end{module = module1, function = function1,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module2, function = function2},
+            #step_end{module = module2, function = function2,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module3, function = function3},
+            #step_end{module = module3, function = function3,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #action_end{service = service, action = action, result = ok}
         ], 3};
         (<<"someTaskId2">>) -> {[
-            {module1, function1},
-            {module2, function2}
+            #step_begin{module = module1, function = function1},
+            #step_end{module = module1, function = function1,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module2, function = function2}
         ], 2};
         (<<"someTaskId3">>) -> {[
-            {module1, function1},
-            {module1, function1, {[{'node@host1', ok}], []}},
-            {module2, function2},
-            {module2, function2, {[{'node@host1', ok}], []}},
-            {module3, function3},
-            {module3, function3, {[], [
-                {'node@host1', ?ERROR_MALFORMED_DATA}, {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
-            ]}},
-            {task_finished, {service, action, {error, reason}}}
+            #step_begin{module = module1, function = function1},
+            #step_end{module = module1, function = function1,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module2, function = function2},
+            #step_end{module = module2, function = function2,
+                good_bad_results = {[{'node@host1', ok}], []}},
+            #step_begin{module = module3, function = function3},
+            #step_end{module = module3, function = function3,
+                good_bad_results = {[], [
+                    {'node@host1', ?ERROR_MALFORMED_DATA},
+                    {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
+                ]}
+            },
+            #action_end{service = service, action = action, result = {error, ?ERROR_MALFORMED_DATA}}
         ], 4};
         (<<"someTaskId4">>) -> {[
-            {task_finished, {service, action, ?ERROR_INTERNAL_SERVER_ERROR}}
+            #action_end{service = service, action = action, result = ?ERROR_INTERNAL_SERVER_ERROR}
         ], _StepsCountError = {error, reason}}
     end),
     NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case == post_should_configure_cluster_manager_service;
+    Case == post_should_configure_database_service;
+    Case == post_should_configure_op_worker_service
+->
+    % non-default init because the service must not already have hosts on which it is deployed
+    Nodes = ?config(all_nodes, Config),
+    Self = self(),
+    test_utils:mock_new(Nodes, [service]),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [#action_end{service = service, action = action, result = ok}]
+    end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<"someTaskId">>
+    end),
+
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
+    Config;
+
+init_per_testcase(post_should_configure_oz_worker_service, Config) ->
+    OzNodes = ?config(onezone_nodes, Config),
+    Nodes = ?config(all_nodes, Config),
+    Self = self(),
+    OzDomain = onepanel_test_utils:get_domain(hosts:from_node(hd(OzNodes))),
+
+    test_utils:mock_new(Nodes, [service, service_oz_worker]),
+    test_utils:mock_expect(Nodes, service, exists, fun(_) -> true end),
+
+    GetDetails = fun() -> #{name => <<"zoneName">>, domain => OzDomain} end,
+    test_utils:mock_expect(Nodes, service_oz_worker, get_details, GetDetails),
+    test_utils:mock_expect(Nodes, service_oz_worker, get_details,
+        fun(#{}) -> GetDetails() end),
+
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        [#action_end{service = service, action = action, result = ok}]
+    end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<"someTaskId">>
+    end),
+
+    ?callAll(Config, service, save, [#service{name = ?SERVICE_CB,
+        hosts = ["host1", "host2"]}]),
+    ?callAll(Config, service, save, [#service{name = ?SERVICE_CM,
+        hosts = ["host2", "host3"], ctx = #{main_host => "host3"}}]),
+    ?callAll(Config, service, save, [#service{name = ?SERVICE_OP,
+        hosts = ["host2", "host3"], ctx = #{}}]),
+
+    onepanel_test_rest:set_default_passphrase(Config),
+    onepanel_test_rest:mock_token_authentication(Nodes),
+    Config;
 
 init_per_testcase(Case, Config) when
     Case == post_should_return_conflict_on_configured_onezone;
@@ -760,6 +873,8 @@ init_per_testcase(_Case, Config) ->
 
     test_utils:mock_new(Nodes, [service, service_oz_worker, service_oneprovider]),
     test_utils:mock_expect(Nodes, service_oneprovider, is_registered, fun() -> true end),
+    test_utils:mock_expect(Nodes, service_oneprovider, get_oz_domain,
+        fun() -> binary_to_list(OzDomain) end),
 
     GetDetails = fun() -> #{name => <<"zoneName">>, domain => OzDomain} end,
     test_utils:mock_expect(Nodes, service_oz_worker, get_details, GetDetails),
@@ -773,11 +888,14 @@ init_per_testcase(_Case, Config) ->
             hosts = ["host2", "host3"], ctx = #{main_host => "host3"}
         }};
         (op_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
-        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}}
+        (oz_worker) -> {ok, #service{hosts = ["host1", "host2", "host3"]}};
+        (oneprovider) -> {ok, #service{
+            ctx = #{registered => true, onezone_domain => OzDomain}
+        }}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
@@ -792,7 +910,7 @@ init_per_testcase(_Case, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes),
-    ?callAll(Config, model, clear, [onepanel_user]).
+    ?callAll(Config, model, clear, [onepanel_user, service]).
 
 end_per_suite(_Config) ->
     ok.
@@ -805,8 +923,9 @@ mock_service_status(Config, HostsStatuses) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, status, _) ->
         [
-            {service:get_module(Service), status, {HostsStatuses, []}},
-            {task_finished, {service, action, ok}}
+            #step_end{module = service:get_module(Service), function = status,
+                good_bad_results = {HostsStatuses, []}},
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     Config.

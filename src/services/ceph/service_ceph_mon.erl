@@ -21,9 +21,22 @@
 
 -define(TMP_KEYRING_PATH, <<"/tmp/mon.keyring">>).
 
+% @formatter:off
+-type model_ctx() :: #{
+    instances := #{id() => ceph:instance()},
+
+    %% Caches (i.e. not the primary source of truth):
+    % Service status cache. Created as a side effect of service:add_host/2.
+    % WARNING! Ceph services do not have recurring healthcheck via onepanel_cron,
+    % therefore the status is not updated.
+    status => #{service:host() => healthy}
+}.
+
 %% monitor Id, always equal to `list_to_binary(monitor's hostname)`
 -type id() :: binary().
--export_type([id/0]).
+
+-export_type([id/0, model_ctx/0]).
+% @formatter:on
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -71,7 +84,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy_all, #{monitors := []}) ->
     [];
@@ -203,7 +216,7 @@ add_monitors(#{monitors := Mons}) ->
 %% in Ceph conf file.
 %% @end
 %%--------------------------------------------------------------------
--spec setup_initial_member(service:ctx()) -> ok.
+-spec setup_initial_member(service:step_ctx()) -> ok.
 setup_initial_member(#{monitors := Monitors}) ->
     [Id | _] = [Id || #{id := Id} <- Monitors],
     Config = ceph_conf:read(ceph:get_conf_path()),
@@ -281,10 +294,11 @@ wait_for_init(#{id := Id}) ->
 
 
 -spec stop(#{id := id()}) -> ok.
-stop(#{id := Id}) ->
+stop(#{id := Id} = Ctx) ->
     #{ip := Ip} = get_instance(Id),
     DataDir = ceph:get_data_dir(mon, Id),
     StartedBy = ceph_cli:mon_start_cmd(Id, DataDir, Ip),
+    service:deregister_healthcheck(name(), Ctx),
     ceph_cli:stop_with_timeout(StartedBy).
 
 
@@ -292,7 +306,7 @@ stop(#{id := Id}) ->
 %% @doc Adds current host to the list of service hosts.
 %% @end
 %%--------------------------------------------------------------------
--spec register_host(service:ctx()) -> ok.
+-spec register_host(service:step_ctx()) -> ok.
 register_host(#{id := Id}) ->
     service:store_in_ctx(name(), [instances, Id, deployment_finished], true),
     service:add_host(name(), hosts:self()).
@@ -420,7 +434,7 @@ get_local_ip(HostOrNode) ->
 %% Generates monmap file to be imported by mon mkfs.
 %% @end
 %%--------------------------------------------------------------------
--spec create_monmap(file:filename_all(), Monitors :: [service:ctx()]) -> ok.
+-spec create_monmap(file:filename_all(), Monitors :: [service:step_ctx()]) -> ok.
 create_monmap(Path, Monitors) ->
     FSID = ceph:get_cluster_uuid(),
     IdToIp = [{<<"mon.", Id/binary>>, Ip}

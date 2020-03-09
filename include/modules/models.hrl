@@ -14,7 +14,8 @@
 -define(MATCH_SPECS, '_' | '$1').
 
 -define(MODELS, [
-    onepanel_user, onepanel_session, onepanel_deployment, onepanel_kv, service
+    onepanel_user, onepanel_session, onepanel_deployment, onepanel_kv, service,
+    authorization_nonce
 ]).
 -define(WRAPPER_RECORD, document).
 
@@ -47,7 +48,7 @@
 -record(service, {
     name :: module(),
     hosts = [] :: [service:host()],
-    ctx = #{} :: map()
+    ctx = #{} :: service:model_ctx()
 }).
 
 -record(onepanel_kv, {
@@ -58,6 +59,11 @@
 -record(onepanel_deployment, {
     id :: atom(),
     completed = gb_sets:empty() :: gb_sets:set()
+}).
+
+-record(authorization_nonce, {
+    nonce :: authorization_nonce:nonce(),
+    expires :: authorization_nonce:timestamp()
 }).
 
 -endif.

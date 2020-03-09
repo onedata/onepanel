@@ -37,7 +37,7 @@ read(Key, Path) ->
             find(Key, Content);
         {error, Reason} ->
             throw(?ERROR_FILE_ACCESS(Path, Reason))
-end.
+    end.
 
 
 %%--------------------------------------------------------------------

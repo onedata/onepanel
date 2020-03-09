@@ -14,12 +14,14 @@
 -include("authentication.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
--include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
+-include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 
 
 %% export for ct
@@ -107,12 +109,16 @@ all() ->
     {<<"/provider">>, post},
     {<<"/provider">>, patch},
     {<<"/provider">>, delete},
+    {<<"/provider/nagios">>, get},
     {<<"/provider/spaces">>, get},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
     {<<"/provider/spaces/someSpaceId/sync">>, get},
+
+    {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, get},
+    {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, patch},
 
     {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, patch},
@@ -125,6 +131,7 @@ all() ->
     {<<"/provider/storages">>, post},
     {<<"/provider/storages/someStorageId">>, get},
     {<<"/provider/storages/someStorageId">>, patch},
+    {<<"/provider/storages/someStorageId">>, delete},
     {<<"/provider/storages/someStorageId/invalidate_luma">>, patch},
 
     {<<"/provider/cluster_ips">>, get},
@@ -134,14 +141,14 @@ all() ->
     {<<"/provider/debug/transfers_mock">>, patch}
 ]).
 
--define(REGISTER_REQUEST_JSON, #{
+-define(REGISTER_REQUEST_JSON(Token), #{
     <<"name">> => <<"someName">>,
     <<"subdomainDelegation">> => false,
     <<"domain">> => <<"somedomain">>,
     <<"adminEmail">> => <<"admin@onedata.org">>,
     <<"geoLongitude">> => 10.0,
     <<"geoLatitude">> => 20.0,
-    <<"token">> => <<"someToken">>
+    <<"token">> => Token
 }).
 
 -define(PROVIDER_DETAILS_JSON, #{
@@ -304,13 +311,15 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, ?COMMON_ENDPOINTS_WITH_METHODS).
+    end, [{<<"/provider/onezone_info">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_forbidden_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         % highest rights which still should not grant access to these endpoints
-        Auths = case {Endpoint, Method} of
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
             {<<"/provider">>, delete} ->
                 ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
             _ ->
@@ -318,9 +327,9 @@ method_should_return_forbidden_error(Config) ->
         end,
 
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Host, Endpoint, Method, Auths
+            Host, Endpoint, Method, Auths ++ ?PEER_AUTHS(Host)
         ))
-    end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get]).
+    end, [{<<"/provider/onezone_info">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_conflict_error(Config) ->
@@ -328,7 +337,7 @@ method_should_return_conflict_error(Config) ->
         % provider is mocked as already registered
         ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _}, onepanel_test_rest:auth_request(
             Host, "/provider", post, ?ROOT_AUTHS(Config),
-            ?REGISTER_REQUEST_JSON
+            ?REGISTER_REQUEST_JSON(<<"someToken">>)
         ))
     end).
 
@@ -376,12 +385,15 @@ get_should_return_cluster_ips(Config) ->
 
 post_should_register_provider(Config) ->
     ?eachHost(Config, fun(Host) ->
+        % a proper token must be generated to allow extracting onezone domain
+        Token = onepanel_test_utils:create_registration_token(<<"some.domain">>),
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON
+            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON(Token)
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
-            oneprovider_token := <<"someToken">>,
+            oneprovider_token := Token,
+            onezone_domain := <<"some.domain">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
@@ -799,10 +811,9 @@ init_per_testcase(get_should_return_provider_details, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_details, {
-            [{'node@host1', ?PROVIDER_DETAILS_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_details,
+            good_bad_results = {[{'node@host1', ?PROVIDER_DETAILS_JSON}], []}},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -811,10 +822,11 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun hosts:from_node/1, Nodes),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, format_cluster_ips, {
+        #step_end{module = service_oneprovider, function = format_cluster_ips,
+            good_bad_results = {
             [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -835,11 +847,12 @@ init_per_testcase(get_should_return_storage, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {
-            [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
-            []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -848,11 +861,12 @@ init_per_testcase(get_should_return_storages, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {
-            [{'node@host1', [<<"id1">>, <<"id2">>, <<"id3">>]}],
-            []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', [<<"id1">>, <<"id2">>, <<"id3">>]}],
+                []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -860,10 +874,9 @@ init_per_testcase(get_should_return_supported_spaces, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_spaces, {
-            [{'node@host1', ?SPACE_IDS}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_spaces,
+            good_bad_results = {[{'node@host1', ?SPACE_IDS}], []}},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -874,12 +887,13 @@ init_per_testcase(get_should_return_space_details, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
 
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_space_details, {
-            [{'node@host1',
-                onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
-            []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -889,10 +903,11 @@ init_per_testcase(post_should_support_space, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, support_space, {
-            [{'node@host1', <<"someId1">>}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = support_space,
+            good_bad_results = {
+                [{'node@host1', <<"someId1">>}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -908,49 +923,54 @@ init_per_testcase(Case, Config) when
     Case == patch_with_incomplete_config_should_update_auto_cleaning;
     Case == patch_with_incorrect_config_should_fail;
     Case == delete_should_revoke_space_support
-->
+    ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     Self = self(),
     test_utils:mock_expect(Nodes, service, apply_sync, fun
         (?SERVICE_OP, get_space_details, _) -> [
             % satisfy middleware:fetch_entity
-            {service_oneprovider, get_space_details, {
-                [{'node@host1',
-                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
-                []
-            }}];
+            #step_end{module = service_oneprovider, function = get_space_details,
+                good_bad_results = {
+                    [{'node@host1',
+                        onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                    []
+                }}];
         (?SERVICE_OP = Service, modify_space = Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
             [
-                {service_oneprovider, modify_space, {
-                    [{'node@host1', ?SPACE_JSON}], []
-                }},
-                {task_finished, {service, action, ok}}
+                #step_end{module = service_oneprovider, function = modify_space,
+                    good_bad_results = {
+                        [{'node@host1', ?SPACE_JSON}], []
+                    }},
+                #action_end{service = service, action = action, result = ok}
             ];
         (?SERVICE_OP = Service, start_auto_cleaning = Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
             [
-                {service_oneprovider, start_auto_cleaning, {
-                    [{'node@host1', {ok, <<"someReportId">>}}], []
-                }},
-                {task_finished, {service, action, ok}}
+                #step_end{module = service_oneprovider, function = start_auto_cleaning,
+                    good_bad_results = {
+                        [{'node@host1', {ok, <<"someReportId">>}}], []
+                    }},
+                #action_end{service = service, action = action, result = ok}
             ];
         (?SERVICE_OP, get_auto_cleaning_reports, _Ctx) -> [
-            {service_oneprovider, get_auto_cleaning_reports, {
-                [{'node@host1', ?AUTO_CLEANING_REPORT_IDS}], []
-            }},
-            {task_finished, {service, action, ok}}
+            #step_end{module = service_oneprovider, function = get_auto_cleaning_reports,
+                good_bad_results = {
+                    [{'node@host1', ?AUTO_CLEANING_REPORT_IDS}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
         ];
         (?SERVICE_OP, get_auto_cleaning_status, _Ctx) -> [
-            {service_oneprovider, get_auto_cleaning_status, {
-                [{'node@host1', ?AUTO_CLEANING_STATUS}], []
-            }},
-            {task_finished, {service, action, ok}}
+            #step_end{module = service_oneprovider, function = get_auto_cleaning_status,
+                good_bad_results = {
+                    [{'node@host1', ?AUTO_CLEANING_STATUS}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
         ];
         (Service, Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
-            [{task_finished, {service, action, ok}}]
+            [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -966,14 +986,16 @@ init_per_testcase(patch_should_update_storage, Config) ->
             Result = onepanel_utils:convert(Data, {keys, atom}),
             Self ! {service, Service, Action, Ctx},
             [
-                {service_op_worker, update_storage, {[{hd(Nodes), Result}], []}},
-                {task_finished, {service, action, ok}}
+                #step_end{module = service_op_worker, function = update_storage,
+                    good_bad_results = {[{hd(Nodes), Result}], []}},
+                #action_end{service = service, action = action, result = ok}
             ];
         (?SERVICE_OPW, get_storages, _) -> [
-            {service_op_worker, get_storages, {
-                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
-                []
-            }}
+            #step_end{module = service_op_worker, function = get_storages,
+                good_bad_results = {
+                    [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                    []
+                }}
         ]
     end),
     NewConfig;
@@ -983,15 +1005,17 @@ init_per_testcase(get_should_return_autocleaning_report, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         % satisfy middleware:fetch_entity
-        {service_oneprovider, get_space_details, {
-            [{'node@host1',
-                onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
-            []
-        }},
-        {service_oneprovider, get_auto_cleaning_report, {
-            [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_auto_cleaning_report,
+            good_bad_results = {
+                [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -1002,16 +1026,18 @@ init_per_testcase(get_should_return_autocleaning_configuration, Config) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun
         (?SERVICE_OP, get_space_details, _) -> [
             % satisfy middleware:fetch_entity
-            {service_oneprovider, get_space_details, {
-                [{'node@host1',
-                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
-                []
-            }}];
+            #step_end{module = service_oneprovider, function = get_space_details,
+                good_bad_results = {
+                    [{'node@host1',
+                        onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                    []
+                }}];
         (?SERVICE_OP, get_auto_cleaning_configuration, _Ctx) -> [
-            {service_oneprovider, get_auto_cleaning_configuration, {
-                [{'node@host1', ?AUTO_CLEANING_CONFIG}], []
-            }},
-            {task_finished, {service, action, ok}}
+            #step_end{module = service_oneprovider, function = get_auto_cleaning_configuration,
+                good_bad_results = {
+                    [{'node@host1', ?AUTO_CLEANING_CONFIG}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     NewConfig;
@@ -1021,15 +1047,17 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         % satisfy middleware:fetch_entity
-        {service_oneprovider, get_space_details, {
-            [{'node@host1',
-                onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
-            []
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
         }},
-        {service_oneprovider, get_file_popularity_configuration, {
-            [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
+        #step_end{module = service_oneprovider, function = get_file_popularity_configuration,
+            good_bad_results = {
+                [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
         }},
-        {task_finished, {service, action, ok}}
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -1037,13 +1065,8 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
 init_per_testcase(get_should_return_transfers_mock, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_transfers_mock, {
-            [{'node@host1', ?TRANSFERS_MOCK_CONFIG}], []
-        }},
-        {task_finished, {service, action, ok}}
-    ]
-    end),
+    test_utils:mock_expect(Nodes, service_op_worker, is_transfers_mock_enabled,
+        fun() -> true end),
     NewConfig;
 
 init_per_testcase(Case, Config) when
@@ -1069,7 +1092,9 @@ init_per_testcase(_Case, Config) ->
         (oneprovider) -> true; (op_worker) -> true; (ceph) -> false
     end),
     test_utils:mock_expect(Nodes, service, get, fun
-        (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
+        (oneprovider) -> {ok, #service{
+            ctx = #{registered => true, onezone_domain => "oz.example.local"}
+        }};
         (op_worker) -> {ok, #service{hosts = Hosts, ctx = #{
             status => maps:from_list([{Host, healthy} || Host <- Hosts])
         }}}
@@ -1078,15 +1103,17 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         % various step results for entity fetches
         [
-            {service_oneprovider, get_space_details, {
-                [{'node@host1',
-                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
-                []
-            }},
-            {service_op_worker, get_storages, {
-                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}], []
-            }},
-            {task_finished, {service, action, ok}}
+            #step_end{module = service_oneprovider, function = get_space_details,
+                good_bad_results = {
+                    [{'node@host1',
+                        onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                    []
+                }},
+            #step_end{module = service_op_worker, function = get_storages,
+                good_bad_results = {
+                    [{'node@host1', keys_to_atoms(?STORAGE_JSON)}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->

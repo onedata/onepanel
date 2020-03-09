@@ -46,7 +46,9 @@ start(Service, SystemLimits) ->
 stop(Service) ->
     Tokens = [get_script(Service), "stop"],
     case onepanel_shell:execute(Tokens) of
-        {0, _, _} -> ok;
+        {0, _, _} ->
+            ?info("Service ~s stopped", [Service]),
+            ok;
         {Code, Output, StdErr} ->
             ?warning("Failed to stop service '~ts' because of~n~tp ~ts~n~ts",
                 [Service, Code, Output, StdErr]),
@@ -67,7 +69,7 @@ restart(Service) ->
 %%--------------------------------------------------------------------
 %% @doc Checks service status using given command.
 %% Services started with custom binary paths require the 'ping'
-%% command, otherwise status can be used.
+%% command, otherwise 'status' can be used.
 %% @end
 %%--------------------------------------------------------------------
 -spec status(service:name(), Command :: status | ping) -> running | stopped | missing.

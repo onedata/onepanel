@@ -32,7 +32,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec get_steps(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Steps :: [#step{}].
+    Ctx :: service:step_ctx()) -> Steps :: [#step{}].
 get_steps(Service, Action, Ctx) ->
     get_steps(#steps{service = Service, action = Action, ctx = Ctx,
         verify_hosts = true}).
@@ -71,12 +71,8 @@ format_steps([#step{hosts = Hosts, module = Module, function = Function,
 %% @doc Notifies about the service action progress.
 %% @end
 %%--------------------------------------------------------------------
--spec notify(Msg :: {Stage :: service:event(), Details},
-    Notify :: service:notify()) -> ok when
-    Details :: {Module, Function} | {Module, Function, Result},
-    Module :: module(),
-    Function :: atom(),
-    Result :: term().
+-spec notify(Msg, service:notify()) -> ok when
+    Msg :: service_executor:result() | #action_steps_count{} | #action_begin{}.
 notify(Msg, Notify) when is_pid(Notify) ->
     log(Msg),
     Notify ! Msg,
@@ -97,8 +93,8 @@ notify(Msg, _Notify) ->
     service_executor:hosts_results().
 partition_results(Results) ->
     lists:partition(fun
-        ({_, {error, _}}) -> false;
-        (_) -> true
+        ({_Node, {error, _}}) -> false;
+        ({_Node, _Success}) -> true
     end, Results).
 
 
@@ -114,12 +110,20 @@ results_contain_error({error, _} = Error) ->
 
 results_contain_error(Results) ->
     case lists:reverse(Results) of
-        [{task_finished, {_, _, {error, _} = Error}}] ->
-            {true, cast_to_serializable_error(Error)};
-
-        [{task_finished, {_Service, _Action, {error, _}}}, FailedStep | _Steps] ->
-            {_Module, _Function, {_, BadResults}} = FailedStep,
+        [
+            #action_end{result = {error, _}},
+            #step_end{good_bad_results = {_, [_ | _] = BadResults}}
+            | _Steps
+        ] ->
             {true, bad_results_to_error(BadResults)};
+
+        % an action error may be without any erroneous #step_end,
+        % for example if verify_hosts failed.
+        [
+            #action_end{result = {error, _} = Error}
+            | _Steps
+        ] ->
+            {true, cast_to_serializable_error(Error)};
 
         _ ->
             false
@@ -151,7 +155,8 @@ select_service_step(Module, Function, []) ->
     ?error("Service step ~p:~p not found", [Module, Function]),
     error({step_not_found, {Module, Function}});
 
-select_service_step(Module, Function, [{Module, Function, Results} | _]) ->
+select_service_step(Module, Function,
+    [#step_end{module = Module, function = Function, good_bad_results = Results} | _]) ->
     Results;
 
 select_service_step(Module, Function, [_ | Results]) ->
@@ -237,39 +242,6 @@ get_steps(#steps{service = Service, action = Action, ctx = Ctx, verify_hosts = V
 get_step(#step{service = Service, module = undefined} = Step) ->
     get_step(Step#step{module = service:get_module(Service)});
 
-get_step(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
-    get_step(Step#step{hosts = Hosts});
-
-get_step(#step{hosts = undefined, service = Service} = Step) ->
-    case hosts:all(Service) of
-        [] ->
-            % do not silently skip steps because of empty list in service model,
-            % unless it is explicitly given in step ctx or hosts field.
-            throw(?ERROR_NO_SERVICE_NODES(Service));
-        Hosts ->
-            get_step(Step#step{hosts = Hosts})
-    end;
-
-get_step(#step{hosts = []}) ->
-    [];
-
-get_step(#step{hosts = Hosts, verify_hosts = true} = Step) ->
-    ok = onepanel_utils:ensure_known_hosts(Hosts),
-    get_step(Step#step{verify_hosts = false});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
-    Host = lists_utils:random_element(Hosts),
-    get_step(Step#step{hosts = [Host], selection = all,
-        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
-    get_step(Step#step{hosts = [hd(Hosts)],
-        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
-
-get_step(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
-    get_step(Step#step{hosts = tl(Hosts),
-        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
-
 get_step(#step{ctx = Ctx, args = undefined} = Step) ->
     get_step(Step#step{args = [Ctx]});
 
@@ -307,31 +279,23 @@ get_nested_steps(#steps{condition = false}) ->
 %% @end
 %%--------------------------------------------------------------------
 %% @formatter:off
--spec log(Msg :: {Event :: service:event(), Details}) -> ok when
-    Details  :: {Service, Action}  | {Service, Action, ok | {error, _}}
-              | {Service, Action, StepsCount :: integer()}
-              | {Module, Function} | {Module, Function, Result},
-    Service  :: service:name(),
-    Module   :: module(),
-    Action   :: service:action(),
-    Function :: atom(),
-    Result   :: term().
+-spec log(Msg) -> ok when
+    Msg :: service_executor:result() | #action_steps_count{} | #action_begin{}.
 %% @formatter:on
-log({action_steps_count, {Service, Action, StepsCount}}) ->
+log(#action_steps_count{service = Service, action = Action, count = StepsCount}) ->
     ?debug("Executing action ~p:~p requires ~b steps", [Service, Action, StepsCount]);
-log({action_begin, {Service, Action}}) ->
+log(#action_begin{service = Service, action = Action}) ->
     ?debug("Executing action ~p:~p", [Service, Action]);
-log({action_end, {Service, Action, ok}}) ->
+log(#action_end{service = Service, action = Action, result = ok}) ->
     ?debug("Action ~p:~p completed successfully", [Service, Action]);
-log({action_end, {Service, Action, {error, Reason}}}) ->
+log(#action_end{service = Service, action = Action, result = {error, Reason}}) ->
     ?error("Action ~p:~p failed due to: ~tp", [Service, Action, Reason]);
-log({step_begin, {Module, Function}}) ->
+log(#step_begin{module = Module, function = Function}) ->
     ?debug("Executing step ~p:~p", [Module, Function]);
-log({step_end, {Module, Function, {_, []}}}) ->
+log(#step_end{module = Module, function = Function, good_bad_results = {_, []}}) ->
     ?debug("Step ~p:~p completed successfully", [Module, Function]);
-log({step_end, {Module, Function, {_, Errors}}}) ->
-    ?error("Step ~p:~p failed~n~ts", [Module, Function,
-        format_errors(Errors, "")]).
+log(#step_end{module = Module, function = Function, good_bad_results = {_, Errors}}) ->
+    ?error("Step ~p:~p failed~n~ts", [Module, Function, format_errors(Errors, "")]).
 
 
 %%--------------------------------------------------------------------

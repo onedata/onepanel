@@ -17,6 +17,7 @@
 -include("modules/models.hrl").
 -include("onepanel_test_rest.hrl").
 -include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -50,6 +51,7 @@ all() ->
 -define(TIMEOUT, timer:seconds(5)).
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
+    {<<"/zone/nagios">>, get},
     {<<"/zone/users">>, get},
     {<<"/zone/users">>, post},
     {<<"/zone/users/someUserId">>, get},
@@ -84,7 +86,9 @@ method_should_return_unauthorized_error(Config) ->
 method_should_return_forbidden_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
         % highest rights which still should not grant access to these endpoints
-        Auths = case {Endpoint, Method} of
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
             _ ->
                 ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
@@ -92,7 +96,7 @@ method_should_return_forbidden_error(Config) ->
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, Endpoint, Method, Auths
         ))
-    end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get]).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_service_unavailable_error(Config) ->
@@ -205,14 +209,13 @@ init_per_testcase(Case, Config) when
     test_utils:mock_expect(Nodes, service, apply_sync, fun
         (_, get_gui_message, _) ->
             [
-                {service_onezone, get_gui_message, {
-                    [{'node@host1', Result}], []
-                }},
-                {task_finished, {service, action, ok}}
+                #step_end{module = service_onezone, function = get_gui_message,
+                    good_bad_results = {[{'node@host1', Result}], []}},
+                #action_end{service = service, action = action, result = ok}
             ];
         (Service, Action, Ctx) ->
             Self ! {service, Service, Action, Ctx},
-            [{task_finished, {service, action, ok}}]
+            [#action_end{service = service, action = action, result = ok}]
     end),
     NewConfig;
 
@@ -243,10 +246,9 @@ init_per_testcase(_Case, Config) ->
         Self ! {service, Service, Action, Ctx},
         [
             % satisfy fetch_entity
-            {onezone_users, get_user, {
-                [{'node@host1', #{}}], []
-            }},
-            {task_finished, {service, action, ok}}
+            #step_end{module = onezone_users, function = get_user,
+                good_bad_results = {[{'node@host1', #{}}], []}},
+            #action_end{service = service, action = action, result = ok}
         ]
     end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_domain, fun

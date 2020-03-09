@@ -19,6 +19,7 @@
 -include("names.hrl").
 -include("onepanel_test_rest.hrl").
 -include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -144,16 +145,42 @@ all() ->
 
 method_should_return_forbidden_error_test(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
+            _ ->
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+        end,
         ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
-            Host, <<Endpoint/binary>>, Method,
-            ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+            Host, <<Endpoint/binary>>, Method, Auths
         ))
     end, [
+        {<<"/provider/ceph">>, get},
+        {<<"/provider/ceph/managers">>, get},
+        {<<"/provider/ceph/managers/someId">>, get},
+        {<<"/provider/ceph/monitors">>, get},
+        {<<"/provider/ceph/monitors/someId">>, get},
+        {<<"/provider/ceph/osds">>, get},
+        {<<"/provider/ceph/osds/someId">>, get},
+        {<<"/provider/ceph/osds/someId/usage">>, get},
+        {<<"/provider/ceph/pools">>, get},
+        {<<"/provider/ceph/pools/someName">>, get},
+        {<<"/provider/ceph/pools/someName">>, patch},
+        {<<"/provider/ceph/pools/someName/usage">>, get},
+        {<<"/provider/ceph/status">>, get},
+        {<<"/provider/ceph/usage">>, get},
         {<<"/provider/ceph">>, post},
         {<<"/provider/ceph/managers">>, post},
         {<<"/provider/ceph/monitors">>, post},
         {<<"/provider/ceph/osds">>, post}
-    ]).
+    ]),
+
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        Auths = ?PEER_AUTHS(Host),
+        ?assertMatch({ok, 403, _, _}, onepanel_test_rest:auth_request(
+            Host, Endpoint, Method, Auths, #{<<"host">> => <<"someHost">>}
+        ))
+    end, [{<<"/provider/ceph/preflight/block_devices">>, get}]).
 
 
 without_ceph_method_should_return_not_found_error_test(Config) ->
@@ -655,7 +682,7 @@ init_per_testcase(Case, Config) when
     end,
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

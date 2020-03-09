@@ -12,6 +12,7 @@
 -author("Krzysztof Trzepla").
 
 -include("modules/errors.hrl").
+-include("service.hrl").
 -include("authentication.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
@@ -37,13 +38,14 @@
     noauth_method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
-    noauth_get_should_return_password_status/1,
+    method_should_return_password_status/1,
     noauth_put_should_set_emergency_passphrase/1,
     put_should_update_emergency_passphrase/1,
     passphrase_update_requires_previous_passphrase/1,
     get_as_admin_should_return_hosts/1,
-    get_as_admin_should_return_cookie/1,
+    get_as_admin_or_peer_should_return_cookie/1,
     get_should_return_node_details/1,
+    post_as_admin_should_return_invite_token/1,
     post_as_admin_should_extend_cluster_and_return_hostname/1,
     unauthorized_post_should_join_cluster/1,
     delete_as_admin_should_remove_node_from_cluster/1,
@@ -55,6 +57,18 @@
 -define(NEW_HOST_HOSTNAME, "someHostname").
 -define(TIMEOUT, timer:seconds(5)).
 
+-define(COMMON_ENDPOINTS_WITH_METHODS, [
+    {<<"/hosts/someHost">>, delete},
+    {<<"/hosts">>, get},
+    {<<"/hosts">>, post},
+    {<<"/invite_tokens">>, post},
+    {<<"/web_cert">>, get},
+    {<<"/web_cert">>, patch},
+    {<<"/progress">>, get},
+    {<<"/progress">>, patch},
+    {<<"/emergency_passphrase">>, put}
+]).
+
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
@@ -62,13 +76,14 @@ all() ->
         noauth_method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
-        noauth_get_should_return_password_status,
+        method_should_return_password_status,
         noauth_put_should_set_emergency_passphrase,
         put_should_update_emergency_passphrase,
         passphrase_update_requires_previous_passphrase,
         get_as_admin_should_return_hosts,
-        get_as_admin_should_return_cookie,
+        get_as_admin_or_peer_should_return_cookie,
         get_should_return_node_details,
+        post_as_admin_should_return_invite_token,
         post_as_admin_should_extend_cluster_and_return_hostname,
         unauthorized_post_should_join_cluster,
         delete_as_admin_should_remove_node_from_cluster,
@@ -86,16 +101,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, [
-        {<<"/cookie">>, get},
-        {<<"/hosts/someHost">>, delete},
-        {<<"/hosts">>, get},
-        {<<"/hosts">>, post},
-        {<<"/web_cert">>, get},
-        {<<"/web_cert">>, patch},
-        {<<"/progress">>, get},
-        {<<"/progress">>, patch}
-    ]).
+    end, [{<<"/cookie">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 api_caveats_should_restrict_available_endpoints(Config) ->
@@ -130,7 +136,9 @@ noauth_method_should_return_unauthorized_error(Config) ->
 
 method_should_return_forbidden_error(Config) ->
     ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        Auths = case {Endpoint, Method} of
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
             {<<"/emergency_passphrase">>, put} ->
                 % even admin coming from Onezone cannot change root password
                 ?OZ_AUTHS(Config, privileges:cluster_admin());
@@ -140,12 +148,7 @@ method_should_return_forbidden_error(Config) ->
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, Endpoint, Method, Auths
         ))
-    end, [
-        {<<"/hosts/someHost">>, delete},
-        {<<"/web_cert">>, patch},
-        {<<"/progress">>, patch},
-        {<<"/emergency_passphrase">>, put}
-    ]).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_not_found_error(Config) ->
@@ -157,12 +160,15 @@ method_should_return_not_found_error(Config) ->
     end, [{<<"/hosts/someHost">>, delete}]).
 
 
-noauth_get_should_return_password_status(Config) ->
-    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:noauth_request(Config, <<"/emergency_passphrase">>, get)
-    ),
-    Expected = #{<<"isSet">> => true},
-    onepanel_test_rest:assert_body(JsonBody, Expected).
+method_should_return_password_status(Config) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        Auths = ?NONE_AUTHS() ++ ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Config, []),
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(Host, Endpoint, Method, Auths)
+        ),
+        Expected = #{<<"isSet">> => true},
+        onepanel_test_rest:assert_body(JsonBody, Expected)
+    end, [{<<"/emergency_passphrase">>, get}]).
 
 
 noauth_put_should_set_emergency_passphrase(Config) ->
@@ -221,10 +227,11 @@ get_as_admin_should_return_hosts(Config) ->
     onepanel_test_rest:assert_body(JsonBody, Hosts).
 
 
-get_as_admin_should_return_cookie(Config) ->
+get_as_admin_or_peer_should_return_cookie(Config) ->
+    [Host] = ?config(cluster_hosts, Config),
     {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/cookie">>, get,
-            ?OZ_OR_ROOT_AUTHS(Config, [])
+            ?PEER_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Config, [])
         )
     ),
     Cookie = ?callAny(Config, erlang, get_cookie, []),
@@ -239,9 +246,35 @@ get_should_return_node_details(Config) ->
     },
     {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/node">>, get,
-            ?NONE_AUTHS() ++ ?OZ_OR_ROOT_AUTHS(Config, []))
+            ?NONE_AUTHS() ++ ?PEER_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Config, []))
     ),
     onepanel_test_rest:assert_body(JsonBody, Expected).
+
+
+post_as_admin_should_return_invite_token(Config) ->
+    [Node | _] = ?config(onepanel_nodes, Config),
+    InviteTokens = lists:map(fun(Auth) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(Config, <<"/invite_tokens">>, post, Auth)
+        ),
+        #{<<"inviteToken">> := InviteToken} = json_utils:decode(JsonBody),
+        Nonce = rpc:call(Node, invite_tokens, get_nonce, [InviteToken]),
+        ?assert(rpc:call(Node, authorization_nonce, verify, [Nonce])),
+        InviteToken
+    end, ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])),
+
+    % Assert that every POST creates new unique token
+    ?assertEqual(lists:sort(InviteTokens), lists:usort(InviteTokens)),
+
+    lists:foreach(fun(Auth) ->
+        ExpErrorDescription = json_utils:encode(#{
+            <<"error">> => errors:to_json(?ERROR_FORBIDDEN)
+        }),
+        ?assertMatch(
+            {ok, ?HTTP_403_FORBIDDEN, _, ExpErrorDescription},
+            onepanel_test_rest:auth_request(Config, <<"/invite_tokens">>, post, Auth)
+        )
+    end, ?OZ_AUTHS(Config, [])).
 
 
 post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
@@ -260,12 +293,19 @@ post_as_admin_should_extend_cluster_and_return_hostname(Config) ->
 
 
 unauthorized_post_should_join_cluster(Config) ->
+    TokenDescBin = base64:encode(json_utils:encode(#{
+        <<"nonce">> => <<"someNonce">>,
+        <<"clusterHost">> => <<"someHost">>
+    })),
+    DummyInviteToken = onepanel_utils:join(
+        [?ONEPANEL_INVITE_TOKEN_PREFIX, TokenDescBin],
+        <<?ONEPANEL_TOKEN_SEPARATOR>>
+    ),
     ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(
-        Config, "/join_cluster?clusterHost=someHost", post,
-        #{clusterHost => <<"someHost">>, cookie => ?COOKIE}
+        Config, "/join_cluster", post, #{inviteToken => DummyInviteToken}
     )),
     ?assertReceivedMatch({service, onepanel, join_cluster,
-        #{cookie := ?COOKIE, cluster_host := "someHost"}
+        #{cluster_host := "someHost", invite_token := DummyInviteToken}
     }, ?TIMEOUT).
 
 
@@ -319,7 +359,7 @@ init_per_testcase(delete_as_admin_should_remove_node_from_cluster, Config) ->
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {module, function, ok}}]
+        [#action_end{service = module, action = function, result = ok}]
     end),
     init_per_testcase(default, Config);
 
@@ -356,7 +396,7 @@ init_per_testcase(unauthorized_post_should_join_cluster, Config) ->
         fun() -> true end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {module, function, ok}}]
+        [#action_end{service = module, action = function, result = ok}]
     end),
     init_per_testcase(default, Config);
 

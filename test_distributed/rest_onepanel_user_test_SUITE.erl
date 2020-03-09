@@ -30,6 +30,7 @@
 -export([
     method_should_return_not_found_error/1,
     method_should_return_unauthorized_error/1,
+    method_should_return_forbidden_error/1,
     get_current_user_as_oz_user_should_return_privileges/1,
     get_current_user_as_root_should_fail/1,
     get_should_list_oz_users/1,
@@ -42,6 +43,7 @@ all() ->
     ?ALL([
         method_should_return_not_found_error,
         method_should_return_unauthorized_error,
+        method_should_return_forbidden_error,
         get_current_user_as_oz_user_should_return_privileges,
         get_current_user_as_root_should_fail,
         get_should_list_oz_users,
@@ -81,6 +83,16 @@ method_should_return_unauthorized_error(Config) ->
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [{get, []}, {patch, #{newPassword => <<"SomePassword1">>}}]).
+
+
+method_should_return_forbidden_error(Config) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        lists:foreach(fun(Auth) ->
+            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, Auth
+            ))
+        end, ?PEER_AUTHS(Host))
+    end, [{<<"/user">>, get}]).
 
 
 get_current_user_as_oz_user_should_return_privileges(Config) ->

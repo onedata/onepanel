@@ -33,51 +33,64 @@
 -export([apply_sync/2, apply_sync/3, apply_sync/4]).
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
--export([register_healthcheck/2]).
+-export([register_healthcheck/2, deregister_healthcheck/2]).
 -export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
 -export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
 % @formatter:off
--type name() :: ?SERVICE_OZ | ?SERVICE_OP |
-    ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW |
-    ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL |
-    ?SERVICE_LE | ?SERVICE_CEPH |
-    ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
+-type name() :: ?SERVICE_OZ | ?SERVICE_OP
+    | ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW
+    | ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL
+    | ?SERVICE_LE | ?SERVICE_CEPH
+    | ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
 -type step() :: #step{} | #steps{}.
--type condition() :: boolean() | fun((ctx()) -> boolean()).
+-type condition() :: boolean() | fun((step_ctx()) -> boolean()).
 -type event() :: action_begin | action_steps_count | action_end |
                  step_begin | step_end.
+-type status() :: healthy | unhealthy | stopped | missing.
+
+
+%% record field used for arbitrary information about the service
+-type model_ctx() :: service_op_worker:model_ctx() | service_oz_worker:model_ctx()
+| service_oneprovider:model_ctx() | service_onezone:model_ctx()
+| service_cluster_manager:model_ctx() | service_letsencrypt:model_ctx()
+| service_couchbase:model_ctx() | service_ceph:model_ctx()
+| service_ceph_mon:model_ctx() | service_ceph_mgr:model_ctx()
+| service_ceph_osd:model_ctx().
+
 -type record() :: #service{}.
 
--type status() :: healthy | unhealthy | stopped | missing.
+
+%% A map stored in #step and #steps records and by default provided
+%% as argument of the invoked functions.
+%% This type spec lists common values used in the step ctx.
+%% Note the keys are optional (=>).
+-type step_ctx() :: #{
+    %% 'hosts' - list of hosts on which step should be performed, used when
+    %%           #step.hosts is not set explicitly
+    hosts => [service:host()],
+    %% 'rest' - filled by service:resolve_hosts/1 when executing on 'first' host,
+    %%          contains the remainder of the hosts list
+    rest => [service:host()],
+    %% 'first' - filled by service:resolve_hosts/1 when executing on 'rest' hosts,
+    %%           contains the first host (excluded from step execution)
+    first => service:host(),
+    %% 'all' - filled by service:resolve_hosts/1 when selecting
+    %%         'first' or 'rest' hosts, contains the original hosts list
+    all => [service:host()],
+
+    %% function-specific arguments
+    term() => term()
+}.
 % @formatter:on
 
 
-%% ctx/0 is used as:
-%% - data field in #service{} record, for storing persistent service information
-%% - argument for get_steps functions and, by default, each step function invoked
-%%
-%% Common keys used in the step ctx:
-%% 'hosts' - list of hosts on which step should be performed, used when
-%%           #step.hosts is not set explicitely
-%% 'rest' - filled by service_utils:get_step/1 when executing on 'first' host,
-%%          contains remainder of the hosts list
-%% 'first' - filled by service_utils:get_step/1 when executing on 'rest' hosts,
-%%           contains the first host (excluded from step execution)
-%% 'all' - filled by service_utils:get_step/1 when selecting
-%%         'first' or 'rest' hosts, contains the original hosts list
-%%
-%% 'task_delay' - when present in ctx passed to service:apply, causes delay
-%%                before the start of task execution
--type ctx() :: map().
-
-
--export_type([name/0, action/0, status/0, ctx/0, notify/0, host/0, step/0, condition/0,
-    event/0]).
+-export_type([name/0, action/0, status/0, model_ctx/0, step_ctx/0, notify/0, host/0,
+    step/0, condition/0, event/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -220,10 +233,10 @@ update_status(Service, Host, Status) ->
 %%--------------------------------------------------------------------
 -spec all_healthy() -> boolean().
 all_healthy() ->
-    lists:all(fun(#service{ctx = Ctx}) ->
+    lists:all(fun(#service{hosts = Hosts, ctx = Ctx}) ->
         lists:all(fun(Status) ->
             healthy == Status
-        end, maps:values(maps:get(status, Ctx, #{})))
+        end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))))
     end, service:list()).
 
 
@@ -236,10 +249,10 @@ all_healthy() ->
 -spec is_healthy(name()) -> boolean().
 is_healthy(Service) ->
     case ?MODULE:get(Service) of
-        {ok, #service{ctx = Ctx}} ->
-            lists:all(fun({_Host, Status}) ->
+        {ok, #service{hosts = Hosts, ctx = Ctx}} ->
+            lists:all(fun(Status) ->
                 healthy == Status
-            end, maps:to_list(maps:get(status, Ctx, #{})));
+            end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))));
         _Error -> false
     end.
 
@@ -248,7 +261,7 @@ is_healthy(Service) ->
 %% @doc @equiv apply(Service, Action, Ctx, undefined)
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx) ->
     apply(Service, Action, Ctx, undefined).
@@ -258,18 +271,16 @@ apply(Service, Action, Ctx) ->
 %% @doc Executes the service action and notifies about the process.
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx(), Notify :: notify()) ->
     ok | {error, _}.
 apply(Service, Action, Ctx, Notify) ->
-    TaskDelay = maps:get(task_delay, Ctx, 0),
-    ?debug("Delaying task ~tp:~tp by ~tp ms", [Service, Action, TaskDelay]),
-    timer:sleep(TaskDelay),
-    service_utils:notify({action_begin, {Service, Action}}, Notify),
+    service_utils:notify(#action_begin{service = Service, action = Action}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
 
-        service_utils:notify({action_steps_count,
-            {Service, Action, length(Steps)}}, Notify),
+        service_utils:notify(#action_steps_count{
+            service = Service, action = Action, count = length(Steps)
+        }, Notify),
 
         ?debug("Execution of ~tp:~tp requires following steps:~n~ts",
             [Service, Action, service_utils:format_steps(Steps, "")]),
@@ -283,7 +294,9 @@ apply(Service, Action, Ctx, Notify) ->
     end,
     % If one of the steps failed, the action Result is {error, {Module, Function, Status}.
     % Result might of different format if steps resolution itself failed.
-    service_utils:notify({action_end, {Service, Action, Result}}, Notify),
+    service_utils:notify(#action_end{
+        service = Service, action = Action, result = Result
+    }, Notify),
     Result.
 
 
@@ -302,7 +315,7 @@ apply_async(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_async(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> TaskId :: service_executor:task_id().
+    Ctx :: service:step_ctx()) -> TaskId :: service_executor:task_id().
 apply_async(Service, Action, Ctx) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {apply, Service, Action, Ctx}).
 
@@ -322,7 +335,7 @@ apply_sync(Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: service_executor:results() | {error, _}.
+    Ctx :: service:step_ctx()) -> Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx) ->
     apply_sync(Service, Action, Ctx, infinity).
 
@@ -333,7 +346,7 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), timeout()) ->
+    Ctx :: service:step_ctx(), timeout()) ->
     Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
@@ -437,14 +450,11 @@ add_host(Service, Host) ->
     end).
 
 
--spec register_healthcheck(Service :: name(), Ctx :: ctx()) -> ok.
+-spec register_healthcheck(Service :: name(), Ctx :: step_ctx()) -> ok.
 register_healthcheck(Service, Ctx) ->
     Period = onepanel_env:get(services_check_period),
     Module = service:get_module(Service),
-    Name = case Ctx of
-        #{id := Id} -> str_utils:format("~tp (id ~tp)", [Service, Id]);
-        _ -> str_utils:format("~tp", [Service])
-    end,
+    Name = healthcheck_name(Service, Ctx),
 
     Condition = fun() ->
         case (catch Module:status(Ctx)) of
@@ -456,7 +466,7 @@ register_healthcheck(Service, Ctx) ->
 
     Action = fun() ->
         ?critical("Service ~ts is not running. Restarting...", [Name]),
-        Results = service:apply_sync(Service, resume, Ctx),
+        Results = service:apply_sync(Service, resume, Ctx#{hosts => [hosts:self()]}),
         case service_utils:results_contain_error(Results) of
             {true, Error} ->
                 ?critical("Failed to restart service ~ts due to:~n~tp",
@@ -468,11 +478,39 @@ register_healthcheck(Service, Ctx) ->
     onepanel_cron:add_job(Name, Action, Period, Condition).
 
 
+-spec deregister_healthcheck(service:name(), #{id => ceph:id(), _ => _}) -> ok.
+deregister_healthcheck(Service, Ctx) ->
+    onepanel_cron:remove_job(healthcheck_name(Service, Ctx)).
+
+
+%% @private
+-spec healthcheck_name(service:name(), #{id => ceph:id(), _ => _}) -> binary().
+healthcheck_name(Service, #{id := Id}) ->
+    str_utils:format_bin("~tp (id ~tp)", [Service, Id]);
+healthcheck_name(Service, _) ->
+    str_utils:format_bin("~tp", [Service]).
+
+
 %%--------------------------------------------------------------------
 %% @doc Returns the "ctx" field of a service model.
+%% Verbose typespec to make up for the lack of different models/records
+%% in the service model.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx(name()) -> ctx() | {error, _} | no_return().
+-spec get_ctx
+    (?SERVICE_OPW) -> service_op_worker:model_ctx() | {error, _};
+    (?SERVICE_OZW) -> service_oz_worker:model_ctx() | {error, _};
+    (?SERVICE_OP) -> service_oneprovider:model_ctx() | {error, _};
+    (?SERVICE_OZ) -> service_onezone:model_ctx() | {error, _};
+    (?SERVICE_CM) -> service_cluster_manager:model_ctx() | {error, _};
+    (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
+    (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
+    (?SERVICE_CEPH) -> service_ceph:model_ctx() | {error, _};
+    (?SERVICE_CEPH_MON) -> service_ceph_mon:model_ctx() | {error, _};
+    (?SERVICE_CEPH_MGR) -> service_ceph_mgr:model_ctx() | {error, _};
+    (?SERVICE_CEPH_OSD) -> service_ceph_osd:model_ctx() | {error, _};
+    % #service model is not created for service_onepanel module
+    (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND | {error, _}.
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;
@@ -485,7 +523,7 @@ get_ctx(Service) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
-    when Diff :: map() | fun((service:ctx()) -> service:ctx()).
+    when Diff :: map() | fun((service:model_ctx()) -> service:model_ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
         maps:merge(Ctx, Diff)
@@ -517,21 +555,77 @@ store_in_ctx(Service, Keys, Value) ->
 apply_steps([], _Notify) ->
     ok;
 
-apply_steps([#step{hosts = Hosts, module = Module, function = Function,
-    args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
+apply_steps([#step{} = Step | StepsTail], Notify) ->
+    case resolve_hosts(Step) of
+        #step{hosts = []} ->
+            apply_steps(StepsTail, Notify);
+        #step{
+            module = Module, function = Function, hosts = Hosts,
+            args = Args, attempts = Attempts, retry_delay = Delay
+        } = StepWithHosts ->
+            Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
+            service_utils:notify(#step_begin{module = Module, function = Function}, Notify),
 
-    Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
-    service_utils:notify({step_begin, {Module, Function}}, Notify),
+            Results = onepanel_rpc:call(Nodes, Module, Function, Args),
+            Status = service_utils:partition_results(Results),
 
-    Results = onepanel_rpc:call(Nodes, Module, Function, Args),
-    Status = service_utils:partition_results(Results),
+            service_utils:notify(#step_end{
+                module = Module, function = Function, good_bad_results = Status
+            }, Notify),
 
-    service_utils:notify({step_end, {Module, Function, Status}}, Notify),
-
-    case {Status, Attempts} of
-        {{_, []}, _} -> apply_steps(Steps, Notify);
-        {{_, _}, 1} -> {error, {Module, Function, Status}};
-        {{_, _}, _} ->
-            timer:sleep(Delay),
-            apply_steps([Step#step{attempts = Attempts - 1} | Steps], Notify)
+            case {Status, Attempts} of
+                {{_, []}, _} -> apply_steps(StepsTail, Notify);
+                {{_, _}, 1} -> {error, {Module, Function, Status}};
+                {{_, _}, _} ->
+                    timer:sleep(Delay),
+                    apply_steps([StepWithHosts#step{attempts = Attempts - 1} | StepsTail], Notify)
+            end
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Calculates host te be used for executing a step.
+%% First available (non-undefined) source is used:
+%% - #step.hosts field
+%% - #step.ctx hosts key
+%% - hosts:all(Service)
+%%
+%% After obtaining the steps list, the selection mode is applied.
+%%--------------------------------------------------------------------
+-spec resolve_hosts(#step{}) -> #step{}.
+resolve_hosts(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
+    resolve_hosts(Step#step{hosts = Hosts});
+
+resolve_hosts(#step{hosts = undefined, service = Service} = Step) ->
+    case hosts:all(Service) of
+        [] ->
+            % do not silently skip steps because of empty list in service model,
+            % unless it is explicitly given in step ctx or hosts field.
+            throw(?ERROR_NO_SERVICE_NODES(Service));
+        Hosts ->
+            resolve_hosts(Step#step{hosts = Hosts})
+    end;
+
+resolve_hosts(#step{hosts = []} = Step) ->
+    Step;
+
+resolve_hosts(#step{hosts = Hosts, verify_hosts = true} = Step) ->
+    ok = onepanel_utils:ensure_known_hosts(Hosts),
+    resolve_hosts(Step#step{verify_hosts = false});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
+    Host = lists_utils:random_element(Hosts),
+    resolve_hosts(Step#step{hosts = [Host], selection = all,
+        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
+    resolve_hosts(Step#step{hosts = [hd(Hosts)],
+        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
+    resolve_hosts(Step#step{hosts = tl(Hosts),
+        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
+
+resolve_hosts(#step{} = Step) ->
+    Step.

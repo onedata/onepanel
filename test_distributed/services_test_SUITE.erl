@@ -14,6 +14,7 @@
 -include("names.hrl").
 -include("modules/models.hrl").
 -include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
@@ -34,6 +35,7 @@
     service_op_worker_get_storages_test/1,
     service_oneprovider_unregister_register_test/1,
     service_op_worker_update_storage_test/1,
+    service_op_worker_add_node_test/1,
     services_status_test/1,
     services_stop_start_test/1
 ]).
@@ -64,6 +66,7 @@ all() ->
         service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
+        service_op_worker_add_node_test,
         services_status_test
         %% TODO VFS-4056
         %% services_stop_start_test
@@ -182,6 +185,7 @@ service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     OpDomain = ?config(oneprovider_domain, Config),
+    OzDomain = ?config(onezone_domain, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
     onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
@@ -189,7 +193,8 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_name => <<"provider2">>,
         oneprovider_domain => OpDomain,
         oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token => image_test_utils:get_registration_token(OzNode)
+        oneprovider_token => image_test_utils:get_registration_token(OzNode),
+        onezone_domain => str_utils:to_binary(OzDomain)
     }).
 
 
@@ -324,7 +329,9 @@ service_op_worker_update_storage_test(Config) ->
         },
         <<"someWebDAV">> => #{
             type => <<"webdav">>,
-            rangeWriteSupport => <<"moddav">>
+            rangeWriteSupport => <<"moddav">>,
+            fileMode => <<"0333">>,
+            dirMode => <<"0333">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
@@ -356,8 +363,33 @@ service_op_worker_update_storage_test(Config) ->
     end, ExistingStorages).
 
 
+service_op_worker_add_node_test(Config) ->
+    AllHosts = ?config(all_hosts, Config),
+    OldHosts = ?config(op_worker_hosts, Config),
+    NewHost = hd(AllHosts -- OldHosts),
+    OldNode = nodes:service_to_node(?SERVICE_PANEL, hd(OldHosts)),
+    NewNode = nodes:service_to_node(?SERVICE_PANEL, NewHost),
+    OldOpNode = nodes:service_to_node(?SERVICE_OPW, OldNode),
+
+    TokenFilePath = onepanel_env:get_remote(OldNode,
+        op_worker_root_token_path, ?APP_NAME),
+    {ok, CurrentFileContents} = rpc:call(OldNode, file, read_file, [TokenFilePath]),
+
+    onepanel_test_utils:service_action(OldNode, ?SERVICE_OPW, add_nodes,
+        #{new_hosts => [NewHost]}),
+
+    ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OPW])),
+    ?assertEqual({ok, CurrentFileContents},
+        rpc:call(NewNode, file, read_file, [TokenFilePath])),
+    {ok, OpwNodesList} = ?assertMatch({ok, _},
+        image_test_utils:proxy_rpc(OldNode,
+            OldOpNode, node_manager, get_cluster_nodes, [])),
+    ?assertEqual(length(OldHosts) + 1, length(OpwNodesList)).
+
+
 services_status_test(Config) ->
-    lists:foreach(fun({Nodes, MainService, Services}) ->
+    lists:foreach(fun({NodesType, MainService, Services}) ->
+        Nodes = ?config(NodesType, Config),
         lists:foreach(fun(Service) ->
             SModule = service:get_module(Service),
             lists:foreach(fun(Node) ->
@@ -375,9 +407,9 @@ services_status_test(Config) ->
             assert_expected_result(SModule, status, Nodes, healthy, Results)
         end, Services)
     end, [
-        {?config(onezone_nodes, Config), ?SERVICE_OZ,
+        {onezone_nodes, ?SERVICE_OZ,
             [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW]},
-        {?config(oneprovider_nodes, Config), ?SERVICE_OP,
+        {oneprovider_nodes, ?SERVICE_OP,
             [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OPW]}
     ]).
 
@@ -479,7 +511,9 @@ end_per_suite(_Config) ->
     service_executor:results()) -> onepanel_rpc:results().
 assert_step_present(Module, Function, Results) ->
     case lists:filtermap(fun
-        ({M, F, {GoodResults, []}}) when M == Module, F == Function ->
+        (#step_end{module = M, function = F, good_bad_results = {GoodResults, []}})
+            when M == Module, F == Function
+        ->
             {true, GoodResults};
         (_) ->
             false

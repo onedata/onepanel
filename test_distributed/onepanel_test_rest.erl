@@ -26,9 +26,11 @@
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
--export([set_default_passphrase/1, mock_token_authentication/1,
+-export([
+    set_default_passphrase/1, mock_token_authentication/1,
     oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
-    obtain_local_token/2, construct_token/1]).
+    obtain_local_token/2, obtain_invite_token/1, construct_token/1
+]).
 
 -type config() :: string() | proplists:proplist().
 -type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
@@ -38,7 +40,7 @@
                 {cookie, Name :: binary(), Value :: binary()} |
                 {token, Token :: binary()} |
                 none.
--type headers() :: http_client:headers().
+-type headers() :: [{binary(), binary()}].
 -type body() :: http_client:body().
 -type response() :: {ok, Code :: http_client:code(), Headers :: headers(), Body :: body()} |
                     {error, Reason :: term()}.
@@ -112,7 +114,9 @@ auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
     auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Passphrase}, Headers, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers, Body) ->
-    NewHeaders = [onepanel_utils:get_basic_auth_header(Username, Password) | Headers],
+    NewHeaders =
+        maps:to_list(onepanel_utils:get_basic_auth_header(Username, Password))
+        ++ Headers,
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, [_ | _] = Auths, Headers, Body) ->
@@ -332,6 +336,21 @@ obtain_local_token(HostOrConfig, Auth) ->
 
     #{<<"token">> := Token} = json_utils:decode(TokenJson),
     {token, Token}.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Obtains invite token.
+%% @end
+%%--------------------------------------------------------------------
+-spec obtain_invite_token(Host :: config()) -> auth().
+obtain_invite_token(Host) ->
+    {ok, _, _, Response} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _},
+        auth_request(Host, <<"/invite_tokens">>, post, ?EMERGENCY_PASSPHRASE)
+    ),
+    #{<<"inviteToken">> := InviteToken} = json_utils:decode(Response),
+    {token, InviteToken}.
 
 
 -spec construct_token([caveats:caveat()]) -> tokens:serialized().

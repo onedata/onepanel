@@ -15,10 +15,11 @@
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
 
 %% API
--export([fetch_zone_info/1]).
+-export([fetch_zone_info/1, register_provider/2]).
 -export([root_auth/0]).
 
 %%%===================================================================
@@ -48,11 +49,35 @@ fetch_zone_info(Domain) ->
                 <<"domain">> => Domain,
                 <<"compatible">> => is_compatible(OzVersion, CompatOps)
             };
-        {error, _Reason} ->
+        _ ->
             #{
                 <<"online">> => false,
                 <<"domain">> => Domain
             }
+    end.
+
+
+-spec register_provider(OnezoneDomain :: binary(), Payload :: json_utils:json_map()) ->
+    {ok, #{provider_id := binary(), root_token := binary()}} | errors:error().
+register_provider(OnezoneDomain, Payload) ->
+    % Not using oz_providers:register/2 since
+    % oz_plugin does not know onezone_domain before registration
+    URL = onepanel_utils:join([
+        "https://", OnezoneDomain, oz_plugin:get_oz_rest_api_prefix(),
+        "/providers"
+    ]),
+    Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+    Body = json_utils:encode(Payload),
+    case http_client:post(URL, Headers, Body) of
+        {ok, _Code, _ResponseHeaders, ResponseBody} ->
+            case json_utils:decode(ResponseBody) of
+                #{<<"error">> := Error} ->
+                    errors:from_json(Error);
+                #{<<"providerId">> := Id, <<"providerRootToken">> := RootToken} ->
+                    {ok, #{provider_id => Id, root_token => RootToken}}
+            end;
+        {error, _} ->
+            throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
 

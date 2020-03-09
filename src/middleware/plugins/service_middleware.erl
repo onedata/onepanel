@@ -114,14 +114,27 @@ authorize(#onp_req{
 
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
 validate(#onp_req{
-    operation = create, gri = #gri{aspect = As}
+    operation = create, gri = #gri{aspect = As}, data = Data
 }, _) when
     As == couchbase_instances;
     As == cluster_manager_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
-    ok;
+    Service = case As of
+        couchbase_instances -> ?SERVICE_CB;
+        cluster_manager_instances -> ?SERVICE_CM;
+        op_worker_instances -> ?SERVICE_OPW;
+        oz_worker_instances -> ?SERVICE_OZW
+    end,
+    NewHosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
+    ExistingHosts = service:get_hosts(Service),
+    case lists:any(fun(NewHost) ->
+        lists:member(NewHost, ExistingHosts)
+    end, NewHosts) of
+        true -> throw(?ERROR_ALREADY_EXISTS);
+        false -> ok
+    end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = {all_hosts_status, _}}}, _) ->
     ok;
@@ -173,19 +186,18 @@ create(#onp_req{gri = #gri{aspect = cluster_manager_instances}, data = Data}) ->
     Ctx = #{main_host => MainHost, hosts => Hosts},
     {ok, value, _TaskId = service:apply_async(?SERVICE_CM, deploy, Ctx)};
 
-create(#onp_req{gri = #gri{aspect = Aspect}, data = Data}) when
-    Aspect == oz_worker_instances;
-    Aspect == op_worker_instances
-->
-    Service = case Aspect of
-        oz_worker_instances -> ?SERVICE_OZW;
-        op_worker_instances -> ?SERVICE_OPW
-    end,
+create(#onp_req{gri = #gri{aspect = op_worker_instances}, data = Data}) ->
+    NewHosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
+    {ok, value, _TaskId = service:apply_async(?SERVICE_OPW, add_nodes, #{
+        new_hosts => NewHosts
+    })};
+
+create(#onp_req{gri = #gri{aspect = oz_worker_instances}, data = Data}) ->
     Hosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
     {ok, #service{hosts = DbHosts}} = service:get(service_couchbase:name()),
     {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
         service:get(?SERVICE_CM),
-    {ok, value, _TaskId = service:apply_async(Service, deploy, #{
+    {ok, value, _TaskId = service:apply_async(?SERVICE_OZW, deploy, #{
         hosts => Hosts, db_hosts => DbHosts, cm_hosts => CmHosts,
         main_cm_host => MainCmHost
     })}.
@@ -205,11 +217,18 @@ get(#onp_req{gri = #gri{aspect = {all_hosts_status, ServiceBin}}}, _) ->
     Service = binary_to_atom(ServiceBin, utf8),
     Module = service:get_module(Service),
     Results = service:apply_sync(Service, status, #{}),
-    {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
-    {ok, value, lists:foldl(fun({Node, NodeStatus}, Acc) ->
-        Host = onepanel_utils:convert(hosts:from_node(Node), binary),
-        Acc#{Host => NodeStatus}
-    end, #{}, HostsResults)};
+
+    HostToStatus = case service_utils:results_contain_error(Results) of
+        {true, ?ERROR_NO_SERVICE_NODES(_)} -> #{};
+        {true, Error} -> throw(Error);
+        false ->
+            {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
+            lists:foldl(fun({Node, NodeStatus}, Acc) ->
+                Host = onepanel_utils:convert(hosts:from_node(Node), binary),
+                Acc#{Host => NodeStatus}
+            end, #{}, HostsResults)
+    end,
+    {ok, value, HostToStatus};
 
 get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
     Worker = binary_to_atom(WorkerBin, utf8),
@@ -219,7 +238,7 @@ get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
         ),
         {ok, value, #{code => Code, headers => Headers, body => Body}}
     catch _:_ ->
-        throw(?HTTP_503_SERVICE_UNAVAILABLE)
+        throw(?ERROR_SERVICE_UNAVAILABLE)
     end.
 
 

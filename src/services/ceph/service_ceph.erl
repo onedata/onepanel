@@ -33,6 +33,19 @@
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 
+
+% @formatter:off
+-type cluster_name() :: binary().
+
+-type model_ctx() :: #{
+    cluster_name := cluster_name(),
+    fsid := ceph:uuid()
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
@@ -81,7 +94,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 %% Deploys whole or part of the Ceph cluster.
 %% Deployment of managers or monitors will be skipped on hosts
@@ -186,7 +199,7 @@ get_steps(AllHostAction, _Ctx) when
 %%%===================================================================
 
 
--spec status(service:ctx()) -> service:status().
+-spec status(service:step_ctx()) -> service:status().
 status(_Ctx) ->
     health().
 
@@ -312,7 +325,7 @@ decorate_storage_details(Storage) ->
 %% Writes initial config file to default location.
 %% @end
 %%--------------------------------------------------------------------
--spec initialize_config(service:ctx()) -> ok.
+-spec initialize_config(service:step_ctx()) -> ok.
 initialize_config(_Ctx) ->
     #{fsid := UUID} = get_ctx(),
     ConfigBase = onepanel_env:get(ceph_default_config),
@@ -327,7 +340,7 @@ initialize_config(_Ctx) ->
 %% Must be executed on a host with existing configuration files.
 %% @end
 %%--------------------------------------------------------------------
--spec extend_cluster(service:ctx()) -> ok.
+-spec extend_cluster(service:step_ctx()) -> ok.
 extend_cluster(#{hosts := Hosts}) ->
     NewHosts = lists_utils:subtract(Hosts, get_hosts()),
 
@@ -342,7 +355,7 @@ extend_cluster(#{hosts := Hosts}) ->
 %% @doc Stores current host in service model.
 %% @end
 %%--------------------------------------------------------------------
--spec register_host(service:ctx()) -> ok.
+-spec register_host(service:step_ctx()) -> ok.
 register_host(_Ctx) ->
     service:add_host(name(), hosts:self()).
 
@@ -353,7 +366,7 @@ register_host(_Ctx) ->
 %% daemons.
 %% @end
 %%--------------------------------------------------------------------
--spec create_admin_keyring(service:ctx()) -> ok.
+-spec create_admin_keyring(service:step_ctx()) -> ok.
 create_admin_keyring(_Ctx) ->
     Path = ceph:get_admin_keyring_path(),
     ceph_cli:auth_create_keyring(Path, "client.admin", [
@@ -382,7 +395,7 @@ write_config(#{config := Config} = Ctx) ->
 %% or for a pool with specified name.
 %% @end
 %%--------------------------------------------------------------------
--spec get_usage(service:ctx()) ->
+-spec get_usage(service:step_ctx()) ->
     ceph_pool:usage() |
     #{total := map(), osds := map(), pools := #{ceph_pool:name() => ceph_pool:usage()}}.
 get_usage(Ctx) ->
@@ -430,7 +443,7 @@ ensure_models(GlobalParams) ->
 %% @private @doc Returns this service's ctx.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx() -> service:ctx() | {error, _}.
+-spec get_ctx() -> model_ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 
