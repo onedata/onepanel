@@ -6,6 +6,14 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc Module verifying authentication of REST requests.
+%%% There are 3 methods of authentication:
+%%% - Onezone-issued access token of a cluster member,
+%%%   results in 'member' client role
+%%% - Basic auth header with the emergency passphrase as its only content
+%%%   or as the password for the virtual username "onepanel",
+%%%   results in 'root' client role
+%%% - Onepanel-issued token for a client using the emergency passphrase,
+%%%   results in 'root' client role
 %%% @end
 %%%-------------------------------------------------------------------
 -module(rest_auth).
@@ -19,36 +27,26 @@
 -include_lib("ctool/include/http/headers.hrl").
 
 %% API
--export([authenticate/2, authenticate_by_onezone_auth_token/1,
-    authenticate_by_basic_auth/1, authenticate_by_onepanel_auth_token/1]).
+-export([authenticate/1, authenticate_by_basic_auth/1]).
+-export([root_client/0, guest_client/0, peer_client/0]).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
+
 %%--------------------------------------------------------------------
-%% @doc Authenticates user using provided authorization methods.
+%% @doc Authenticates user using any available methods.
 %% @end
 %%--------------------------------------------------------------------
--spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
-    {Result, cowboy_req:req()} when
+-spec authenticate(Req :: cowboy_req:req()) -> {Result, cowboy_req:req()} when
     Result :: {true, #client{}} | {false, errors:error()}.
-authenticate(Req, []) ->
-    {{false, ?ERROR_UNAUTHORIZED}, Req};
-authenticate(Req, [AuthMethod | AuthMethods]) ->
-    try AuthMethod(Req) of
-        {#client{} = Client, Req2} ->
-            {{true, Client}, Req2};
-        {{error, _} = Error, Req2} ->
-            {{false, Error}, Req2};
-        {ignore, Req2} ->
-            authenticate(Req2, AuthMethods)
-    catch
-        throw:Error ->
-            {{false, Error}, Req};
-        _:_ ->
-            {{false, ?ERROR_UNAUTHORIZED}, Req}
-    end.
+authenticate(Req) ->
+    authenticate(Req, [
+        fun authenticate_by_basic_auth/1,
+        fun authenticate_by_onepanel_auth_token/1,
+        fun authenticate_by_onezone_auth_token/1
+    ]).
 
 
 %%--------------------------------------------------------------------
@@ -67,9 +65,61 @@ authenticate_by_basic_auth(Req) ->
     end.
 
 
+-spec root_client() -> middleware:client().
+root_client() -> #client{
+    role = root,
+    zone_credentials = onezone_client:root_auth(),
+    auth = aai:root_auth()
+}.
+
+
+-spec guest_client() -> middleware:client().
+guest_client() -> #client{
+    role = guest,
+    auth = aai:nobody_auth()
+}.
+
+
+-spec peer_client() -> middleware:client().
+peer_client() -> #client{
+    role = peer,
+    auth = aai:nobody_auth()
+}.
+
+%%%==================================================================
+%%% Internal functions
+%%%===================================================================
+
 %%--------------------------------------------------------------------
+%% @private
+%% @doc Authenticates user using provided authorization methods.
+%% @end
+%%--------------------------------------------------------------------
+-spec authenticate(Req :: cowboy_req:req(), Methods :: [fun()]) ->
+    {Result, cowboy_req:req()} when
+    Result :: {true, #client{}} | {false, errors:error()}.
+authenticate(Req, []) ->
+    {{true, guest_client()}, Req};
+authenticate(Req, [AuthMethod | AuthMethods]) ->
+    try AuthMethod(Req) of
+        {#client{} = Client, Req2} ->
+            {{true, Client}, Req2};
+        {{error, _} = Error, Req2} ->
+            {{false, Error}, Req2};
+        {ignore, Req2} ->
+            authenticate(Req2, AuthMethods)
+    catch
+        throw:Error ->
+            {{false, Error}, Req};
+        _:_ ->
+            {{false, ?ERROR_UNAUTHORIZED}, Req}
+    end.
+
+%%--------------------------------------------------------------------
+%% @private
 %% @doc Authenticates user using Onepanel-generated token used
-%% for sessions authenticated with the emergency passphrase.
+%% for either sessions authenticated with the emergency passphrase or
+%% peer nodes invited to join cluster.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
@@ -77,11 +127,18 @@ authenticate_by_basic_auth(Req) ->
     when Result :: #client{} | {error, _} | ignore.
 authenticate_by_onepanel_auth_token(Req) ->
     case tokens:parse_access_token_header(Req) of
-        <<?ONEPANEL_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
+        <<?ONEPANEL_USER_AUTH_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
             case onepanel_session:find_by_valid_auth_token(OnepanelToken) of
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
                 error ->
+                    {?ERROR_TOKEN_INVALID, Req}
+            end;
+        <<?ONEPANEL_INVITE_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = InviteToken ->
+            case authorization_nonce:verify(invite_tokens:get_nonce(InviteToken)) of
+                true ->
+                    {peer_client(), Req};
+                false ->
                     {?ERROR_TOKEN_INVALID, Req}
             end;
         _ ->
@@ -90,6 +147,7 @@ authenticate_by_onepanel_auth_token(Req) ->
 
 
 %%--------------------------------------------------------------------
+%% @private
 %% @doc Authenticates user using REST API token.
 %% @end
 %%--------------------------------------------------------------------
@@ -105,10 +163,6 @@ authenticate_by_onezone_auth_token(Req) ->
             {onezone_tokens:authenticate_user(AccessToken, PeerIp), Req}
     end.
 
-
-%%%==================================================================
-%%% Internal functions
-%%%===================================================================
 
 %% @private
 -spec check_basic_credentials(Credentials :: binary() | [binary()]) ->
@@ -159,8 +213,3 @@ check_emergency_passphrase(Passphrase) ->
         true -> root_client();
         false -> ?ERROR_BAD_BASIC_CREDENTIALS
     end.
-
-
--spec root_client() -> #client{}.
-root_client() ->
-    #client{role = root, zone_auth = onezone_client:root_auth()}.

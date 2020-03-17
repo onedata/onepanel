@@ -23,6 +23,16 @@
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 
+% @formatter:off
+-type model_ctx() :: #{
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()}
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
@@ -42,7 +52,6 @@
 -export([get_policies/0, set_policies/1]).
 -export([get_details/1, get_details/0]).
 
--define(INIT_SCRIPT, "oz_worker").
 -define(DETAILS_CACHE_KEY, onezone_details).
 -define(DETAILS_CACHE_TTL, timer:minutes(1)).
 
@@ -81,7 +90,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
     service_cluster_worker:get_steps(deploy, Ctx#{name => name()});
@@ -143,12 +152,13 @@ get_user_details(Auth) ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(Ctx) ->
-    GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
-    VmArgsFile = service_ctx:get(oz_worker_vm_args_file, Ctx),
-    OzName = service_ctx:get(onezone_name, Ctx),
-    OzDomain = string:lowercase(service_ctx:get_domain(onezone_domain, Ctx)),
+    VmArgsFile = onepanel_env:get(oz_worker_vm_args_file),
+    OzName = onepanel_utils:get_converted(onezone_name, Ctx, list),
+    OzDomain = string:lowercase(
+        onepanel_utils:get_converted(onezone_domain, Ctx, list)
+    ),
 
     % TODO VFS-4140 Mark IPs configured only in batch mode
     onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
@@ -163,7 +173,6 @@ configure(Ctx) ->
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => AppConfig,
-        generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
         initialize_ip => true
     }).
@@ -173,10 +182,10 @@ configure(Ctx) ->
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
 start(Ctx) ->
     NewCtx = maps:merge(#{
-        open_files => service_ctx:get(oz_worker_open_files_limit, Ctx)
+        open_files => onepanel_env:get(oz_worker_open_files_limit)
     }, Ctx),
     service_cluster_worker:start(NewCtx#{name => name()}).
 
@@ -185,7 +194,7 @@ start(Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
+-spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
     service_cluster_worker:stop(Ctx#{name => name()}).
 
@@ -194,7 +203,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
     % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
@@ -206,7 +215,7 @@ status(Ctx) ->
 %% @doc Checks if a running service is in a fully functional state.
 %% @end
 %%--------------------------------------------------------------------
--spec health(service:ctx()) -> service:status().
+-spec health(service:step_ctx()) -> service:status().
 health(Ctx) ->
     case (catch get_nagios_status(Ctx)) of
         ok -> healthy;
@@ -218,14 +227,12 @@ health(Ctx) ->
 %% @doc {@link service_cluster_worker:wait_for_init/1}
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     service_cluster_worker:wait_for_init(Ctx#{
         name => name(),
-        wait_for_init_attempts => service_ctx:get(
-            oz_worker_wait_for_init_attempts, Ctx, integer),
-        wait_for_init_delay => service_ctx:get(
-            oz_worker_wait_for_init_delay, Ctx, integer)
+        wait_for_init_attempts => onepanel_env:get(oz_worker_wait_for_init_attempts),
+        wait_for_init_delay => onepanel_env:get(oz_worker_wait_for_init_delay)
     }).
 
 
@@ -233,12 +240,12 @@ wait_for_init(Ctx) ->
 %% @doc {@link service_cluster_worker:nagios_report/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_response(Ctx :: service:ctx()) ->
+-spec get_nagios_response(Ctx :: service:step_ctx()) ->
     Response :: http_client:response().
 get_nagios_response(Ctx) ->
     service_cluster_worker:get_nagios_response(Ctx#{
-        nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
-        nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
+        nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
+        nagios_port => onepanel_env:get(oz_worker_nagios_port)
     }).
 
 
@@ -246,11 +253,11 @@ get_nagios_response(Ctx) ->
 %% @doc {@link service_cluster_worker:get_nagios_status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+-spec get_nagios_status(Ctx :: service:step_ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
     service_cluster_worker:get_nagios_status(Ctx#{
-        nagios_protocol => service_ctx:get(oz_worker_nagios_protocol, Ctx),
-        nagios_port => service_ctx:get(oz_worker_nagios_port, Ctx, integer)
+        nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
+        nagios_port => onepanel_env:get(oz_worker_nagios_port)
     }).
 
 
@@ -280,7 +287,7 @@ get_ns_hosts() ->
 %% @doc {@link letsencrypt_plugin_behaviour:set_txt_record/1}
 %% @end
 %%--------------------------------------------------------------------
--spec set_txt_record(service:ctx()) -> ok | no_return().
+-spec set_txt_record(service:step_ctx()) -> ok | no_return().
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := _TTL} = Ctx) ->
     [Node | _] = Nodes = get_nodes(),
     % oz_worker does not support custom TTL times
@@ -336,10 +343,10 @@ get_domain() ->
 %% @doc
 %% Returns details of the oz worker. Routes request to a host
 %% with oz_worker deployed.
-%% Result is cached to speed up usages such as rest_utils:allowed_origin/0.
+%% Result is cached to speed up usages such as rest_handler:allowed_origin/0.
 %% @end
 %%--------------------------------------------------------------------
--spec get_details(service:ctx()) ->
+-spec get_details(service:step_ctx()) ->
     #{name := binary() | undefined, domain := binary()}.
 get_details(_Ctx) ->
     {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
@@ -383,12 +390,14 @@ get_admin_email() ->
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
 supports_letsencrypt_challenge(Challenge) when
-    Challenge == http; Challenge == dns ->
+    Challenge == http;
+    Challenge == dns
+->
     OzNode = case nodes:any(name()) of
         {ok, N} -> N;
         Error -> throw(Error)
     end,
-    service:healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
     case Challenge of
         http -> true;
         dns ->
@@ -405,16 +414,17 @@ supports_letsencrypt_challenge(_) -> false.
 %% @doc Triggers update of dns server config in oz_worker.
 %% @end
 %%--------------------------------------------------------------------
--spec reconcile_dns(service:ctx()) -> ok.
+-spec reconcile_dns(service:step_ctx()) -> ok.
 reconcile_dns(_Ctx) ->
     ok = oz_worker_rpc:reconcile_dns_config().
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(Ctx) ->
     service_cluster_worker:migrate_generated_config(Ctx#{
         name => name(),
@@ -437,7 +447,7 @@ rename_variables() ->
         {[name(), subdomain_delegation_enabled], [name(), subdomain_delegation_supported]}
     ],
     lists:foreach(fun({Old, New}) ->
-        onepanel_env:migrate(name(), Old, New)
+        onepanel_env:rename(name(), Old, New)
     end, Changes).
 
 
@@ -464,24 +474,24 @@ get_policies() ->
 %%-------------------------------------------------------------------
 %% @doc
 %% Applies zone policy changes. This function should be run on all
-%% nodes with oz_worker to ensure consisten app.config state.
+%% nodes with oz_worker to ensure consistent app.config state.
 %% @end
 %%-------------------------------------------------------------------
--spec set_policies(Ctx :: service:ctx()) -> ok.
+-spec set_policies(Ctx :: service:step_ctx()) -> ok.
 set_policies(Ctx) ->
-    maps:map(fun
-        (oneprovider_registration, OpenOrRestricted) ->
+    lists:foreach(fun
+        ({oneprovider_registration, OpenOrRestricted}) ->
             Atom = onepanel_utils:convert(OpenOrRestricted, atom),
             env_write_and_set(provider_registration_policy, Atom);
-        (subdomain_delegation, Supported) ->
+        ({subdomain_delegation, Supported}) ->
             env_write_and_set(subdomain_delegation_supported, Supported);
-        (gui_package_verification, Enabled) ->
+        ({gui_package_verification, Enabled}) ->
             env_write_and_set(gui_package_verification, Enabled);
-        (harvester_gui_package_verification, Enabled) ->
+        ({harvester_gui_package_verification, Enabled}) ->
             env_write_and_set(harvester_gui_package_verification, Enabled);
-        (_, _) -> ok
-    end, Ctx),
-    ok.
+        ({_, _}) ->
+            ok
+    end, maps:to_list(Ctx)).
 
 
 %%%===================================================================
@@ -520,8 +530,7 @@ to_binary_or_undefined(Value) -> onepanel_utils:convert(Value, binary).
 -spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
 env_write_and_set(Variable, Value) ->
     Node = nodes:local(name()),
-    Path = onepanel_env:get_config_path(name(), generated),
-    onepanel_env:write([name(), Variable], Value, Path),
+    onepanel_env:write([name(), Variable], Value, ?SERVICE_OZW),
     % catch - failure of set_remote indicates that oz_worker node is down.
     % In such case onepanel_env:write suffices since configuration will
     % be read from file on next startup.

@@ -274,7 +274,7 @@ ensure_fresh_token(Session) ->
 generate_api_token(SessionId) ->
     UUID = onepanel_utils:gen_uuid(),
     Expires = ?NOW() + ?TOKEN_TTL,
-    Token = onepanel_utils:join([?ONEPANEL_TOKEN_PREFIX, SessionId, UUID],
+    Token = onepanel_utils:join([?ONEPANEL_USER_AUTH_TOKEN_PREFIX, SessionId, UUID],
         <<?ONEPANEL_TOKEN_SEPARATOR>>),
     {Token, Expires}.
 
@@ -282,7 +282,7 @@ generate_api_token(SessionId) ->
 %% @private
 -spec token_to_session_id(auth_token()) -> onepanel_session:id().
 token_to_session_id(Token) ->
-    [<<?ONEPANEL_TOKEN_PREFIX>>, SessionId, _] =
+    [<<?ONEPANEL_USER_AUTH_TOKEN_PREFIX>>, SessionId, _] =
         string:split(Token, ?ONEPANEL_TOKEN_SEPARATOR, all),
     SessionId.
 

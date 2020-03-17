@@ -25,7 +25,8 @@
 
 %% Steps
 -export([create_default_admin/1, migrate_users/1]).
--export([add_users/1, get_user/1, list_users/1, set_user_password/1]).
+-export([add_user/1, add_users/1, get_user/1, list_users/1,
+    set_user_password/1]).
 
 -define(DEFAULT_ADMIN_USERNAME,
     onepanel_env:get(zone_default_admin_username, ?APP_NAME, <<"admin">>)).
@@ -52,20 +53,37 @@ user_exists(UserId) ->
 -spec add_users(#{onezone_users := [User]}) -> ok when
     User :: #{username := binary(), password := binary(), groups := [binary()]}.
 add_users(#{onezone_users := Users}) ->
-    {OzNode, Client} = get_node_and_client(),
-    lists:foreach(fun(User) ->
-        Data = kv_utils:copy_found([
-            {username, <<"username">>},
-            {password, <<"password">>}
-        ], User),
-        case oz_worker_rpc:create_user(OzNode, Client, Data) of
-            {ok, UserId} ->
-                Groups = maps:get(groups, User),
-                add_user_to_groups(OzNode, Client, UserId, Groups);
+    lists:foreach(fun(UserData) ->
+        case add_user(UserData) of
+            {ok, _Id} -> ok;
             ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"username">>) -> ok;
             Error -> throw(Error)
         end
     end, Users).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Adds Onezone user with basic auth enabled.
+%% @end
+%%--------------------------------------------------------------------
+-spec add_user(User) -> {ok, UserId :: binary()} | errors:error() when
+    User :: #{username := binary(), password := binary(), groups := [binary()]}.
+add_user(User) ->
+    {OzNode, Client} = get_node_and_client(),
+    Data = kv_utils:copy_found([
+        {username, <<"username">>},
+        {password, <<"password">>}
+    ], User),
+    case oz_worker_rpc:create_user(OzNode, Client, Data) of
+        {ok, UserId} ->
+            Groups = maps:get(groups, User),
+            add_user_to_groups(OzNode, Client, UserId, Groups),
+            {ok, UserId};
+        Error ->
+            Error
+    end.
+
 
 %% @private
 -spec add_user_to_groups(OzNode :: node(), aai:auth(),
@@ -82,11 +100,11 @@ add_user_to_groups(OzNode, Auth, UserId, Groups) ->
 %% Lists Ids of Onezone users.
 %% @end
 %%--------------------------------------------------------------------
--spec list_users(service:ctx()) -> #{ids := [UserId :: binary()]}.
+-spec list_users(service:step_ctx()) -> [UserId :: binary()].
 list_users(_Ctx) ->
     {OzNode, Client} = get_node_and_client(),
     {ok, Ids} = oz_worker_rpc:list_users(OzNode, Client),
-    #{ids => Ids}.
+    Ids.
 
 
 %%--------------------------------------------------------------------
@@ -97,9 +115,13 @@ list_users(_Ctx) ->
 -spec get_user(#{user_id := binary()}) -> #{atom() := binary()}.
 get_user(#{user_id := UserId}) ->
     {_, Client} = get_node_and_client(),
-    {ok, Details} = oz_worker_rpc:get_user_details(Client, UserId),
-    #user_details{id = UserId, username = Username, full_name = FullName} = Details,
-    #{userId => UserId, username => Username, fullName => FullName}.
+    case oz_worker_rpc:get_user_details(Client, UserId) of
+        {ok, Details} ->
+            #user_details{id = UserId, username = Username, full_name = FullName} = Details,
+            #{userId => UserId, username => Username, fullName => FullName};
+        Error ->
+            throw(Error)
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -108,7 +130,7 @@ get_user(#{user_id := UserId}) ->
 %% it is created with password set to onepanel's emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec create_default_admin(service:ctx()) -> ok.
+-spec create_default_admin(service:step_ctx()) -> ok.
 create_default_admin(_Ctx) ->
     case oz_worker_rpc:username_exists(?DEFAULT_ADMIN_USERNAME) of
         true -> ok;
@@ -124,7 +146,7 @@ create_default_admin(_Ctx) ->
 %% Adds onepanel_users as Onezone users with basic auth.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_users(service:ctx()) -> ok.
+-spec migrate_users(service:step_ctx()) -> ok.
 migrate_users(_Ctx) ->
     lists:foreach(fun migrate_user/1, onepanel_user:list()).
 

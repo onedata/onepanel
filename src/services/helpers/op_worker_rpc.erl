@@ -100,6 +100,7 @@
 -export([autocleaning_cancel_run/1, autocleaning_cancel_run/2]).
 -export([get_provider_id/0, get_provider_id/1]).
 -export([get_access_token/0, get_access_token/1]).
+-export([get_identity_token/0, get_identity_token/1]).
 -export([is_connected_to_oz/0, is_connected_to_oz/1]).
 -export([is_registered/0, is_registered/1]).
 -export([on_deregister/0, on_deregister/1]).
@@ -430,6 +431,15 @@ get_access_token() ->
 
 -spec get_access_token(node()) -> {ok, tokens:serialized()} | {error, term()}.
 get_access_token(Node) ->
+    ?CALL(Node, []).
+
+
+-spec get_identity_token() -> {ok, tokens:serialized()} | {error, term()}.
+get_identity_token() ->
+    ?CALL([]).
+
+-spec get_identity_token(node()) -> {ok, tokens:serialized()} | {error, term()}.
+get_identity_token(Node) ->
     ?CALL(Node, []).
 
 

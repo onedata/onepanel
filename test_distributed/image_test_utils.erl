@@ -56,6 +56,8 @@ deploy_onezone(Passphrase, Username, Password, Config) ->
             ?SERVICE_OZW => #{
                 hosts => OzHosts, main_cm_host => hd(OzHosts),
                 cm_hosts => OzHosts, db_hosts => OzHosts,
+                onezone_name => <<"someOnezone">>,
+                onezone_domain => string:uppercase(OzDomain),
                 onezone_users => [#{
                     username => Username,
                     password => Password,
@@ -68,6 +70,7 @@ deploy_onezone(Passphrase, Username, Password, Config) ->
             }
         },
         ?SERVICE_OZ => #{
+            name => <<"someOnezone">>,
             domain => string:uppercase(OzDomain)
         }
     }),
@@ -82,6 +85,7 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
     OzDomain = ?config(onezone_domain, Config),
     [OpNode | _] = OpNodes = ?config(oneprovider_nodes, Config),
     OpHosts = hosts:from_nodes(OpNodes),
+    OpwHosts = lists:sublist(OpHosts, length(OpHosts) - 1),
     OpDomain = onepanel_test_utils:get_domain(hd(OpHosts)),
 
     % We do not have a DNS server that would resolve OZ domain for provider,
@@ -105,14 +109,14 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
                 hosts => OpHosts
             },
             ?SERVICE_CM => #{
-                hosts => OpHosts, main_cm_host => hd(OpHosts), worker_num => length(OpHosts)
+                hosts => OpHosts, main_cm_host => hd(OpHosts), worker_num => length(OpwHosts)
             },
             ?SERVICE_OPW => #{
-                hosts => OpHosts, main_cm_host => hd(OpHosts),
+                hosts => OpwHosts, main_cm_host => hd(OpHosts),
                 cm_hosts => OpHosts, db_hosts => OpHosts
             },
             storages => #{
-                hosts => OpHosts,
+                hosts => OpwHosts,
                 storages => Storages
             },
             ?SERVICE_LE => #{
@@ -121,17 +125,22 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
             }
         },
         ?SERVICE_OP => #{
-            hosts => OpHosts,
+            hosts => OpwHosts,
             oneprovider_geo_latitude => 10.0,
             oneprovider_geo_longitude => 10.0,
             oneprovider_name => <<"provider1">>,
             oneprovider_domain => string:uppercase(OpDomain),
             oneprovider_register => true,
             oneprovider_admin_email => <<"admin@onedata.org">>,
-            oneprovider_token => RegistrationToken
+            oneprovider_token => RegistrationToken,
+            onezone_domain => str_utils:to_binary(OzDomain)
         }
     }),
-    [{oneprovider_domain, OpDomain} | Config].
+    [
+        {op_worker_hosts, OpwHosts},
+        {oneprovider_domain, OpDomain}
+        | Config
+    ].
 
 
 %%--------------------------------------------------------------------

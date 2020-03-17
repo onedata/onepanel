@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/1, list/0, get/1, exists/2, update/3, remove/2]).
+-export([add/1, list/0, get/1, exists/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_imported_storage/2, can_be_removed/1]).
@@ -82,7 +82,7 @@ add(#{name := Name, params := Params}) ->
             [StorageName, StorageType]),
             ok;
         {error, Reason} ->
-            throw(Reason)
+            throw({error, Reason})
     end.
 
 
@@ -134,10 +134,10 @@ remove(OpNode, Id) ->
 %% service.
 %% @end
 %%--------------------------------------------------------------------
--spec list() -> #{ids := [id()]}.
+-spec list() -> [id()].
 list() ->
     {ok, Ids} = op_worker_rpc:storage_list_ids(),
-    #{ids => Ids}.
+    Ids.
 
 
 %%--------------------------------------------------------------------
@@ -148,7 +148,7 @@ list() ->
 get(Id) ->
     {ok, Map} = op_worker_rpc:storage_describe(Id),
     onepanel_utils:convert(
-        onepanel_maps:undefined_to_null(Map),
+        maps_utils:undefined_to_null(Map),
         {keys, atom}).
 
 
@@ -254,7 +254,7 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_maps:undefined_to_null(DetailsMap2).
+    maps_utils:undefined_to_null(DetailsMap2).
 
 
 %%-------------------------------------------------------------------
@@ -400,6 +400,7 @@ get_required_luma_arg(Key, StorageParams, Type) ->
 make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
     #{name := Name, readonly := Readonly} = Details,
+    ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
     try
         {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
         maybe_verify_storage(Helper, Readonly)
@@ -547,8 +548,20 @@ maybe_update_imported_storage(_OpNode, _Id, _) ->
 update_imported_storage(OpNode, Id, Value) ->
     ok = op_worker_rpc:storage_set_imported_storage(OpNode, Id, Value).
 
+
 %%--------------------------------------------------------------------
-%% @doc Checks if storage with given name or id exists.
+%% @doc Checks if storage with given id exists.
+%% @end
+%%--------------------------------------------------------------------
+-spec exists(id()) -> boolean().
+exists(StorageId) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_rpc:storage_exists(Node, StorageId).
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if storage with given id exists,
+%% using provided op_worker node for rpc.
 %% @end
 %%--------------------------------------------------------------------
 -spec exists(Node :: node(), id()) -> boolean().
@@ -563,7 +576,7 @@ exists(Node, StorageId) ->
 %%--------------------------------------------------------------------
 -spec parse_auto_cleaning_configuration(map()) -> map().
 parse_auto_cleaning_configuration(Args) ->
-    onepanel_maps:remove_undefined(#{
+    maps_utils:remove_undefined(#{
         enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
         target => onepanel_utils:get_converted([target], Args, integer, undefined),
         threshold => onepanel_utils:get_converted([threshold], Args, integer, undefined),
@@ -592,7 +605,7 @@ parse_auto_cleaning_rules(Args) ->
         min_file_size, max_file_size, min_hours_since_last_open, max_open_count,
         max_hourly_moving_average, max_daily_moving_average, max_monthly_moving_average
     ]),
-    onepanel_maps:remove_undefined(ParsedRules2).
+    maps_utils:remove_undefined(ParsedRules2).
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses and validates auto-cleaning rule setting.
@@ -600,7 +613,7 @@ parse_auto_cleaning_rules(Args) ->
 %%--------------------------------------------------------------------
 -spec parse_auto_cleaning_rule_setting(atom(), map()) -> map().
 parse_auto_cleaning_rule_setting(RuleName, Args) ->
-    onepanel_maps:remove_undefined(#{
+    maps_utils:remove_undefined(#{
         enabled => onepanel_utils:get_converted([rules, RuleName, enabled], Args, boolean, undefined),
         value => onepanel_utils:get_converted([rules, RuleName, value], Args, integer, undefined)
     }).
@@ -611,7 +624,7 @@ parse_auto_cleaning_rule_setting(RuleName, Args) ->
 %%-------------------------------------------------------------------
 -spec parse_file_popularity_configuration(map()) -> map().
 parse_file_popularity_configuration(Args) ->
-    onepanel_maps:remove_undefined(#{
+    maps_utils:remove_undefined(#{
         enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
         last_open_hour_weight => onepanel_utils:get_converted(last_open_hour_weight, Args, float, undefined),
         avg_open_count_per_day_weight => onepanel_utils:get_converted(avg_open_count_per_day_weight, Args, float, undefined),

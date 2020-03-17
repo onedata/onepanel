@@ -61,19 +61,19 @@ maybe_configure_storage_update(Node, SpaceId, Args) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec get_storage_import_details(Node :: node(), SpaceId :: id(),
-    StorageId :: id()) -> proplists:proplist().
+    StorageId :: id()) -> #{atom() => json_utils:json_term()}.
 get_storage_import_details(Node, SpaceId, StorageId) ->
     % todo VFS-5717
     {ImportEnabled, Args} = op_worker_rpc:get_storage_import_details(Node, SpaceId, StorageId),
     case ImportEnabled of
         false ->
-            [{strategy, no_import}];
+            #{strategy => no_import};
         true ->
-            [
-                {strategy, simple_scan},
-                {maxDepth, maps:get(max_depth, Args)},
-                {syncAcl, maps:get(sync_acl, Args)}
-            ]
+            #{
+                strategy => simple_scan,
+                maxDepth => maps:get(max_depth, Args),
+                syncAcl => maps:get(sync_acl, Args)
+            }
     end.
 
 
@@ -81,23 +81,24 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
 %% @doc Returns storage_update details from given node.
 %% @end
 %%-------------------------------------------------------------------
--spec get_storage_update_details(Node :: node(), SpaceId :: id(), StorageId :: id()) -> proplists:proplist().
+-spec get_storage_update_details(node(), SpaceId :: id(), StorageId :: id()) ->
+    #{atom() => json_utils:json_term()}.
 get_storage_update_details(Node, SpaceId, StorageId) ->
     % todo VFS-5717
     {UpdateEnabled, Args} = op_worker_rpc:get_storage_update_details(
         Node, SpaceId, StorageId),
     case UpdateEnabled of
         false ->
-            [{strategy, no_update}];
+            #{strategy => no_update};
         true ->
-            [
-                {strategy, simple_scan},
-                {maxDepth, maps:get(max_depth, Args)},
-                {scanInterval, maps:get(scan_interval, Args)},
-                {writeOnce, maps:get(write_once, Args)},
-                {deleteEnable, maps:get(delete_enable, Args)},
-                {syncAcl, maps:get(sync_acl, Args)}
-            ]
+            #{
+                strategy => simple_scan,
+                maxDepth => maps:get(max_depth, Args),
+                scanInterval => maps:get(scan_interval, Args),
+                writeOnce => maps:get(write_once, Args),
+                deleteEnable => maps:get(delete_enable, Args),
+                syncAcl => maps:get(sync_acl, Args)
+            }
     end.
 
 %%-------------------------------------------------------------------
@@ -105,14 +106,14 @@ get_storage_update_details(Node, SpaceId, StorageId) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec get_stats(Node :: node(), SpaceId :: id(), Period :: binary(),
-    Metrics :: [binary()]) -> proplists:proplist().
+    Metrics :: [binary()]) -> #{atom() => json_utils:json_term()}.
 get_stats(Node, SpaceId, _Period, [<<"">>]) ->
     get_status(Node, SpaceId);
 get_stats(Node, SpaceId, Period, Metrics) ->
-    [
-        {stats, get_all_metrics(Node, SpaceId, Period, Metrics)}
-        | get_status(Node, SpaceId)
-    ].
+    Status = get_status(Node, SpaceId),
+    Status#{
+        stats => get_all_metrics(Node, SpaceId, Period, Metrics)
+    }.
 
 
 %%%===================================================================
@@ -132,7 +133,7 @@ configure_storage_import(Node, SpaceId, Args0, StrategyName) ->
         simple_scan -> true;
         no_import -> false
     end,
-    Args = onepanel_maps:remove_undefined(#{
+    Args = maps_utils:remove_undefined(#{
         max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
         sync_acl => onepanel_utils:get_converted(sync_acl, Args0, boolean, undefined)
     }),
@@ -149,7 +150,7 @@ configure_storage_update(Node, SpaceId, _Args0, no_update) ->
     % todo VFS-5717
     ok = op_worker_rpc:configure_storage_update(Node, SpaceId, false, #{});
 configure_storage_update(Node, SpaceId, Args0, simple_scan) ->
-    Args = onepanel_maps:remove_undefined(#{
+    Args = maps_utils:remove_undefined(#{
         max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
         scan_interval => onepanel_utils:get_converted(scan_interval, Args0, integer, undefined),
         write_once => onepanel_utils:get_converted(write_once, Args0, boolean, undefined),
@@ -168,20 +169,20 @@ current_import_strategy(Node, SpaceId) ->
     StorageId = op_worker_storage:get_supporting_storage(Node, SpaceId),
     ImportDetails = op_worker_storage_sync:get_storage_import_details(Node,
         SpaceId, StorageId),
-    proplists:get_value(strategy, ImportDetails).
+    maps:get(strategy, ImportDetails).
 
 %%-------------------------------------------------------------------
 %% @private
 %% @doc Returns storage_sync metrics.
 %% @end
 %%-------------------------------------------------------------------
--spec get_all_metrics(Node :: node(), SpaceId :: id(), Period :: binary(),
-    Metrics :: [binary()]) -> proplists:proplist().
-get_all_metrics(Node, SpaceId, Period, Metrics) ->
-    lists:foldl(fun(Metric, AccIn) ->
-        MetricResult = get_metric(Node, SpaceId, Period, Metric),
-        [{Metric, MetricResult} | AccIn]
-    end, [], Metrics).
+-spec get_all_metrics(OpNode :: node(), SpaceId :: id(), Period :: binary(),
+    Metrics :: [Metric]) -> #{Metric => map()}
+    when Metric :: binary().
+get_all_metrics(OpNode, SpaceId, Period, Metrics) ->
+    lists:foldl(fun(Metric, Acc) ->
+        Acc#{Metric => get_metric(OpNode, SpaceId, Period, Metric)}
+    end, #{}, Metrics).
 
 %%-------------------------------------------------------------------
 %% @private
@@ -189,18 +190,18 @@ get_all_metrics(Node, SpaceId, Period, Metrics) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec get_metric(Node :: node(), SpaceId :: id(), Period :: binary(),
-    Metric :: binary()) -> proplists:proplist().
+    Metric :: binary()) -> map().
 get_metric(Node, SpaceId, Period, Metric) ->
     Type = map_metric_name_to_type(Metric),
     Results = op_worker_rpc:storage_sync_monitoring_get_metric(
         Node, SpaceId, Type, binary_to_atom(Period, utf8)),
     LastValueTimestamp = proplists:get_value(timestamp, Results),
     Values = proplists:get_value(values, Results),
-    [
-        {name, Metric},
-        {lastValueDate, time_utils:epoch_to_iso8601(LastValueTimestamp)},
-        {values, Values}
-    ].
+    #{
+        name => Metric,
+        lastValueDate => time_utils:epoch_to_iso8601(LastValueTimestamp),
+        values => Values
+    }.
 
 %%-------------------------------------------------------------------
 %% @private
@@ -222,12 +223,12 @@ map_metric_name_to_type(<<"deleteCount">>) -> deleted_files.
 %% @end
 %%-------------------------------------------------------------------
 -spec get_status(Node :: node(), SpaceId :: id()) ->
-    proplists:proplist().
+    #{atom() := binary()}.
 get_status(Node, SpaceId) ->
-    [
-        {importStatus, get_import_status(Node, SpaceId)},
-        {updateStatus, get_update_status(Node, SpaceId)}
-    ].
+    #{
+        importStatus => get_import_status(Node, SpaceId),
+        updateStatus => get_update_status(Node, SpaceId)
+    }.
 
 %%-------------------------------------------------------------------
 %% @private

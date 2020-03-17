@@ -49,7 +49,7 @@
 -define(CUSTOM_LOOP_PATH, <<"/volumes/persistence/ceph-loopdevices/custompath.loop">>).
 % path of loopdevice file used to test blockdevice type deployment
 -define(MOCK_BLOCKDEVICE_PATH, <<"/volumes/persistence/ceph-loopdevices/blockdevice.loop">>).
--define(LOOPDEVICE_SIZE, 300 * 1024 * 1024).
+-define(LOOPDEVICE_SIZE, 500 * 1024 * 1024).
 
 -define(POOL_PARAMS, #{
     type => <<"localceph">>,
@@ -122,7 +122,7 @@ ceph_is_deployed(Config) ->
                 type => loopdevice,
                 host => OpHost1,
                 size => ?LOOPDEVICE_SIZE,
-                uuid => ?OSD_UUID1 % UUID is always sent by user or filled in rest_ceph
+                uuid => ?OSD_UUID1 % UUID is always sent by user or filled in ceph_middleware
             }
         ]
     }),
@@ -216,7 +216,7 @@ storage_is_added_with_pool(Config) ->
     }),
     ?assertEqual([PoolName], rpc:call(OpNode, ceph_pool, list, [])),
     ?assertEqual(1,
-        length(maps:get(ids, rpc:call(OpNode, service_op_worker, get_storages, [#{}])))).
+        length(rpc:call(OpNode, service_op_worker, get_storages, [#{}]))).
 
 
 pool_creation_fails_with_too_few_osds(Config) ->
@@ -363,15 +363,6 @@ end_per_suite(Config) ->
 %%% Internal functions
 %%%===================================================================
 
-%% @private
--spec assert_service_step(Module :: module(), Function :: atom()) ->
-    onepanel_rpc:results().
-assert_service_step(Module, Function) ->
-    {_, {_, _, {Results, _}}} = ?assertReceivedMatch(
-        {step_end, {Module, Function, {_, []}}}, ?TIMEOUT
-    ),
-    Results.
-
 
 -spec list_monitors(Node :: node()) -> [binary()].
 list_monitors(Node) ->
@@ -402,18 +393,18 @@ get_instances(Node, Service) ->
 list_storage_ids(Node) ->
     Ctx = #{hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    Results = assert_service_step(service:get_module(op_worker), get_storages),
-    [{_, #{ids := Ids}}] = ?assertMatch([{Node, #{ids := _}}], Results),
-    Ids.
+    ?assertMatch(List when is_list(List), rpc:call(Node,
+        middleware_utils, result_from_service_action,
+        [?SERVICE_OPW, get_storages]
+    )).
 
 
 -spec get_storage(node(), op_worker_storage:id()) -> map().
 get_storage(Node, Id) ->
     Ctx = #{id => Id, hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    Results2 = assert_service_step(service:get_module(op_worker), get_storages),
-    [{Node, Storage}] = ?assertMatch([{Node, #{}}], Results2),
-    Storage.
+    rpc:call(Node, middleware_utils, result_from_service_action,
+        [?SERVICE_OPW, get_storages, Ctx]).
 
 
 %% @private

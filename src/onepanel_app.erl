@@ -21,8 +21,6 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
--export([get_build_and_version/0]).
-
 %%%===================================================================
 %%% Application callbacks
 %%%===================================================================
@@ -45,7 +43,7 @@ start(_StartType, _StartArgs) ->
         test_node_starter:maybe_start_cover(),
         case onepanel_env:legacy_config_exists(onepanel) of
             true ->
-                onepanel_env:migrate_generated_config(onepanel, [
+                onepanel_env:upgrade_app_config(onepanel, [
                     [onepanel, advertise_address],
                     [onepanel, generate_test_web_cert],
                     [onepanel, test_web_cert_domain],
@@ -78,22 +76,6 @@ stop(_State) ->
     https_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc Returns version information about the running app
-%% @end
-%%--------------------------------------------------------------------
--spec get_build_and_version() -> {BuildVersion :: binary(), AppVersion :: binary()}.
-get_build_and_version() ->
-    BuildVersion = case application:get_env(?APP_NAME, build_version, "unknown") of
-        "" -> "unknown";
-        Build -> Build
-    end,
-    {_AppId, _AppName, AppVersion} = lists:keyfind(
-        ?APP_NAME, 1, application:loaded_applications()
-    ),
-    {list_to_binary(BuildVersion), list_to_binary(AppVersion)}.
 
 
 %%%===================================================================

@@ -162,6 +162,12 @@
         %%  be used in production.
         {treat_test_ca_as_trusted, false},
 
+        %% ===================================================================
+        %% Invite tokens
+        %% ===================================================================
+
+        %% Time (in seconds) during which invite tokens will be valid after creation
+        {panel_authorization_nonce_ttl_sec, 3600},
 
         %% ===================================================================
         %% Ceph
@@ -230,7 +236,7 @@
         %% Username of the admin user created after Onezone deployment
         {zone_default_admin_username, <<"admin">>},
 
-        {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
+        {rest_api_prefix, "/api/v3/onepanel"},
         %% Number of accepting processes in HTTPS listeners
         {rest_https_acceptors, 100},
         %% Request timeout in milliseconds, meaning how long the server should
@@ -345,12 +351,6 @@
         {oz_worker_wait_for_init_attempts, 60},
         {oz_worker_wait_for_init_delay, 5000},
 
-        {onezone_name, "example"},
-        {onezone_domain, "onedata.org"},
-
-        {oneprovider_name, "example"},
-        {oneprovider_geo_latitude, 0.0},
-        {oneprovider_geo_longitude, 0.0},
         {connect_to_onezone_attempts, 5}
     ]}
 ].

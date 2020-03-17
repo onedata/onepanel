@@ -13,6 +13,8 @@
 -ifndef(ONEPANEL_TEST_REST_HRL).
 -define(ONEPANEL_TEST_REST_HRL, 1).
 
+-include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
 -define(OZ_USER_NAME, <<"joe">>).
@@ -22,6 +24,10 @@
 -define(LOCAL_AUTHS(HostOrConfig, BasicOrPassphrase), [
     BasicOrPassphrase,
     onepanel_test_rest:obtain_local_token(HostOrConfig, BasicOrPassphrase)
+]).
+
+-define(PEER_AUTHS(Host), [
+    onepanel_test_rest:obtain_invite_token(Host)
 ]).
 
 -define(OZ_AUTHS(HostOrConfig, Privileges), [
@@ -66,6 +72,16 @@
         {__Endpoint, __Method} <- EndpointsWithMethods,
         __Host <- ?config(all_hosts, Config)
     ])
+).
+
+
+% TaskId should be "a double-quote string literal"
+-define(assertAsyncTask(TaskId, Response),
+    ?assertMatch({
+        ok, ?HTTP_202_ACCEPTED,
+        #{?HDR_LOCATION := <<"/api/v3/onepanel/tasks/", TaskId>>},
+        <<"{\"taskId\":\"", TaskId, "\"}">>
+    }, Response)
 ).
 
 -endif.

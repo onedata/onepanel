@@ -46,13 +46,13 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec get_basic_auth_header(Username :: string() | binary(),
-    Password :: string() | binary()) -> {Key :: binary(), Value :: binary()}.
+    Password :: string() | binary()) -> http_client:headers().
 get_basic_auth_header(Username, Password) ->
     Hash = base64:encode(<<
         (onepanel_utils:convert(Username, binary))/binary, ":",
         (onepanel_utils:convert(Password, binary))/binary>>
     ),
-    {?HDR_AUTHORIZATION, <<"Basic ", Hash/binary>>}.
+    #{?HDR_AUTHORIZATION => <<"Basic ", Hash/binary>>}.
 
 
 %%--------------------------------------------------------------------
@@ -60,7 +60,7 @@ get_basic_auth_header(Username, Password) ->
 %% timer:seconds(1))
 %% @end
 %%--------------------------------------------------------------------
--spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
+-spec wait_until(module(), Function :: atom(), Args :: list(),
     Expectation :: expectation(Result), Attempts :: integer()) ->
     Result | no_return().
 wait_until(Module, Function, Args, Expectation, Attempts) ->
@@ -72,7 +72,7 @@ wait_until(Module, Function, Args, Expectation, Attempts) ->
 %% expected result, defined by validation function or exact value.
 %% @end
 %%--------------------------------------------------------------------
--spec wait_until(Module :: module(), Function :: atom(), Args :: list(),
+-spec wait_until(module(), Function :: atom(), Args :: list(),
     Expectation :: expectation(Result), Attempts :: integer(), Delay :: integer()) ->
     Result | no_return().
 wait_until(_Module, _Function, _Args, _Expectation, Attempts, _Delay) when
@@ -153,7 +153,16 @@ trim(Text, both) ->
 %% @doc Converts value to a provided type.
 %% @end
 %%--------------------------------------------------------------------
--spec convert(Value :: term(), Type :: type()) -> Value :: term().
+-spec convert
+    ([Old :: term()], {seq, type()}) -> [Converted :: term()];
+    (#{Old :: term() => V}, {keys, type()}) -> #{Converted :: term() => V};
+    (#{K => Old :: term()}, {values, type()}) -> #{K => Converted :: term()};
+    (Old :: term(), atom) -> Converted :: atom();
+    (Old :: term(), boolean) -> Converted :: boolean();
+    (Old :: term(), float) -> Converted :: float();
+    (Old :: term(), integer) -> Converted :: integer();
+    (Old :: term(), list) -> Converted :: string();
+    (Old :: term(), binary) -> Converted :: binary().
 convert(Values, {seq, Type}) ->
     lists:map(fun(Value) -> convert(Value, Type) end, Values);
 
@@ -184,11 +193,11 @@ convert(Value, atom) when is_binary(Value) ->
 convert(Value, float) when is_integer(Value) ->
     Value * 1.0;
 
+convert(Value, binary) when is_list(Value) ->
+    unicode:characters_to_binary(Value);
+
 convert(Value, Type) ->
     case get_type(Value) of
-        unknown ->
-            ?error("Could not determine type of ~tp", [Value]),
-            error(?ERR_UNKNOWN_TYPE(Value));
         Type ->
             Value;
         ValueType ->
@@ -203,16 +212,20 @@ convert(Value, Type) ->
 %% @doc Returns type of a given value.
 %% @end
 %%--------------------------------------------------------------------
--spec get_type(Value :: term()) -> Type :: type() | unknown.
+-spec get_type
+    (Value :: atom()) -> atom;
+    (Value :: binary()) -> binary;
+    (Value :: float()) -> float;
+    (Value :: integer()) -> integer;
+    (Value :: list()) -> list.
+get_type(Atom) when is_atom(Atom) -> atom;
+get_type(Binary) when is_binary(Binary) -> binary;
+get_type(Float) when is_float(Float) -> float;
+get_type(Integer) when is_integer(Integer) -> integer;
+get_type(List) when is_list(List) -> list;
 get_type(Value) ->
-    SupportedTypes = ["atom", "binary", "float", "integer", "list", "boolean"],
-    lists_utils:foldl_while(fun(Type, unknown) ->
-        TypeMatcher = erlang:list_to_atom("is_" ++ Type),
-        case erlang:TypeMatcher(Value) of
-            true -> {halt, erlang:list_to_atom(Type)};
-            false -> {cont, unknown}
-        end
-    end, unknown, SupportedTypes).
+    ?error("Could not determine type of ~tp", [Value]),
+    error(?ERR_UNKNOWN_TYPE(Value)).
 
 
 %%--------------------------------------------------------------------
@@ -277,5 +290,6 @@ ensure_known_hosts(Hosts) ->
 distribute_file(Hosts, Path) ->
     Nodes = nodes:service_to_nodes(?SERVICE_PANEL, Hosts),
     {ok, Content} = file:read_file(Path),
+    onepanel_rpc:call_all(Nodes, filelib, ensure_dir, [Path]),
     onepanel_rpc:call_all(Nodes, file, write_file, [Path, Content]),
     ok.

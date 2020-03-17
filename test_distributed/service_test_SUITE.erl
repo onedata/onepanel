@@ -52,16 +52,14 @@ service_should_be_not_found(Config) ->
 
 service_should_request_action_steps(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertEqual(ok,
-        rpc:call(Node, service, apply, [example, some_action, #{}])),
+    onepanel_test_utils:service_action(Node, example, some_action, #{}),
     ?assertReceivedEqual(get_steps, ?TIMEOUT).
 
 
 service_should_execute_steps(Config) ->
-    Self = self(),
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
-    ?assertEqual(ok, rpc:call(Node1, service, apply,
-        [example, some_action, #{}, Self])),
+    onepanel_test_utils:service_action(Node1,
+        example, some_action, #{}),
     ?assertReceivedEqual({Node1, step1}, ?TIMEOUT),
     ?assertReceivedEqual({Node2, step2}, ?TIMEOUT),
     ?assertReceivedEqual({Node1, step3}, ?TIMEOUT),
@@ -73,14 +71,21 @@ service_should_notify_caller(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
     ?assertEqual(ok, rpc:call(Node, service, apply,
         [example, some_action, #{}, Self])),
-    ?assertReceivedEqual({action_begin, {example, some_action}}, ?TIMEOUT),
+    ?assertReceivedEqual(#action_begin{
+        service = example, action = some_action
+    }, ?TIMEOUT),
     lists:foreach(fun(Step) ->
-        ?assertReceivedEqual({step_begin, {service_example, Step}}, ?TIMEOUT),
-        ?assertReceivedMatch({step_end, {service_example, Step, {[_ | _], []}}},
-            ?TIMEOUT)
+        ?assertReceivedEqual(#step_begin{
+            module = service_example, function = Step
+        }, ?TIMEOUT),
+        ?assertReceivedMatch(#step_end{
+            module = service_example, function = Step,
+            good_bad_results = {[_ | _], []}
+        }, ?TIMEOUT)
     end, [step1, step2, step3]),
-    ?assertReceivedEqual({action_end, {example, some_action, ok}},
-        ?TIMEOUT).
+    ?assertReceivedEqual(#action_end{
+        service = example, action = some_action, result = ok
+    }, ?TIMEOUT).
 
 
 service_get_steps_error_test(Config) ->
@@ -94,8 +99,10 @@ service_action_error_test(Config) ->
     [Node1, Node2 | _] = ?config(onepanel_nodes, Config),
     ?assertMatch({error, _}, rpc:call(Node1, service, apply,
         [example, some_action, #{}, Self])),
-    ?assertReceivedMatch({step_end, {service_example, some_step,
-        {[{Node1, ok}], [{Node2, {error, step_failure}}]}}}, ?TIMEOUT).
+    ?assertReceivedMatch(#step_end{
+        module = service_example, function = some_step,
+        good_bad_results = {[{Node1, ok}], [{Node2, {error, step_failure}}]}
+    }, ?TIMEOUT).
 
 
 %%%===================================================================
@@ -120,7 +127,8 @@ init_per_testcase(service_should_request_action_steps, Config) ->
 
 init_per_testcase(Case, Config) when
     Case =:= service_should_execute_steps;
-    Case =:= service_should_notify_caller ->
+    Case =:= service_should_notify_caller
+->
     Nodes = ?config(onepanel_nodes, Config),
     [Host1, Host2 | _] = Hosts = hosts:from_nodes(Nodes),
     Self = self(),

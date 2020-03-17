@@ -106,14 +106,14 @@ all() ->
 
 % Calls Function with one host from each cluster
 -define(hostPerCluster(Config, Function), begin
-    Function(utils:random_element(?config(oneprovider_hosts, Config))),
-    Function(utils:random_element(?config(onezone_hosts, Config)))
+    Function(lists_utils:random_element(?config(oneprovider_hosts, Config))),
+    Function(lists_utils:random_element(?config(onezone_hosts, Config)))
 end).
 
 % Calls Function with one node from each cluster
 -define(nodePerCluster(Config, Function), begin
-    Function(utils:random_element(?config(oneprovider_nodes, Config))),
-    Function(utils:random_element(?config(onezone_nodes, Config)))
+    Function(lists_utils:random_element(?config(oneprovider_nodes, Config))),
+    Function(lists_utils:random_element(?config(onezone_nodes, Config)))
 end).
 
 %%%===================================================================
@@ -300,8 +300,21 @@ init_per_suite(Config) ->
 
 
 init_per_testcase(Case, Config) when
+    Case == method_should_return_unauthorized_error;
+    Case == method_should_return_forbidden_error
+->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_new(Nodes, [onepanel_parser]),
+    % do not require valid payload in requests
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    Config2;
+
+
+init_per_testcase(Case, Config) when
     Case == get_should_return_cert_metadata;
-    Case == patch_should_disable_letsencrypt ->
+    Case == patch_should_disable_letsencrypt
+->
     Config2 = init_per_testcase(default, Config),
     ?hostPerCluster(Config, fun(Host) ->
         ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => true}))
@@ -334,7 +347,8 @@ init_per_testcase(existing_certificates_are_reused, Config) ->
 
 init_per_testcase(Case, Config) when
     Case == failed_patch_leaves_letsencrypt_disabled;
-    Case == failed_patch_leaves_letsencrypt_enabled ->
+    Case == failed_patch_leaves_letsencrypt_enabled
+->
     Nodes = ?config(all_nodes, Config),
     mock_plugin_modules(Config),
     onepanel_test_rest:set_default_passphrase(Config),
@@ -367,7 +381,8 @@ init_per_testcase(_Case, Config) ->
     onepanel_test_rest:mock_token_authentication(Config),
     test_utils:mock_new(Nodes, [letsencrypt_api, service], [passthrough]),
     test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
-    test_utils:mock_expect(Nodes, service, healthy, fun(_Name) -> true end),
+    test_utils:mock_expect(Nodes, service, is_healthy, fun(_Name) -> true end),
+    test_utils:mock_expect(Nodes, service, exists, fun(_Name) -> true end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
         fun(Domain, Plugin) when is_binary(Domain) and is_atom(Plugin) -> ok end),
     Config.
@@ -408,7 +423,7 @@ get_web_cert(Host) ->
 %%--------------------------------------------------------------------
 -spec patch_web_cert(Host :: service:host(), Data :: map()) -> Code :: non_neg_integer().
 patch_web_cert(Host, Data) ->
-    {ok, Code, _, _} = ?assertMatch({ok, _, _, _},
+    {ok, Code, _, Body} = ?assertMatch({ok, _, _, _},
         onepanel_test_rest:auth_request(
             Host, <<"/web_cert">>, patch,
             hd(?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])),
@@ -434,8 +449,9 @@ mock_plugin_modules(Config) ->
     test_utils:mock_new(OpNodes, [service_op_worker, service], [passthrough]),
     test_utils:mock_new(OzNodes, [service_oz_worker, service], [passthrough]),
 
-    test_utils:mock_expect(OzNodes ++ OpNodes, service, healthy, fun(_) -> true end),
+    test_utils:mock_expect(OzNodes ++ OpNodes, service, is_healthy, fun(_) -> true end),
     test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain, fun() -> binary_to_list(OzDomain) end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_domain, fun() -> OpDomain end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_domain, fun() -> OzDomain end),
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),

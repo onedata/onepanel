@@ -1,16 +1,17 @@
 %%%--------------------------------------------------------------------
-%%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @author Wojciech Geisler
+%%% @copyright (C) 2019 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains integration tests of 'rest_users' module.
+%%% @doc This module contains integration tests of user management endpoints.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(rest_onepanel_user_test_SUITE).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
@@ -29,6 +30,7 @@
 -export([
     method_should_return_not_found_error/1,
     method_should_return_unauthorized_error/1,
+    method_should_return_forbidden_error/1,
     get_current_user_as_oz_user_should_return_privileges/1,
     get_current_user_as_root_should_fail/1,
     get_should_list_oz_users/1,
@@ -41,6 +43,7 @@ all() ->
     ?ALL([
         method_should_return_not_found_error,
         method_should_return_unauthorized_error,
+        method_should_return_forbidden_error,
         get_current_user_as_oz_user_should_return_privileges,
         get_current_user_as_root_should_fail,
         get_should_list_oz_users,
@@ -69,7 +72,7 @@ method_should_return_not_found_error(Config) ->
             Config, <<"/zone/users/someUser">>, Method,
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE]), Body
         ))
-    end, [{get, []}, {patch, #{password => <<"SomePassword1">>}}]).
+    end, [{get, []}, {patch, #{newPassword => <<"SomePassword1">>}}]).
 
 
 method_should_return_unauthorized_error(Config) ->
@@ -80,6 +83,16 @@ method_should_return_unauthorized_error(Config) ->
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [{get, []}, {patch, #{newPassword => <<"SomePassword1">>}}]).
+
+
+method_should_return_forbidden_error(Config) ->
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        lists:foreach(fun(Auth) ->
+            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, Auth
+            ))
+        end, ?PEER_AUTHS(Host))
+    end, [{<<"/user">>, get}]).
 
 
 get_current_user_as_oz_user_should_return_privileges(Config) ->
@@ -146,12 +159,18 @@ post_should_create_oz_user(Config) ->
             <<"groups">> => []}
     ],
 
-    lists:foreach(fun({Body, Auth}) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
+    lists:foreach(fun({ReqBody, Auth}) ->
+        {ok, _, Headers, JsonBody} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
             onepanel_test_rest:auth_request(
                 Config, <<"/zone/users">>, post,
-                Auth, Body
-            ))
+                Auth, ReqBody
+            )),
+        onepanel_test_rest:assert_body_fields(JsonBody, [<<"id">>]),
+        #{<<"id">> := Id} = ?assertMatch(#{<<"id">> := <<_/binary>>},
+            json_utils:decode(JsonBody)),
+        ?assertMatch(#{
+            ?HDR_LOCATION := <<"/api/v3/onepanel/zone/users/", Id/binary>>
+        }, Headers)
     end, zip_auths(Bodies, [
         hd(?OZ_AUTHS(Config, [?CLUSTER_UPDATE])),
         hd(?ROOT_AUTHS(Config))
@@ -178,15 +197,27 @@ init_per_suite(Config) ->
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 
+init_per_testcase(method_should_return_unauthorized_error, Config) ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_new(Nodes, [onepanel_parser, user_middleware]),
+    % do not require valid payload in requests
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    test_utils:mock_expect(Nodes, user_middleware, fetch_entity, fun
+        (_) -> {ok, {undefined, 1}}
+    end),
+    Config2;
+
 init_per_testcase(method_should_return_not_found_error, Config) ->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(onepanel_nodes, Config),
 
-    test_utils:mock_new(Nodes, [onezone_users]),
-    test_utils:mock_expect(Nodes, onezone_users, user_exists,
-        fun(_) -> false end),
+    test_utils:mock_expect(Nodes, rpc, call, fun
+        (_, rpc_api, apply, [get_user_details, [_Auth, UserId]]) ->
+            ?ERROR_NOT_FOUND;
+        (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
+    end),
     Config2;
-
 
 init_per_testcase(get_should_list_oz_users, Config) ->
     Config2 = init_per_testcase(default, Config),
@@ -199,10 +230,10 @@ init_per_testcase(get_should_list_oz_users, Config) ->
     end),
     [{oz_user_ids, UserIds} | Config2];
 
-
 init_per_testcase(Case, Config) when
     Case == get_should_describe_oz_user;
-    Case == patch_should_change_user_password ->
+    Case == patch_should_change_user_password
+->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, [onezone_users]),
@@ -215,7 +246,6 @@ init_per_testcase(Case, Config) when
     end),
     Config2;
 
-
 init_per_testcase(post_should_create_oz_user, Config) ->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(onepanel_nodes, Config),
@@ -225,6 +255,8 @@ init_per_testcase(post_should_create_oz_user, Config) ->
             {ok, ?USER_ID1};
         (_, rpc_api, apply, [create_user, [?ROOT, #{<<"username">> := ?USERNAME2}]]) ->
             {ok, ?USER_ID2};
+        (_, rpc_api, apply, [create_user, [?ROOT, _]]) ->
+            error(badarg);
         (_, rpc_api, apply, [add_user_to_group, [?ROOT, _GroupId, _UserId]]) ->
             {ok, <<"groupId">>};
         (Node, M, F, A) ->
@@ -232,13 +264,14 @@ init_per_testcase(post_should_create_oz_user, Config) ->
     end),
     Config2;
 
-
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Config),
-    test_utils:mock_new(Nodes, [service_onezone, service_oz_worker, rpc],
+    test_utils:mock_new(Nodes, [service, service_onezone, service_oz_worker, rpc],
         [passthrough, unstick]),
+    test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> true end),
+    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
     test_utils:mock_expect(Nodes, service_onezone, get_hosts,
         fun() -> ?config(onepanel_hosts, Config) end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_hosts,
@@ -247,7 +280,10 @@ init_per_testcase(_Case, Config) ->
 
 
 end_per_testcase(_Case, Config) ->
+    Nodes = ?config(all_nodes, Config),
+    test_utils:mock_unload(Nodes),
     ?call(Config, model, clear, [onepanel_user]).
+
 
 end_per_suite(_Config) ->
     ok.

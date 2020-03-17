@@ -38,9 +38,23 @@
 -type type() :: loopdevice | blockdevice.
 -type bytes() :: integer().
 -type usage() :: #{total := bytes(), used := bytes(), available := bytes()}.
+
+-type model_ctx() :: #{
+    instances := #{id() => loopdevice_instance() | blockdevice_instance()},
+
+    % mapping from long-forrm UUIDs to the contiguous integer IDs.
+    uuid_to_id => #{ceph:uuid() => id()},
+
+    %% Caches (i.e. not the primary source of truth):
+    % Service status cache. Created as a side effect of service:add_host/2.
+    % WARNING! Ceph services do not have recurring healthcheck via onepanel_cron,
+    % therefore the status is not updated.
+    status => #{service:host() => healthy}
+}.
+
 % @formatter:on
 
--export_type([id/0, type/0, usage/0]).
+-export_type([id/0, type/0, usage/0, model_ctx/0]).
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -85,7 +99,7 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy_all, #{osds := Ctxs}) ->
     AssignedPaths = assign_paths(Ctxs),
@@ -149,11 +163,13 @@ get_steps(stop, #{uuid := UUID}) ->
 
 get_steps(Action, _Ctx) when
     Action == get_details;
-    Action == get_usage ->
+    Action == get_usage
+->
     [#step{function = Action, selection = any}];
 
 get_steps(NoArgsAction, _Ctx) when
-    NoArgsAction == list ->
+    NoArgsAction == list
+->
     [#step{function = NoArgsAction, selection = any, args = []}].
 
 
@@ -235,7 +251,7 @@ prepare_loopdevice(#{uuid := UUID, size := Size} = Ctx) ->
 %% options will work.
 %% @end
 %%--------------------------------------------------------------------
--spec format_block_device(service:ctx()) -> ok .
+-spec format_block_device(service:step_ctx()) -> ok .
 format_block_device(#{type := Type, device := Device, uuid := UUID}) ->
     ceph_cli:volume_prepare_bluestore(UUID, Device),
     {ok, Id} = obtain_id_by_uuid(UUID),
@@ -283,7 +299,7 @@ obtain_id_by_uuid(UUID) ->
 %% and triggers LVM rescan to restore lvolume configured on it.
 %% @end
 %%--------------------------------------------------------------------
--spec resume_loopdevice(service:ctx()) -> ok.
+-spec resume_loopdevice(service:step_ctx()) -> ok.
 resume_loopdevice(#{uuid := UUID}) ->
     #{path := Path, size := Size, device := VgLv} = get_instance({uuid, UUID}),
     loopdevice:ensure_loopdevice(Path, Size),
@@ -307,7 +323,8 @@ start(#{uuid := UUID} = Ctx) ->
 
 
 -spec stop(#{id | uuid := binary()}) -> ok.
-stop(#{id := Id}) ->
+stop(#{id := Id} = Ctx) ->
+    service:deregister_healthcheck(name(), Ctx),
     ceph_cli:stop_with_timeout(ceph_cli:osd_start_cmd(Id));
 
 stop(#{uuid := UUID} = Ctx) ->
@@ -327,7 +344,7 @@ status(#{id := Id}) ->
     end.
 
 
--spec mark_deployed(service:ctx()) -> ok.
+-spec mark_deployed(service:step_ctx()) -> ok.
 mark_deployed(#{uuid := UUID}) ->
     Id = uuid_to_id(UUID),
     service:store_in_ctx(name(), [instances, Id, deployment_finished], true),
@@ -343,7 +360,7 @@ get_details(#{id := Id}) ->
     }.
 
 
--spec get_disks(service:ctx()) -> #{blockDevices := [#{atom() := term()}]}.
+-spec get_disks(service:step_ctx()) -> #{blockDevices := [#{atom() := term()}]}.
 get_disks(_Ctx) ->
     Disks = onepanel_block_device:get_devices(),
     Host = hosts:self(),
@@ -379,7 +396,7 @@ get_usage() ->
 %%%===================================================================
 
 %% @private
--spec get_ctx() -> service:ctx() | {error, _}.
+-spec get_ctx() -> model_ctx() | {error, _}.
 get_ctx() ->
     service:get_ctx(name()).
 
@@ -387,7 +404,7 @@ get_ctx() ->
 %% @private
 -spec list_instances() -> [ceph:instance()].
 list_instances() ->
-    case service:get_ctx(name()) of
+    case get_ctx() of
         #{instances := Instances} -> maps:values(Instances);
         _ -> []
     end.
@@ -397,7 +414,7 @@ list_instances() ->
 -spec get_instance({id, id()} | {uuid, ceph:uuid()}) ->
     blockdevice_instance() | loopdevice_instance().
 get_instance({id, Id}) ->
-    case service:get_ctx(name()) of
+    case get_ctx() of
         #{instances := #{Id := Instance}} -> Instance;
         _ -> throw(?ERROR_NOT_FOUND)
     end;

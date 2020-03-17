@@ -26,7 +26,7 @@
 -export([authenticate_user/2, authenticate_user/3]).
 -export([read_domain/1]).
 
--define(USER_DETAILS_CACHE_KEY(Token), {user_details, Token}).
+-define(USER_DETAILS_CACHE_KEY(Token, PeerIp), {user_details, {Token, PeerIp}}).
 -define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
 
 %%%===================================================================
@@ -44,15 +44,10 @@
 -spec authenticate_user(tokens:serialized(), PeerIp :: ip_utils:ip()) ->
     #client{} | {error, _}.
 authenticate_user(Token, PeerIp) ->
-    case ensure_unlimited_api_authorization(Token) of
-        ok ->
-            ClusterType = onepanel_env:get_cluster_type(),
-            case authenticate_user(ClusterType, Token, PeerIp) of
-                #client{} = Client -> Client;
-                {error, _} = Error2 -> Error2
-            end;
-        {error, _} = Error ->
-            Error
+    ClusterType = onepanel_env:get_cluster_type(),
+    case authenticate_user(ClusterType, Token, PeerIp) of
+        #client{} = Client -> Client;
+        {error, _} = Error -> Error
     end.
 
 
@@ -72,28 +67,6 @@ read_domain(RegistrationToken) ->
 %%% Internal functions
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Checks that the token does not contain any API caveats, which are
-%% currently not supported by Onepanel. Otherwise returns error to reject
-%% the token, as proceeding with token could grant higher privileges than
-%% the token's issuer intended.
-%% @TODO VFS-5765 implement support for the API caveat after GraphSync integration
-%% @TODO VFS-5765 use api_caveats:check_authorization
-%% @end
-%%--------------------------------------------------------------------
--spec ensure_unlimited_api_authorization(tokens:serialized()) -> ok | {error, _}.
-ensure_unlimited_api_authorization(Serialized) ->
-    case tokens:deserialize(Serialized) of
-        {ok, Token = #token{subject = Subject}} ->
-            Auth = #auth{subject = Subject, caveats = tokens:get_caveats(Token)},
-            case api_auth:ensure_unlimited(Auth) of
-                ok -> ok;
-                {error, _} = Error -> Error
-            end;
-        Error -> Error
-    end.
-
 
 %%--------------------------------------------------------------------
 %% @private
@@ -105,27 +78,79 @@ ensure_unlimited_api_authorization(Serialized) ->
 ) -> #client{} | {error, _}.
 authenticate_user(onezone, Token, PeerIp) ->
     case service_oz_worker:get_auth_by_token(Token, PeerIp) of
-        {ok, Auth} ->
+        {ok, ?USER(_) = Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
-            user_details_to_client(Details, {rpc, Auth});
+            user_details_to_client(Details, Auth, {rpc, Auth});
+        {ok, _} -> ?ERROR_UNAUTHORIZED;
         {error, _} = Error -> Error
     end;
 
-authenticate_user(oneprovider, Token, _PeerIp) ->
-    % Does nothing to relay peer IP to Onezone - which means
-    % token with IP or geolocation caveats will not work, unless
-    % they whitelist the Onepanel IP as seen by Onezone.
+authenticate_user(oneprovider, SerializedToken, PeerIp) ->
+    % Peer IP caveat is verified here for authentication. However, the client
+    % IP is not sent to Onezone when authorizing further requests with
+    % the user's token, which means they will fail unless the Onepanel's IP
+    % is in the token's whitelist.
+
     FetchDetailsFun = fun() ->
-        Auth = {token, Token},
-        case fetch_details(Auth) of
-            {ok, Details} -> {true, {Details, Auth}, ?USER_DETAILS_CACHE_TTL};
-            Error -> Error
+        try
+            {ok, AaiAuth, TokenTTL} = verify_access_token(SerializedToken, PeerIp),
+            TTL = min(TokenTTL, ?USER_DETAILS_CACHE_TTL),
+            OzPluginAuth = {token, SerializedToken},
+            {ok, Details} = fetch_details(OzPluginAuth),
+            {true, {Details, AaiAuth, OzPluginAuth}, TTL}
+        catch
+            error:{badmatch, {error, _} = Error} -> Error
         end
     end,
 
-    case simple_cache:get(?USER_DETAILS_CACHE_KEY(Token), FetchDetailsFun) of
-        {ok, {Details, Auth}} -> user_details_to_client(Details, {rest, Auth});
-        {error, _} = Error -> Error
+    case simple_cache:get(
+        ?USER_DETAILS_CACHE_KEY(SerializedToken, PeerIp),
+        FetchDetailsFun
+    ) of
+        {ok, {Details, AaiAuth, OzPluginAuth}} ->
+            user_details_to_client(Details, AaiAuth, {rest, OzPluginAuth});
+        {error, _} = Error ->
+            Error
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Queries the Onezone to check token's validity.
+%% @end
+%%--------------------------------------------------------------------
+-spec verify_access_token(tokens:serialized(), IP :: ip_utils:ip()) ->
+    {ok, aai:auth(), TTL :: time_utils:seconds() | undefined} | errors:error().
+verify_access_token(SerializedToken, PeerIp) ->
+    {ok, Token} = tokens:deserialize(SerializedToken),
+    {ok, BinaryIp} = ip_utils:to_binary(PeerIp),
+    OneproviderIdentityToken = service_oneprovider:get_identity_token(),
+    OpPanelIdentityToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderIdentityToken
+    ),
+    ReqBody = json_utils:encode(#{
+        <<"token">> => SerializedToken,
+        <<"peerIp">> => BinaryIp,
+        <<"serviceToken">> => OpPanelIdentityToken
+    }),
+    case oz_endpoint:request(
+        op_panel, "/tokens/verify_access_token", post, ReqBody
+    ) of
+        {ok, _Code, _, RespBodyJson} ->
+            case json_utils:decode(RespBodyJson) of
+                #{<<"error">> := Error} ->
+                    errors:from_json(Error);
+                #{<<"subject">> := JsonSubject, <<"ttl">> := TTL} ->
+                    Subject = aai:subject_from_json(JsonSubject),
+                    Auth = #auth{
+                        subject = Subject,
+                        caveats = tokens:get_caveats(Token),
+                        peer_ip = PeerIp
+                    },
+                    {ok, Auth, utils:null_to_undefined(TTL)}
+            end;
+        {error, _} ->
+            ?ERROR_NO_CONNECTION_TO_ONEZONE
     end.
 
 
@@ -158,16 +183,17 @@ fetch_details(RestAuth) ->
 
 
 %% @private
--spec user_details_to_client(#user_details{}, rest_handler:zone_auth()) ->
-    #client{} | {error, _} | no_return().
-user_details_to_client(Details, Auth) ->
+-spec user_details_to_client(#user_details{}, aai:auth(),
+    rest_handler:zone_credentials()) -> #client{} | {error, _} | no_return().
+user_details_to_client(Details, Auth, ZoneCredentials) ->
     #user_details{id = OnezoneUserId} = Details,
     case clusters:get_user_privileges(OnezoneUserId) of
         {ok, Privileges} ->
             #client{
                 privileges = Privileges,
                 user = Details,
-                zone_auth = Auth,
+                auth = Auth,
+                zone_credentials = ZoneCredentials,
                 role = member
             };
         ?ERROR_NO_CONNECTION_TO_ONEZONE -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE);

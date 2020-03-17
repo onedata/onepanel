@@ -58,7 +58,9 @@ init([]) ->
     try
         % Initialization done here rather than in onepanel_app:start
         % because too long wait before spawning supervisor causes timeout
-        % and exit of application
+        % and exit of the application.
+        % This is because of node_package/.../runner configuration, which
+        % uses onepanel_sup presence as a healthcheck for the Onepanel.
 
         ?info("Waiting for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
         % in a new deployment this will complete immediately since the node list is empty
@@ -100,7 +102,7 @@ init([]) ->
         {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
             service_executor_spec(),
             onepanel_cron_spec(),
-            onepanel_session_gc_spec()
+            onepanel_auth_gc_spec()
         ]}}
     catch throw:Error ->
         % throws would be treated as return value in gen_server/supervisor init
@@ -142,17 +144,18 @@ onepanel_cron_spec() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns a worker child_spec for a onepanel_session_gc
-%% gen_server.
+%% @private
+%% @doc
+%% Returns a worker child_spec for a onepanel_auth_gc gen_server.
 %% @end
 %%--------------------------------------------------------------------
--spec onepanel_session_gc_spec() -> supervisor:child_spec().
-onepanel_session_gc_spec() ->
+-spec onepanel_auth_gc_spec() -> supervisor:child_spec().
+onepanel_auth_gc_spec() ->
     #{
-        id => onepanel_session_gc,
-        start => {onepanel_session_gc, start_link, []},
+        id => onepanel_auth_gc,
+        start => {onepanel_auth_gc, start_link, []},
         restart => permanent,
         shutdown => timer:seconds(10),
         type => worker,
-        modules => [onepanel_session_gc]
+        modules => [onepanel_auth_gc]
     }.

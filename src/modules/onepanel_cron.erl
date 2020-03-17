@@ -104,7 +104,7 @@ add_job(JobName, Action, Period, Condition) ->
 
 %%--------------------------------------------------------------------
 %% @doc Removes scheduled job.
-%% Currently running process will be continued but
+%% If the job is currently executing, it will not be interrupted.
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_job(JobName :: job_name()) -> ok.

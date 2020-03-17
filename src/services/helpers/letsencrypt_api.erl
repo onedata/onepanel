@@ -154,7 +154,6 @@
 
 -export([run_certification_flow/2]).
 -export([challenge_types/0]).
--export([clean_keys/0, clean_keys/1]).
 
 %%%===================================================================
 %%% Public API
@@ -246,7 +245,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
                     % authorization rate limit.
                     catch clean_keys(KeysDir)
             end,
-            erlang:Type(Error)
+            erlang:raise(Type, Error, erlang:get_stacktrace())
     end,
     % Remove TXT record only on success to ease debugging
     catch clean_txt_record(Plugin),
@@ -469,8 +468,8 @@ find_challenge(Type, ChallengeList) ->
 %%--------------------------------------------------------------------
 -spec handle_challenge(State :: #flow_state{}) -> {ok, #flow_state{}}.
 handle_challenge(#flow_state{challenge = Challenge} = State)
-    when Challenge#challenge.type == http ->
-
+    when Challenge#challenge.type == http
+->
     #flow_state{
         challenge = #challenge{
             token = Token,
@@ -906,13 +905,6 @@ generate_keys(KeysDir) ->
 %% Deletes keys temporary directory.
 %% @end
 %%--------------------------------------------------------------------
--spec clean_keys() -> ok.
-clean_keys() ->
-    lists:foreach(fun(Mode) ->
-        Dir = filename:join(?LETSENCRYPT_KEYS_DIR, Mode),
-        clean_keys(Dir)
-    end, [dry, staging, production]).
-
 -spec clean_keys(KeysDir :: string()) -> ok.
 clean_keys(KeysDir) ->
     lists:foreach(fun(File) ->

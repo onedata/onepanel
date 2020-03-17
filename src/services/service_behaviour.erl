@@ -36,5 +36,5 @@
 %%--------------------------------------------------------------------
 %% List of steps required to complete the action.
 %%--------------------------------------------------------------------
--callback get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-callback get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].

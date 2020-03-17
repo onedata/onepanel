@@ -18,7 +18,7 @@
 
 -behaviour(oz_plugin_behaviour).
 
--type auth() :: none | provider | {token, tokens:serialized()}.
+-type auth() :: none | op_panel | provider | {token, tokens:serialized()}.
 -export_type([auth/0]).
 
 %% OZ behaviour callbacks
@@ -90,12 +90,21 @@ auth_to_rest_client(none) ->
     none;
 
 auth_to_rest_client({token, Token}) ->
-    ProviderAccessToken = service_oneprovider:get_access_token(),
-    AudienceToken = tokens:build_service_access_token(?OP_PANEL, ProviderAccessToken),
+    OneproviderIdentityToken = service_oneprovider:get_identity_token(),
+    OpPanelIdentityToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderIdentityToken
+    ),
     {headers, maps:merge(
-        tokens:build_access_token_header(Token),
-        tokens:build_audience_token_header(AudienceToken)
+        tokens:access_token_header(Token),
+        tokens:service_token_header(OpPanelIdentityToken)
     )};
+
+auth_to_rest_client(op_panel) ->
+    OneproviderAccessToken = service_oneprovider:get_access_token(),
+    OpPanelAccessToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderAccessToken
+    ),
+    {headers, tokens:access_token_header(OpPanelAccessToken)};
 
 auth_to_rest_client(provider) ->
     ProviderAccessToken = service_oneprovider:get_access_token(),

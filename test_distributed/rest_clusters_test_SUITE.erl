@@ -119,12 +119,23 @@ method_should_return_forbidden_error_test(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/invite_user_token">>, post,
-            ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_ADD_USER])
+            ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_ADD_USER])
         )),
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/members_summary">>, get,
-            ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_VIEW])
-        ))
+            ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_VIEW])
+        )),
+        PeerAuths = ?PEER_AUTHS(Host),
+        lists:foreach(fun({Endpoint, Method}) ->
+            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, PeerAuths
+            ))
+        end, [
+            {<<"/cluster">>, get},
+            {<<"/user/clusters">>, get},
+            {<<"/user/clusters/someClusterId">>, get},
+            {<<"/providers/someProvider">>, get}
+        ])
     end).
 
 
@@ -279,6 +290,10 @@ init_per_testcase(_Case, Config) ->
     {_, []} = rpc:multicall(OzNodes, service, save, [#service{
         name = onezone}]),
 
+    test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain,
+        fun() -> binary_to_list(OzDomain) end),
+    test_utils:mock_expect(OpNodes, service_oneprovider, is_registered,
+        fun() -> true end),
     test_utils:mock_expect(OpNodes, service_oneprovider, get_access_token,
         fun() -> <<"providerToken">> end),
     test_utils:mock_expect(OpNodes, service_oneprovider, get_id,

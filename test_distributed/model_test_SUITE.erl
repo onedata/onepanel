@@ -224,7 +224,8 @@ init_per_testcase(Case, Config) when
     Case =:= list_test;
     Case =:= select_test;
     Case =:= size_test;
-    Case =:= clear_test ->
+    Case =:= clear_test
+->
     NewConfig = init_per_testcase(default, Config),
     Records = lists:sort([
         #?MODEL{field1 = 1, field2 = <<"field1">>, field3 = field1},
@@ -277,7 +278,7 @@ init_per_testcase(_Case, Config) ->
 
     % 'service' model required for detecting unregistered provider
     % in https_listener:response_headers/0
-    test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, ?MODEL] end),
+    test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, authorization_nonce, ?MODEL] end),
 
     % required for successful deployment
     test_utils:mock_expect(Nodes, onepanel_deployment, is_set,
