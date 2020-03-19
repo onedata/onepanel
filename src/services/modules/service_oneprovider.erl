@@ -822,7 +822,7 @@ start_auto_cleaning(#{space_id := SpaceId}) ->
 %% Manually cancels auto-cleaning of given space.
 %% @end
 %%-------------------------------------------------------------------
--spec cancel_auto_cleaning(Ctx :: service:ctx()) -> ok.
+-spec cancel_auto_cleaning(Ctx :: service:step_ctx()) -> ok.
 cancel_auto_cleaning(#{space_id := SpaceId}) ->
     ok = op_worker_rpc:autocleaning_cancel_run(SpaceId).
 
