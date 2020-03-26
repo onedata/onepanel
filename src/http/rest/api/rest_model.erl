@@ -1151,7 +1151,9 @@ space_auto_cleaning_report_model() ->
         %% Number of bytes that should be deleted.
         bytesToRelease => integer,
         %% Number of deleted files.
-        filesNumber => integer
+        filesNumber => integer,
+        %% Status of an auto-cleaning run.
+        status => {enum, string, [<<"active">>, <<"cancelling">>, <<"completed">>, <<"failed">>, <<"cancelled">>]}
     }.
 
 %%--------------------------------------------------------------------

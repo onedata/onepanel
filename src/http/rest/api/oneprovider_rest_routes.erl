@@ -137,6 +137,17 @@ routes() ->
             data_spec = (rest_model:storage_create_request_model())
         }},
 
+        %% Cancels space auto-cleaning
+        {<<"/provider/spaces/:id/auto-cleaning/cancel">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = cancel_auto_cleaning,
+                scope = private
+            }
+        }},
+
         %% Configure Ceph cluster
         {<<"/provider/ceph">>, #rest_req{
             method = 'POST',

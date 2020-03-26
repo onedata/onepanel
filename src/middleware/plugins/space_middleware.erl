@@ -36,6 +36,7 @@
     middleware:scope()) -> boolean().
 operation_supported(create, support, private) -> onepanel:is_op_panel();
 operation_supported(create, start_auto_cleaning, private) -> onepanel:is_op_panel();
+operation_supported(create, cancel_auto_cleaning, private) -> onepanel:is_op_panel();
 
 operation_supported(get, instance, private) -> onepanel:is_op_panel();
 operation_supported(get, list, private) -> onepanel:is_op_panel();
@@ -74,6 +75,7 @@ fetch_entity(#onp_req{gri = #gri{id = SpaceId}}) ->
 authorize(#onp_req{operation = Op, client = Client, gri = #gri{aspect = As}}, _) when
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
+    Op == create, As == cancel_auto_cleaning;
     Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
     Op == update, As == file_popularity_configuration;
@@ -114,6 +116,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = {As, _}}}, _) when
 validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
+    Op == create, As == cancel_auto_cleaning;
 
     Op == get, As == instance;
     Op == get, As == list;
@@ -152,7 +155,12 @@ create(#onp_req{gri = #gri{id = SpaceId, aspect = start_auto_cleaning}}) ->
     ) of
         {ok, ReportId} -> {ok, value, ReportId};
         no_need -> ok
-    end.
+    end;
+
+create(#onp_req{gri = #gri{id = SpaceId, aspect = cancel_auto_cleaning}}) ->
+    middleware_utils:result_from_service_action(
+        ?SERVICE_OP, cancel_auto_cleaning, #{space_id => SpaceId}
+    ).
 
 
 -spec get(middleware:req(), middleware:entity()) -> middleware:get_result().

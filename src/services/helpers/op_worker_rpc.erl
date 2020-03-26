@@ -96,7 +96,8 @@
 -export([autocleaning_list_reports/4, autocleaning_list_reports/5]).
 -export([autocleaning_get_run_report/1, autocleaning_get_run_report/2]).
 -export([autocleaning_status/1, autocleaning_status/2]).
--export([autocleaning_force_start/1, autocleaning_force_start/2]).
+-export([autocleaning_force_run/1, autocleaning_force_run/2]).
+-export([autocleaning_cancel_run/1, autocleaning_cancel_run/2]).
 -export([get_provider_id/0, get_provider_id/1]).
 -export([get_access_token/0, get_access_token/1]).
 -export([get_identity_token/0, get_identity_token/1]).
@@ -648,14 +649,23 @@ autocleaning_status(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec autocleaning_force_start(od_space_id()) ->
+-spec autocleaning_force_run(od_space_id()) ->
     {ok, autocleaning_run_id()} | {error, term()}.
-autocleaning_force_start(SpaceId) ->
+autocleaning_force_run(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec autocleaning_force_start(node(), od_space_id()) ->
+-spec autocleaning_force_run(node(), od_space_id()) ->
     {ok, autocleaning_run_id()} | {error, term()}.
-autocleaning_force_start(Node, SpaceId) ->
+autocleaning_force_run(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
+
+
+-spec autocleaning_cancel_run(od_space_id()) -> ok | {error, term()}.
+autocleaning_cancel_run(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec autocleaning_cancel_run(node(), od_space_id()) -> ok | {error, term()}.
+autocleaning_cancel_run(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

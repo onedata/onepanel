@@ -82,7 +82,7 @@
     support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
     get_sync_stats/1, get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
-    get_auto_cleaning_status/1, start_auto_cleaning/1, check_oz_connection/0,
+    get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1, check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
@@ -313,6 +313,7 @@ get_steps(Action, Ctx) when
     Action =:= get_file_popularity_configuration;
     Action =:= format_cluster_ips;
     Action =:= start_auto_cleaning;
+    Action =:= cancel_auto_cleaning;
     Action =:= get_sync_stats;
     Action =:= configure_file_popularity;
     Action =:= configure_auto_cleaning
@@ -808,12 +809,22 @@ get_file_popularity_configuration(#{space_id := SpaceId}) ->
 -spec start_auto_cleaning(Ctx :: service:step_ctx()) ->
     {ok, ReportId :: binary()} | no_need.
 start_auto_cleaning(#{space_id := SpaceId}) ->
-    case op_worker_rpc:autocleaning_force_start(SpaceId) of
+    case op_worker_rpc:autocleaning_force_run(SpaceId) of
         {ok, ReportId} -> {ok, ReportId};
         {error, {already_started, _}} -> no_need;
         {error, nothing_to_clean} -> no_need;
         {error, _} = Error -> throw(Error)
     end.
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Manually cancels auto-cleaning of given space.
+%% @end
+%%-------------------------------------------------------------------
+-spec cancel_auto_cleaning(Ctx :: service:step_ctx()) -> ok.
+cancel_auto_cleaning(#{space_id := SpaceId}) ->
+    ok = op_worker_rpc:autocleaning_cancel_run(SpaceId).
 
 
 %%-------------------------------------------------------------------
