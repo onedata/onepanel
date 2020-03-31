@@ -33,8 +33,8 @@
 
 {deps, [
     {onedata_documentation, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/onedata-documentation.git", {ref, "2fb720aed5"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "0766983bb9"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "9738ffecc7"}}},
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "4a09380e8ce"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "579c9831067"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.
 
