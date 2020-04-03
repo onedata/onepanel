@@ -398,19 +398,34 @@ get_should_return_pool_data_usage(Config) ->
 
 
 get_cluster_configuration_should_include_ceph(Config) ->
+    AllHosts = lists:sort(lists:map(fun(H) ->
+        list_to_binary(H)
+    end, ?config(all_hosts, Config))),
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, 200, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/configuration">>, get,
                 ?OZ_OR_ROOT_AUTHS(Config, [])
             )),
-        ?assertMatch(#{
+        #{<<"cluster">> := #{<<"hosts">> := Hosts}} = ?assertMatch(#{
+            <<"oneprovider">> := #{
+                <<"configured">> := false,
+                <<"name">> := null
+            },
+            <<"cluster">> := #{
+                <<"master">> := null,
+                <<"hosts">> := [_ | _],
+                <<"databases">> := #{},
+                <<"managers">> := #{},
+                <<"workers">> := #{}
+            },
             <<"ceph">> := #{
                 <<"osds">> := [],
                 <<"managers">> := [#{}],
                 <<"monitors">> := [#{}]
             }
-        }, json_utils:decode(JsonBody))
+        }, json_utils:decode(JsonBody)),
+        ?assertMatch(AllHosts, lists:sort(Hosts))
     end).
 
 
