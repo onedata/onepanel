@@ -42,7 +42,6 @@
     patch_should_configure_dns_check/1,
     post_should_configure_database_service/1,
     post_should_configure_cluster_manager_service/1,
-    post_should_configure_op_worker_service/1,
     post_should_configure_cluster_worker_service/1,
     post_should_configure_oneprovider_service/1,
     post_should_configure_onezone_service/1,
@@ -447,18 +446,6 @@ post_should_configure_cluster_manager_service(Config) ->
     end).
 
 
-post_should_configure_op_worker_service(Config) ->
-    Host = hd(?config(oneprovider_hosts, Config)),
-    ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
-        Host, <<"/provider/workers">>, post,
-        ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-        #{hosts => [<<"host2">>, <<"host3">>]}
-    )),
-    ?assertReceivedMatch({service, ?SERVICE_OPW, add_nodes, #{
-        new_hosts := ["host2", "host3"]
-    }}, ?TIMEOUT).
-
-
 post_should_configure_cluster_worker_service(Config) ->
     ?run(Config, fun({Host, {Prefix, Service}}) ->
         ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
@@ -806,7 +793,6 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
 init_per_testcase(Case, Config) when
     Case == post_should_configure_cluster_manager_service;
     Case == post_should_configure_database_service;
-    Case == post_should_configure_op_worker_service;
     Case == post_should_configure_cluster_worker_service
 ->
     % non-default init because the service must not already have hosts on which it is deployed
