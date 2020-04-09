@@ -53,7 +53,6 @@
 
 %% Step functions
 -export([configure/1, configure_additional_node/1, import_provider_auth_file/1,
-    register_host/0,
     start/1, stop/1, status/1, health/1, wait_for_init/1,
     get_nagios_response/1, get_nagios_status/1, add_storage/1, get_storages/1,
     update_storage/1, remove_storage/1,
@@ -100,22 +99,17 @@ get_nodes() ->
 -spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
-    case service:get_hosts(?SERVICE_OPW) of
+    case get_hosts() of
         [] ->
             {ok, Ctx2} = kv_utils:rename_entry(new_hosts, hosts, Ctx),
             [#steps{action = deploy, ctx = Ctx2}];
         [ExistingHost | _] ->
-            Ctx2 = Ctx#{reference_host => ExistingHost},
+            Ctx2 = Ctx#{name => name(), reference_host => ExistingHost},
             [
                 #step{function = configure_additional_node, hosts = NewHosts, ctx = Ctx2},
                 #step{function = import_provider_auth_file, hosts = NewHosts, ctx = Ctx2,
-                    condition = fun(_) -> service_oneprovider:is_registered() end},
-                #step{function = register_host, args = [], hosts = NewHosts, ctx = Ctx2},
-                #steps{service = ?SERVICE_CM, action = update_workers_number, ctx = Ctx2},
-                #steps{service = ?SERVICE_OPW, action = stop},
-                #steps{service = ?SERVICE_CM, action = stop},
-                #steps{service = ?SERVICE_CM, action = resume},
-                #steps{service = ?SERVICE_OPW, action = resume}
+                    condition = fun(_) -> service_oneprovider:is_registered() end}
+                | service_cluster_worker:add_nodes_steps(Ctx2)
             ]
     end;
 
@@ -303,11 +297,6 @@ import_provider_auth_file(#{reference_host := RefHost}) ->
     RefNode = nodes:service_to_node(?SERVICE_PANEL, RefHost),
     Path = onepanel_env:get_remote(RefNode, op_worker_root_token_path, ?APP_NAME),
     ok = rpc:call(RefNode, onepanel_utils, distribute_file, [[hosts:self()], Path]).
-
-
--spec register_host() -> ok.
-register_host() ->
-    service:add_host(name(), hosts:self()).
 
 
 %%--------------------------------------------------------------------

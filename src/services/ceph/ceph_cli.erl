@@ -98,7 +98,8 @@ stop_with_timeout(StartCommand) ->
     try
         onepanel_utils:wait_until(onepanel_shell, process_exists, [StartCommand],
             {validator, fun(Exists) -> false = Exists end},
-            TimeoutSeconds, 1000)
+            TimeoutSeconds, 1000),
+        ok
     catch
         throw:attempts_limit_exceeded ->
             ?warning("Process ~p did not stop in ~p seconds, sending KILL signal",

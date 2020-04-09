@@ -31,5 +31,13 @@ create_response(#gri{aspect = cluster}, value, AsyncTaskId) ->
     ?ASYNC_TASK_REPLY(AsyncTaskId).
 
 
+get_response(#gri{aspect = policies}, Policies)  ->
+    ?OK_REPLY(kv_utils:copy_found([
+        {oneprovider_registration, <<"oneproviderRegistration">>},
+        {subdomain_delegation, <<"subdomainDelegation">>},
+        {gui_package_verification, <<"guiPackageVerification">>},
+        {harvester_gui_package_verification, <<"harvesterGuiPackageVerification">>}
+    ], Policies));
+
 get_response(#gri{}, Data) when is_map(Data) ->
     ?OK_REPLY(Data).

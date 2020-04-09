@@ -294,7 +294,7 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
-            <<"admin">>, <<"password">>, NewConfig2),
+            <<"admin">>, <<"password">>, 2, NewConfig2),
 
         image_test_utils:deploy_oneprovider(?PASSPHRASE, _Storages = #{}, NewConfig3)
     end,

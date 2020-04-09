@@ -186,20 +186,17 @@ create(#onp_req{gri = #gri{aspect = cluster_manager_instances}, data = Data}) ->
     Ctx = #{main_host => MainHost, hosts => Hosts},
     {ok, value, _TaskId = service:apply_async(?SERVICE_CM, deploy, Ctx)};
 
-create(#onp_req{gri = #gri{aspect = op_worker_instances}, data = Data}) ->
+create(#onp_req{gri = #gri{aspect = As}, data = Data}) when
+    As == op_worker_instances;
+    As == oz_worker_instances
+->
+    Service = case As of
+        op_worker_instances -> ?SERVICE_OPW;
+        oz_worker_instances -> ?SERVICE_OZW
+    end,
     NewHosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
-    {ok, value, _TaskId = service:apply_async(?SERVICE_OPW, add_nodes, #{
+    {ok, value, _TaskId = service:apply_async(Service, add_nodes, #{
         new_hosts => NewHosts
-    })};
-
-create(#onp_req{gri = #gri{aspect = oz_worker_instances}, data = Data}) ->
-    Hosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
-    {ok, #service{hosts = DbHosts}} = service:get(service_couchbase:name()),
-    {ok, #service{hosts = CmHosts, ctx = #{main_host := MainCmHost}}} =
-        service:get(?SERVICE_CM),
-    {ok, value, _TaskId = service:apply_async(?SERVICE_OZW, deploy, #{
-        hosts => Hosts, db_hosts => DbHosts, cm_hosts => CmHosts,
-        main_cm_host => MainCmHost
     })}.
 
 

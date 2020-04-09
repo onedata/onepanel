@@ -36,6 +36,7 @@
     service_oneprovider_unregister_register_test/1,
     service_op_worker_update_storage_test/1,
     service_op_worker_add_node_test/1,
+    service_oz_worker_add_node_test/1,
     services_status_test/1,
     services_stop_start_test/1
 ]).
@@ -67,6 +68,7 @@ all() ->
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
         service_op_worker_add_node_test,
+        service_oz_worker_add_node_test,
         services_status_test
         %% TODO VFS-4056
         %% services_stop_start_test
@@ -364,7 +366,7 @@ service_op_worker_update_storage_test(Config) ->
 
 
 service_op_worker_add_node_test(Config) ->
-    AllHosts = ?config(all_hosts, Config),
+    AllHosts = ?config(oneprovider_hosts, Config),
     OldHosts = ?config(op_worker_hosts, Config),
     NewHost = hd(AllHosts -- OldHosts),
     OldNode = nodes:service_to_node(?SERVICE_PANEL, hd(OldHosts)),
@@ -385,6 +387,26 @@ service_op_worker_add_node_test(Config) ->
         image_test_utils:proxy_rpc(OldNode,
             OldOpNode, node_manager, get_cluster_nodes, [])),
     ?assertEqual(length(OldHosts) + 1, length(OpwNodesList)).
+
+
+service_oz_worker_add_node_test(Config) ->
+    AllHosts = ?config(onezone_hosts, Config),
+    OldHosts = ?config(oz_worker_hosts, Config),
+    NewHost = hd(AllHosts -- OldHosts),
+    OldNode = nodes:service_to_node(?SERVICE_PANEL, hd(OldHosts)),
+    NewNode = nodes:service_to_node(?SERVICE_PANEL, NewHost),
+    OldOzNode = nodes:service_to_node(?SERVICE_OZW, OldNode),
+
+    onepanel_test_utils:service_action(OldNode, ?SERVICE_OZW, add_nodes,
+        #{new_hosts => [NewHost]}),
+
+    ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OZW])),
+    {ok, OzwNodesList} = ?assertMatch({ok, _},
+        image_test_utils:proxy_rpc(OldNode,
+            OldOzNode, node_manager, get_cluster_nodes, [])),
+    ?assertEqual(length(OldHosts) + 1, length(OzwNodesList)),
+    ?assertEqual(rpc:call(OldNode, service_oz_worker, get_policies, []),
+        rpc:call(NewNode, service_oz_worker, get_policies, [])).
 
 
 services_status_test(Config) ->
@@ -459,7 +481,7 @@ init_per_suite(Config) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
         NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
-            ?OZ_USERNAME, ?OZ_PASSWORD, NewConfig2),
+            ?OZ_USERNAME, ?OZ_PASSWORD, 1, NewConfig2),
 
         Posix = kv_utils:get([storages, posix, '/mnt/st1'], NewConfig2),
         Storages = #{

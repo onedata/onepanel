@@ -19,7 +19,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 
 %% API
--export([deploy_onezone/4, deploy_oneprovider/3]).
+-export([deploy_onezone/5, deploy_oneprovider/3]).
 -export([get_registration_token/1]).
 -export([proxy_rpc/5]).
 
@@ -30,11 +30,13 @@
 %%%===================================================================
 
 -spec deploy_onezone(Passphrase :: binary(), Username :: binary(),
-    Password :: binary(), Config :: onepanel_test_utils:config()) ->
+    Password :: binary(), MaxWorkersNum :: pos_integer(),
+    Config :: onepanel_test_utils:config()) ->
     onepanel_test_utils:config().
-deploy_onezone(Passphrase, Username, Password, Config) ->
+deploy_onezone(Passphrase, Username, Password, MaxWorkersNum, Config) ->
     [OzNode | _] = OzNodes = ?config(onezone_nodes, Config),
     OzHosts = hosts:from_nodes(OzNodes),
+    OzwHosts = lists:sublist(OzHosts, min(length(OzHosts), MaxWorkersNum)),
     OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
     onepanel_test_utils:set_test_envs(OzNodes, [{test_web_cert_domain, OzDomain}]),
 
@@ -51,10 +53,10 @@ deploy_onezone(Passphrase, Username, Password, Config) ->
                 hosts => OzHosts
             },
             ?SERVICE_CM => #{
-                hosts => OzHosts, main_cm_host => hd(OzHosts), worker_num => length(OzHosts)
+                hosts => OzHosts, main_cm_host => hd(OzHosts), worker_num => length(OzwHosts)
             },
             ?SERVICE_OZW => #{
-                hosts => OzHosts, main_cm_host => hd(OzHosts),
+                hosts => OzwHosts, main_cm_host => hd(OzHosts),
                 cm_hosts => OzHosts, db_hosts => OzHosts,
                 onezone_name => <<"someOnezone">>,
                 onezone_domain => string:uppercase(OzDomain),
@@ -74,7 +76,7 @@ deploy_onezone(Passphrase, Username, Password, Config) ->
             domain => string:uppercase(OzDomain)
         }
     }),
-    [{onezone_domain, OzDomain} | Config].
+    [{oz_worker_hosts, OzwHosts}, {onezone_domain, OzDomain} | Config].
 
 
 -spec deploy_oneprovider(Passphrase :: binary(), Storages :: map(),
@@ -136,11 +138,7 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
             onezone_domain => str_utils:to_binary(OzDomain)
         }
     }),
-    [
-        {op_worker_hosts, OpwHosts},
-        {oneprovider_domain, OpDomain}
-        | Config
-    ].
+    [{op_worker_hosts, OpwHosts}, {oneprovider_domain, OpDomain} | Config].
 
 
 %%--------------------------------------------------------------------
