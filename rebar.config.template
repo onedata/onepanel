@@ -32,7 +32,7 @@
 ]}.
 
 {deps, [
-    {onedata_documentation, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/onedata-documentation.git", {ref, "2fb720aed5"}}}},
+    {onedata_documentation, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/onedata-documentation.git", {ref, "5cfc849ed0"}}}},
     {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "a741b3171d"}}},
     {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "9b9f400baf5"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
