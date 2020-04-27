@@ -383,9 +383,9 @@ service_op_worker_add_node_test(Config) ->
     ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OPW])),
     ?assertEqual({ok, CurrentFileContents},
         rpc:call(NewNode, file, read_file, [TokenFilePath])),
-    {ok, OpwNodesList} = ?assertMatch({ok, _},
-        image_test_utils:proxy_rpc(OldNode,
-            OldOpNode, node_manager, get_cluster_nodes, [])),
+    OpwNodesList = image_test_utils:proxy_rpc(OldNode,
+        OldOpNode, consistent_hashing, get_all_nodes, []),
+    ?assert(is_list(OpwNodesList)),
     ?assertEqual(length(OldHosts) + 1, length(OpwNodesList)).
 
 
@@ -401,9 +401,9 @@ service_oz_worker_add_node_test(Config) ->
         #{new_hosts => [NewHost]}),
 
     ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OZW])),
-    {ok, OzwNodesList} = ?assertMatch({ok, _},
-        image_test_utils:proxy_rpc(OldNode,
-            OldOzNode, node_manager, get_cluster_nodes, [])),
+    OzwNodesList = image_test_utils:proxy_rpc(OldNode,
+        OldOzNode, consistent_hashing, get_all_nodes, []),
+    ?assert(is_list(OzwNodesList)),
     ?assertEqual(length(OldHosts) + 1, length(OzwNodesList)),
     ?assertEqual(rpc:call(OldNode, service_oz_worker, get_policies, []),
         rpc:call(NewNode, service_oz_worker, get_policies, [])).
