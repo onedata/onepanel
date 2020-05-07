@@ -171,7 +171,7 @@ get_details({rest, Auth}, ClusterId) ->
 -spec list_user_clusters(rest_handler:zone_credentials()) ->
     {ok, [id()]} | errors:error().
 list_user_clusters({rpc, Auth}) ->
-    case oz_worker_rpc:get_clusters_by_user_auth(Auth) of
+    case oz_worker_rpc:get_eff_clusters_by_user_auth(Auth) of
         {ok, Ids} -> {ok, Ids};
         Error -> Error
     end;
