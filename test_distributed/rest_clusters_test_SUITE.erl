@@ -306,7 +306,7 @@ init_per_testcase(_Case, Config) ->
         fun() -> #{name => undefined, domain => OzDomain} end),
 
     test_utils:mock_expect(OzNodes, rpc, call, fun
-        (_Node, rpc_api, apply, [get_clusters_by_user_auth, [_Client]]) ->
+        (_Node, rpc_api, apply, [get_eff_clusters_by_user_auth, [_Client]]) ->
             {ok, maps:keys(?CLUSTERS)};
         (_Node, rpc_api, apply, [get_protected_cluster_data, [_Client, ClusterId]]) ->
             {ok, maps:get(ClusterId, ?CLUSTERS)};
