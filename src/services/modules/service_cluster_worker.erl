@@ -278,7 +278,12 @@ get_nagios_response(#{nagios_protocol := Protocol, nagios_port := Port}) ->
         _ ->
             []
     end,
-    http_client:get(Url, #{}, <<>>, Opts).
+    case http_client:get(Url, #{}, <<>>, Opts) of
+        {error, econnrefused} ->
+            {ok, ?HTTP_503_SERVICE_UNAVAILABLE, #{}, <<>>};
+        Result ->
+            Result
+    end.
 
 
 %%--------------------------------------------------------------------
