@@ -48,6 +48,7 @@
 -type helper_args() :: #{binary() => binary()}.
 -type helper_name() :: binary().
 -type helper_user_ctx() :: #{binary() => binary()}.
+-type luma_mode() :: atom().
 -type luma_config_api_key() :: undefined | binary().
 -type luma_config_url() :: binary().
 -type od_space_id() :: binary().
@@ -63,17 +64,17 @@
 -type sync_monitoring_window() :: day | hour | minute.
 
 -export_type([storage_doc/0, luma_config/0, helper/0,
-    helper_args/0, helper_user_ctx/0, od_space_id/0]).
+    helper_args/0, helper_user_ctx/0, od_space_id/0, luma_mode/0]).
 
--export([storage_create/6, storage_create/7]).
+-export([storage_create/5, storage_create/6]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
 -export([storage_list_ids/0, storage_list_ids/1]).
 -export([storage_get_helper/1, storage_get_helper/2]).
 -export([storage_update_admin_ctx/2, storage_update_admin_ctx/3]).
 -export([storage_update_helper_args/2, storage_update_helper_args/3]).
--export([storage_set_insecure/2, storage_set_insecure/3]).
--export([storage_set_readonly/2, storage_set_readonly/3]).
+-export([]).
+-export([]).
 -export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
@@ -82,8 +83,9 @@
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([invalidate_luma_cache/1, invalidate_luma_cache/2]).
--export([new_helper/5, new_helper/6]).
--export([new_luma_config/2, new_luma_config/3]).
+-export([new_helper/3, new_helper/4]).
+-export([new_luma_config/1, new_luma_config/2]).
+-export([new_external_luma_config/2, new_external_luma_config/3]).
 -export([verify_storage_on_all_nodes/1, verify_storage_on_all_nodes/2]).
 -export([prepare_helper_args/2, prepare_helper_args/3]).
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
@@ -139,17 +141,17 @@
 %%% API functions
 %%%===================================================================
 
--spec storage_create(storage_name(), helper(), boolean(),
-    undefined | luma_config(), boolean(), storage_qos_parameters()) ->
+-spec storage_create(storage_name(), helper(),
+    luma_config(), boolean(), storage_qos_parameters()) ->
     {ok, storage_id()} | {error, term()}.
-storage_create(Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters) ->
-    ?CALL([Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters]).
+storage_create(Name, Helpers, LumaConfig, ImportedStorage, QosParameters) ->
+    ?CALL([Name, Helpers, LumaConfig, ImportedStorage, QosParameters]).
 
--spec storage_create(node(), storage_name(), helper(), boolean(),
-    undefined | luma_config(), boolean(), storage_qos_parameters()) ->
+-spec storage_create(node(), storage_name(), helper(),
+    luma_config(), boolean(), storage_qos_parameters()) ->
     {ok, storage_id()} | {error, term()}.
-storage_create(Node, Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters) ->
-    ?CALL(Node, [Name, Helpers, ReadOnly, LumaConfig, ImportedStorage, QosParameters]).
+storage_create(Node, Name, Helpers, LumaConfig, ImportedStorage, QosParameters) ->
+    ?CALL(Node, [Name, Helpers, LumaConfig, ImportedStorage, QosParameters]).
 
 
 -spec storage_safe_remove(op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
@@ -211,28 +213,6 @@ storage_update_helper_args(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
 
 
--spec storage_set_insecure(storage_id(), Insecure :: boolean()) ->
-    ok | {error, term()}.
-storage_set_insecure(StorageId, Insecure) ->
-    ?CALL([StorageId, Insecure]).
-
--spec storage_set_insecure(node(), storage_id(), Insecure :: boolean()) ->
-    ok | {error, term()}.
-storage_set_insecure(Node, StorageId, Insecure) ->
-    ?CALL(Node, [StorageId, Insecure]).
-
-
--spec storage_set_readonly(storage_id(), Readonly :: boolean()) ->
-    ok | {error, term()}.
-storage_set_readonly(StorageId, Readonly) ->
-    ?CALL([StorageId, Readonly]).
-
--spec storage_set_readonly(node(), storage_id(), Readonly :: boolean()) ->
-    ok | {error, term()}.
-storage_set_readonly(Node, StorageId, Readonly) ->
-    ?CALL(Node, [StorageId, Readonly]).
-
-
 -spec storage_set_imported_storage(storage_id(), boolean()) ->
     ok | {error, term()}.
 storage_set_imported_storage(StorageId, Value) ->
@@ -244,13 +224,13 @@ storage_set_imported_storage(Node, StorageId, Value) ->
     ?CALL(Node, [StorageId, Value]).
 
 
--spec storage_update_luma_config(storage_id(), DiffOrNewConfig) -> ok | {error, term()}
-    when DiffOrNewConfig :: #{url => luma_config_url(), api_key => luma_config_api_key()} | luma_config().
+-spec storage_update_luma_config(storage_id(), Diff) -> ok | {error, term()}
+    when Diff :: #{mode => luma_mode(), url => luma_config_url(), api_key => luma_config_api_key()}.
 storage_update_luma_config(StorageId, Changes) ->
     ?CALL([StorageId, Changes]).
 
--spec storage_update_luma_config(node(), storage_id(), DiffOrNewConfig) -> ok | {error, term()}
-    when DiffOrNewConfig :: #{url => luma_config_url(), api_key => luma_config_api_key()} | luma_config().
+-spec storage_update_luma_config(node(), storage_id(), Diff) -> ok | {error, term()}
+    when Diff :: #{mode => luma_mode(), url => luma_config_url(), api_key => luma_config_api_key()}.
 storage_update_luma_config(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
 
@@ -317,25 +297,36 @@ invalidate_luma_cache(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec new_helper(helper_name(), helper_args(), helper_user_ctx(),
-    Insecure :: boolean(), StoragePathType :: binary()) -> {ok, helper()}.
-new_helper(HelperName, Args, AdminCtx, Insecure, StoragePathType) ->
-    ?CALL([HelperName, Args, AdminCtx, Insecure, StoragePathType]).
+-spec new_helper(helper_name(), helper_args(), helper_user_ctx()) ->
+    {ok, helper()}.
+new_helper(HelperName, Args, AdminCtx) ->
+    ?CALL([HelperName, Args, AdminCtx]).
 
--spec new_helper(node(), helper_name(), helper_args(), helper_user_ctx(),
-    Insecure :: boolean(), StoragePathType :: binary()) -> {ok, helper()}.
-new_helper(Node, HelperName, Args, AdminCtx, Insecure, StoragePathType) ->
-    ?CALL(Node, [HelperName, Args, AdminCtx, Insecure, StoragePathType]).
+-spec new_helper(node(), helper_name(), helper_args(), helper_user_ctx()) ->
+    {ok, helper()}.
+new_helper(Node, HelperName, Args, AdminCtx) ->
+    ?CALL(Node, [HelperName, Args, AdminCtx]).
 
 
--spec new_luma_config(URL :: binary(), ApiKey :: binary() | undefined) ->
+-spec new_luma_config(Mode :: luma_mode()) ->
     luma_config().
-new_luma_config(URL, ApiKey) ->
+new_luma_config(Mode) ->
+    ?CALL([Mode]).
+
+-spec new_luma_config(node(), Mode :: luma_mode()) ->
+    luma_config().
+new_luma_config(Node, Mode) ->
+    ?CALL(Node, [Mode]).
+
+
+-spec new_external_luma_config(URL :: binary(), ApiKey :: binary() | undefined) ->
+    luma_config().
+new_external_luma_config(URL, ApiKey) ->
     ?CALL([URL, ApiKey]).
 
--spec new_luma_config(node(), URL :: binary(), ApiKey :: binary() | undefined) ->
+-spec new_external_luma_config(node(), URL :: binary(), ApiKey :: binary() | undefined) ->
     luma_config().
-new_luma_config(Node, URL, ApiKey) ->
+new_external_luma_config(Node, URL, ApiKey) ->
     ?CALL(Node, [URL, ApiKey]).
 
 

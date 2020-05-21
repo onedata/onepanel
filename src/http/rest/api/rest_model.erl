@@ -55,6 +55,12 @@
     ids_model/0,
     inline_response_202_model/0,
     invite_token_model/0,
+    luma_config_model/0,
+    luma_onedata_group_model/0,
+    luma_onedata_user_model/0,
+    luma_storage_credentials_model/0,
+    luma_storage_user_model/0,
+    luma_user_mapping_model/0,
     manager_hosts_model/0,
     modify_cluster_ips_model/0,
     node_model/0,
@@ -63,6 +69,7 @@
     onezone_user_create_request_model/0,
     panel_configuration_model/0,
     password_change_request_model/0,
+    posix_compatible_credentials_model/0,
     progress_model/0,
     progress_modify_model/0,
     provider_cluster_configuration_model/0,
@@ -119,25 +126,37 @@
     blockdevice_model/0,
     ceph_model/0,
     ceph_cluster_model/0,
+    ceph_credentials_model/0,
     ceph_modify_model/0,
     cephrados_model/0,
+    cephrados_credentials_model/0,
     cephrados_modify_model/0,
     glusterfs_model/0,
+    glusterfs_credentials_model/0,
     glusterfs_modify_model/0,
     localceph_model/0,
     localceph_modify_model/0,
     loopdevice_model/0,
+    luma_idp_entitlement_scheme_model/0,
+    luma_idp_user_scheme_model/0,
+    luma_onedata_group_scheme_model/0,
+    luma_onedata_user_scheme_model/0,
     nulldevice_model/0,
+    nulldevice_credentials_model/0,
     nulldevice_modify_model/0,
     op_configuration_model/0,
     oz_configuration_model/0,
     posix_model/0,
+    posix_credentials_model/0,
     posix_modify_model/0,
     s3_model/0,
+    s3_credentials_model/0,
     s3_modify_model/0,
     swift_model/0,
+    swift_credentials_model/0,
     swift_modify_model/0,
     webdav_model/0,
+    webdav_credentials_model/0,
     webdav_modify_model/0
 ]).
 
@@ -666,6 +685,72 @@ invite_token_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Configuration of Local User Mapping database (LUMA DB).
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_config_model() -> onepanel_parser:object_spec().
+luma_config_model() ->
+    #{
+        %% Type of feed for LUMA DB.
+        lumaFeed => {enum, string, [<<"auto">>, <<"local">>, <<"external">>]},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaApiKey => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials identifying group in the Onedata system.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_onedata_group_model() -> onepanel_parser:multi_spec().
+luma_onedata_group_model() ->
+    {subclasses, onepanel_parser:prepare_subclasses([luma_onedata_group_scheme_model(), luma_idp_entitlement_scheme_model()])}.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials identifying user in the Onedata system.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_onedata_user_model() -> onepanel_parser:multi_spec().
+luma_onedata_user_model() ->
+    {subclasses, onepanel_parser:prepare_subclasses([luma_onedata_user_scheme_model(), luma_idp_user_scheme_model()])}.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials that will be used to perform actions on the local storage
+%% resources in the context of the Onedata user.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_storage_credentials_model() -> onepanel_parser:multi_spec().
+luma_storage_credentials_model() ->
+    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model()])}.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials identifying user on the local storage resources.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_storage_user_model() -> onepanel_parser:object_spec().
+luma_storage_user_model() ->
+    #{
+        storageCredentials => luma_storage_credentials_model(),
+        %% This value will be used in the Oneclient to display it's owner
+        %% UID if the corresponding user is owner of the file.
+        displayUid => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Mapping that will be stored in LUMA DB.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_user_mapping_model() -> onepanel_parser:object_spec().
+luma_user_mapping_model() ->
+    #{
+        onedata => luma_onedata_user_model(),
+        storage => luma_storage_user_model()
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster manager service hosts configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -785,6 +870,19 @@ password_change_request_model() ->
     #{
         %% The new user password.
         newPassword => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on POSIX compatible storages.
+%% @end
+%%--------------------------------------------------------------------
+-spec posix_compatible_credentials_model() -> onepanel_parser:object_spec().
+posix_compatible_credentials_model() ->
+    #{
+        %% User identifier.
+        uid => {integer, optional},
+        %% Group identifier.
+        gid => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1753,9 +1851,24 @@ ceph_model() ->
     #{
         %% The type of storage.
         type => {discriminator, <<"ceph">>},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
-        %% Overrides all previously set parameters.
-        qosParameters => {#{'_' => string}, optional},
+        qosParameters => {#{'_' => string}, {optional, #{}}},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -1766,10 +1879,6 @@ ceph_model() ->
         clusterName => string,
         %% The Ceph pool name.
         poolName => string,
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1800,6 +1909,22 @@ ceph_cluster_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Credentials on the CEPH storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec ceph_credentials_model() -> onepanel_parser:object_spec().
+ceph_credentials_model() ->
+    #{
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"ceph">>},
+        %% The username of the Ceph cluster administrator.
+        username => string,
+        %% The admin key to access the Ceph cluster.
+        key => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Ceph storage configuration (uses libradosstriper).
 %% @end
 %%--------------------------------------------------------------------
@@ -1810,14 +1935,17 @@ ceph_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -1836,11 +1964,7 @@ ceph_modify_model() ->
         %% The Ceph cluster name.
         clusterName => {string, optional},
         %% The Ceph pool name.
-        poolName => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional}
+        poolName => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1854,14 +1978,17 @@ cephrados_model() ->
         type => {discriminator, <<"cephrados">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
@@ -1879,10 +2006,6 @@ cephrados_model() ->
         poolName => string,
         %% Storage block size in bytes.
         blockSize => {integer, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -1890,6 +2013,22 @@ cephrados_model() ->
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
         storagePathType => {string, {optional, <<"flat">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the Ceph storage (using librados).
+%% @end
+%%--------------------------------------------------------------------
+-spec cephrados_credentials_model() -> onepanel_parser:object_spec().
+cephrados_credentials_model() ->
+    #{
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"cephrados">>},
+        %% The username of the Ceph cluster administrator.
+        username => string,
+        %% The admin key to access the Ceph cluster.
+        key => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1903,14 +2042,17 @@ cephrados_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -1929,11 +2071,7 @@ cephrados_modify_model() ->
         %% The Ceph cluster name.
         clusterName => {string, optional},
         %% The Ceph pool name.
-        poolName => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional}
+        poolName => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1947,14 +2085,17 @@ glusterfs_model() ->
         type => {discriminator, <<"glusterfs">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
@@ -1984,6 +2125,22 @@ glusterfs_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Credentials on the GlusterFS storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec glusterfs_credentials_model() -> onepanel_parser:object_spec().
+glusterfs_credentials_model() ->
+    #{
+        %% User identifier.
+        uid => {integer, optional},
+        %% Group identifier.
+        gid => {integer, optional},
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"glusterfs">>}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The GlusterFS storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -1994,14 +2151,17 @@ glusterfs_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2039,14 +2199,17 @@ localceph_model() ->
         type => {discriminator, <<"localceph">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
@@ -2061,10 +2224,6 @@ localceph_model() ->
         %% 'copiesNumber'. Defaults to `min(2, copiesNumber)`
         %% if there are at least 2 OSDs, `1` otherwise.
         minCopiesNumber => {integer, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, {optional, true}},
         %% Storage block size in bytes.
         blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
@@ -2094,14 +2253,17 @@ localceph_modify_model() ->
         minCopiesNumber => {integer, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2141,6 +2303,64 @@ loopdevice_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Credentials scheme that stores the Id of a group in an external identity
+%% provider.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_idp_entitlement_scheme_model() -> onepanel_parser:object_spec().
+luma_idp_entitlement_scheme_model() ->
+    #{
+        %% Name of scheme used to represent group identity.
+        mappingScheme => {discriminator, <<"idpEntitlement">>},
+        %% The id of an external identity provider.
+        idp => string,
+        %% The id of the group understood by the external identity provider.
+        idpEntitlement => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials scheme that stores the Id of a user in an external identity
+%% provider.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_idp_user_scheme_model() -> onepanel_parser:object_spec().
+luma_idp_user_scheme_model() ->
+    #{
+        %% Name of scheme used to represent user identity.
+        mappingScheme => {discriminator, <<"idpUser">>},
+        %% The id of an external identity provider.
+        idp => string,
+        %% The id of the user understood by the external identity provider.
+        subjectId => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials scheme that stores the Id of a group in the Onedata system.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_onedata_group_scheme_model() -> onepanel_parser:object_spec().
+luma_onedata_group_scheme_model() ->
+    #{
+        %% Name of scheme used to represent group identity.
+        mappingScheme => {discriminator, <<"onedataGroup">>},
+        %% The id of group in the Onedata system.
+        onedataGroupId => string
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials scheme that stores the Id of a user in the Onedata system.
+%% @end
+%%--------------------------------------------------------------------
+-spec luma_onedata_user_scheme_model() -> onepanel_parser:object_spec().
+luma_onedata_user_scheme_model() ->
+    #{
+        %% Name of scheme used to represent user identity.
+        mappingScheme => {discriminator, <<"onedataUser">>},
+        %% The id of user in Onedata system.
+        onedataUserId => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Null Device storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -2151,14 +2371,17 @@ nulldevice_model() ->
         type => {discriminator, <<"nulldevice">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
@@ -2203,6 +2426,22 @@ nulldevice_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Credentials on the Null Device storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec nulldevice_credentials_model() -> onepanel_parser:object_spec().
+nulldevice_credentials_model() ->
+    #{
+        %% User identifier.
+        uid => {integer, optional},
+        %% Group identifier.
+        gid => {integer, optional},
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"nulldevice">>}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Null Device storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -2213,14 +2452,17 @@ nulldevice_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2326,14 +2568,17 @@ posix_model() ->
         type => {discriminator, <<"posix">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
@@ -2352,6 +2597,22 @@ posix_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Credentials on POSIX storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec posix_credentials_model() -> onepanel_parser:object_spec().
+posix_credentials_model() ->
+    #{
+        %% User identifier.
+        uid => {integer, optional},
+        %% Group identifier.
+        gid => {integer, optional},
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"posix">>}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The POSIX storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -2362,14 +2623,17 @@ posix_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2395,27 +2659,30 @@ s3_model() ->
         type => {discriminator, <<"s3">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% The hostname of a machine where S3 storage is installed.
-        hostname => string,
-        %% The storage bucket name.
-        bucketName => string,
         %% The access key to the S3 storage.
         accessKey => string,
         %% The secret key to the S3 storage.
         secretKey => string,
+        %% The hostname of a machine where S3 storage is installed.
+        hostname => string,
+        %% The storage bucket name.
+        bucketName => string,
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
         signatureVersion => {integer, optional},
@@ -2437,10 +2704,6 @@ s3_model() ->
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0775`.
         dirMode => {string, optional},
-        %% Defines whether storage administrator credentials (accessKey and
-        %% secretKey) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2448,6 +2711,22 @@ s3_model() ->
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
         storagePathType => {string, {optional, <<"flat">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the Simple Storage Service (S3).
+%% @end
+%%--------------------------------------------------------------------
+-spec s3_credentials_model() -> onepanel_parser:object_spec().
+s3_credentials_model() ->
+    #{
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"s3">>},
+        %% The access key to the S3 storage.
+        accessKey => string,
+        %% The secret key to the S3 storage.
+        secretKey => string
     }.
 
 %%--------------------------------------------------------------------
@@ -2461,14 +2740,17 @@ s3_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2501,11 +2783,7 @@ s3_modify_model() ->
         %% Defines the directory mode which directories imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0775`.
-        dirMode => {string, optional},
-        %% Defines whether storage administrator credentials (accessKey and
-        %% secretKey) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional}
+        dirMode => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2519,35 +2797,34 @@ swift_model() ->
         type => {discriminator, <<"swift">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% The Keystone authentication username.
+        username => string,
+        %% The Keystone authentication password.
+        password => string,
         %% The URL to OpenStack Keystone identity service.
         authUrl => string,
         %% The name of the tenant to which the user belongs.
         tenantName => string,
         %% The name of the Swift storage container.
         containerName => string,
-        %% The Keystone authentication username.
-        username => string,
-        %% The Keystone authentication password.
-        password => string,
         %% Storage block size in bytes.
         blockSize => {integer, optional},
-        %% Defines whether storage administrator credentials (username and
-        %% password) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2555,6 +2832,22 @@ swift_model() ->
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
         storagePathType => {string, {optional, <<"flat">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the SWIFT storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec swift_credentials_model() -> onepanel_parser:object_spec().
+swift_credentials_model() ->
+    #{
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"swift">>},
+        %% The Keystone authentication username.
+        username => string,
+        %% The Keystone authentication password.
+        password => string
     }.
 
 %%--------------------------------------------------------------------
@@ -2568,14 +2861,17 @@ swift_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2594,11 +2890,7 @@ swift_modify_model() ->
         %% The Keystone authentication username.
         username => {string, optional},
         %% The Keystone authentication password.
-        password => {string, optional},
-        %% Defines whether storage administrator credentials (username and
-        %% password) may be used by users without storage accounts to access
-        %% storage in direct IO mode.
-        insecure => {boolean, optional}
+        password => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2612,28 +2904,25 @@ webdav_model() ->
         type => {discriminator, <<"webdav">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Full URL of the WebDAV server, including scheme (http or https) and
-        %% path.
-        endpoint => string,
-        %% Determines whether Oneprovider should verify the certificate of the
-        %% WebDAV server.
-        verifyServerCertificate => {boolean, {optional, true}},
         %% Determines the types of credentials provided in the credentials
         %% field.
-        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, none}},
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
         %% `username:password`, for `token` just the token.
@@ -2648,12 +2937,18 @@ webdav_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage in `insecure` mode with
+        %% When registering storage with disabled LUMA service with
         %% `oauth2` external IdP, this field must contain a valid
         %% Onedata access token of the user on whose behalf the WebDAV storage
         %% will be accessed by all users with access to any space supported by
         %% this storage.
         onedataAccessToken => {string, optional},
+        %% Full URL of the WebDAV server, including scheme (http or https) and
+        %% path.
+        endpoint => string,
+        %% Determines whether Oneprovider should verify the certificate of the
+        %% WebDAV server.
+        verifyServerCertificate => {boolean, {optional, true}},
         %% The authorization header to be used for passing the access token.
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
@@ -2666,7 +2961,7 @@ webdav_model() ->
         %% supports partial `PUT` requests with `Content-
         %% Range` header. If `none` is selected no write support
         %% is available for this WebDAV storage.
-        rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, {optional, none}},
+        rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, {optional, <<"none">>}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
         connectionPoolSize => {integer, {optional, 25}},
@@ -2682,10 +2977,6 @@ webdav_model() ->
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
         dirMode => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2693,6 +2984,41 @@ webdav_model() ->
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
         storagePathType => {string, {optional, <<"canonical">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the WebDAV storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec webdav_credentials_model() -> onepanel_parser:object_spec().
+webdav_credentials_model() ->
+    #{
+        %% Type of the storage. Must match the type of existing storage, needed
+        %% only for OpenAPI polymorphism disambiguation.
+        type => {discriminator, <<"webdav">>},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
+        %% The credentials to authenticate with the WebDAV server.
+        %% `basic` credentials should be provided in the form
+        %% `username:password`, for `token` just the token.
+        %% In case of `oauth2`, this field should contain the username
+        %% for the WebDAV, while the token will be obtained and refreshed
+        %% automatically in the background. For `none` this field is
+        %% ignored.
+        credentials => {string, optional},
+        %% In case `oauth2` credential type is selected and Onezone is
+        %% configured with support for multiple external IdP's, this field
+        %% must contain the name of the IdP which authenticates requests to the
+        %% WebDAV endpoint. If Onezone has only one external IdP, it will be
+        %% selected automatically.
+        oauth2IdP => {string, optional},
+        %% When registering storage with disabled LUMA service with
+        %% `oauth2` external IdP, this field must contain a valid
+        %% Onedata access token of the user on whose behalf the WebDAV storage
+        %% will be accessed by all users with access to any space supported by
+        %% this storage.
+        onedataAccessToken => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2706,14 +3032,17 @@ webdav_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% Defines whether storage is readonly.
-        readonly => {boolean, optional},
-        %% If true LUMA and reverse LUMA services will be enabled.
-        lumaEnabled => {boolean, optional},
-        %% URL of external LUMA service.
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for Local User Mapping (LUMA) database.
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
         lumaUrl => {string, optional},
-        %% LUMA API Key, must be identical with API Key in external LUMA
-        %% service.
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
         lumaApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
@@ -2764,10 +3093,6 @@ webdav_modify_model() ->
         %% Defines the directory mode which directories imported from WebDAV
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
-        dirMode => {string, optional},
-        %% Defines whether storage administrator credentials (username and key)
-        %% may be used by users without storage accounts to access storage in
-        %% direct IO mode.
-        insecure => {boolean, optional}
+        dirMode => {string, optional}
     }.
 

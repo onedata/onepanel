@@ -35,30 +35,138 @@
 -spec operation_supported(middleware:operation(), gri:aspect(),
     middleware:scope()) -> boolean().
 % plural 'instances', since many storages are created with one request
-operation_supported(create, instances, private) -> onepanel:is_op_panel();
+operation_supported(create, As, private) when
+    As == instances;
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    onepanel:is_op_panel();
+operation_supported(create, {As, _Id}, private) when
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping
+->
+    onepanel:is_op_panel();
 
-operation_supported(get, list, private) -> onepanel:is_op_panel();
-operation_supported(get, instance, private) -> onepanel:is_op_panel();
+operation_supported(get, As, private) when
+    As == list;
+    As == instance;
+    As == luma_configuration
+->
+    onepanel:is_op_panel();
+operation_supported(get, {As, _Id}, private) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    onepanel:is_op_panel();
 
-operation_supported(update, instance, private) -> onepanel:is_op_panel();
-operation_supported(update, invalidate_luma_cache, private) -> onepanel:is_op_panel();
+operation_supported(update, instance, private) ->
+    onepanel:is_op_panel();
+operation_supported(update, {As, _Id}, private) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    onepanel:is_op_panel();
 
-operation_supported(delete, instance, private) -> onepanel:is_op_panel();
+operation_supported(delete, As, private) when
+    As == luma_db;
+    As == instance
+->
+    onepanel:is_op_panel();
+operation_supported(delete, {As, _Id}, private) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    onepanel:is_op_panel();
 
 operation_supported(_, _, _) -> false.
 
 
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
-required_availability(get, list, private) -> [?SERVICE_OPW, all_healthy];
-required_availability(get, instance, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(get, As, private) when
+    As == list;
+    As == instance;
+    As == luma_configuration
+->
+    [?SERVICE_OPW, all_healthy];
+required_availability(get, {As, _Id}, private) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    [?SERVICE_OPW, all_healthy];
 
-required_availability(create, instances, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(create, As, private) when
+    As == instances;
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    [?SERVICE_OPW, all_healthy];
+required_availability(create, {As, _Id}, private) when
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping
+->
+    [?SERVICE_OPW, all_healthy];
 
-required_availability(update, instance, private) -> [?SERVICE_OPW, all_healthy];
-required_availability(update, invalidate_luma_cache, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(update, instance, private) ->
+    [?SERVICE_OPW, all_healthy];
+required_availability(update, {As, _}, private) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    [?SERVICE_OPW, all_healthy];
 
-required_availability(delete, instance, private) -> [?SERVICE_OPW, all_healthy].
+required_availability(delete, As, private) when
+    As == instance;
+    As == luma_db
+->
+    [?SERVICE_OPW, all_healthy];
+required_availability(delete, {As, _Id}, private) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    [?SERVICE_OPW, all_healthy].
 
 
 -spec fetch_entity(middleware:req()) ->
@@ -77,35 +185,124 @@ fetch_entity(#onp_req{gri = #gri{id = StorageId}}) ->
 
 -spec authorize(middleware:req(), middleware:entity()) -> boolean().
 authorize(#onp_req{
-    operation = create, client = Client, gri = #gri{aspect = instances}
-}, _) ->
+    operation = create, client = Client, gri = #gri{aspect = As}
+}, _)  when
+    As == instances;
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
+authorize(#onp_req{
+    operation = create, client = Client, gri = #gri{aspect = {As, _}}
+}, _) when
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping
+->
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
 
 authorize(#onp_req{
     operation = get, client = #client{role = member}, gri = #gri{aspect = As}
 }, _) when
     As == list;
-    As == instance
+    As == instance;
+    As == luma_configuration
 ->
     true;
+authorize(#onp_req{
+    operation = get, client = Client, gri = #gri{aspect = {As, _}}
+}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
 
 authorize(#onp_req{
-    operation = Op, client = Client, gri = #gri{aspect = As}
+    operation = update, client = Client, gri = #gri{aspect = instance}
+}, _) ->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
+authorize(#onp_req{
+    operation = update, client = Client, gri = #gri{aspect = {As, _Id}}
 }, _) when
-    Op == update, As == instance;
-    Op == update, As == invalidate_luma_cache;
-    Op == delete, As == instance
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
+
+authorize(#onp_req{
+    operation = delete, client = Client, gri = #gri{aspect = As}
+}, _) when
+    As == luma_db;
+    As == instance
+->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
+authorize(#onp_req{
+    operation = delete, client = Client, gri = #gri{aspect = {As, _Id}}
+}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
 ->
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
+
+
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
-validate(#onp_req{operation = create, gri = #gri{aspect = instances}}, _) ->
+validate(#onp_req{operation = create, gri = #gri{aspect = As}}, _)  when
+    As == instances;
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    ensure_registered();
+validate(#onp_req{operation = create, gri = #gri{
+    aspect = {As, _}
+}}, _) when
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping
+->
     ensure_registered();
 
 validate(#onp_req{operation = get, gri = #gri{aspect = As}}, _) when
     As == list;
-    As == instance
+    As == instance;
+    As == luma_configuration
+->
+    ensure_registered();
+validate(#onp_req{operation = get, gri = #gri{aspect = {As, _Id}}}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
 ->
     ensure_registered();
 
@@ -128,24 +325,117 @@ validate(#onp_req{
             Key = str_utils:join_as_binaries([OldName, type], <<".">>),
             throw(?ERROR_BAD_VALUE_NOT_ALLOWED(Key, [ActualType]))
     end;
-
 validate(#onp_req{
-    operation = update, gri = #gri{aspect = invalidate_luma_cache}
-}, _) ->
+    operation = update, gri = #gri{aspect = {As, _Id}}}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
     ensure_registered();
 
+validate(#onp_req{
+    operation = delete, gri = #gri{aspect = luma_db}
+}, _) ->
+    ensure_registered();
 validate(#onp_req{operation = delete, gri = #gri{aspect = instance, id = Id}}, _) ->
     ensure_registered(),
     case op_worker_storage:can_be_removed(Id) of
         true -> ok;
         false -> throw(?ERROR_STORAGE_IN_USE)
-    end.
+    end;
+validate(#onp_req{
+    operation = delete, gri = #gri{aspect = {As, _Id}}
+}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == local_feed_luma_default_posix_credentials;
+    As == local_feed_luma_display_credentials;
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_onedata_user_to_credentials_mapping;
+    As == luma_default_posix_credentials;
+    As == luma_display_credentials;
+    As == luma_uid_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    ensure_registered().
 
 
 -spec create(middleware:req()) -> middleware:create_result().
 create(#onp_req{gri = #gri{aspect = instances}, data = Data}) ->
     middleware_utils:execute_service_action(?SERVICE_OPW, add_storages, #{
         storages => Data
+    });
+create(#onp_req{
+    gri = #gri{
+        aspect = local_feed_luma_onedata_user_to_credentials_mapping,
+        id = StorageId
+    },
+    data = Data
+}) ->
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_user_mapping, #{
+        id => StorageId,
+        mapping => Data
+    });
+create(#onp_req{
+    gri = #gri{
+        aspect = {local_feed_luma_default_posix_credentials, SpaceId},
+        id = StorageId
+    },
+    data = Data
+}) ->
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_default_posix_credentials, #{
+        id => StorageId,
+        spaceId => SpaceId,
+        credentials => Data
+    });
+create(#onp_req{
+    gri = #gri{
+        aspect = {local_feed_luma_display_credentials, SpaceId},
+        id = StorageId
+    },
+    data = Data
+}) ->
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_display_credentials, #{
+        id => StorageId,
+        spaceId => SpaceId,
+        credentials => Data
+    });
+create(#onp_req{
+    gri = #gri{
+        aspect = {local_feed_luma_uid_to_onedata_user_mapping, Uid},
+        id = StorageId
+    },
+    data = Data
+}) ->
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_uid_to_onedata_user_mapping,
+        #{
+        id => StorageId,
+        uid => Uid,
+        mapping => Data
+    });
+create(#onp_req{
+    gri = #gri{
+        aspect = {local_feed_luma_acl_user_to_onedata_user_mapping, AclUser},
+        id = StorageId
+    },
+    data = Data
+}) ->
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_acl_user_to_onedata_user_mapping, #{
+        id => StorageId,
+        aclUser => AclUser,
+        mapping => Data
+    });
+create(#onp_req{
+    gri = #gri{
+        aspect = {local_feed_luma_acl_group_to_onedata_group_mapping, AclGroup},
+        id = StorageId
+    },
+    data = Data
+}) ->
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_acl_group_to_onedata_group_mapping, #{
+        id => StorageId,
+        aclGroup => AclGroup,
+        mapping => Data
     }).
 
 
@@ -154,9 +444,74 @@ get(#onp_req{gri = #gri{aspect = list}}, _) ->
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_storages, #{}
     )};
-
 get(#onp_req{gri = #gri{aspect = instance, id = _Id}}, Storage) ->
-    {ok, Storage}.
+    {ok, Storage};
+get(#onp_req{gri = #gri{aspect = luma_configuration}}, Storage) ->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_luma_configuration, #{
+            storage => Storage
+        }
+    )};
+get(#onp_req{gri = #gri{aspect = {As, OnedataUserId}, id = StorageId}}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == luma_onedata_user_to_credentials_mapping
+->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_user_mapping, #{
+            id => StorageId,
+            onedataUserId => OnedataUserId
+        }
+    )};
+get(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}, _) when
+    As == local_feed_luma_default_posix_credentials;
+    As == luma_default_posix_credentials
+->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_default_posix_credentials, #{
+            id => StorageId,
+            spaceId => SpaceId
+        }
+    )};
+get(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}, _) when
+    As == local_feed_luma_display_credentials;
+    As == luma_display_credentials
+->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_display_credentials, #{
+            id => StorageId,
+            spaceId => SpaceId
+        }
+    )};
+get(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}, _) when
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == luma_uid_to_onedata_user_mapping
+->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_uid_to_onedata_user_mapping, #{
+            id => StorageId,
+            uid => Uid
+        }
+    )};
+get(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}, _) when
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping
+->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_acl_user_to_onedata_user_mapping, #{
+            id => StorageId,
+            aclUser => AclUser
+        }
+    )};
+get(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}, _) when
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, get_acl_group_to_onedata_group_mapping, #{
+            id => StorageId,
+            aclGroup => AclGroup
+        }
+    )}.
 
 
 -spec update(middleware:req()) -> middleware:update_result().
@@ -165,18 +520,85 @@ update(#onp_req{gri = #gri{aspect = instance, id = Id}, data = Data}) ->
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, update_storage, #{id => Id, storage => Params}
     )};
-
-update(#onp_req{gri = #gri{aspect = invalidate_luma_cache, id = Id}}) ->
-    middleware_utils:execute_service_action(
-        ?SERVICE_OPW, invalidate_luma_cache, #{id => Id}
-    ).
+update(#onp_req{
+    gri = #gri{
+        aspect = {local_feed_luma_onedata_user_to_credentials_mapping, OnedataUserId},
+        id = StorageId
+    },
+    data = Data
+}) ->
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OPW, update_user_mapping, #{
+            id => StorageId,
+            onedataUserId => OnedataUserId,
+            mapping => Data
+        }
+    )}.
 
 
 -spec delete(middleware:req()) -> middleware:delete_result().
+delete(#onp_req{gri = #gri{aspect = luma_db, id = Id}}) ->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, invalidate_luma_db, #{id => Id}
+    );
 delete(#onp_req{gri = #gri{aspect = instance, id = Id}}) ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OPW, remove_storage, #{id => Id}).
-
+        ?SERVICE_OPW, remove_storage, #{id => Id}
+    );
+delete(#onp_req{gri = #gri{aspect = {As, OnedataUserId}, id = StorageId}})  when
+    As == local_feed_luma_onedata_user_to_credentials_mapping;
+    As == luma_onedata_user_to_credentials_mapping
+->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, remove_user_mapping, #{
+            id => StorageId,
+            onedataUserId => OnedataUserId
+    });
+delete(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}) when
+    As == local_feed_luma_default_posix_credentials;
+    As == luma_default_posix_credentials
+->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, remove_default_posix_credentials, #{
+            id => StorageId,
+            spaceId => SpaceId
+    });
+delete(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}) when
+    As == local_feed_luma_display_credentials;
+    As == luma_display_credentials
+->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, remove_display_credentials, #{
+            id => StorageId,
+            spaceId => SpaceId
+    });
+delete(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}) when
+    As == local_feed_luma_uid_to_onedata_user_mapping;
+    As == luma_uid_to_onedata_user_mapping
+    ->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, remove_uid_to_onedata_user_mapping, #{
+            id => StorageId,
+            uid => Uid
+    });
+delete(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}) when
+    As == local_feed_luma_acl_user_to_onedata_user_mapping;
+    As == luma_acl_user_to_onedata_user_mapping
+->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, remove_acl_user_to_onedata_user_mapping, #{
+            id => StorageId,
+            aclUser => AclUser
+    });
+delete(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}) when
+    As == local_feed_luma_acl_group_to_onedata_group_mapping;
+    As == luma_acl_group_to_onedata_group_mapping
+->
+    middleware_utils:execute_service_action(
+        ?SERVICE_OPW, remove_acl_group_to_onedata_group_mapping, #{
+            id => StorageId,
+            aclGroup => AclGroup
+    }).
 
 %%%===================================================================
 %%% Internal functions

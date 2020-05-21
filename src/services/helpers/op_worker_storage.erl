@@ -24,7 +24,7 @@
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_imported_storage/2, can_be_removed/1]).
 -export([maybe_update_file_popularity/3,
-    maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
+    maybe_update_auto_cleaning/3]).
 
 % @formatter:off
 -type id() :: binary().
@@ -39,7 +39,8 @@
 
 %% Storage information retrieved from op_worker
 -type storage_details() :: #{
-    readonly | insecure | lumaEnabled := boolean(),
+    readonly := boolean(),
+    lumaMode := op_worker_rpc:luma_mode(),
     qosParameters := qos_parameters(),
     atom() := binary()
 }.
@@ -55,7 +56,7 @@
 % @formatter:on
 
 -export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
-    qos_parameters/0, helper_args/0, user_ctx/0]).
+    qos_parameters/0, helper_args/0, user_ctx/0, luma_mode/0]).
 
 %%%===================================================================
 %%% API functions
@@ -96,7 +97,6 @@ update(OpNode, Id, Params) ->
     Storage = op_worker_storage:get(Id),
     Id = maps:get(id, Storage),
     Type = maps:get(type, Storage),
-    LumaEnabled = maps:get(lumaEnabled, Storage),
     % remove qosParameters as they are a map and will cause errors
     % when preprocessing arg by conversion to binary
     PlainValues = maps:remove(qosParameters, Params),
@@ -105,9 +105,7 @@ update(OpNode, Id, Params) ->
     ok = maybe_update_name(OpNode, Id, PlainValues),
     ok = maybe_update_admin_ctx(OpNode, Id, Type, PlainValues),
     ok = maybe_update_args(OpNode, Id, Type, PlainValues),
-    ok = maybe_update_luma_config(OpNode, Id, PlainValues, LumaEnabled),
-    ok = maybe_update_insecure(OpNode, Id, PlainValues),
-    ok = maybe_update_readonly(OpNode, Id, PlainValues),
+    ok = maybe_update_luma_config(OpNode, Id, PlainValues),
     ok = maybe_update_qos_parameters(OpNode, Id, Params),
     ok = maybe_update_imported_storage(OpNode, Id, Params),
     make_update_result(OpNode, Id).
@@ -256,17 +254,6 @@ get_auto_cleaning_configuration(OpNode, SpaceId) ->
     ], DetailsMap, DetailsMap),
     maps_utils:undefined_to_null(DetailsMap2).
 
-
-%%-------------------------------------------------------------------
-%% @doc
-%% Invalidates luma cache for given storage.
-%% @end
-%%-------------------------------------------------------------------
--spec invalidate_luma_cache(StorageId :: id()) -> ok.
-invalidate_luma_cache(StorageId) ->
-    ok = op_worker_rpc:invalidate_luma_cache(StorageId).
-
-
 %%-------------------------------------------------------------------
 %% @doc
 %% Checks if given storage can be removed, i.e. does not support
@@ -294,19 +281,19 @@ add(OpNode, Name, Params) ->
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
-    ReadOnly = onepanel_utils:get_converted(readonly, Params, boolean, false),
+    SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, Params, boolean, false),
 
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     UserCtx = make_user_ctx(OpNode, StorageType, StorageParams),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams),
 
     LumaConfig = make_luma_config(OpNode, StorageParams),
-    maybe_verify_storage(Helper, ReadOnly),
+    maybe_verify_storage(Helper, SkipStorageDetection),
 
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
 
     ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
-    case op_worker_rpc:storage_create(Name, Helper, ReadOnly, LumaConfig, ImportedStorage, QosParameters) of
+    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, QosParameters) of
         {ok, _StorageId} -> ok;
         {error, Reason} -> {error, Reason}
     end.
@@ -322,28 +309,27 @@ add(OpNode, Name, Params) ->
     {ok, helper()} | {badrpc, term()}.
 make_helper(OpNode, StorageType, AdminCtx, Params) ->
     Args = make_helper_args(OpNode, StorageType, Params),
-    Insecure = onepanel_utils:get_converted(insecure, Params, boolean, false),
-    PathType = onepanel_utils:get_converted(storagePathType, Params, binary),
-    op_worker_rpc:new_helper(
-        OpNode, StorageType, Args, AdminCtx, Insecure, PathType).
+    op_worker_rpc:new_helper(OpNode, StorageType, Args, AdminCtx).
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Parses LUMA config arguments if lumaEnabled is set to
-%% true in StorageParams and returns luma config acquired from provider.
+%% @private @doc Returns luma config acquired from provider.
+%% If lumaMode is set to <<"external_luma">> it parses other luma arguments
+%% from StorageParams .
 %% Throws error if lumaEnabled is true and other arguments are missing.
 %% @end
 %%--------------------------------------------------------------------
--spec make_luma_config(OpNode :: node(), StorageParams :: storage_params()) ->
-    undefined | luma_config().
+-spec make_luma_config(OpNode :: node(), StorageParams :: storage_params()) -> luma_config().
 make_luma_config(OpNode, StorageParams) ->
-    case onepanel_utils:get_converted(lumaEnabled, StorageParams, boolean, false) of
-        true ->
+    case onepanel_utils:get_converted(lumaMode, StorageParams, string, <<"no_luma">>) of
+        Mode = <<"no_luma">> ->
+            op_worker_rpc:new_luma_config(OpNode, binary_to_atom(Mode, utf8));
+        Mode = <<"embedded_luma">> ->
+            op_worker_rpc:new_luma_config(OpNode, binary_to_atom(Mode, utf8));
+        <<"external_luma">> ->
             Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
             ApiKey = onepanel_utils:get_converted(lumaApiKey, StorageParams, binary, undefined),
-            op_worker_rpc:new_luma_config(OpNode, Url, ApiKey);
-        false ->
-            undefined
+            op_worker_rpc:new_external_luma_config(OpNode, Url, ApiKey)
     end.
 
 
@@ -352,7 +338,7 @@ make_luma_config(OpNode, StorageParams) ->
 %% op_worker service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: helper(), Readonly :: boolean()) ->
+-spec maybe_verify_storage(Helper :: helper(), SkipStorageDetection :: boolean()) ->
     skipped | verified | no_return().
 maybe_verify_storage(_Helper, true) ->
     skipped;
@@ -421,8 +407,7 @@ make_update_result(OpNode, StorageId) ->
 -spec make_helper_args(OpNode :: node(), StorageType :: binary(),
     Params :: storage_params()) -> helper_args().
 make_helper_args(OpNode, StorageType, Params) ->
-    op_worker_rpc:prepare_helper_args(OpNode,
-        StorageType, convert_to_binaries(Params)).
+    op_worker_rpc:prepare_helper_args(OpNode, StorageType, convert_to_binaries(Params)).
 
 
 %%--------------------------------------------------------------------
@@ -443,12 +428,12 @@ make_user_ctx(OpNode, StorageType, Params) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec make_luma_params(Params :: storage_params()) ->
-    #{url => binary(), api_key => binary(), luma_enabled => boolean()}.
+    #{url => binary(), api_key => binary(), luma_mode => luma_mode()}.
 make_luma_params(Params) ->
     kv_utils:copy_found([
         {lumaUrl, url},
         {lumaApiKey, api_key},
-        {lumaEnabled, luma_enabled}
+        {lumaMode, mode}
     ], Params).
 
 
@@ -485,39 +470,14 @@ maybe_update_args(OpNode, Id, Type, Params) ->
 
 
 %% @private
--spec maybe_update_insecure(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
-    ok | no_return().
-maybe_update_insecure(OpNode, Id, #{insecure := NewInsecure}) ->
-    ok = op_worker_rpc:storage_set_insecure(OpNode, Id, NewInsecure);
-
-maybe_update_insecure(_OpNode, _Id,  _Params) -> ok.
-
-
-%% @private
--spec maybe_update_readonly(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
-    ok | no_return().
-maybe_update_readonly(OpNode, Id, #{readonly := NewReadonly}) ->
-    ok = op_worker_rpc:storage_set_readonly(OpNode, Id, NewReadonly);
-
-maybe_update_readonly(_OpNode, _Id, _Params) -> ok.
-
-
-%% @private
 -spec maybe_update_luma_config(OpNode :: node(), Id :: id(),
-    Params :: #{atom() => term()}, WasEnabled :: boolean()) -> ok | no_return().
-maybe_update_luma_config(OpNode, Id, Params, WasEnabled) ->
-    case {make_luma_params(Params), WasEnabled} of
-        {Empty, _} when map_size(Empty) == 0 ->
+    Params :: #{atom() => term()}) -> ok | no_return().
+maybe_update_luma_config(OpNode, Id, Params) ->
+    case make_luma_params(Params) of
+        Empty when map_size(Empty) == 0 ->
             ok;
-        {#{luma_enabled := false}, false} ->
-            ok;
-        {#{luma_enabled := NewEnabled}, _} when NewEnabled /= WasEnabled ->
-            LumaConfig = make_luma_config(OpNode, Params),
-            ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, LumaConfig),
-            invalidate_luma_cache(Id);
-        {Changes, true} ->
-            ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, Changes),
-            invalidate_luma_cache(Id)
+        Changes ->
+            ok = op_worker_rpc:storage_update_luma_config(OpNode, Id, Changes)
     end.
 
 
