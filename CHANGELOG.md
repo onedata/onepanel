@@ -4,6 +4,10 @@
 CHANGELOG
 ---------
 
+### 19.02.3
+
+* Releasing new version 19.02.3
+
 ### 19.02.2
 
 
