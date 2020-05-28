@@ -82,7 +82,7 @@
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
--export([invalidate_luma_cache/1, invalidate_luma_cache/2]).
+-export([luma_clear_db/1, luma_clear_db/2]).
 -export([new_helper/3, new_helper/4]).
 -export([new_luma_config/1, new_luma_config/2]).
 -export([new_external_luma_config/2, new_external_luma_config/3]).
@@ -288,12 +288,12 @@ storage_is_imported_storage(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec invalidate_luma_cache(storage_id()) -> ok.
-invalidate_luma_cache(StorageId) ->
+-spec luma_clear_db(storage_id()) -> ok.
+luma_clear_db(StorageId) ->
     ?CALL([StorageId]).
 
--spec invalidate_luma_cache(node(), storage_id()) -> ok.
-invalidate_luma_cache(Node, StorageId) ->
+-spec luma_clear_db(node(), storage_id()) -> ok.
+luma_clear_db(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 

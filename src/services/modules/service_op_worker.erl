@@ -61,7 +61,7 @@
 %% LUMA step functions
 -export([
     get_luma_configuration/1,
-    invalidate_luma_db/1,
+    clear_luma_db/1,
     get_user_mapping/1,
     get_default_posix_credentials/1,
     get_display_credentials/1,
@@ -179,7 +179,7 @@ get_steps(update_storage, Ctx) ->
 
 get_steps(Function, _Ctx) when 
     Function == remove_storage;
-    Function == invalidate_luma_db;
+    Function == clear_luma_db;
     Function == get_luma_configuration;
     Function == get_user_mapping;
     Function == get_default_posix_credentials;
@@ -507,9 +507,9 @@ get_luma_configuration(#{storage := Storage}) ->
     op_worker_luma:get_luma_configuration(Storage).
 
 
--spec invalidate_luma_db(Ctx :: service:step_ctx()) -> ok.
-invalidate_luma_db(#{id := StorageId}) ->
-    op_worker_luma:invalidate_luma_db(StorageId).
+-spec clear_luma_db(Ctx :: service:step_ctx()) -> ok.
+clear_luma_db(#{id := StorageId}) ->
+    op_worker_luma:clear_luma_db(StorageId).
 
 
 -spec get_user_mapping(Ctx :: service:step_ctx()) -> ok.
@@ -565,8 +565,8 @@ add_acl_group_to_onedata_group_mapping(#{id := StorageId, aclGroup := AclGroup, 
     op_worker_luma:add_acl_group_to_onedata_group_mapping(StorageId, AclGroup, Mapping).
 
 -spec update_user_mapping(Ctx :: service:step_ctx()) -> ok.
-update_user_mapping(#{id := StorageId, onedataUserId := OnedataUserId, mapping := Mapping}) ->
-    op_worker_luma:update_user_mapping(StorageId, OnedataUserId, Mapping).
+update_user_mapping(#{id := StorageId, onedataUserId := OnedataUserId, storageUser := StorageUser}) ->
+    op_worker_luma:update_user_mapping(StorageId, OnedataUserId, StorageUser).
 
 -spec remove_user_mapping(Ctx :: service:step_ctx()) -> ok.
 remove_user_mapping(#{id := StorageId, onedataUserId := OnedataUserId}) ->

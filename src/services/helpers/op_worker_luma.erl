@@ -15,7 +15,7 @@
 %% API
 -export([
     get_luma_configuration/1,
-    invalidate_luma_db/1,
+    clear_luma_db/1,
     get_user_mapping/2,
     get_default_posix_credentials/2,
     get_display_credentials/2,
@@ -50,13 +50,13 @@
 %%% API functions
 %%%===================================================================
 
--spec invalidate_luma_db(storage()) -> ok.
+-spec get_luma_configuration(storage()) -> ok.
 get_luma_configuration(Storage) ->
     ok = op_worker_rpc:get_luma_configuration(Storage).
 
--spec invalidate_luma_db(storage_id()) -> ok.
-invalidate_luma_db(StorageId) ->
-    ok = op_worker_rpc:invalidate_luma_cache(StorageId).
+-spec clear_luma_db(storage_id()) -> ok.
+clear_luma_db(StorageId) ->
+    ok = op_worker_rpc:luma_clear_db(StorageId).
 
 -spec get_user_mapping(storage_id(), onedata_user_id()) -> ok.
 get_user_mapping(StorageId, OnedataUserId) ->
@@ -126,7 +126,7 @@ remove_default_posix_credentials(StorageId, SpaceId) ->
 remove_display_credentials(StorageId, SpaceId) ->
     op_worker_rpc:remove_display_credentials(StorageId, SpaceId).
 
--spec remove_uid_to_onedata_user_mapping(storag_id(), uid()) -> ok.
+-spec remove_uid_to_onedata_user_mapping(storage_id(), uid()) -> ok.
 remove_uid_to_onedata_user_mapping(StorageId, Uid) ->
     op_worker_rpc:remove_uid_to_onedata_user_mapping(StorageId, Uid).
 

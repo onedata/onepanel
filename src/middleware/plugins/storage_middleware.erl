@@ -410,7 +410,7 @@ create(#onp_req{
     middleware_utils:execute_service_action(?SERVICE_OPW, add_uid_to_onedata_user_mapping,
         #{
         id => StorageId,
-        uid => Uid,
+        uid => convert_uid_to_integer(Uid),
         mapping => Data
     });
 create(#onp_req{
@@ -489,7 +489,7 @@ get(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}, _) when
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_uid_to_onedata_user_mapping, #{
             id => StorageId,
-            uid => Uid
+            uid => convert_uid_to_integer(Uid)
         }
     )};
 get(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}, _) when
@@ -527,19 +527,19 @@ update(#onp_req{
     },
     data = Data
 }) ->
-    {ok, value, middleware_utils:result_from_service_action(
+    middleware_utils:execute_service_action(
         ?SERVICE_OPW, update_user_mapping, #{
             id => StorageId,
             onedataUserId => OnedataUserId,
-            mapping => Data
+            storageUser => Data
         }
-    )}.
+    ).
 
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{gri = #gri{aspect = luma_db, id = Id}}) ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OPW, invalidate_luma_db, #{id => Id}
+        ?SERVICE_OPW, clear_luma_db, #{id => Id}
     );
 delete(#onp_req{gri = #gri{aspect = instance, id = Id}}) ->
     middleware_utils:execute_service_action(
@@ -579,7 +579,7 @@ delete(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}) when
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, remove_uid_to_onedata_user_mapping, #{
             id => StorageId,
-            uid => Uid
+            uid => convert_uid_to_integer(Uid)
     });
 delete(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}) when
     As == local_feed_luma_acl_user_to_onedata_user_mapping;
@@ -611,3 +611,11 @@ ensure_registered() ->
         true -> ok
     end.
 
+-spec convert_uid_to_integer(binary()) -> integer().
+convert_uid_to_integer(Value) ->
+    try
+        binary_to_integer(Value)
+    catch
+        error:badarg ->
+            throw(?ERROR_BAD_VALUE_INTEGER(uid))
+    end.

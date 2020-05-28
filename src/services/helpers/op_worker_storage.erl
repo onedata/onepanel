@@ -56,7 +56,7 @@
 % @formatter:on
 
 -export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
-    qos_parameters/0, helper_args/0, user_ctx/0, luma_mode/0]).
+    qos_parameters/0, helper_args/0, user_ctx/0]).
 
 %%%===================================================================
 %%% API functions
@@ -428,7 +428,7 @@ make_user_ctx(OpNode, StorageType, Params) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec make_luma_params(Params :: storage_params()) ->
-    #{url => binary(), api_key => binary(), luma_mode => luma_mode()}.
+    #{url => binary(), api_key => binary(), luma_mode => op_worker_rpc:luma_mode()}.
 make_luma_params(Params) ->
     kv_utils:copy_found([
         {lumaUrl, url},
