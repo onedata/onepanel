@@ -114,6 +114,18 @@ CHANGELOG
 * VFS-6035 Add VM option that forbids terminating the node with Ctrl + C
 
 
+### 19.02.3
+
+* Releasing new version 19.02.3
+
+
+### 19.02.2
+
+* VFS-6299 GUI update * Fixed page reload after certificate generation
+* VFS-6041 GUI update Added info about deprecation of Ceph storage
+* VFS-6035 Add VM option that forbids terminating the node with Ctrl + C
+
+
 ### 19.02.1
 
 * VFS-5994 Make 'production' Let's Encrypt mode the default
