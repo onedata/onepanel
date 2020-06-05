@@ -112,7 +112,7 @@ prepare_subclasses(SubclassModels) ->
 %% @private @doc Parses data according to provided specification.
 %% @end
 %%--------------------------------------------------------------------
--spec parse(Data :: data(), ArgsList :: args_list(), Keys :: keys(), Args :: args()) ->
+-spec parse(Data :: data(), subclass_spec() | args_list(), Keys :: keys(), Args :: args()) ->
     Args :: args() | no_return().
 parse(_Data, [], _Keys, Args) ->
     Args;

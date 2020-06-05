@@ -21,6 +21,7 @@
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/graph_sync/gri.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([operation_supported/3, required_availability/3, fetch_entity/1,
@@ -372,9 +373,9 @@ create(#onp_req{
     },
     data = Data
 }) ->
-    middleware_utils:execute_service_action(?SERVICE_OPW, add_user_mapping, #{
+    middleware_utils:execute_service_action(?SERVICE_OPW, add_onedata_user_to_credentials_mapping, Data#{
         id => StorageId,
-        mapping => Data
+        isLocalFeedLumaRequest => true
     });
 create(#onp_req{
     gri = #gri{
@@ -386,7 +387,8 @@ create(#onp_req{
     middleware_utils:execute_service_action(?SERVICE_OPW, add_default_posix_credentials, #{
         id => StorageId,
         spaceId => SpaceId,
-        credentials => Data
+        credentials => Data,
+        isLocalFeedLumaRequest => true
     });
 create(#onp_req{
     gri = #gri{
@@ -398,7 +400,8 @@ create(#onp_req{
     middleware_utils:execute_service_action(?SERVICE_OPW, add_display_credentials, #{
         id => StorageId,
         spaceId => SpaceId,
-        credentials => Data
+        credentials => Data,
+        isLocalFeedLumaRequest => true
     });
 create(#onp_req{
     gri = #gri{
@@ -411,7 +414,8 @@ create(#onp_req{
         #{
         id => StorageId,
         uid => convert_uid_to_integer(Uid),
-        mapping => Data
+        onedataUser => Data,
+        isLocalFeedLumaRequest => true
     });
 create(#onp_req{
     gri = #gri{
@@ -423,7 +427,8 @@ create(#onp_req{
     middleware_utils:execute_service_action(?SERVICE_OPW, add_acl_user_to_onedata_user_mapping, #{
         id => StorageId,
         aclUser => AclUser,
-        mapping => Data
+        onedataUser => Data,
+        isLocalFeedLumaRequest => true
     });
 create(#onp_req{
     gri = #gri{
@@ -435,7 +440,8 @@ create(#onp_req{
     middleware_utils:execute_service_action(?SERVICE_OPW, add_acl_group_to_onedata_group_mapping, #{
         id => StorageId,
         aclGroup => AclGroup,
-        mapping => Data
+        onedataGroup => Data,
+        isLocalFeedLumaRequest => true
     }).
 
 
@@ -457,9 +463,10 @@ get(#onp_req{gri = #gri{aspect = {As, OnedataUserId}, id = StorageId}}, _) when
     As == luma_onedata_user_to_credentials_mapping
 ->
     {ok, value, middleware_utils:result_from_service_action(
-        ?SERVICE_OPW, get_user_mapping, #{
+        ?SERVICE_OPW, get_onedata_user_to_credentials_mapping, #{
             id => StorageId,
-            onedataUserId => OnedataUserId
+            onedataUserId => OnedataUserId,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
         }
     )};
 get(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}, _) when
@@ -469,7 +476,8 @@ get(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}, _) when
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_default_posix_credentials, #{
             id => StorageId,
-            spaceId => SpaceId
+            spaceId => SpaceId,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
         }
     )};
 get(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}, _) when
@@ -479,7 +487,8 @@ get(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}, _) when
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_display_credentials, #{
             id => StorageId,
-            spaceId => SpaceId
+            spaceId => SpaceId,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
         }
     )};
 get(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}, _) when
@@ -489,7 +498,8 @@ get(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}, _) when
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_uid_to_onedata_user_mapping, #{
             id => StorageId,
-            uid => convert_uid_to_integer(Uid)
+            uid => convert_uid_to_integer(Uid),
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
         }
     )};
 get(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}, _) when
@@ -499,7 +509,8 @@ get(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}, _) when
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_acl_user_to_onedata_user_mapping, #{
             id => StorageId,
-            aclUser => AclUser
+            aclUser => AclUser,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
         }
     )};
 get(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}, _) when
@@ -509,7 +520,8 @@ get(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}, _) when
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_acl_group_to_onedata_group_mapping, #{
             id => StorageId,
-            aclGroup => AclGroup
+            aclGroup => AclGroup,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
         }
     )}.
 
@@ -531,7 +543,8 @@ update(#onp_req{
         ?SERVICE_OPW, update_user_mapping, #{
             id => StorageId,
             onedataUserId => OnedataUserId,
-            storageUser => Data
+            storageUser => Data,
+            isLocalFeedLumaRequest => true
         }
     ).
 
@@ -550,9 +563,10 @@ delete(#onp_req{gri = #gri{aspect = {As, OnedataUserId}, id = StorageId}})  when
     As == luma_onedata_user_to_credentials_mapping
 ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OPW, remove_user_mapping, #{
+        ?SERVICE_OPW, remove_onedata_user_to_credentials_mapping, #{
             id => StorageId,
-            onedataUserId => OnedataUserId
+            onedataUserId => OnedataUserId,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
     });
 delete(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}) when
     As == local_feed_luma_default_posix_credentials;
@@ -561,7 +575,8 @@ delete(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}) when
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, remove_default_posix_credentials, #{
             id => StorageId,
-            spaceId => SpaceId
+            spaceId => SpaceId,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
     });
 delete(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}) when
     As == local_feed_luma_display_credentials;
@@ -570,7 +585,8 @@ delete(#onp_req{gri = #gri{aspect = {As, SpaceId}, id = StorageId}}) when
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, remove_display_credentials, #{
             id => StorageId,
-            spaceId => SpaceId
+            spaceId => SpaceId,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
     });
 delete(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}) when
     As == local_feed_luma_uid_to_onedata_user_mapping;
@@ -579,7 +595,8 @@ delete(#onp_req{gri = #gri{aspect = {As, Uid}, id = StorageId}}) when
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, remove_uid_to_onedata_user_mapping, #{
             id => StorageId,
-            uid => convert_uid_to_integer(Uid)
+            uid => convert_uid_to_integer(Uid),
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
     });
 delete(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}) when
     As == local_feed_luma_acl_user_to_onedata_user_mapping;
@@ -588,7 +605,8 @@ delete(#onp_req{gri = #gri{aspect = {As, AclUser}, id = StorageId}}) when
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, remove_acl_user_to_onedata_user_mapping, #{
             id => StorageId,
-            aclUser => AclUser
+            aclUser => AclUser,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
     });
 delete(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}) when
     As == local_feed_luma_acl_group_to_onedata_group_mapping;
@@ -597,7 +615,8 @@ delete(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}) when
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, remove_acl_group_to_onedata_group_mapping, #{
             id => StorageId,
-            aclGroup => AclGroup
+            aclGroup => AclGroup,
+            isLocalFeedLumaRequest => is_local_feed_luma_request(As)
     }).
 
 %%%===================================================================
@@ -618,4 +637,11 @@ convert_uid_to_integer(Value) ->
     catch
         error:badarg ->
             throw(?ERROR_BAD_VALUE_INTEGER(uid))
+    end.
+
+-spec is_local_feed_luma_request(atom()) -> boolean().
+is_local_feed_luma_request(Aspect) ->
+    case atom_to_binary(Aspect, utf8) of
+        <<"local_feed_", _/binary>> -> true;
+        _ -> false
     end.

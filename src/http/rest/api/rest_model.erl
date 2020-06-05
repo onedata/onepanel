@@ -746,8 +746,8 @@ luma_storage_user_model() ->
 -spec luma_user_mapping_model() -> onepanel_parser:object_spec().
 luma_user_mapping_model() ->
     #{
-        onedata => luma_onedata_user_model(),
-        storage => luma_storage_user_model()
+        onedataUser => luma_onedata_user_model(),
+        storageUser => luma_storage_user_model()
     }.
 
 %%--------------------------------------------------------------------
@@ -2315,7 +2315,9 @@ luma_idp_entitlement_scheme_model() ->
         %% The id of an external identity provider.
         idp => string,
         %% The id of the group understood by the external identity provider.
-        idpEntitlement => string
+        idpEntitlement => string,
+        %% The id of group in the Onedata system.
+        onedataGroupId => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2331,7 +2333,9 @@ luma_idp_user_scheme_model() ->
         %% The id of an external identity provider.
         idp => string,
         %% The id of the user understood by the external identity provider.
-        subjectId => string
+        subjectId => string,
+        %% The id of user in Onedata system.
+        onedataUserId => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2937,11 +2941,11 @@ webdav_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with disabled LUMA service with
-        %% `oauth2` external IdP, this field must contain a valid
-        %% Onedata access token of the user on whose behalf the WebDAV storage
-        %% will be accessed by all users with access to any space supported by
-        %% this storage.
+        %% When registering storage with feed of LUMA DB set to`auto`
+        %% and with `oauth2` external IdP, this field must contain a
+        %% valid Onedata access token of the user on whose behalf the WebDAV
+        %% storage will be accessed by all users with access to any space
+        %% supported by this storage.
         onedataAccessToken => {string, optional},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
@@ -3013,11 +3017,11 @@ webdav_credentials_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with disabled LUMA service with
-        %% `oauth2` external IdP, this field must contain a valid
-        %% Onedata access token of the user on whose behalf the WebDAV storage
-        %% will be accessed by all users with access to any space supported by
-        %% this storage.
+        %% When registering storage with feed of LUMA DB set to`auto`
+        %% and with `oauth2` external IdP, this field must contain a
+        %% valid Onedata access token of the user on whose behalf the WebDAV
+        %% storage will be accessed by all users with access to any space
+        %% supported by this storage.
         onedataAccessToken => {string, optional}
     }.
 

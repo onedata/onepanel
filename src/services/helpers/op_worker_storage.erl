@@ -38,9 +38,10 @@
 }.
 
 %% Storage information retrieved from op_worker
+% todo to juz chyba wcale nie są atomy?
 -type storage_details() :: #{
     readonly := boolean(),
-    lumaMode := op_worker_rpc:luma_mode(),
+    lumaFeed := op_worker_rpc:luma_feed(),
     qosParameters := qos_parameters(),
     atom() := binary()
 }.
@@ -52,6 +53,7 @@
 
 %% Opaque terms from op_worker
 -type luma_config() :: op_worker_rpc:luma_config().
+-type luma_feed() :: op_worker_rpc:luma_feed().
 -type helper() :: op_worker_rpc:helper().
 % @formatter:on
 
@@ -278,6 +280,7 @@ can_be_removed(StorageId) ->
 -spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
     ok | {error, Reason :: term()}.
 add(OpNode, Name, Params) ->
+    ?alert("Params: ~p", [Params]),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
@@ -285,10 +288,13 @@ add(OpNode, Name, Params) ->
 
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     UserCtx = make_user_ctx(OpNode, StorageType, StorageParams),
+    ?alert("StorageParams: ~p", [StorageParams]),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams),
 
     LumaConfig = make_luma_config(OpNode, StorageParams),
-    maybe_verify_storage(Helper, SkipStorageDetection),
+
+    LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom),
+    maybe_verify_storage(Helper, SkipStorageDetection, LumaFeed),
 
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
 
@@ -314,22 +320,22 @@ make_helper(OpNode, StorageType, AdminCtx, Params) ->
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns luma config acquired from provider.
-%% If lumaMode is set to <<"external_luma">> it parses other luma arguments
+%% If lumaFeed is set to <<"external">> it parses other luma arguments
 %% from StorageParams .
 %% Throws error if lumaEnabled is true and other arguments are missing.
 %% @end
 %%--------------------------------------------------------------------
 -spec make_luma_config(OpNode :: node(), StorageParams :: storage_params()) -> luma_config().
 make_luma_config(OpNode, StorageParams) ->
-    case onepanel_utils:get_converted(lumaMode, StorageParams, string, <<"no_luma">>) of
-        Mode = <<"no_luma">> ->
-            op_worker_rpc:new_luma_config(OpNode, binary_to_atom(Mode, utf8));
-        Mode = <<"embedded_luma">> ->
-            op_worker_rpc:new_luma_config(OpNode, binary_to_atom(Mode, utf8));
-        <<"external_luma">> ->
+    case onepanel_utils:get_converted(lumaFeed, StorageParams, atom, auto) of
+        auto ->
+            op_worker_rpc:new_luma_config(OpNode, auto);
+        local ->
+            op_worker_rpc:new_luma_config(OpNode, local);
+        external ->
             Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
             ApiKey = onepanel_utils:get_converted(lumaApiKey, StorageParams, binary, undefined),
-            op_worker_rpc:new_external_luma_config(OpNode, Url, ApiKey)
+            op_worker_rpc:new_luma_config_with_external_feed(OpNode, Url, ApiKey)
     end.
 
 
@@ -338,13 +344,13 @@ make_luma_config(OpNode, StorageParams) ->
 %% op_worker service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: helper(), SkipStorageDetection :: boolean()) ->
+-spec maybe_verify_storage(Helper :: helper(), SkipStorageDetection :: boolean(), luma_feed()) ->
     skipped | verified | no_return().
-maybe_verify_storage(_Helper, true) ->
+maybe_verify_storage(_Helper, true, _LumaFeed) ->
     skipped;
-maybe_verify_storage(Helper, _) ->
+maybe_verify_storage(Helper, _, LumaFeed) ->
     ?info("Verifying write access to storage"),
-    verify_storage(Helper),
+    verify_storage(Helper, LumaFeed),
     verified.
 
 
@@ -353,10 +359,10 @@ maybe_verify_storage(Helper, _) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_storage(Helper :: any()) ->
+-spec verify_storage(helper(), luma_feed()) ->
     ok | no_return().
-verify_storage(Helper) ->
-    case op_worker_rpc:verify_storage_on_all_nodes(Helper) of
+verify_storage(Helper, LumaFeed) ->
+    case op_worker_rpc:verify_storage_on_all_nodes(Helper, LumaFeed) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
     end.
@@ -385,11 +391,12 @@ get_required_luma_arg(Key, StorageParams, Type) ->
 -spec make_update_result(OpNode :: node(), StorageId :: id()) -> storage_details().
 make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
-    #{name := Name, readonly := Readonly} = Details,
+    #{name := Name, lumaFeed := LumaFeed} = Details,
+    SkipStorageDetection = maps:get(skipStorageDetection, Details, false),
     ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
     try
         {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
-        maybe_verify_storage(Helper, Readonly)
+        maybe_verify_storage(Helper, SkipStorageDetection, LumaFeed)
     of
         skipped -> Details;
         verified -> Details#{verificationPassed => true}
@@ -428,12 +435,12 @@ make_user_ctx(OpNode, StorageType, Params) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec make_luma_params(Params :: storage_params()) ->
-    #{url => binary(), api_key => binary(), luma_mode => op_worker_rpc:luma_mode()}.
+    #{url => binary(), api_key => binary(), luma_feed => op_worker_rpc:luma_feed()}.
 make_luma_params(Params) ->
     kv_utils:copy_found([
         {lumaUrl, url},
         {lumaApiKey, api_key},
-        {lumaMode, mode}
+        {lumaFeed, feed}
     ], Params).
 
 
@@ -595,7 +602,4 @@ parse_file_popularity_configuration(Args) ->
 %% @private
 -spec convert_to_binaries(#{term() => term()}) -> #{binary() => binary()}.
 convert_to_binaries(Map) ->
-    maps:from_list([{
-        onepanel_utils:convert(Key, binary),
-        onepanel_utils:convert(Value, binary)
-    } || {Key, Value} <- maps:to_list(Map)]).
+    onepanel_utils:convert(Map, {map, binary}).

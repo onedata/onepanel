@@ -930,20 +930,18 @@ post_should_add_user_mapping_to_local_feed_luma(Config) ->
             post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
             ?LUMA_USER_MAPPING_JSON
         )),
-        ?assertReceivedMatch({service, op_worker, add_user_mapping, #{
+        ?assertReceivedMatch({service, op_worker, add_onedata_user_to_credentials_mapping, #{
             id := <<"someStorageId">>,
-            mapping := #{
-                onedata := #{
-                    mappingScheme := <<"onedataUser">>,
-                    onedataUserId := <<"someUserId">>
+            onedataUser := #{
+                mappingScheme := <<"onedataUser">>,
+                onedataUserId := <<"someUserId">>
+            },
+            storageUser := #{
+                storageCredentials := #{
+                    type := <<"posix">>,
+                    uid := 1000
                 },
-                storage := #{
-                    storageCredentials := #{
-                        type := <<"posix">>,
-                        uid := 1000
-                   },
-                    displayUid := 2000
-                }
+                displayUid := 2000
             }
         }}, ?TIMEOUT)
     end).
@@ -979,7 +977,7 @@ delete_should_remove_user_mapping_from_local_feed_luma(Config) ->
             Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/someUserId">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
-        ?assertReceivedMatch({service, op_worker, remove_user_mapping, #{
+        ?assertReceivedMatch({service, op_worker, remove_onedata_user_to_credentials_mapping, #{
             id := <<"someStorageId">>,
             onedataUserId := <<"someUserId">>
         }}, ?TIMEOUT)
@@ -1075,7 +1073,7 @@ put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma(Config) ->
         ?assertReceivedMatch({service, op_worker, add_uid_to_onedata_user_mapping, #{
             id := <<"someStorageId">>,
             uid := 1234,
-            mapping := #{
+            onedataUser := #{
                 mappingScheme := <<"onedataUser">>,
                 onedataUserId := <<"someUserId">>
             }}}, ?TIMEOUT)
@@ -1111,7 +1109,7 @@ put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma(Config) ->
         ?assertReceivedMatch({service, op_worker, add_acl_user_to_onedata_user_mapping, #{
             id := <<"someStorageId">>,
             aclUser := <<"someUsername">>,
-            mapping := #{
+            onedataUser := #{
                 mappingScheme := <<"onedataUser">>,
                 onedataUserId := <<"someUserId">>
             }}}, ?TIMEOUT)
@@ -1147,7 +1145,7 @@ put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma(Config) ->
         ?assertReceivedMatch({service, op_worker, add_acl_group_to_onedata_group_mapping, #{
             id := <<"someStorageId">>,
             aclGroup := <<"someGroupname">>,
-            mapping := #{
+            onedataGroup := #{
                 mappingScheme := <<"onedataGroup">>,
                 onedataGroupId := <<"someGroupId">>
             }}}, ?TIMEOUT)
@@ -1180,7 +1178,7 @@ delete_should_remove_user_mapping_from_luma(Config) ->
             Host, <<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/someUserId">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
-        ?assertReceivedMatch({service, op_worker, remove_user_mapping, #{
+        ?assertReceivedMatch({service, op_worker, remove_onedata_user_to_credentials_mapping, #{
             id := <<"someStorageId">>,
             onedataUserId := <<"someUserId">>
         }}, ?TIMEOUT)
@@ -1678,7 +1676,7 @@ init_per_testcase(Case, Config) when
                 [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
                 []
             }},
-        #step_end{module = service_op_worker, function = get_user_mapping,
+        #step_end{module = service_op_worker, function = get_onedata_user_to_credentials_mapping,
             good_bad_results = {
                 [{'node@host1', ?LUMA_USER_MAPPING_JSON}], []
             }},

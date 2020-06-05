@@ -62,20 +62,20 @@
 -export([
     get_luma_configuration/1,
     clear_luma_db/1,
-    get_user_mapping/1,
+    get_onedata_user_to_credentials_mapping/1,
     get_default_posix_credentials/1,
     get_display_credentials/1,
     get_uid_to_onedata_user_mapping/1,
     get_acl_user_to_onedata_user_mapping/1,
     get_acl_group_to_onedata_group_mapping/1,
-    add_user_mapping/1,
+    add_onedata_user_to_credentials_mapping/1,
     add_default_posix_credentials/1,
     add_display_credentials/1,
     add_uid_to_onedata_user_mapping/1,
     add_acl_user_to_onedata_user_mapping/1,
     add_acl_group_to_onedata_group_mapping/1,
     update_user_mapping/1,
-    remove_user_mapping/1,
+    remove_onedata_user_to_credentials_mapping/1,
     remove_default_posix_credentials/1,
     remove_display_credentials/1,
     remove_uid_to_onedata_user_mapping/1,
@@ -85,6 +85,18 @@
 
 -export([migrate_generated_config/1]).
 
+-define(CHECK_LUMA_FEED_AND_APPLY(Fun, Ctx),
+    begin
+        IsLocalFeedLumaRequest = maps:get(isLocalFeedLumaRequest, Ctx),
+        StorageId = maps:get(id, Ctx),
+        case (not IsLocalFeedLumaRequest)
+            orelse (op_worker_rpc:storage_get_luma_feed(StorageId) =:= local)
+        of
+            true -> Fun();
+            false -> ?ERROR_NOT_FOUND
+        end
+    end
+).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -181,20 +193,20 @@ get_steps(Function, _Ctx) when
     Function == remove_storage;
     Function == clear_luma_db;
     Function == get_luma_configuration;
-    Function == get_user_mapping;
+    Function == get_onedata_user_to_credentials_mapping;
     Function == get_default_posix_credentials;
     Function == get_display_credentials;
     Function == get_uid_to_onedata_user_mapping;
     Function == get_acl_user_to_onedata_user_mapping;
     Function == get_acl_group_to_onedata_group_mapping;
-    Function == add_user_mapping;
+    Function == add_onedata_user_to_credentials_mapping;
     Function == add_default_posix_credentials;
     Function == add_display_credentials;
     Function == add_uid_to_onedata_user_mapping;
     Function == add_acl_user_to_onedata_user_mapping;
     Function == add_acl_group_to_onedata_group_mapping;
     Function == update_user_mapping;
-    Function == remove_user_mapping;
+    Function == remove_onedata_user_to_credentials_mapping;
     Function == remove_default_posix_credentials;
     Function == remove_display_credentials;
     Function == remove_uid_to_onedata_user_mapping;
@@ -502,95 +514,149 @@ remove_storage(#{id := Id}) ->
     end.
 
 
--spec get_luma_configuration(Ctx :: service:step_ctx()) -> ok.
+-spec get_luma_configuration(Ctx :: service:step_ctx()) -> op_worker_rpc:luma_details().
 get_luma_configuration(#{storage := Storage}) ->
-    op_worker_luma:get_luma_configuration(Storage).
+    kv_utils:copy_found([
+        {lumaUrl, lumaUrl},
+        {lumaApiKey, lumaApiKey},
+        {lumaFeed, lumaFeed}
+    ], Storage).
 
 
 -spec clear_luma_db(Ctx :: service:step_ctx()) -> ok.
 clear_luma_db(#{id := StorageId}) ->
-    op_worker_luma:clear_luma_db(StorageId).
+    op_worker_rpc:luma_clear_db(StorageId).
 
 
--spec get_user_mapping(Ctx :: service:step_ctx()) -> ok.
-get_user_mapping(#{id := StorageId, onedataUserId := OnedataUserId}) ->
-    op_worker_luma:get_user_mapping(StorageId, OnedataUserId).
+-spec get_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> {ok, json_utils:json_map()}.
+get_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, onedataUserId := OnedataUserId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_storage_users_get_and_describe(StorageId, OnedataUserId)
+    end, Ctx).
 
 
 -spec get_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.
-get_default_posix_credentials(#{id := StorageId, spaceId := SpaceId}) ->
-    op_worker_luma:get_default_posix_credentials(StorageId, SpaceId).
+get_default_posix_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_posix_storage_defaults_get_and_describe(StorageId, SpaceId)
+    end, Ctx).
 
 
 -spec get_display_credentials(Ctx :: service:step_ctx()) -> ok.
-get_display_credentials(#{id := StorageId, spaceId := SpaceId}) ->
-    op_worker_luma:get_display_credentials(StorageId, SpaceId).
+get_display_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_display_defaults_get_and_describe(StorageId, SpaceId)
+    end, Ctx).
 
 
 -spec get_uid_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
-get_uid_to_onedata_user_mapping(#{id := StorageId, uid := Uid}) ->
-    op_worker_luma:get_uid_to_onedata_user_mapping(StorageId, Uid).
+get_uid_to_onedata_user_mapping(Ctx = #{id := StorageId, uid := Uid}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_get_by_uid_and_describe(StorageId, Uid)
+    end, Ctx).
 
 
 -spec get_acl_user_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
-get_acl_user_to_onedata_user_mapping(#{id := StorageId, aclUser := AclUser}) ->
-    op_worker_luma:get_acl_user_to_onedata_user_mapping(StorageId, AclUser).
+get_acl_user_to_onedata_user_mapping(Ctx = #{id := StorageId, aclUser := AclUser}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_get_by_acl_user_and_describe(StorageId, AclUser)
+    end, Ctx).
 
 -spec get_acl_group_to_onedata_group_mapping(Ctx :: service:step_ctx()) -> ok.
-get_acl_group_to_onedata_group_mapping(#{id := StorageId, aclGroup := AclGroup}) ->
-    op_worker_luma:get_acl_group_to_onedata_group_mapping(StorageId, AclGroup).
+get_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclUser}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_groups_get_and_describe(StorageId, AclUser)
+    end, Ctx).
 
--spec add_user_mapping(Ctx :: service:step_ctx()) -> ok.
-add_user_mapping(#{id := StorageId, mapping := Mapping}) ->
-    op_worker_luma:add_user_mapping(StorageId, Mapping).
+-spec add_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> ok.
+add_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, storageUser := StorageUser, onedataUser := OnedataUser}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+        StorageUser2 = onepanel_utils:convert_recursive(StorageUser, {keys, binary}),
+        op_worker_rpc:luma_storage_users_store(StorageId, OnedataUser2, StorageUser2)
+    end, Ctx).
 
 -spec add_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.
-add_default_posix_credentials(#{id := StorageId, spaceId := SpaceId, credentials := Credentials}) ->
-    op_worker_luma:add_default_posix_credentials(StorageId, SpaceId, Credentials).
+add_default_posix_credentials(Ctx = #{id := StorageId, spaceId := SpaceId, credentials := Credentials}) ->
+    op_worker_luma:execute(fun() ->
+        Credentials2 = onepanel_utils:convert(Credentials, {keys, binary}),
+        op_worker_rpc:luma_spaces_posix_storage_defaults_store(StorageId, SpaceId, Credentials2)
+    end, Ctx).
 
 -spec add_display_credentials(Ctx :: service:step_ctx()) -> ok.
-add_display_credentials(#{id := StorageId, spaceId := SpaceId, credentials := Credentials}) ->
-    op_worker_luma:add_display_credentials(StorageId, SpaceId, Credentials).
+add_display_credentials(Ctx = #{id := StorageId, spaceId := SpaceId, credentials := Credentials}) ->
+    op_worker_luma:execute(fun() ->
+        Credentials2 = onepanel_utils:convert(Credentials, {keys, binary}),
+        op_worker_rpc:luma_spaces_display_defaults_store(StorageId, SpaceId, Credentials2)
+    end, Ctx).
 
 -spec add_uid_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
-add_uid_to_onedata_user_mapping(#{id := StorageId, uid := Uid, mapping := Mapping}) ->
-    op_worker_luma:add_uid_to_onedata_user_mapping(StorageId, Uid, Mapping).
+add_uid_to_onedata_user_mapping(Ctx = #{id := StorageId, uid := Uid, onedataUser := OnedataUser}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+        op_worker_rpc:luma_onedata_users_store_by_uid(StorageId, Uid, OnedataUser2)
+    end, Ctx).
 
 -spec add_acl_user_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
-add_acl_user_to_onedata_user_mapping(#{id := StorageId, aclUser := AclUser, mapping := Mapping}) ->
-    op_worker_luma:add_acl_user_to_onedata_user_mapping(StorageId, AclUser, Mapping).
+add_acl_user_to_onedata_user_mapping(Ctx = #{id := StorageId, aclUser := AclUser, onedataUser := OnedataUser}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+        op_worker_rpc:luma_onedata_users_store_by_acl_user(StorageId, AclUser, OnedataUser2)
+    end, Ctx).
 
 -spec add_acl_group_to_onedata_group_mapping(Ctx :: service:step_ctx()) -> ok.
-add_acl_group_to_onedata_group_mapping(#{id := StorageId, aclGroup := AclGroup, mapping := Mapping}) ->
-    op_worker_luma:add_acl_group_to_onedata_group_mapping(StorageId, AclGroup, Mapping).
+add_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclGroup, onedataGroup := OnedataGroup}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataGroup2 = onepanel_utils:convert(OnedataGroup, {keys, binary}),
+        op_worker_rpc:luma_onedata_groups_store(StorageId, AclGroup, OnedataGroup2)
+    end, Ctx).
 
 -spec update_user_mapping(Ctx :: service:step_ctx()) -> ok.
-update_user_mapping(#{id := StorageId, onedataUserId := OnedataUserId, storageUser := StorageUser}) ->
-    op_worker_luma:update_user_mapping(StorageId, OnedataUserId, StorageUser).
+update_user_mapping(Ctx = #{id := StorageId, onedataUserId := OnedataUserId, storageUser := StorageUser}) ->
+    op_worker_luma:execute(fun() ->
+        StorageUser2 = onepanel_utils:convert_recursive(StorageUser, {keys, binary}),
+        op_worker_rpc:luma_storage_users_update(StorageId, OnedataUserId, StorageUser2)
+    end, Ctx).
 
--spec remove_user_mapping(Ctx :: service:step_ctx()) -> ok.
-remove_user_mapping(#{id := StorageId, onedataUserId := OnedataUserId}) ->
-    op_worker_luma:remove_user_mapping(StorageId, OnedataUserId).
+-spec remove_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> ok.
+remove_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, onedataUserId := OnedataUserId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_storage_users_delete(StorageId, OnedataUserId)
+    end, Ctx).
 
 -spec remove_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.
-remove_default_posix_credentials(#{id := StorageId, spaceId := SpaceId}) ->
-    op_worker_luma:remove_default_posix_credentials(StorageId, SpaceId).
+remove_default_posix_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_posix_storage_defaults_delete(StorageId, SpaceId)
+end, Ctx).
 
 -spec remove_display_credentials(Ctx :: service:step_ctx()) -> ok.
-remove_display_credentials(#{id := StorageId, spaceId := SpaceId}) ->
-    op_worker_luma:remove_display_credentials(StorageId, SpaceId).
+remove_display_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_display_defaults_delete(StorageId, SpaceId)
+    end, Ctx).
+
 
 -spec remove_uid_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
-remove_uid_to_onedata_user_mapping(#{id := StorageId, uid := Uid}) ->
-    op_worker_luma:remove_uid_to_onedata_user_mapping(StorageId, Uid).
+remove_uid_to_onedata_user_mapping(Ctx = #{id := StorageId, uid := Uid}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_delete_uid_mapping(StorageId, Uid)
+    end, Ctx).
+
 
 -spec remove_acl_user_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
-remove_acl_user_to_onedata_user_mapping(#{id := StorageId, aclUser := AclUser}) ->
-    op_worker_luma:remove_acl_user_to_onedata_user_mapping(StorageId, AclUser).
+remove_acl_user_to_onedata_user_mapping(Ctx = #{id := StorageId, aclUser := AclUser}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_delete_acl_user_mapping(StorageId, AclUser)
+    end, Ctx).
+
 
 -spec remove_acl_group_to_onedata_group_mapping(Ctx :: service:step_ctx()) -> ok.
-remove_acl_group_to_onedata_group_mapping(#{id := StorageId, aclGroup := AclGroup}) ->
-    op_worker_luma:remove_acl_group_to_onedata_group_mapping(StorageId, AclGroup).
+remove_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclGroup}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_groups_delete(StorageId, AclGroup)
+    end, Ctx).
+
 
 -spec set_transfers_mock(#{transfers_mock := boolean()}) -> ok.
 set_transfers_mock(#{transfers_mock := Enabled}) ->
