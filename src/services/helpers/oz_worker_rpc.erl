@@ -68,7 +68,7 @@
 -export([migrate_onepanel_user_to_onezone/4, migrate_onepanel_user_to_onezone/5]).
 -export([cluster_get_eff_user_privileges/3, cluster_get_eff_user_privileges/4]).
 -export([get_protected_cluster_data/2, get_protected_cluster_data/3]).
--export([get_clusters_by_user_auth/1, get_clusters_by_user_auth/2]).
+-export([get_eff_clusters_by_user_auth/1, get_eff_clusters_by_user_auth/2]).
 -export([cluster_logic_get_users/2, cluster_logic_get_eff_users/2]).
 -export([cluster_logic_get_groups/2, cluster_logic_get_eff_groups/2]).
 -export([cluster_logic_create_invite_token_for_admin/2]).
@@ -246,13 +246,13 @@ get_protected_cluster_data(Node, Auth, ClusterId) ->
     ?CALL(Node, [Auth, ClusterId]).
 
 
--spec get_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | errors:error().
-get_clusters_by_user_auth(Auth) ->
+-spec get_eff_clusters_by_user_auth(aai:auth()) -> {ok, [od_cluster_id()]} | errors:error().
+get_eff_clusters_by_user_auth(Auth) ->
     ?CALL([Auth]).
 
--spec get_clusters_by_user_auth(node(), aai:auth()) ->
+-spec get_eff_clusters_by_user_auth(node(), aai:auth()) ->
     {ok, [od_cluster_id()]} | {error, term()}.
-get_clusters_by_user_auth(Node, Auth) ->
+get_eff_clusters_by_user_auth(Node, Auth) ->
     ?CALL(Node, [Auth]).
 
 
