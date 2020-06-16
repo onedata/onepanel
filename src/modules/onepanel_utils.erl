@@ -219,13 +219,7 @@ convert(Value, Type) ->
 %% @doc Converts value to a provided type.
 %% @end
 %%--------------------------------------------------------------------
--spec convert_recursive
-    ([Old :: term()], {seq, type()}) -> [Converted :: term()];
-    (#{Old :: term() => V}, {keys, type()}) -> #{Converted :: term() => V};
-    (#{K => Old :: term()}, {values, type()}) -> #{K => Converted :: term()};
-    (#{OldKey :: term() => OldValue :: term()}, {map, type()}) ->
-        #{ConvertedKey :: term() => ConvertedValue :: term()};
-    (Old :: term(), type()) -> Converted :: term().
+-spec convert_recursive(Old :: term(), type()) -> Converted :: term().
 convert_recursive(Values, TypeSpec = {seq, _}) when is_list(Values) ->
     lists:map(fun(Value) -> convert_recursive(Value, TypeSpec) end, Values);
 

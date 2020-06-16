@@ -421,8 +421,8 @@ all() ->
 
 
 -define(LUMA_USER_MAPPING_JSON, #{
-    <<"onedata">> => ?LUMA_ONEDATA_USER_JSON,
-    <<"storage">> => #{
+    <<"onedataUser">> => ?LUMA_ONEDATA_USER_JSON,
+    <<"storageUser">> => #{
         <<"storageCredentials">> => #{
             <<"type">> => <<"posix">>,
             <<"uid">> => 1000
