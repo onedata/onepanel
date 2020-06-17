@@ -293,7 +293,7 @@ add(OpNode, Name, Params) ->
 
     LumaConfig = make_luma_config(OpNode, StorageParams),
 
-    LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom),
+    LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
     maybe_verify_storage(Helper, SkipStorageDetection, LumaFeed),
 
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
@@ -392,7 +392,7 @@ get_required_luma_arg(Key, StorageParams, Type) ->
 make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
     #{name := Name, lumaFeed := LumaFeed} = Details,
-    SkipStorageDetection = maps:get(skipStorageDetection, Details, false),
+    SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, Details, boolean, false),
     ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
     try
         {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),

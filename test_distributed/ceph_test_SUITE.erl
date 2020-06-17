@@ -56,7 +56,8 @@
     clusterName => <<"ceph">>,
     poolName => <<"onedata">>,
     storagePathType => <<"flat">>,
-    qosParameters => #{}
+    qosParameters => #{},
+    lumaFeed => auto
 }).
 
 
