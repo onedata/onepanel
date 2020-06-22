@@ -1754,8 +1754,7 @@ ceph_model() ->
         %% The type of storage.
         type => {discriminator, <<"ceph">>},
         %% Map with key-value pairs used for describing storage QoS parameters.
-        %% Overrides all previously set parameters.
-        qosParameters => {#{'_' => string}, optional},
+        qosParameters => {#{'_' => string}, {optional, #{}}},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
