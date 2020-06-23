@@ -104,11 +104,14 @@ update(OpNode, Id, Params) ->
     PlainValues = maps:remove(qosParameters, Params),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
+    case maybe_update_qos_parameters(OpNode, Id, Params) of
+        ok -> ok;
+        {error, Reason} -> throw({error, Reason})
+    end,
     ok = maybe_update_name(OpNode, Id, PlainValues),
     ok = maybe_update_admin_ctx(OpNode, Id, Type, PlainValues),
     ok = maybe_update_args(OpNode, Id, Type, PlainValues),
     ok = maybe_update_luma_config(OpNode, Id, PlainValues),
-    ok = maybe_update_qos_parameters(OpNode, Id, Params),
     ok = maybe_update_imported_storage(OpNode, Id, Params),
     make_update_result(OpNode, Id).
 
@@ -487,7 +490,7 @@ maybe_update_luma_config(OpNode, Id, Params) ->
 
 
 -spec maybe_update_qos_parameters(OpNode :: node(), Id :: id(),
-    storage_params()) -> ok.
+    storage_params()) -> ok | errors:error().
 maybe_update_qos_parameters(OpNode, Id, #{qosParameters := Parameters}) ->
     update_qos_parameters(OpNode, Id, Parameters);
 maybe_update_qos_parameters(_OpNode, _Id, _) ->
@@ -495,9 +498,9 @@ maybe_update_qos_parameters(_OpNode, _Id, _) ->
 
 
 -spec update_qos_parameters(OpNode :: node(), Id :: id(),
-    qos_parameters()) -> ok.
+    qos_parameters()) -> ok | errors:error().
 update_qos_parameters(OpNode, Id, Parameters) ->
-    ok = op_worker_rpc:storage_set_qos_parameters(OpNode, Id, Parameters).
+    op_worker_rpc:storage_set_qos_parameters(OpNode, Id, Parameters).
 
 
 -spec maybe_update_imported_storage(OpNode :: node(), Id :: id(),
