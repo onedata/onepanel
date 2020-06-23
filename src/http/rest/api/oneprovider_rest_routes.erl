@@ -70,20 +70,6 @@ routes() ->
             data_spec = (rest_model:ceph_osds_model())
         }},
 
-        %% Add local feed LUMA Onedata user to credentials mapping.
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/all/onedata_user_to_credentials">>, #rest_req{
-            method = 'POST',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = local_feed_luma_onedata_user_to_credentials_mapping,
-                scope = private
-            },
-            produces = [<<"application/json">>],
-            %% New user mapping
-            data_spec = (rest_model:luma_user_mapping_model())
-        }},
-
         %% Register provider
         {<<"/provider">>, #rest_req{
             method = 'POST',
@@ -399,162 +385,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get mapping of ACL group from LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_acl_group_to_onedata_group_mapping, ?BINDING(groupname)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get mapping of ACL user from LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_acl_user_to_onedata_user_mapping, ?BINDING(username)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get local feed LUMA default posix credentials
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/posix_compatible/default_credentials/:space_id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_default_posix_credentials, ?BINDING(space_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get local feed LUMA display credentials
-        {<<"/provider/storages/:id/luma/local_feed/oneclient_display_credentials/all/default/:space_id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_display_credentials, ?BINDING(space_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get local feed LUMA Onedata user to credentials mapping.
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/all/onedata_user_to_credentials/:onedata_user_id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_onedata_user_to_credentials_mapping, ?BINDING(onedata_user_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get mapping of UID from LUMA DB with local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_uid_to_onedata_user_mapping, ?BINDING(uid)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get mapping of ACL group from LUMA DB
-        {<<"/provider/storages/:id/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_acl_group_to_onedata_group_mapping, ?BINDING(groupname)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get mapping of ACL user from LUMA DB
-        {<<"/provider/storages/:id/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_acl_user_to_onedata_user_mapping, ?BINDING(username)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get LUMA DB configuration
-        {<<"/provider/storages/:id/luma/config">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = luma_configuration,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get LUMA default posix credentials
-        {<<"/provider/storages/:id/luma/db/storage_access/posix_compatible/default_credentials/:space_id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_default_posix_credentials, ?BINDING(space_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get LUMA display credentials
-        {<<"/provider/storages/:id/luma/db/oneclient_display_credentials/all/default/:space_id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_display_credentials, ?BINDING(space_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get LUMA Onedata user to credentials mapping.
-        {<<"/provider/storages/:id/luma/db/storage_access/all/onedata_user_to_credentials/:onedata_user_id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_onedata_user_to_credentials_mapping, ?BINDING(onedata_user_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get mapping of UID from LUMA DB
-        {<<"/provider/storages/:id/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_uid_to_onedata_user_mapping, ?BINDING(uid)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
         %% Get Onezone information
         {<<"/provider/onezone_info">>, #rest_req{
             method = 'GET',
@@ -830,17 +660,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Invalidate LUMA DB
-        {<<"/provider/storages/:id/luma/db">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = luma_db,
-                scope = private
-            }
-        }},
-
         %% Modify pool params
         {<<"/provider/ceph/pools/:name">>, #rest_req{
             method = 'PATCH',
@@ -851,20 +670,6 @@ routes() ->
                 scope = private
             },
             data_spec = (rest_model:ceph_pool_model())
-        }},
-
-        %% Modify local feed LUMA Onedata user to credentials mapping.
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/all/onedata_user_to_credentials/:onedata_user_id">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_onedata_user_to_credentials_mapping, ?BINDING(onedata_user_id)},
-                scope = private
-            },
-            produces = [<<"application/json">>],
-            %% New user mapping
-            data_spec = (rest_model:luma_storage_user_model())
         }},
 
         %% Modify provider details
@@ -933,127 +738,6 @@ routes() ->
             data_spec = (rest_model:transfers_mock_model())
         }},
 
-        %% Remove mapping of ACL group from LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_acl_group_to_onedata_group_mapping, ?BINDING(groupname)},
-                scope = private
-            }
-        }},
-
-        %% Remove mapping of ACL user from LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_acl_user_to_onedata_user_mapping, ?BINDING(username)},
-                scope = private
-            }
-        }},
-
-        %% Remove local feed LUMA default posix credentials
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/posix_compatible/default_credentials/:space_id">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_default_posix_credentials, ?BINDING(space_id)},
-                scope = private
-            }
-        }},
-
-        %% Remove local feed LUMA default display credentials
-        {<<"/provider/storages/:id/luma/local_feed/oneclient_display_credentials/all/default/:space_id">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_display_credentials, ?BINDING(space_id)},
-                scope = private
-            }
-        }},
-
-        %% Remove local feed LUMA Onedata user to credentials mapping.
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/all/onedata_user_to_credentials/:onedata_user_id">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_onedata_user_to_credentials_mapping, ?BINDING(onedata_user_id)},
-                scope = private
-            }
-        }},
-
-        %% Remove mapping of ACL group from LUMA DB
-        {<<"/provider/storages/:id/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_acl_group_to_onedata_group_mapping, ?BINDING(groupname)},
-                scope = private
-            }
-        }},
-
-        %% Remove mapping of ACL user from LUMA DB
-        {<<"/provider/storages/:id/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_acl_user_to_onedata_user_mapping, ?BINDING(username)},
-                scope = private
-            }
-        }},
-
-        %% Remove default LUMA posix credentials
-        {<<"/provider/storages/:id/luma/db/storage_access/posix_compatible/default_credentials/:space_id">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_default_posix_credentials, ?BINDING(space_id)},
-                scope = private
-            }
-        }},
-
-        %% Remove LUMA default display credentials
-        {<<"/provider/storages/:id/luma/db/oneclient_display_credentials/all/default/:space_id">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_display_credentials, ?BINDING(space_id)},
-                scope = private
-            }
-        }},
-
-        %% Remove LUMA Onedata user to credentials mapping.
-        {<<"/provider/storages/:id/luma/db/storage_access/all/onedata_user_to_credentials/:onedata_user_id">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_onedata_user_to_credentials_mapping, ?BINDING(onedata_user_id)},
-                scope = private
-            }
-        }},
-
-        %% Remove mapping of UID from LUMA DB
-        {<<"/provider/storages/:id/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {luma_uid_to_onedata_user_mapping, ?BINDING(uid)},
-                scope = private
-            }
-        }},
-
         %% Unregister provider
         {<<"/provider">>, #rest_req{
             method = 'DELETE',
@@ -1076,17 +760,6 @@ routes() ->
             }
         }},
 
-        %% Remove mapping of UID from LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
-            method = 'DELETE',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_uid_to_onedata_user_mapping, ?BINDING(uid)},
-                scope = private
-            }
-        }},
-
         %% Revoke space support for a space
         {<<"/provider/spaces/:id">>, #rest_req{
             method = 'DELETE',
@@ -1096,71 +769,6 @@ routes() ->
                 aspect = support,
                 scope = private
             }
-        }},
-
-        %% Set mapping of ACL group in LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
-            method = 'PUT',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_acl_group_to_onedata_group_mapping, ?BINDING(groupname)},
-                scope = private
-            },
-            %% Credentials identifying group in the Onedata system.
-            data_spec = (rest_model:luma_onedata_group_model())
-        }},
-
-        %% Set mapping of ACL user in LUMA DB with local feed.
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
-            method = 'PUT',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_acl_user_to_onedata_user_mapping, ?BINDING(username)},
-                scope = private
-            },
-            %% Credentials identifying user in the Onedata system.
-            data_spec = (rest_model:luma_onedata_user_model())
-        }},
-
-        %% Set local feed LUMA default posix credentials
-        {<<"/provider/storages/:id/luma/local_feed/storage_access/posix_compatible/default_credentials/:space_id">>, #rest_req{
-            method = 'PUT',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_default_posix_credentials, ?BINDING(space_id)},
-                scope = private
-            },
-            %% New default storage credentials for the space support.
-            data_spec = (rest_model:posix_compatible_credentials_model())
-        }},
-
-        %% Set local feed LUMA default display credentials
-        {<<"/provider/storages/:id/luma/local_feed/oneclient_display_credentials/all/default/:space_id">>, #rest_req{
-            method = 'PUT',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_display_credentials, ?BINDING(space_id)},
-                scope = private
-            },
-            %% New default display credentials for the space support.
-            data_spec = (rest_model:posix_compatible_credentials_model())
-        }},
-
-        %% Set mapping of UID in LUMA DB with local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
-            method = 'PUT',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = {local_feed_luma_uid_to_onedata_user_mapping, ?BINDING(uid)},
-                scope = private
-            },
-            %% Credentials identifying user in the Onedata system.
-            data_spec = (rest_model:luma_onedata_user_model())
         }},
 
         %% Start/stop provider database

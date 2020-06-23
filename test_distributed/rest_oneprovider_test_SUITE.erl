@@ -222,9 +222,9 @@ all() ->
     {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
     {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>, delete},
     {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
-    {<<"/provider/storages/someStorageId/luma/local_feed/oneclient_display_credentials/all/default/someSpaceId">>, get},
-    {<<"/provider/storages/someStorageId/luma/local_feed/oneclient_display_credentials/all/default/someSpaceId">>, put},
-    {<<"/provider/storages/someStorageId/luma/local_feed/oneclient_display_credentials/all/default/someSpaceId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, delete},
     {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, get},
     {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, put},
     {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, delete},
@@ -238,8 +238,8 @@ all() ->
     {<<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/onedataUserId">>, delete},
     {<<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
     {<<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>, delete},
-    {<<"/provider/storages/someStorageId/luma/db/oneclient_display_credentials/all/default/someSpaceId">>, get},
-    {<<"/provider/storages/someStorageId/luma/db/oneclient_display_credentials/all/default/someSpaceId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>, delete},
     {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, get},
     {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, delete},
     {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
@@ -415,8 +415,8 @@ all() ->
 
 -define(LUMA_CONFIG_JSON, #{
     <<"lumaFeed">> => <<"someFeed">>,
-    <<"lumaUrl">> => <<"someUrl">>,
-    <<"lumaApiKey">> => <<"someApiKey">>
+    <<"lumaFeedUrl">> => <<"someUrl">>,
+    <<"lumaFeedApiKey">> => <<"someApiKey">>
 }).
 
 
@@ -950,7 +950,7 @@ get_should_return_user_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/someUserId">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_USER_MAPPING_JSON)
     end).
@@ -987,7 +987,7 @@ get_should_return_default_credentials_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
     end).
@@ -1022,8 +1022,8 @@ delete_should_remove_default_credentials_from_local_feed_luma(Config) ->
 get_should_return_display_credentials_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/oneclient_display_credentials/all/default/someSpaceId">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
     end).
@@ -1031,7 +1031,7 @@ get_should_return_display_credentials_from_local_feed_luma(Config) ->
 put_should_set_display_credentials_in_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/oneclient_display_credentials/all/default/someSpaceId">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>,
             put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_POSIX_CREDENTIALS_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_display_credentials, #{
@@ -1046,7 +1046,7 @@ put_should_set_display_credentials_in_local_feed_luma(Config) ->
 delete_should_remove_display_credentials_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/oneclient_display_credentials/all/default/someSpaceId">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_display_credentials, #{
@@ -1059,7 +1059,7 @@ get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
     end).
@@ -1095,7 +1095,7 @@ get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma(Config) 
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
     end).
@@ -1131,7 +1131,7 @@ get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma(Config
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_GROUP_JSON)
     end).
@@ -1167,7 +1167,7 @@ get_should_return_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/someUserId">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_USER_MAPPING_JSON)
     end).
@@ -1188,7 +1188,7 @@ get_should_return_default_credentials_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
     end).
@@ -1208,8 +1208,8 @@ delete_should_remove_default_credentials_from_luma(Config) ->
 get_should_return_display_credentials_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/oneclient_display_credentials/all/default/someSpaceId">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            Host, <<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
     end).
@@ -1217,7 +1217,7 @@ get_should_return_display_credentials_from_luma(Config) ->
 delete_should_remove_display_credentials_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/oneclient_display_credentials/all/default/someSpaceId">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_display_credentials, #{
@@ -1230,7 +1230,7 @@ get_should_return_uid_to_onedata_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
     end).
@@ -1252,7 +1252,7 @@ get_should_return_acl_user_to_onedata_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
     end).
@@ -1274,7 +1274,7 @@ get_should_return_acl_group_to_onedata_group_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
-            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_GROUP_JSON)
     end).

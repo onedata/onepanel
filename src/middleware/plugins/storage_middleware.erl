@@ -227,7 +227,7 @@ authorize(#onp_req{
     As == luma_acl_user_to_onedata_user_mapping;
     As == luma_acl_group_to_onedata_group_mapping
 ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE);
+    middleware_utils:has_privilege(Client, ?CLUSTER_VIEW);
 
 authorize(#onp_req{
     operation = update, client = Client, gri = #gri{aspect = instance}

@@ -6,7 +6,8 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% 
+%%% This module contains helper functions used for interaction
+%%% with op-worker LUMA DB.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(op_worker_luma).
@@ -17,21 +18,20 @@
 %% API
 -export([execute/2]).
 
--type storage_id() :: binary().
--type space_id() :: binary().
--type onedata_user_id() :: binary().
--type uid() :: integer().
--type acl_principal() :: integer().
--type storage() :: term(). % todo
--type mapping() :: term(). % todo
--type credentials() :: term(). % todo
-
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @doc
+%% This function calls Operation associated with LUMA DB in op-worker.
+%% If isLocalFeedLumaRequest flag is set to true in Ctx it checks
+%% whether feed for corresponding LUMA DB is currently set to `local`.
+%% In case it is not `local` it throws ?ERROR_NOT_FOUND exception.
+%% @end
+%%--------------------------------------------------------------------
+-spec execute(function(), service:step_ctx()) -> ok | {ok, term()} | {error, term()}.
 execute(Operation, Ctx) ->
-    % todo a moze by tak te funkcje zdefiniowac tutaj, podawac im Ctx i podawac im funy?
     IsNotLocalFeedLumaRequest = not maps:get(isLocalFeedLumaRequest, Ctx),
     StorageId = maps:get(id, Ctx),
     case IsNotLocalFeedLumaRequest orelse

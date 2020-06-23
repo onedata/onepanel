@@ -280,7 +280,6 @@ can_be_removed(StorageId) ->
 -spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
     ok | {error, Reason :: term()}.
 add(OpNode, Name, Params) ->
-    ?alert("Params: ~p", [Params]),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
     ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
@@ -288,7 +287,6 @@ add(OpNode, Name, Params) ->
 
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     UserCtx = make_user_ctx(OpNode, StorageType, StorageParams),
-    ?alert("StorageParams: ~p", [StorageParams]),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams),
 
     LumaConfig = make_luma_config(OpNode, StorageParams),
@@ -333,8 +331,8 @@ make_luma_config(OpNode, StorageParams) ->
         local ->
             op_worker_rpc:new_luma_config(OpNode, local);
         external ->
-            Url = get_required_luma_arg(lumaUrl, StorageParams, binary),
-            ApiKey = onepanel_utils:get_converted(lumaApiKey, StorageParams, binary, undefined),
+            Url = get_required_luma_arg(lumaFeedUrl, StorageParams, binary),
+            ApiKey = onepanel_utils:get_converted(lumaFeedApiKey, StorageParams, binary, undefined),
             op_worker_rpc:new_luma_config_with_external_feed(OpNode, Url, ApiKey)
     end.
 
@@ -438,8 +436,8 @@ make_user_ctx(OpNode, StorageType, Params) ->
     #{url => binary(), api_key => binary(), luma_feed => op_worker_rpc:luma_feed()}.
 make_luma_params(Params) ->
     kv_utils:copy_found([
-        {lumaUrl, url},
-        {lumaApiKey, api_key},
+        {lumaFeedUrl, url},
+        {lumaFeedApiKey, api_key},
         {lumaFeed, feed}
     ], Params).
 

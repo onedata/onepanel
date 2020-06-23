@@ -85,19 +85,6 @@
 
 -export([migrate_generated_config/1]).
 
--define(CHECK_LUMA_FEED_AND_APPLY(Fun, Ctx),
-    begin
-        IsLocalFeedLumaRequest = maps:get(isLocalFeedLumaRequest, Ctx),
-        StorageId = maps:get(id, Ctx),
-        case (not IsLocalFeedLumaRequest)
-            orelse (op_worker_rpc:storage_get_luma_feed(StorageId) =:= local)
-        of
-            true -> Fun();
-            false -> ?ERROR_NOT_FOUND
-        end
-    end
-).
-
 %%%===================================================================
 %%% Service behaviour callbacks
 %%%===================================================================
@@ -517,8 +504,8 @@ remove_storage(#{id := Id}) ->
 -spec get_luma_configuration(Ctx :: service:step_ctx()) -> op_worker_rpc:luma_details().
 get_luma_configuration(#{storage := Storage}) ->
     kv_utils:copy_found([
-        {lumaUrl, lumaUrl},
-        {lumaApiKey, lumaApiKey},
+        {lumaFeedUrl, lumaFeedUrl},
+        {lumaFeedApiKey, lumaFeedApiKey},
         {lumaFeed, lumaFeed}
     ], Storage).
 

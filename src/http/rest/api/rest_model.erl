@@ -691,18 +691,20 @@ invite_token_model() ->
 -spec luma_config_model() -> onepanel_parser:object_spec().
 luma_config_model() ->
     #{
-        %% Type of feed for LUMA DB.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {enum, string, [<<"auto">>, <<"local">>, <<"external">>]},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional}
+        lumaFeedApiKey => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials identifying group in the Onedata system.
+%% @doc Representation of Onedata group.
 %% @end
 %%--------------------------------------------------------------------
 -spec luma_onedata_group_model() -> onepanel_parser:multi_spec().
@@ -710,7 +712,7 @@ luma_onedata_group_model() ->
     {subclasses, onepanel_parser:prepare_subclasses([luma_onedata_group_scheme_model(), luma_idp_entitlement_scheme_model()])}.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials identifying user in the Onedata system.
+%% @doc Representation of Onedata user.
 %% @end
 %%--------------------------------------------------------------------
 -spec luma_onedata_user_model() -> onepanel_parser:multi_spec().
@@ -1857,21 +1859,25 @@ ceph_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% The username of the Ceph cluster administrator.
+        %% The username of the Ceph cluster user. In case of configuring
+        %% storage, this field must be equal to name of the Ceph cluster admin.
         username => string,
-        %% The admin key to access the Ceph cluster.
+        %% The key to access the Ceph cluster. In case of configuring storage,
+        %% the key must be the key of admin user passed in `username`.
         key => string,
         %% The monitor hostname.
         monitorHostname => string,
@@ -1915,12 +1921,15 @@ ceph_cluster_model() ->
 -spec ceph_credentials_model() -> onepanel_parser:object_spec().
 ceph_credentials_model() ->
     #{
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"ceph">>},
-        %% The username of the Ceph cluster administrator.
+        %% The username of the Ceph cluster user. In case of configuring
+        %% storage, this field must be equal to name of the Ceph cluster admin.
         username => string,
-        %% The admin key to access the Ceph cluster.
+        %% The key to access the Ceph cluster. In case of configuring storage,
+        %% the key must be the key of admin user passed in `username`.
         key => string
     }.
 
@@ -1939,21 +1948,24 @@ ceph_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => {string, optional},
@@ -1982,14 +1994,16 @@ cephrados_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2022,8 +2036,9 @@ cephrados_model() ->
 -spec cephrados_credentials_model() -> onepanel_parser:object_spec().
 cephrados_credentials_model() ->
     #{
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => string,
@@ -2046,21 +2061,24 @@ cephrados_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => {string, optional},
@@ -2089,14 +2107,16 @@ glusterfs_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2135,8 +2155,9 @@ glusterfs_credentials_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"glusterfs">>}
     }.
 
@@ -2155,21 +2176,24 @@ glusterfs_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
         volume => {string, optional},
@@ -2203,14 +2227,16 @@ localceph_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2257,14 +2283,16 @@ localceph_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
@@ -2303,8 +2331,7 @@ loopdevice_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials scheme that stores the Id of a group in an external identity
-%% provider.
+%% @doc Representation of Onedata group in an external identity provider.
 %% @end
 %%--------------------------------------------------------------------
 -spec luma_idp_entitlement_scheme_model() -> onepanel_parser:object_spec().
@@ -2314,15 +2341,15 @@ luma_idp_entitlement_scheme_model() ->
         mappingScheme => {discriminator, <<"idpEntitlement">>},
         %% The id of an external identity provider.
         idp => string,
-        %% The id of the group understood by the external identity provider.
+        %% The id of the group understood by the external identity provider, in
+        %% the same format as received during OIDC/SAML login flow.
         idpEntitlement => string,
         %% The id of group in the Onedata system.
         onedataGroupId => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials scheme that stores the Id of a user in an external identity
-%% provider.
+%% @doc Representation of Onedata user in an external identity provider.
 %% @end
 %%--------------------------------------------------------------------
 -spec luma_idp_user_scheme_model() -> onepanel_parser:object_spec().
@@ -2339,7 +2366,7 @@ luma_idp_user_scheme_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials scheme that stores the Id of a group in the Onedata system.
+%% @doc Representation of Onedata group in the Onedata system.
 %% @end
 %%--------------------------------------------------------------------
 -spec luma_onedata_group_scheme_model() -> onepanel_parser:object_spec().
@@ -2352,7 +2379,7 @@ luma_onedata_group_scheme_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Credentials scheme that stores the Id of a user in the Onedata system.
+%% @doc Representation of Onedata user in the Onedata system.
 %% @end
 %%--------------------------------------------------------------------
 -spec luma_onedata_user_scheme_model() -> onepanel_parser:object_spec().
@@ -2379,14 +2406,16 @@ nulldevice_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2440,8 +2469,9 @@ nulldevice_credentials_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"nulldevice">>}
     }.
 
@@ -2460,21 +2490,24 @@ nulldevice_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
@@ -2576,14 +2609,16 @@ posix_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2611,8 +2646,9 @@ posix_credentials_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"posix">>}
     }.
 
@@ -2631,21 +2667,24 @@ posix_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
@@ -2667,14 +2706,16 @@ s3_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2724,8 +2765,9 @@ s3_model() ->
 -spec s3_credentials_model() -> onepanel_parser:object_spec().
 s3_credentials_model() ->
     #{
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"s3">>},
         %% The access key to the S3 storage.
         accessKey => string,
@@ -2748,21 +2790,24 @@ s3_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         hostname => {string, optional},
@@ -2805,14 +2850,16 @@ swift_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2845,8 +2892,9 @@ swift_model() ->
 -spec swift_credentials_model() -> onepanel_parser:object_spec().
 swift_credentials_model() ->
     #{
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"swift">>},
         %% The Keystone authentication username.
         username => string,
@@ -2869,21 +2917,24 @@ swift_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => {string, optional},
@@ -2912,14 +2963,16 @@ webdav_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
@@ -2997,8 +3050,9 @@ webdav_model() ->
 -spec webdav_credentials_model() -> onepanel_parser:object_spec().
 webdav_credentials_model() ->
     #{
-        %% Type of the storage. Must match the type of existing storage, needed
-        %% only for OpenAPI polymorphism disambiguation.
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"webdav">>},
         %% Determines the types of credentials provided in the credentials
         %% field.
@@ -3040,21 +3094,24 @@ webdav_modify_model() ->
         %% Oneclient will not be performed. This option should be set to true on
         %% readonly storages.
         skipStorageDetection => {boolean, optional},
-        %% Type of feed for Local User Mapping (LUMA) database.
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
         lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
         %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
         %% `external`.
-        lumaUrl => {string, optional},
+        lumaFeedUrl => {string, optional},
         %% API key checked by external service used as feed for LUMA DB.
         %% Relevant only if lumaFeed equals `external`.
-        lumaApiKey => {string, optional},
+        lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
         %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
-        %% Type of the modified storage. Must match the type of existing
-        %% storage, needed only for OpenAPI polymorphism disambiguation.
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"webdav">>},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.

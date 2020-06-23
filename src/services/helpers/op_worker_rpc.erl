@@ -333,11 +333,11 @@ luma_clear_db(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec luma_storage_users_get_and_describe(storage_id(), od_user_id()) -> ok.
+-spec luma_storage_users_get_and_describe(storage_id(), od_user_id()) -> {ok, luma_storage_user()}.
 luma_storage_users_get_and_describe(Storage, UserId) ->
     ?CALL([Storage, UserId]).
 
--spec luma_storage_users_get_and_describe(node(), storage_id(), od_user_id()) -> ok.
+-spec luma_storage_users_get_and_describe(node(), storage_id(), od_user_id()) -> {ok, luma_storage_user()}.
 luma_storage_users_get_and_describe(Node, Storage, UserId) ->
     ?CALL(Node, [Storage, UserId]).
 
