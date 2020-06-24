@@ -36,11 +36,11 @@
 
 
 %%--------------------------------------------------------------------
-%% @doc Authenticates user using any available methods.
+%% @doc Authenticates user using any of available methods.
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Req :: cowboy_req:req()) -> {Result, cowboy_req:req()} when
-    Result :: {true, #client{}} | {false, errors:error()}.
+    Result :: {true, #client{}} | {false, errors:unauthorized_error()}.
 authenticate(Req) ->
     authenticate(Req, [
         fun authenticate_by_basic_auth/1,
@@ -55,11 +55,14 @@ authenticate(Req) ->
 %%--------------------------------------------------------------------
 -spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | {error, _} | ignore.
+    when Result :: #client{} | errors:unauthorized_error() | ignore.
 authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(?HDR_AUTHORIZATION, Req) of
         <<"Basic ", Base64/binary>> ->
-            {check_basic_credentials(Base64), Req};
+            case check_basic_credentials(Base64) of
+                #client{} = Client -> {Client, Req};
+                AuthError -> {?ERROR_UNAUTHORIZED(AuthError), Req}
+            end;
         _ ->
             {ignore, Req}
     end.
@@ -124,7 +127,7 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | {error, _} | ignore.
+    when Result :: #client{} | errors:unauthorized_error() | ignore.
 authenticate_by_onepanel_auth_token(Req) ->
     case tokens:parse_access_token_header(Req) of
         <<?ONEPANEL_USER_AUTH_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
@@ -132,14 +135,14 @@ authenticate_by_onepanel_auth_token(Req) ->
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
                 error ->
-                    {?ERROR_TOKEN_INVALID, Req}
+                    {?ERROR_UNAUTHORIZED(?ERROR_TOKEN_INVALID), Req}
             end;
         <<?ONEPANEL_INVITE_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = InviteToken ->
             case authorization_nonce:verify(invite_tokens:get_nonce(InviteToken)) of
                 true ->
                     {peer_client(), Req};
                 false ->
-                    {?ERROR_TOKEN_INVALID, Req}
+                    {?ERROR_UNAUTHORIZED(?ERROR_TOKEN_INVALID), Req}
             end;
         _ ->
             {ignore, Req}

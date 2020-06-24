@@ -73,7 +73,7 @@ change(OldPassphrase, NewPassphrase) ->
         false ->
             ?info("Attempt to change emergency passphrase failed due to " ++
             "incorrect previous passphrase given"),
-            ?ERROR_BAD_BASIC_CREDENTIALS
+            ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)
     end.
 
 
