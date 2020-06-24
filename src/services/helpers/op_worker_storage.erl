@@ -38,9 +38,7 @@
 }.
 
 %% Storage information retrieved from op_worker
-% todo to juz chyba wcale nie są atomy?
 -type storage_details() :: #{
-    readonly := boolean(),
     lumaFeed := op_worker_rpc:luma_feed(),
     qosParameters := qos_parameters(),
     atom() := binary()
