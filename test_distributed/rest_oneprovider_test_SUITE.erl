@@ -225,27 +225,27 @@ all() ->
     {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, get},
     {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, put},
     {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, delete},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, get},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, put},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, delete},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>, put},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>, delete},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>, get},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>, put},
-    {<<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
     {<<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/onedataUserId">>, get},
     {<<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/onedataUserId">>, delete},
     {<<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
     {<<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>, delete},
     {<<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>, get},
     {<<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>, delete},
-    {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, get},
-    {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>, delete},
-    {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
-    {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
-    {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
-    {<<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
 
     {<<"/provider/cluster_ips">>, get},
     {<<"/provider/cluster_ips">>, patch},
@@ -1058,7 +1058,7 @@ delete_should_remove_display_credentials_from_local_feed_luma(Config) ->
 get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
             get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
@@ -1067,7 +1067,7 @@ get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
 put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
             put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_ONEDATA_USER_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_uid_to_onedata_user_mapping, #{
@@ -1082,7 +1082,7 @@ put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma(Config) ->
 delete_should_remove_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_uid_to_onedata_user_mapping, #{
@@ -1094,7 +1094,7 @@ delete_should_remove_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
 get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
             get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
@@ -1103,7 +1103,7 @@ get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma(Config) 
 put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
             put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_ONEDATA_USER_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_acl_user_to_onedata_user_mapping, #{
@@ -1118,7 +1118,7 @@ put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma(Config) ->
 delete_should_remove_acl_user_to_onedata_user_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_acl_user_to_onedata_user_mapping, #{
@@ -1130,7 +1130,7 @@ delete_should_remove_acl_user_to_onedata_user_mapping_from_local_feed_luma(Confi
 get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
             get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_GROUP_JSON)
@@ -1139,7 +1139,7 @@ get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma(Config
 put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
             put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_ONEDATA_GROUP_JSON
         )),
         ?assertReceivedMatch({service, op_worker, add_acl_group_to_onedata_group_mapping, #{
@@ -1154,7 +1154,7 @@ put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma(Config) ->
 delete_should_remove_acl_group_to_onedata_group_mapping_from_local_feed_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_acl_group_to_onedata_group_mapping, #{
@@ -1229,7 +1229,7 @@ delete_should_remove_display_credentials_from_luma(Config) ->
 get_should_return_uid_to_onedata_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
             get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
@@ -1238,7 +1238,7 @@ get_should_return_uid_to_onedata_user_mapping_from_luma(Config) ->
 delete_should_remove_uid_to_onedata_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/uid_to_onedata_user/1234">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_uid_to_onedata_user_mapping, #{
@@ -1251,7 +1251,7 @@ delete_should_remove_uid_to_onedata_user_mapping_from_luma(Config) ->
 get_should_return_acl_user_to_onedata_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
             get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
@@ -1261,7 +1261,7 @@ get_should_return_acl_user_to_onedata_user_mapping_from_luma(Config) ->
 delete_should_remove_acl_user_to_onedata_user_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_acl_user_to_onedata_user_mapping, #{
@@ -1273,7 +1273,7 @@ delete_should_remove_acl_user_to_onedata_user_mapping_from_luma(Config) ->
 get_should_return_acl_group_to_onedata_group_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
             get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
         )),
         onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_GROUP_JSON)
@@ -1282,7 +1282,7 @@ get_should_return_acl_group_to_onedata_group_mapping_from_luma(Config) ->
 delete_should_remove_acl_group_to_onedata_group_mapping_from_luma(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages/someStorageId/luma/db/storage_sync/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
             delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
         )),
         ?assertReceivedMatch({service, op_worker, remove_acl_group_to_onedata_group_mapping, #{

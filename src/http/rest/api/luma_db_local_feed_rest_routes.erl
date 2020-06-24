@@ -46,7 +46,7 @@ routes() ->
         }},
 
         %% Lookup mapping of ACL group in local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -58,7 +58,7 @@ routes() ->
         }},
 
         %% Lookup mapping of ACL user in local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -106,7 +106,7 @@ routes() ->
         }},
 
         %% Lookup mapping of UID in local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -132,7 +132,7 @@ routes() ->
         }},
 
         %% Remove mapping of ACL group from local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
             method = 'DELETE',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -143,7 +143,7 @@ routes() ->
         }},
 
         %% Remove mapping of ACL user from local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
             method = 'DELETE',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -187,7 +187,7 @@ routes() ->
         }},
 
         %% Remove mapping of UID from local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
             method = 'DELETE',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -198,7 +198,7 @@ routes() ->
         }},
 
         %% Insert mapping of ACL group into local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/:groupname">>, #rest_req{
             method = 'PUT',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -211,7 +211,7 @@ routes() ->
         }},
 
         %% Insert mapping of ACL user into local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/:username">>, #rest_req{
             method = 'PUT',
             b_gri = #b_gri{
                 type = onp_storage,
@@ -250,7 +250,7 @@ routes() ->
         }},
 
         %% Insert mapping of UID into local feed
-        {<<"/provider/storages/:id/luma/local_feed/storage_sync/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
+        {<<"/provider/storages/:id/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/:uid">>, #rest_req{
             method = 'PUT',
             b_gri = #b_gri{
                 type = onp_storage,
