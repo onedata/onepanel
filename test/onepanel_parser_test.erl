@@ -247,6 +247,35 @@ parse_subclasses_test_() ->
             onepanel_parser:parse(Data5, ArgsSpec))
 ].
 
+parse_top_level_subclasses_test_() ->
+    Data1 = #{<<"type">> => <<"s3">>, <<"hostname">> => <<"hostname.com">>},
+    Data2 = #{<<"type">> => <<"posix">>, <<"user">> => 3},
+    Data3 = #{<<"type">> => <<"badtype">>, <<"user">> => 3},
+    Data4 = #{<<"type">> => <<"s3">>, <<"hostname">> => 3},
+    Data5 = #{},
+    Subclasses = [
+        #{type => {discriminator, <<"s3">>}, hostname => string},
+        #{type => {discriminator, <<"posix">>}, user => integer}
+    ],
+    ArgsSpec = {subclasses, onepanel_parser:prepare_subclasses(Subclasses)},
+    [
+        {"prepare_top_level_subclasses",
+            ?_assertEqual({subclasses, {type, #{
+                <<"s3">> => #{type => {equal, <<"s3">>}, hostname => string},
+                <<"posix">> => #{type => {equal, <<"posix">>}, user => integer}
+            }}}, ArgsSpec)},
+        ?_assertEqual(#{type => <<"s3">>, hostname => <<"hostname.com">>},
+            onepanel_parser:parse(Data1, ArgsSpec)),
+        ?_assertEqual(#{type => <<"posix">>, user => 3},
+            onepanel_parser:parse(Data2, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"type">>, [<<"posix">>, <<"s3">>]),
+            onepanel_parser:parse(Data3, ArgsSpec)),
+        ?_assertThrow(?ERROR_BAD_VALUE_BINARY(<<"hostname">>),
+            onepanel_parser:parse(Data4, ArgsSpec)),
+        ?_assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"type">>),
+            onepanel_parser:parse(Data5, ArgsSpec))
+    ].
+
 
 parse_wildcard_key_test() ->
     Data = #{

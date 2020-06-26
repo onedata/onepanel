@@ -216,7 +216,8 @@ service_op_worker_add_storage_test(Config) ->
                 type => <<"posix">>,
                 mountPoint => onepanel_utils:get_converted(docker_path, Posix, binary),
                 storagePathType => <<"canonical">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someCeph">> => #{
                 type => <<"ceph">>,
@@ -226,7 +227,8 @@ service_op_worker_add_storage_test(Config) ->
                 poolName => <<"onedata">>,
                 username => onepanel_utils:get_converted(username, Ceph, binary),
                 storagePathType => <<"flat">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someCephRados">> => #{
                 type => <<"cephrados">>,
@@ -236,7 +238,8 @@ service_op_worker_add_storage_test(Config) ->
                 poolName => <<"onedata">>,
                 username => onepanel_utils:get_converted(username, CephRados, binary),
                 storagePathType => <<"flat">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someS3">> => #{
                 type => <<"s3">>,
@@ -246,7 +249,8 @@ service_op_worker_add_storage_test(Config) ->
                 hostname => <<"http://", (onepanel_utils:get_converted(host_name,
                     S3, binary))/binary>>,
                 storagePathType => <<"flat">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someSwift">> => #{
                 type => <<"swift">>,
@@ -258,7 +262,8 @@ service_op_worker_add_storage_test(Config) ->
                 tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
                 containerName => <<"swift">>,
                 storagePathType => <<"flat">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
@@ -269,7 +274,8 @@ service_op_worker_add_storage_test(Config) ->
                 mountPoint => onepanel_utils:get_converted(mountpoint, Glusterfs, binary),
                 xlatorOptions => <<"cluster.write-freq-threshold=100;">>,
                 storagePathType => <<"canonical">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someWebDAV">> => #{
                 type => <<"webdav">>,
@@ -281,7 +287,8 @@ service_op_worker_add_storage_test(Config) ->
                 authorizationHeader => onepanel_utils:get_converted(authorization_header, WebDAV, binary),
                 connectionPoolSize => onepanel_utils:get_converted(connection_pool_size, WebDAV, binary),
                 storagePathType => <<"canonical">>,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
             },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
@@ -294,7 +301,9 @@ service_op_worker_add_storage_test(Config) ->
                 simulatedFilesystemGrowSpeed => 0.0,
                 storagePathType => <<"canonical">>,
                 readonly => true,
-                qosParameters => #{}
+                qosParameters => #{},
+                lumaFeed => <<"auto">>,
+                skipStorageDetection => <<"true">>
             }
         }
     }),
