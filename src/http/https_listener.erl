@@ -58,8 +58,12 @@ start() ->
 
     CommonRoutes = onepanel_rest_routes:routes(),
     SpecificRoutes = case onepanel_env:get_cluster_type() of
-        oneprovider -> oneprovider_rest_routes:routes();
-        onezone -> onezone_rest_routes:routes()
+        oneprovider ->
+            oneprovider_rest_routes:routes()
+            ++ luma_db_local_feed_rest_routes:routes()
+            ++ luma_db_rest_routes:routes();
+        onezone ->
+            onezone_rest_routes:routes()
     end,
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
     DynamicPages = [

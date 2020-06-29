@@ -38,14 +38,16 @@
 % to determine model used for parsing.
 % The SpecsMap contains mapping of possible discriminator field values
 % and specific models.
+
+-type subclass_spec() :: {subclasses, {Discriminator :: key(), #{binary() => object_spec()}}}.
 -type multi_spec() :: type_spec() | [multi_spec()] | {equal, term()}
 | {enum, type_spec(), Allowed :: [term()]}
-| {subclasses, {Discriminator :: key(), #{binary() => object_spec()}}}.
+| subclass_spec().
 
 -type field_spec() :: multi_spec() | {multi_spec(), presence()}
 | {discriminator, binary()}.
 
--type object_spec() :: #{key() => field_spec()}.
+-type object_spec() :: #{key() => field_spec()} | subclass_spec().
 %% @formatter:on
 
 -export_type([key/0, keys/0, data/0, args/0, object_spec/0, multi_spec/0]).
@@ -59,6 +61,9 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec parse(Data :: data(), ArgsSpec :: object_spec()) -> Args :: args().
+parse(Data, {subclasses, _} = ArgsSpec) ->
+    % TODO VFS-5117 handle top level subclasses prettier
+    parse(Data, ArgsSpec, [], #{});
 parse(Data, ArgsSpec) ->
     parse(Data, maps:to_list(ArgsSpec), [], #{}).
 
@@ -107,10 +112,14 @@ prepare_subclasses(SubclassModels) ->
 %% @private @doc Parses data according to provided specification.
 %% @end
 %%--------------------------------------------------------------------
--spec parse(Data :: data(), ArgsList :: args_list(), Keys :: keys(), Args :: args()) ->
+-spec parse(Data :: data(), subclass_spec() | args_list(), Keys :: keys(), Args :: args()) ->
     Args :: args() | no_return().
 parse(_Data, [], _Keys, Args) ->
     Args;
+
+parse(Data, {subclasses, _} = Spec, Keys, _Args) when is_map(Data) ->
+    % TODO VFS-5117 handle top level subclasses prettier
+    parse_value(Data, Spec, Keys);
 
 parse(Data, [{'_', Spec} = _ValueSpec], Keys, Args) when is_map(Data) ->
     maps:fold(fun

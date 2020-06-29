@@ -660,17 +660,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Invalidate LUMA cache
-        {<<"/provider/storages/:id/invalidate_luma">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_storage,
-                id = ?BINDING(id),
-                aspect = invalidate_luma_cache,
-                scope = private
-            }
-        }},
-
         %% Modify pool params
         {<<"/provider/ceph/pools/:name">>, #rest_req{
             method = 'PATCH',

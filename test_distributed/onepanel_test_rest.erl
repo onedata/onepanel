@@ -275,7 +275,7 @@ mock_token_authentication(Nodes) ->
                     auth = aai:user_auth(<<"user-id">>)
                 }
             end;
-        (_BadToken, _PeerIp) -> ?ERROR_TOKEN_INVALID
+        (_BadToken, _PeerIp) -> ?ERROR_UNAUTHORIZED(?ERROR_TOKEN_INVALID)
     end).
 
 

@@ -20,13 +20,13 @@
 -export([get_basic_auth_header/2]).
 -export([wait_until/5, wait_until/6]).
 -export([gen_uuid/0, join/1, join/2, trim/2]).
--export([convert/2, get_type/1]).
+-export([convert/2, get_type/1, convert_recursive/2]).
 -export([get_converted/3, get_converted/4, find_converted/3]).
 -export([ensure_known_hosts/1, distribute_file/2]).
 
 % @formatter:off
 -type primitive_type() :: atom | binary | float | integer | list | boolean.
--type collection_modifier() :: seq | keys | values.
+-type collection_modifier() :: seq | keys | values | map.
 -type type() :: primitive_type() | {collection_modifier(), type()}.
 -type expectation(Result) :: {equal, Result} |
     {validator, fun((term()) -> Result | no_return())}.
@@ -157,6 +157,8 @@ trim(Text, both) ->
     ([Old :: term()], {seq, type()}) -> [Converted :: term()];
     (#{Old :: term() => V}, {keys, type()}) -> #{Converted :: term() => V};
     (#{K => Old :: term()}, {values, type()}) -> #{K => Converted :: term()};
+    (#{OldKey :: term() => OldValue :: term()}, {map, type()}) ->
+        #{ConvertedKey :: term() => ConvertedValue :: term()};
     (Old :: term(), atom) -> Converted :: atom();
     (Old :: term(), boolean) -> Converted :: boolean();
     (Old :: term(), float) -> Converted :: float();
@@ -168,15 +170,21 @@ convert(Values, {seq, Type}) ->
 
 % convert keys in a map
 convert(Map, {keys, Type}) ->
-    maps:from_list(
-        [{convert(Key, Type), Value} || {Key, Value} <- maps:to_list(Map)]
-    );
+    maps:fold(fun(Key, Value, Acc) ->
+        Acc#{convert(Key, Type) => Value}
+    end, #{}, Map);
 
 % convert values in a map
 convert(Map, {values, Type}) ->
     maps:map(fun(_Key, Value) ->
         convert(Value, Type)
     end, Map);
+
+% convert keys and values in a map
+convert(Map, {map, Type}) ->
+    maps:fold(fun(Key, Value, Acc) ->
+        Acc#{convert(Key, Type) => convert(Value, Type)}
+    end, #{}, Map);
 
 convert(Value, boolean) ->
     case convert(Value, atom) of
@@ -206,6 +214,35 @@ convert(Value, Type) ->
             ),
             erlang:TypeConverter(Value)
     end.
+
+%%--------------------------------------------------------------------
+%% @doc Converts value to a provided type.
+%% @end
+%%--------------------------------------------------------------------
+-spec convert_recursive(Old :: term(), type()) -> Converted :: term().
+convert_recursive(Values, TypeSpec = {seq, _}) when is_list(Values) ->
+    lists:map(fun(Value) -> convert_recursive(Value, TypeSpec) end, Values);
+
+convert_recursive(Map, TypeSpec = {keys, Type}) when is_map(Map) ->
+    maps:fold(fun(Key, Value, Acc) ->
+        Acc#{convert(Key, Type) => convert_recursive(Value, TypeSpec)}
+    end, #{}, Map);
+
+convert_recursive(Map, TypeSpec = {values, _}) when is_map(Map) ->
+    maps:map(fun(_Key, Value) ->
+        convert_recursive(Value, TypeSpec)
+    end, Map);
+
+convert_recursive(Map, TypeSpec = {map, Type}) when is_map(Map) ->
+    maps:fold(fun(Key, Value, Acc) ->
+        Acc#{convert(Key, Type) => convert_recursive(Value, TypeSpec)}
+    end, #{}, Map);
+
+convert_recursive(Term, {_, Type}) ->
+    convert(Term, Type);
+
+convert_recursive(Term, Type) ->
+    convert(Term, Type).
 
 
 %%--------------------------------------------------------------------
