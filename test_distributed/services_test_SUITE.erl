@@ -209,6 +209,7 @@ service_op_worker_add_storage_test(Config) ->
     Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
+    XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -290,6 +291,17 @@ service_op_worker_add_storage_test(Config) ->
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
             },
+            <<"someXRootD">> => #{
+                type => <<"xrootd">>,
+                url => onepanel_utils:get_converted(url, XRootD, binary),
+                credentials => onepanel_utils:get_converted(credentials, XRootD, binary),
+                credentialsType => onepanel_utils:get_converted(credentials_type, XRootD, binary),
+                fileModeMask => onepanel_utils:get_converted(file_mode_mask, XRootD, binary),
+                dirModeMask => onepanel_utils:get_converted(dir_mode_mask, XRootD, binary),
+                storagePathType => <<"canonical">>,
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
+            },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
                 name => <<"someNullDevice">>,
@@ -341,6 +353,11 @@ service_op_worker_update_storage_test(Config) ->
         <<"someWebDAV">> => #{
             type => <<"webdav">>,
             rangeWriteSupport => <<"moddav">>,
+            fileMode => <<"0333">>,
+            dirMode => <<"0333">>
+        },
+        <<"someXRootD">> => #{
+            type => <<"xrootd">>,
             fileMode => <<"0333">>,
             dirMode => <<"0333">>
         },
