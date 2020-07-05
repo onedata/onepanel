@@ -358,8 +358,8 @@ service_op_worker_update_storage_test(Config) ->
         },
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
-            fileMode => <<"0333">>,
-            dirMode => <<"0333">>
+            fileModeMask => <<"0664">>,
+            dirMode => <<"0775">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
