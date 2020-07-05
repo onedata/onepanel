@@ -296,8 +296,6 @@ service_op_worker_add_storage_test(Config) ->
                 url => onepanel_utils:get_converted(url, XRootD, binary),
                 credentials => onepanel_utils:get_converted(credentials, XRootD, binary),
                 credentialsType => onepanel_utils:get_converted(credentials_type, XRootD, binary),
-                fileModeMask => onepanel_utils:get_converted(file_mode_mask, XRootD, binary),
-                dirModeMask => onepanel_utils:get_converted(dir_mode_mask, XRootD, binary),
                 storagePathType => <<"canonical">>,
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
@@ -359,7 +357,7 @@ service_op_worker_update_storage_test(Config) ->
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
             fileModeMask => <<"0664">>,
-            dirMode => <<"0775">>
+            dirModeMask => <<"0775">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
