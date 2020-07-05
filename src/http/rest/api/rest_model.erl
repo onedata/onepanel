@@ -3208,10 +3208,10 @@ xrootd_model() ->
         %% all users, but file which is writeable in XRootD will be only
         %% writeable by user and group.
         fileModeMask => {string, optional},
-        %% Defines the file permissions mask, which is used to map XRootD file
-        %% mode to POSIX mode. For instance a fileModeMask `0660` for
-        %% readable file on XRootD would result in a file which is readable for
-        %% owners and group but not for others.
+        %% Defines the directory permissions mask, which is used to map XRootD
+        %% dir mode to POSIX mode. For instance a dirModeMask `0770`
+        %% for readable directory on XRootD would result in a directory which is
+        %% readable for owner and group but not for others.
         dirModeMask => {string, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -3296,10 +3296,10 @@ xrootd_modify_model() ->
         %% all users, but file which is writeable in XRootD will be only
         %% writeable by user and group.
         fileModeMask => {string, optional},
-        %% Defines the file permissions mask, which is used to map XRootD file
-        %% mode to POSIX mode. For instance a fileModeMask `0660` for
-        %% readable file on XRootD would result in a file which is readable for
-        %% owners and group but not for others.
+        %% Defines the directory permissions mask, which is used to map XRootD
+        %% dir mode to POSIX mode. For instance a dirModeMask `0770`
+        %% for readable directory on XRootD would result in a directory which is
+        %% readable for owner and group but not for others.
         dirModeMask => {string, optional}
     }.
 
