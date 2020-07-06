@@ -356,8 +356,7 @@ service_op_worker_update_storage_test(Config) ->
         },
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
-            fileModeMask => <<"0664">>,
-            dirModeMask => <<"0775">>
+            url => <<"root://example.com:1094/data/">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
