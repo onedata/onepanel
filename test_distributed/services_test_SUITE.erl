@@ -324,6 +324,10 @@ service_op_worker_update_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     [Host | _] = ?config(oneprovider_hosts, Config),
 
+    %% These storage parameter changes should provide invalid storage connection
+    %% or access details (e.g. fake url or mountpoint), as the test will verify
+    %% the parameter modification based on the lack of connectivity to the storage
+    %% after the change.
     ChangesByName = #{
         <<"somePosix2">> => #{
             type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
@@ -356,7 +360,7 @@ service_op_worker_update_storage_test(Config) ->
         },
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
-            url => <<"root://example.com:1094/data/">>
+            url => <<"root://domain.invalid:1094/data/">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
