@@ -1445,7 +1445,7 @@ space_sync_stats_model() ->
 %%--------------------------------------------------------------------
 -spec storage_create_details_model() -> onepanel_parser:multi_spec().
 storage_create_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
@@ -1461,7 +1461,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_get_details_model() -> onepanel_parser:multi_spec().
 storage_get_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
