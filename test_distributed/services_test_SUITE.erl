@@ -209,6 +209,7 @@ service_op_worker_add_storage_test(Config) ->
     Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
+    XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -290,6 +291,15 @@ service_op_worker_add_storage_test(Config) ->
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
             },
+            <<"someXRootD">> => #{
+                type => <<"xrootd">>,
+                url => onepanel_utils:get_converted(url, XRootD, binary),
+                credentials => onepanel_utils:get_converted(credentials, XRootD, binary),
+                credentialsType => onepanel_utils:get_converted(credentials_type, XRootD, binary),
+                storagePathType => <<"canonical">>,
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
+            },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
                 name => <<"someNullDevice">>,
@@ -314,6 +324,10 @@ service_op_worker_update_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     [Host | _] = ?config(oneprovider_hosts, Config),
 
+    %% These storage parameter changes should provide invalid storage connection
+    %% or access details (e.g. fake url or mountpoint), as the test will verify
+    %% the parameter modification based on the lack of connectivity to the storage
+    %% after the change.
     ChangesByName = #{
         <<"somePosix2">> => #{
             type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
@@ -343,6 +357,10 @@ service_op_worker_update_storage_test(Config) ->
             rangeWriteSupport => <<"moddav">>,
             fileMode => <<"0333">>,
             dirMode => <<"0333">>
+        },
+        <<"someXRootD">> => #{
+            type => <<"xrootd">>,
+            url => <<"root://domain.invalid:1094/data/">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,

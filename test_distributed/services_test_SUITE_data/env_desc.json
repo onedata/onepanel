@@ -56,7 +56,13 @@
           "type": "webdav",
           "name": "someWebDAV",
           "storagePathType": "canonical"
+        },
+        {
+          "type": "xrootd",
+          "name": "someXRootD",
+          "storagePathType": "canonical"
         }
+
       ]
     }
   },

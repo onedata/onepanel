@@ -105,4 +105,5 @@ get_storage_model(localceph) -> rest_model:localceph_model();
 get_storage_model(swift) -> rest_model:swift_model();
 get_storage_model(glusterfs) -> rest_model:glusterfs_model();
 get_storage_model(nulldevice) -> rest_model:nulldevice_model();
-get_storage_model(webdav) -> rest_model:webdav_model().
+get_storage_model(webdav) -> rest_model:webdav_model();
+get_storage_model(xrootd) -> rest_model:xrootd_model().

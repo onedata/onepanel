@@ -157,7 +157,10 @@
     swift_modify_model/0,
     webdav_model/0,
     webdav_credentials_model/0,
-    webdav_modify_model/0
+    webdav_modify_model/0,
+    xrootd_model/0,
+    xrootd_credentials_model/0,
+    xrootd_modify_model/0
 ]).
 
 
@@ -726,7 +729,7 @@ luma_onedata_user_model() ->
 %%--------------------------------------------------------------------
 -spec luma_storage_credentials_model() -> onepanel_parser:multi_spec().
 luma_storage_credentials_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model(), xrootd_credentials_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Credentials identifying user on the local storage resources.
@@ -1442,7 +1445,7 @@ space_sync_stats_model() ->
 %%--------------------------------------------------------------------
 -spec storage_create_details_model() -> onepanel_parser:multi_spec().
 storage_create_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
@@ -1458,7 +1461,7 @@ storage_create_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_get_details_model() -> onepanel_parser:multi_spec().
 storage_get_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage import configuration. Storage import allows to import data
@@ -1484,7 +1487,7 @@ storage_import_details_model() ->
 %%--------------------------------------------------------------------
 -spec storage_modify_details_model() -> onepanel_parser:multi_spec().
 storage_modify_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model(), xrootd_modify_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage parameters to be changed. Should be a single-valued
@@ -3155,5 +3158,148 @@ webdav_modify_model() ->
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
         dirMode => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The XRootD storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec xrootd_model() -> onepanel_parser:object_spec().
+xrootd_model() ->
+    #{
+        %% The type of storage.
+        type => {discriminator, <<"xrootd">>},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"pwd">>]}, {optional, <<"none">>}},
+        %% The credentials to authenticate with the XRootD server. For
+        %% `pwd` credentials type, this field should contain simply
+        %% user and password, e.g. `admin:password`. For
+        %% `none` this field is ignored.
+        credentials => {string, optional},
+        %% Full URL of the XRootD server, including scheme (root or http) and
+        %% path, e.g. `root://192.168.0.1//data`. Please note, that
+        %% XRootD URL format requires double slash after host to indicate
+        %% absolute path.
+        url => string,
+        %% Defines the file permissions mask, which is used to map XRootD file
+        %% mode to POSIX mode. For instance a fileModeMask `0664` for
+        %% readable file on XRootD would result in a file which is readable for
+        %% all users, but file which is writeable in XRootD will be only
+        %% writeable by user and group.
+        fileModeMask => {string, optional},
+        %% Defines the directory permissions mask, which is used to map XRootD
+        %% dir mode to POSIX mode. For instance a dirModeMask `0770`
+        %% for readable directory on XRootD would result in a directory which is
+        %% readable for owner and group but not for others.
+        dirModeMask => {string, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, {optional, <<"canonical">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the XRootD storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec xrootd_credentials_model() -> onepanel_parser:object_spec().
+xrootd_credentials_model() ->
+    #{
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
+        type => {discriminator, <<"xrootd">>},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"pwd">>]}, {optional, <<"none">>}},
+        %% The credentials to authenticate with the XRootD server. For
+        %% `pwd` credentials type, this field should contain simply
+        %% user and password, e.g. `admin:password`. For
+        %% `none` this field is ignored.
+        credentials => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The XRootD storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec xrootd_modify_model() -> onepanel_parser:object_spec().
+xrootd_modify_model() ->
+    #{
+        %% The name of storage.
+        name => {string, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
+        type => {discriminator, <<"xrootd">>},
+        %% Full URL of the XRootD server, including scheme (root or http) and
+        %% path, e.g. `root://192.168.0.1//data`. Please note, that
+        %% XRootD URL format requires double slash after host to indicate
+        %% absolute path.
+        url => {string, optional},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"pwd">>]}, optional},
+        %% The credentials to authenticate with the XRootD server. For
+        %% `pwd` credentials type, this field should contain simply
+        %% user and password, e.g. `admin:password`. For
+        %% `none` this field is ignored.
+        credentials => {string, optional},
+        %% Defines the file permissions mask, which is used to map XRootD file
+        %% mode to POSIX mode. For instance a fileModeMask `0664` for
+        %% readable file on XRootD would result in a file which is readable for
+        %% all users, but file which is writeable in XRootD will be only
+        %% writeable by user and group.
+        fileModeMask => {string, optional},
+        %% Defines the directory permissions mask, which is used to map XRootD
+        %% dir mode to POSIX mode. For instance a dirModeMask `0770`
+        %% for readable directory on XRootD would result in a directory which is
+        %% readable for owner and group but not for others.
+        dirModeMask => {string, optional}
     }.
 
