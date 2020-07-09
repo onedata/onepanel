@@ -134,6 +134,9 @@
     glusterfs_model/0,
     glusterfs_credentials_model/0,
     glusterfs_modify_model/0,
+    http_model/0,
+    http_credentials_model/0,
+    http_modify_model/0,
     localceph_model/0,
     localceph_modify_model/0,
     loopdevice_model/0,
@@ -729,7 +732,7 @@ luma_onedata_user_model() ->
 %%--------------------------------------------------------------------
 -spec luma_storage_credentials_model() -> onepanel_parser:multi_spec().
 luma_storage_credentials_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model(), xrootd_credentials_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model(), xrootd_credentials_model(), http_credentials_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Credentials identifying user on the local storage resources.
@@ -1445,7 +1448,7 @@ space_sync_stats_model() ->
 %%--------------------------------------------------------------------
 -spec storage_create_details_model() -> onepanel_parser:multi_spec().
 storage_create_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model(), http_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
@@ -1487,7 +1490,7 @@ storage_import_details_model() ->
 %%--------------------------------------------------------------------
 -spec storage_modify_details_model() -> onepanel_parser:multi_spec().
 storage_modify_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model(), xrootd_modify_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model(), xrootd_modify_model(), http_modify_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage parameters to be changed. Should be a single-valued
@@ -2212,6 +2215,183 @@ glusterfs_modify_model() ->
         %% Volume specific GlusterFS translator options, in the format:
         %% TRANSLATOR1.OPTION1=VALUE1;TRANSLATOR2.OPTION2=VALUE2;...
         xlatorOptions => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The HTTP storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec http_model() -> onepanel_parser:object_spec().
+http_model() ->
+    #{
+        %% The type of storage.
+        type => {discriminator, <<"http">>},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
+        %% The credentials to authenticate with the HTTP server.
+        %% `basic` credentials should be provided in the form
+        %% `username:password`, for `token` just the token.
+        %% In case of `oauth2`, this field should contain the username
+        %% for the HTTP, while the token will be obtained and refreshed
+        %% automatically in the background. For `none` this field is
+        %% ignored.
+        credentials => {string, optional},
+        %% In case `oauth2` credential type is selected and Onezone is
+        %% configured with support for multiple external IdP's, this field
+        %% must contain the name of the IdP which authenticates requests to the
+        %% HTTP endpoint. If Onezone has only one external IdP, it will be
+        %% selected automatically.
+        oauth2IdP => {string, optional},
+        %% When registering storage with feed of LUMA DB set to`auto`
+        %% and with `oauth2` external IdP, this field must contain a
+        %% valid Onedata access token of the user on whose behalf the HTTP
+        %% storage will be accessed by all users with access to any space
+        %% supported by this storage.
+        onedataAccessToken => {string, optional},
+        %% Full URL of the HTTP server, including scheme (http or https) and
+        %% path.
+        endpoint => string,
+        %% Determines whether Oneprovider should verify the certificate of the
+        %% HTTP server.
+        verifyServerCertificate => {boolean, {optional, true}},
+        %% The authorization header to be used for passing the access token.
+        %% This field can contain any prefix that should be added to the header
+        %% value. Default is `Authorization: Bearer {}`. The token
+        %% will placed where `{}` is provided.
+        authorizationHeader => {string, optional},
+        %% Defines the maximum number of parallel connections for a single HTTP
+        %% storage.
+        connectionPoolSize => {integer, {optional, 25}},
+        %% Defines the file permissions, which files imported from HTTP storage
+        %% will have in Onedata. Values should be provided in octal format e.g.
+        %% `0644`.
+        fileMode => {string, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {string, {optional, <<"canonical">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the HTTP storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec http_credentials_model() -> onepanel_parser:object_spec().
+http_credentials_model() ->
+    #{
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
+        type => {discriminator, <<"http">>},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
+        %% The credentials to authenticate with the HTTP server.
+        %% `basic` credentials should be provided in the form
+        %% `username:password`, for `token` just the token.
+        %% In case of `oauth2`, this field should contain the username
+        %% for the HTTP, while the token will be obtained and refreshed
+        %% automatically in the background. For `none` this field is
+        %% ignored.
+        credentials => {string, optional},
+        %% In case `oauth2` credential type is selected and Onezone is
+        %% configured with support for multiple external IdP's, this field
+        %% must contain the name of the IdP which authenticates requests to the
+        %% HTTP endpoint. If Onezone has only one external IdP, it will be
+        %% selected automatically.
+        oauth2IdP => {string, optional},
+        %% When registering storage with feed of LUMA DB set to`auto`
+        %% and with `oauth2` external IdP, this field must contain a
+        %% valid Onedata access token of the user on whose behalf the HTTP
+        %% storage will be accessed by all users with access to any space
+        %% supported by this storage.
+        onedataAccessToken => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The HTTP storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec http_modify_model() -> onepanel_parser:object_spec().
+http_modify_model() ->
+    #{
+        %% The name of storage.
+        name => {string, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Type of the modified storage. Must be given explicitly and must match
+        %% the actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
+        type => {discriminator, <<"http">>},
+        %% Full URL of the HTTP server, including scheme (http or https) and
+        %% path.
+        endpoint => {string, optional},
+        %% Determines whether Oneprovider should verify the certificate of the
+        %% HTTP server.
+        verifyServerCertificate => {boolean, optional},
+        %% Determines the types of credentials provided in the credentials
+        %% field.
+        credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>]}, optional},
+        %% The credentials to authenticate with the HTTP server.
+        %% `basic` credentials should be provided in the form
+        %% `username:password`, for `token` just the token.
+        %% For `none` this field is ignored.
+        credentials => {string, optional},
+        %% The authorization header to be used for passing the access token.
+        %% This field can contain any prefix that should be added to the header
+        %% value. Default is `Authorization: Bearer {}`. The token
+        %% will placed where `{}` is provided.
+        authorizationHeader => {string, optional},
+        %% Defines the maximum number of parallel connections for a single HTTP
+        %% storage.
+        connectionPoolSize => {integer, optional},
+        %% Defines the file permissions, which files imported from HTTP storage
+        %% will have in Onedata. Values should be provided in octal format e.g.
+        %% `0664`.
+        fileMode => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
