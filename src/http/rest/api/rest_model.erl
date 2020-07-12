@@ -2282,7 +2282,7 @@ http_model() ->
         authorizationHeader => {string, optional},
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
-        connectionPoolSize => {integer, {optional, 25}},
+        connectionPoolSize => {integer, {optional, 150}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0644`.
