@@ -2285,7 +2285,7 @@ http_model() ->
         connectionPoolSize => {integer, {optional, 150}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
-        %% `0644`.
+        %% `0664`.
         fileMode => {string, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
