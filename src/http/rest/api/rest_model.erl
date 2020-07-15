@@ -2025,7 +2025,7 @@ cephrados_model() ->
         %% The Ceph pool name.
         poolName => string,
         %% Storage block size in bytes.
-        blockSize => {integer, optional},
+        blockSize => {integer, {optional, 4194304}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2132,7 +2132,7 @@ glusterfs_model() ->
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
         hostname => string,
         %% The GlusterFS port on volume server.
-        port => {integer, optional},
+        port => {integer, {optional, 24007}},
         %% The transport protocol to use to connect to the volume server.
         transport => {{enum, string, [<<"tcp">>, <<"rdma">>, <<"socket">>]}, optional},
         %% Relative mountpoint within the volume which should be used by
@@ -2279,7 +2279,7 @@ http_model() ->
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
         %% will placed where `{}` is provided.
-        authorizationHeader => {string, optional},
+        authorizationHeader => {string, {optional, <<"Authorization: Bearer {}">>}},
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
         connectionPoolSize => {integer, {optional, 150}},
@@ -2913,12 +2913,12 @@ s3_model() ->
         bucketName => string,
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
-        signatureVersion => {integer, optional},
+        signatureVersion => {integer, {optional, 4}},
         %% Storage block size in bytes. In case the block size is `0`
         %% and `canonical` path type is selected, each file is stored
         %% in a single S3 object. This value must be set to `0` to
         %% enable data import from an existing S3 bucket.
-        blockSize => {integer, optional},
+        blockSize => {integer, {optional, 10485760}},
         %% Defines the maximum size for objects, which can be modified on the S3
         %% storage in `canonical` path mode. In this mode, entire file
         %% needs to be downloaded to memory, modified and uploaded back, which
@@ -2927,11 +2927,11 @@ s3_model() ->
         %% Defines the file permissions, which files imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0644`.
-        fileMode => {string, optional},
+        fileMode => {string, {optional, <<"0664">>}},
         %% Defines the directory mode which directories imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0775`.
-        dirMode => {string, optional},
+        dirMode => {string, {optional, <<"0775">>}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -3058,7 +3058,7 @@ swift_model() ->
         %% The name of the Swift storage container.
         containerName => string,
         %% Storage block size in bytes.
-        blockSize => {integer, optional},
+        blockSize => {integer, {optional, 10485760}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -3193,7 +3193,7 @@ webdav_model() ->
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
         %% will placed where `{}` is provided.
-        authorizationHeader => {string, optional},
+        authorizationHeader => {string, {optional, <<"Authorization: Bearer {}">>}},
         %% The type of partial write support enabled in the WebDAV server.
         %% Currently 2 types are supported `sabredav` which assumes
         %% the server supports the SabreDAV PartialUpdate extension via
@@ -3212,11 +3212,11 @@ webdav_model() ->
         %% Defines the file permissions, which files imported from WebDAV
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0644`.
-        fileMode => {string, optional},
+        fileMode => {string, {optional, <<"0664">>}},
         %% Defines the directory mode which directories imported from WebDAV
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
-        dirMode => {string, optional},
+        dirMode => {string, {optional, <<"0775">>}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -3387,12 +3387,12 @@ xrootd_model() ->
         %% readable file on XRootD would result in a file which is readable for
         %% all users, but file which is writeable in XRootD will be only
         %% writeable by user and group.
-        fileModeMask => {string, optional},
+        fileModeMask => {string, {optional, <<"0664">>}},
         %% Defines the directory permissions mask, which is used to map XRootD
         %% dir mode to POSIX mode. For instance a dirModeMask `0770`
         %% for readable directory on XRootD would result in a directory which is
         %% readable for owner and group but not for others.
-        dirModeMask => {string, optional},
+        dirModeMask => {string, {optional, <<"0775">>}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
