@@ -1879,6 +1879,10 @@ ceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The username of the Ceph cluster user. In case of configuring
         %% storage, this field must be equal to name of the Ceph cluster admin.
         username => string,
@@ -1969,6 +1973,10 @@ ceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2014,6 +2022,10 @@ cephrados_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -2082,6 +2094,10 @@ cephrados_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2127,6 +2143,10 @@ glusterfs_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
@@ -2197,6 +2217,10 @@ glusterfs_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2246,6 +2270,10 @@ http_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
@@ -2362,6 +2390,10 @@ http_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2424,6 +2456,10 @@ localceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Desired number of object replicas in the pool. When below this number
         %% the pool still may be used in 'degraded' mode. Defaults to
         %% `2` if there are at least 2 OSDs, `1` otherwise.
@@ -2481,6 +2517,10 @@ localceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {discriminator, <<"localceph">>}
     }.
@@ -2603,6 +2643,10 @@ nulldevice_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -2688,6 +2732,10 @@ nulldevice_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2806,6 +2854,10 @@ posix_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -2865,6 +2917,10 @@ posix_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2903,6 +2959,10 @@ s3_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The access key to the S3 storage.
         accessKey => string,
         %% The secret key to the S3 storage.
@@ -2988,6 +3048,10 @@ s3_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -3047,6 +3111,10 @@ swift_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% The Keystone authentication username.
         username => string,
         %% The Keystone authentication password.
@@ -3115,6 +3183,10 @@ swift_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -3160,6 +3232,10 @@ webdav_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
@@ -3292,6 +3368,10 @@ webdav_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -3369,6 +3449,10 @@ xrootd_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
         credentialsType => {{enum, string, [<<"none">>, <<"pwd">>]}, {optional, <<"none">>}},
@@ -3453,6 +3537,10 @@ xrootd_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage is readonly. If set to `true` it is
+        %% not possible to write, modify or delete data on the storage. Such
+        %% storage can only be used to import data into space.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
