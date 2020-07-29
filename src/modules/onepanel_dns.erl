@@ -124,7 +124,7 @@ check([], [], _Type, _Servers) ->
     [#dns_check{summary = ok, expected = [], got = []}];
 
 check(Expected, Names, Type, Servers) ->
-    Results = utils:pmap(fun(Server) ->
+    Results = lists_utils:pmap(fun(Server) ->
         check_on_server(Expected, Names, Type, Server)
     end, Servers),
     WithoutErrors = lists:filter(fun
@@ -179,7 +179,7 @@ check_on_server(Expected, Names, Type, ServerIP) ->
 -spec lookup(Quries :: [dns_name()], Type :: dns_type(),
     DnsServerIP :: inet:ip4_address() | default) -> [dns_value()] | error.
 lookup(Names, Type, DnsServerIP) ->
-    Results = lists:flatten(utils:pmap(fun(Name) ->
+    Results = lists:flatten(lists_utils:pmap(fun(Name) ->
         NameStr = onepanel_utils:convert(Name, list),
         Opts = case DnsServerIP of
             default -> [];
