@@ -1883,7 +1883,8 @@ ceph_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The username of the Ceph cluster user. In case of configuring
         %% storage, this field must be equal to name of the Ceph cluster admin.
@@ -1979,7 +1980,8 @@ ceph_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -2030,7 +2032,8 @@ cephrados_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The username of the Ceph cluster administrator.
         username => string,
@@ -2104,7 +2107,8 @@ cephrados_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -2155,7 +2159,8 @@ glusterfs_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The name of the volume to use as a storage backend.
         volume => string,
@@ -2231,7 +2236,8 @@ glusterfs_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -2286,7 +2292,8 @@ http_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
@@ -2408,7 +2415,8 @@ http_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -2476,7 +2484,8 @@ localceph_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Desired number of object replicas in the pool. When below this number
         %% the pool still may be used in 'degraded' mode. Defaults to
@@ -2539,7 +2548,8 @@ localceph_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The type of storage.
         type => {discriminator, <<"localceph">>}
@@ -2667,7 +2677,8 @@ nulldevice_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
@@ -2758,7 +2769,8 @@ nulldevice_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -2882,7 +2894,8 @@ posix_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
@@ -2947,7 +2960,8 @@ posix_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -2991,7 +3005,8 @@ s3_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The access key to the S3 storage.
         accessKey => string,
@@ -3082,7 +3097,8 @@ s3_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -3147,7 +3163,8 @@ swift_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% The Keystone authentication username.
         username => string,
@@ -3221,7 +3238,8 @@ swift_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -3272,7 +3290,8 @@ webdav_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
@@ -3410,7 +3429,8 @@ webdav_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
@@ -3493,7 +3513,8 @@ xrootd_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
@@ -3583,7 +3604,8 @@ xrootd_modify_model() ->
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
         %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly.
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
