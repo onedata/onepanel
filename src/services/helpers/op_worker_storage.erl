@@ -308,9 +308,7 @@ add(OpNode, Name, Params) ->
     ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
     case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, Readonly, QosParameters) of
         {ok, _StorageId} -> ok;
-        {error, Reason} ->
-            ?alert("Reason: ~p", [Reason]),
-            {error, Reason}
+        {error, Reason} -> {error, Reason}
     end.
 
 
@@ -634,13 +632,10 @@ convert_to_binaries(Map) ->
 %% @private
 -spec exec_and_throw_on_error(function(), [term()]) -> ok | {ok, term()}.
 exec_and_throw_on_error(Function, Args) ->
-    try
-        case apply(Function, Args) of
-            ok -> ok;
-            {ok, Res} -> {ok, Res};
-            {error, _} = Error ->
-                throw(Error)
-        end
+    try apply(Function, Args) of
+        ok -> ok;
+        {ok, Res} -> {ok, Res};
+        {error, _} = Error -> throw(Error)
     catch
         error:{badmatch, Error2} ->
             throw(Error2)

@@ -170,13 +170,13 @@
 %%%===================================================================
 
 -spec storage_create(storage_name(), helper(),
-    luma_config(), boolean(), boolean(), storage_qos_parameters()) ->
+    luma_config(), Imported :: boolean(), Readonly :: boolean(), storage_qos_parameters()) ->
     {ok, storage_id()} | {error, term()}.
 storage_create(Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters) ->
     ?CALL([Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters]).
 
 -spec storage_create(node(), storage_name(), helper(),
-    luma_config(), boolean(), boolean(), storage_qos_parameters()) ->
+    luma_config(), Imported :: boolean(), Readonly :: boolean(), storage_qos_parameters()) ->
     {ok, storage_id()} | {error, term()}.
 storage_create(Node, Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters) ->
     ?CALL(Node, [Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters]).
