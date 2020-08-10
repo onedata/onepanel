@@ -3009,9 +3009,9 @@ s3_model() ->
         %% imported storages.
         readonly => {boolean, optional},
         %% The access key to the S3 storage.
-        accessKey => string,
+        accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
-        secretKey => string,
+        secretKey => {string, {optional, <<"">>}},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
@@ -3058,9 +3058,9 @@ s3_credentials_model() ->
         %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"s3">>},
         %% The access key to the S3 storage.
-        accessKey => string,
+        accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
-        secretKey => string
+        secretKey => {string, {optional, <<"">>}}
     }.
 
 %%--------------------------------------------------------------------
