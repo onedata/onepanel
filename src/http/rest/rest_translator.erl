@@ -78,6 +78,7 @@ response(#onp_req{operation = delete}, ok) ->
 error_response({error, _} = Error) ->
     #rest_resp{
         code = errors:to_http_code(Error),
+        headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
         body = #{<<"error">> => errors:to_json(Error)}
     }.
 
