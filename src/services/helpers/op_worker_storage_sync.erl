@@ -21,8 +21,22 @@
 -type strategy_name() :: atom().
 
 %% API
+-export([start_scan/2, stop_scan/2]).
 -export([maybe_configure_storage_import/3, maybe_configure_storage_update/3,
     get_storage_import_details/3, get_storage_update_details/3, get_stats/4]).
+
+
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+-spec start_scan(node(), id()) -> ok.
+start_scan(Node, SpaceId) ->
+    op_worker_rpc:storage_sync_start_scan(Node, SpaceId).
+
+-spec stop_scan(node(), id()) -> ok.
+stop_scan(Node, SpaceId) ->
+    op_worker_rpc:storage_sync_stop_scan(Node, SpaceId).
 
 %%-------------------------------------------------------------------
 %% @doc This function modifies storage_import configuration on given Node.

@@ -37,6 +37,8 @@
 operation_supported(create, support, private) -> onepanel:is_op_panel();
 operation_supported(create, start_auto_cleaning, private) -> onepanel:is_op_panel();
 operation_supported(create, cancel_auto_cleaning, private) -> onepanel:is_op_panel();
+operation_supported(create, start_storage_import_scan, private) -> onepanel:is_op_panel();
+operation_supported(create, stop_storage_import_scan, private) -> onepanel:is_op_panel();
 
 operation_supported(get, instance, private) -> onepanel:is_op_panel();
 operation_supported(get, list, private) -> onepanel:is_op_panel();
@@ -76,6 +78,8 @@ authorize(#onp_req{operation = Op, client = Client, gri = #gri{aspect = As}}, _)
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
+    Op == create, As == start_storage_import_scan;
+    Op == create, As == stop_storage_import_scan;
     Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
     Op == update, As == file_popularity_configuration;
@@ -117,6 +121,8 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
+    Op == create, As == start_storage_import_scan;
+    Op == create, As == stop_storage_import_scan;
 
     Op == get, As == instance;
     Op == get, As == list;
@@ -160,6 +166,16 @@ create(#onp_req{gri = #gri{id = SpaceId, aspect = start_auto_cleaning}}) ->
 create(#onp_req{gri = #gri{id = SpaceId, aspect = cancel_auto_cleaning}}) ->
     middleware_utils:result_from_service_action(
         ?SERVICE_OP, cancel_auto_cleaning, #{space_id => SpaceId}
+    );
+
+create(#onp_req{gri = #gri{id = SpaceId, aspect = start_storage_import_scan}}) ->
+    middleware_utils:result_from_service_action(
+        ?SERVICE_OP, start_storage_import_scan, #{space_id => SpaceId}
+    );
+
+create(#onp_req{gri = #gri{id = SpaceId, aspect = stop_storage_import_scan}}) ->
+    middleware_utils:result_from_service_action(
+        ?SERVICE_OP, stop_storage_import_scan, #{space_id => SpaceId}
     ).
 
 

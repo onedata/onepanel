@@ -61,6 +61,8 @@
     patch_should_update_auto_cleaning/1,
     patch_with_incomplete_config_should_update_auto_cleaning/1,
     patch_with_incorrect_config_should_fail/1,
+    post_should_start_storage_import_scan/1,
+    post_should_stop_storage_import_scan/1,
 
     % tests of LUMA endpoints
     get_should_return_luma_configuration/1,
@@ -136,6 +138,8 @@ all() ->
         patch_should_update_auto_cleaning,
         patch_with_incomplete_config_should_update_auto_cleaning,
         patch_with_incorrect_config_should_fail,
+        post_should_start_storage_import_scan,
+        post_should_stop_storage_import_scan,
 
         % tests of LUMA endpoints
         get_should_return_luma_configuration,
@@ -195,6 +199,8 @@ all() ->
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
     {<<"/provider/spaces/someSpaceId/sync">>, get},
+    {<<"/provider/spaces/someSpaceId/sync/start">>, post},
+    {<<"/provider/spaces/someSpaceId/sync/stop">>, post},
 
     {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, get},
     {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, patch},
@@ -914,6 +920,37 @@ patch_with_incorrect_config_should_fail(Config) ->
         )
     end).
 
+
+post_should_start_storage_import_scan(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch(
+            {ok, ?HTTP_200_OK, #{?HDR_LOCATION := _}, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/sync/start">>, post,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, start_storage_import_scan, #{
+            space_id := <<"someId">>
+        }}, ?TIMEOUT)
+    end).
+
+
+post_should_stop_storage_import_scan(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch(
+            {ok, ?HTTP_200_OK, #{?HDR_LOCATION := _}, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/sync/stop">>, post,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, stop_storage_import_scan, #{
+            space_id := <<"someId">>
+        }}, ?TIMEOUT)
+    end).
+
+
 get_should_return_luma_configuration(Config) ->
     ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
@@ -1469,6 +1506,8 @@ init_per_testcase(Case, Config) when
     Case == patch_should_update_file_popularity;
     Case == patch_with_incomplete_config_should_update_auto_cleaning;
     Case == patch_with_incorrect_config_should_fail;
+    Case == post_should_start_storage_import_scan;
+    Case == post_should_stop_storage_import_scan;
     Case == delete_should_revoke_space_support;
     Case == post_should_add_user_mapping_to_local_feed_luma;
     Case == patch_should_modify_user_mapping_in_local_feed_luma;

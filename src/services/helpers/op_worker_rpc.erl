@@ -90,7 +90,6 @@
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([storage_get_luma_feed/1, storage_get_luma_feed/2]).
--export([]).
 -export([luma_clear_db/1, luma_clear_db/2]).
 -export([luma_storage_users_get_and_describe/2, luma_storage_users_get_and_describe/3]).
 -export([luma_storage_users_store/3, luma_storage_users_store/4]).
@@ -119,8 +118,7 @@
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
 -export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
--export([file_popularity_api_get_configuration/1,
-    file_popularity_api_get_configuration/2]).
+-export([file_popularity_api_get_configuration/1, file_popularity_api_get_configuration/2]).
 -export([autocleaning_configure/2, autocleaning_configure/3]).
 -export([autocleaning_get_configuration/1, autocleaning_get_configuration/2]).
 -export([autocleaning_list_reports/4, autocleaning_list_reports/5]).
@@ -155,12 +153,10 @@
 -export([get_storage_update_details/2, get_storage_update_details/3]).
 -export([configure_storage_import/3, configure_storage_import/4]).
 -export([configure_storage_update/3, configure_storage_update/4]).
--export([storage_sync_monitoring_get_metric/3,
-    storage_sync_monitoring_get_metric/4]).
--export([storage_sync_monitoring_get_status/1,
-    storage_sync_monitoring_get_status/2]).
--export([
-]).
+-export([storage_sync_start_scan/1, storage_sync_start_scan/2]).
+-export([storage_sync_stop_scan/1, storage_sync_stop_scan/2]).
+-export([storage_sync_monitoring_get_metric/3, storage_sync_monitoring_get_metric/4]).
+-export([storage_sync_monitoring_get_status/1, storage_sync_monitoring_get_status/2]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
 -export([set_txt_record/3, set_txt_record/4]).
 -export([remove_txt_record/1, remove_txt_record/2]).
@@ -956,6 +952,24 @@ configure_storage_update(SpaceId, Enabled, Args) ->
     space_strategy_arguments()) -> ok | {error, term()}.
 configure_storage_update(Node, SpaceId, Enabled, Args) ->
     ?CALL(Node, [SpaceId, Enabled, Args]).
+
+
+-spec storage_sync_start_scan(od_space_id()) -> ok.
+storage_sync_start_scan(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec storage_sync_start_scan(node(), od_space_id()) -> ok.
+storage_sync_start_scan(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
+
+
+-spec storage_sync_stop_scan(od_space_id()) -> ok.
+storage_sync_stop_scan(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec storage_sync_stop_scan(node(), od_space_id()) -> ok.
+storage_sync_stop_scan(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
 
 
 -spec storage_sync_monitoring_get_metric(od_space_id(),
