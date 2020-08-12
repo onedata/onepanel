@@ -74,7 +74,7 @@
 -export_type([storage_data/0, luma_config/0, helper/0,
     helper_args/0, helper_user_ctx/0, od_space_id/0, luma_feed/0, luma_details/0]).
 
--export([storage_create/5, storage_create/6]).
+-export([storage_create/6, storage_create/7]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
 -export([storage_list_ids/0, storage_list_ids/1]).
@@ -82,6 +82,7 @@
 -export([storage_update_admin_ctx/2, storage_update_admin_ctx/3]).
 -export([storage_update_helper_args/2, storage_update_helper_args/3]).
 -export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
+-export([storage_set_readonly/2, storage_set_readonly/3]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_update_name/2, storage_update_name/3]).
@@ -169,16 +170,16 @@
 %%%===================================================================
 
 -spec storage_create(storage_name(), helper(),
-    luma_config(), boolean(), storage_qos_parameters()) ->
+    luma_config(), Imported :: boolean(), Readonly :: boolean(), storage_qos_parameters()) ->
     {ok, storage_id()} | {error, term()}.
-storage_create(Name, Helpers, LumaConfig, ImportedStorage, QosParameters) ->
-    ?CALL([Name, Helpers, LumaConfig, ImportedStorage, QosParameters]).
+storage_create(Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters) ->
+    ?CALL([Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters]).
 
 -spec storage_create(node(), storage_name(), helper(),
-    luma_config(), boolean(), storage_qos_parameters()) ->
+    luma_config(), Imported :: boolean(), Readonly :: boolean(), storage_qos_parameters()) ->
     {ok, storage_id()} | {error, term()}.
-storage_create(Node, Name, Helpers, LumaConfig, ImportedStorage, QosParameters) ->
-    ?CALL(Node, [Name, Helpers, LumaConfig, ImportedStorage, QosParameters]).
+storage_create(Node, Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters) ->
+    ?CALL(Node, [Name, Helpers, LumaConfig, ImportedStorage, Readonly, QosParameters]).
 
 
 -spec storage_safe_remove(op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
@@ -248,6 +249,17 @@ storage_set_imported_storage(StorageId, Value) ->
 -spec storage_set_imported_storage(node(), storage_id(), boolean()) ->
     ok | {error, term()}.
 storage_set_imported_storage(Node, StorageId, Value) ->
+    ?CALL(Node, [StorageId, Value]).
+
+
+-spec storage_set_readonly(storage_id(), boolean()) ->
+    ok | {error, term()}.
+storage_set_readonly(StorageId, Value) ->
+    ?CALL([StorageId, Value]).
+
+-spec storage_set_readonly(node(), storage_id(), boolean()) ->
+    ok | {error, term()}.
+storage_set_readonly(Node, StorageId, Value) ->
     ?CALL(Node, [StorageId, Value]).
 
 
