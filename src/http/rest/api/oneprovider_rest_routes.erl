@@ -873,6 +873,28 @@ routes() ->
             }
         }},
 
+        %% Starts storage import scan
+        {<<"/provider/spaces/:id/sync/start">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = start_storage_import_scan,
+                scope = private
+            }
+        }},
+
+        %% Stops storage import scan
+        {<<"/provider/spaces/:id/sync/stop">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = stop_storage_import_scan,
+                scope = private
+            }
+        }},
+
         %% Support space
         {<<"/provider/spaces">>, #rest_req{
             method = 'POST',

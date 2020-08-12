@@ -108,10 +108,12 @@ get_storage_update_details(Node, SpaceId, StorageId) ->
 -spec get_stats(Node :: node(), SpaceId :: id(), Period :: binary(),
     Metrics :: [binary()]) -> #{atom() => json_utils:json_term()}.
 get_stats(Node, SpaceId, _Period, [<<"">>]) ->
-    get_status(Node, SpaceId);
+    #{
+        status => get_status(Node, SpaceId)
+    };
 get_stats(Node, SpaceId, Period, Metrics) ->
-    Status = get_status(Node, SpaceId),
-    Status#{
+    #{
+        status => get_status(Node, SpaceId),
         stats => get_all_metrics(Node, SpaceId, Period, Metrics)
     }.
 
@@ -222,41 +224,8 @@ map_metric_name_to_type(<<"deleteCount">>) -> deleted_files.
 %% @doc Returns current storage_sync status.
 %% @end
 %%-------------------------------------------------------------------
--spec get_status(Node :: node(), SpaceId :: id()) ->
-    #{atom() := binary()}.
+-spec get_status(Node :: node(), SpaceId :: id()) -> atom().
 get_status(Node, SpaceId) ->
-    #{
-        importStatus => get_import_status(Node, SpaceId),
-        updateStatus => get_update_status(Node, SpaceId)
-    }.
+    op_worker_rpc:storage_sync_monitoring_get_status(Node, SpaceId).
 
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns current storage_import status
-%% @end
-%%-------------------------------------------------------------------
--spec get_import_status(Node :: node(), SpaceId :: id()) -> binary().
-get_import_status(Node, SpaceId) ->
-    case op_worker_rpc:storage_sync_monitoring_get_import_status(Node, SpaceId) of
-        finished ->
-            <<"done">>;
-        _ ->
-            % "not_started" or "in_progress"
-            <<"inProgress">>
-    end.
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns current storage_update status
-%% @end
-%%-------------------------------------------------------------------
--spec get_update_status(Node :: node(), SpaceId :: id()) -> binary().
-get_update_status(Node, SpaceId) ->
-    case op_worker_rpc:storage_sync_monitoring_get_update_status(Node, SpaceId) of
-        in_progress ->
-            <<"inProgress">>;
-        _ ->
-            % "not_started" or "finished" (and waiting for next scan)
-            <<"waiting">>
-    end.
 

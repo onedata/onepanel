@@ -157,10 +157,10 @@
 -export([configure_storage_update/3, configure_storage_update/4]).
 -export([storage_sync_monitoring_get_metric/3,
     storage_sync_monitoring_get_metric/4]).
--export([storage_sync_monitoring_get_import_status/1,
-    storage_sync_monitoring_get_import_status/2]).
--export([storage_sync_monitoring_get_update_status/1,
-    storage_sync_monitoring_get_update_status/2]).
+-export([storage_sync_monitoring_get_status/1,
+    storage_sync_monitoring_get_status/2]).
+-export([
+]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
 -export([set_txt_record/3, set_txt_record/4]).
 -export([remove_txt_record/1, remove_txt_record/2]).
@@ -971,25 +971,14 @@ storage_sync_monitoring_get_metric(Node, SpaceId, Type, Window) ->
     ?CALL(Node, [SpaceId, Type, Window]).
 
 
--spec storage_sync_monitoring_get_import_status(od_space_id()) ->
+-spec storage_sync_monitoring_get_status(od_space_id()) ->
     storage_import_status().
-storage_sync_monitoring_get_import_status(SpaceId) ->
+storage_sync_monitoring_get_status(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_sync_monitoring_get_import_status(node(), od_space_id()) ->
+-spec storage_sync_monitoring_get_status(node(), od_space_id()) ->
     storage_import_status().
-storage_sync_monitoring_get_import_status(Node, SpaceId) ->
-    ?CALL(Node, [SpaceId]).
-
-
--spec storage_sync_monitoring_get_update_status(od_space_id()) ->
-    storage_update_status().
-storage_sync_monitoring_get_update_status(SpaceId) ->
-    ?CALL([SpaceId]).
-
--spec storage_sync_monitoring_get_update_status(node(), od_space_id()) ->
-    storage_update_status().
-storage_sync_monitoring_get_update_status(Node, SpaceId) ->
+storage_sync_monitoring_get_status(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

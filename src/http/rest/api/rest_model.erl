@@ -1434,10 +1434,8 @@ space_support_request_model() ->
 -spec space_sync_stats_model() -> onepanel_parser:object_spec().
 space_sync_stats_model() ->
     #{
-        %% Describes import algorithm run status.
-        importStatus => {enum, string, [<<"inProgress">>, <<"done">>]},
-        %% Describes update algorithm run status.
-        updateStatus => {{enum, string, [<<"waiting">>, <<"inProgress">>]}, optional},
+        %% Describes current status of storage import mechanism in given space.
+        status => {enum, string, [<<"initializing">>, <<"running">>, <<"stopping">>, <<"failed">>, <<"done">>]},
         %% Collection of statistics for requested metrics.
         stats => {time_stats_collection_model(), optional}
     }.
