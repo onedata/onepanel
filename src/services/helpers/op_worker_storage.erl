@@ -307,7 +307,7 @@ add(OpNode, Name, Params) ->
 
     ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
     case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, 
-        Readonly,  convert_qos_parameters(QosParameters)
+        Readonly,  normalize_numeric_qos_parameters(QosParameters)
     ) of
         {ok, _StorageId} -> ok;
         {error, Reason} -> {error, Reason}
@@ -504,7 +504,7 @@ maybe_update_luma_config(OpNode, Id, Params) ->
 -spec maybe_update_qos_parameters(OpNode :: node(), Id :: id(),
     storage_params()) -> ok | errors:error().
 maybe_update_qos_parameters(OpNode, Id, #{qosParameters := Parameters}) ->
-    update_qos_parameters(OpNode, Id, convert_qos_parameters(Parameters));
+    update_qos_parameters(OpNode, Id, normalize_numeric_qos_parameters(Parameters));
 maybe_update_qos_parameters(_OpNode, _Id, _) ->
     ok.
 
@@ -632,8 +632,8 @@ convert_to_binaries(Map) ->
 
 
 %% @private
--spec convert_qos_parameters(#{Term => binary()}) -> #{Term => binary() | integer()}.
-convert_qos_parameters(QosParameters) ->
+-spec normalize_numeric_qos_parameters(#{Term => binary()}) -> #{Term => binary() | integer()}.
+normalize_numeric_qos_parameters(QosParameters) ->
     maps:map(fun(_Key, Value) ->
         case re:run(Value, <<"^[0-9]+$">>, [{capture, none}]) of
             match -> binary_to_integer(Value);
