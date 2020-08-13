@@ -310,6 +310,7 @@ service_op_worker_add_storage_test(Config) ->
                 simulatedFilesystemParameters => <<>>,
                 simulatedFilesystemGrowSpeed => 0.0,
                 storagePathType => <<"canonical">>,
+                importedStorage => true,
                 readonly => true,
                 qosParameters => #{},
                 lumaFeed => <<"auto">>,
