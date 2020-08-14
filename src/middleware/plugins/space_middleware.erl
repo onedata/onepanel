@@ -169,12 +169,12 @@ create(#onp_req{gri = #gri{id = SpaceId, aspect = cancel_auto_cleaning}}) ->
     );
 
 create(#onp_req{gri = #gri{id = SpaceId, aspect = start_storage_import_scan}}) ->
-    middleware_utils:result_from_service_action(
+    middleware_utils:execute_service_action(
         ?SERVICE_OP, start_storage_import_scan, #{space_id => SpaceId}
     );
 
 create(#onp_req{gri = #gri{id = SpaceId, aspect = stop_storage_import_scan}}) ->
-    middleware_utils:result_from_service_action(
+    middleware_utils:execute_service_action(
         ?SERVICE_OP, stop_storage_import_scan, #{space_id => SpaceId}
     ).
 

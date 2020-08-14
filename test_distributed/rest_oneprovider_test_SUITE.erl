@@ -924,7 +924,7 @@ patch_with_incorrect_config_should_fail(Config) ->
 post_should_start_storage_import_scan(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch(
-            {ok, ?HTTP_200_OK, #{?HDR_LOCATION := _}, _},
+            {ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/sync/start">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
@@ -939,7 +939,7 @@ post_should_start_storage_import_scan(Config) ->
 post_should_stop_storage_import_scan(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch(
-            {ok, ?HTTP_200_OK, #{?HDR_LOCATION := _}, _},
+            {ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/sync/stop">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
