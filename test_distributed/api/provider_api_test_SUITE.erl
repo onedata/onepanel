@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Example test SUITE using onenv
+%%% This file contains tests concerning provider basic API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
 -module(provider_api_test_SUITE).
@@ -35,34 +35,44 @@ all() -> [
 
 
 get_provider_details(Config) ->
-    [P1 | _] = test_config:get_providers(Config),
-    [SpaceId | _] = test_config:get_provider_spaces(Config, P1),
+    [P1] = test_config:get_providers(Config),
+    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
 
-    PanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OzNode = lists_utils:random_element(test_config:get_all_oz_worker_nodes(Config)),
+    OpDomain = ?GET_DOMAIN_BIN(?OP_NODE(Config)),
+    OpName = hd(binary:split(OpDomain, <<".">>)),
+
+    ExpDetails = #{
+        <<"name">> => OpName,
+        <<"domain">> => OpDomain,
+        <<"onezoneDomainName">> => ?GET_DOMAIN_BIN(?OZ_NODE(Config)),
+        <<"id">> => P1,
+        % Below values are defined in k8s charts
+        <<"geoLatitude">> => 50.0647,
+        <<"geoLongitude">> => 19.945,
+        <<"adminEmail">> => <<"getting-started@onedata.org">>,
+        <<"subdomainDelegation">> => false
+    },
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get provider details using /provider rest endpoint">>,
             type = rest,
-            target_nodes = PanelNodes,
+            target_nodes = OpPanelNodes,
             client_spec = #client_spec{
                 correct = [
-                    api_test_runner:create_root_client(PanelNodes),
-                    api_test_runner:create_member_client(OzNode, P1, [])  % TODO should pass with no privileges?
+                    root,
+                    {member, []}
                 ],
                 unauthorized = [
-                    ?API_GUEST,
-                    {api_test_runner:create_user_client(OzNode, SpaceId), ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    guest,
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
-                forbidden = [
-                    api_test_runner:create_peer_client(PanelNodes)
-                ]
+                forbidden = [peer]
             },
             prepare_args_fun = fun(_) -> #rest_args{method = get, path = <<"provider">>} end,
-            validate_result_fun = fun(_, {ok, _RespCode, _, _RespBody} = Result) ->
-                ct:pal("RESULT: ~p", [Result])
+            validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
+                ?assertEqual({?HTTP_200_OK, ExpDetails}, {RespCode, RespBody})
             end
         }
     ])).
@@ -80,8 +90,6 @@ init_per_suite(Config) ->
         onenv_test_utils:prepare_base_test_config(NewConfig)
     end,
     test_config:set_many(Config, [
-        {add_envs, [op_panel, onepanel, [{key, value}]]},
-        {add_envs, [oz_panel, onepanel, [{another_key, another_value}]]},
         {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
         {set_posthook, Posthook}
     ]).

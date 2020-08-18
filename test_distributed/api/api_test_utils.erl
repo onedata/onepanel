@@ -17,13 +17,8 @@
 
 -export([load_module_from_test_distributed_dir/2]).
 
--export([
-    guids_to_object_ids/1,
-    ensure_defined/2
-]).
--export([
-    maybe_substitute_bad_id/2
-]).
+-export([ensure_defined/2]).
+-export([maybe_substitute_bad_id/2]).
 
 
 %%%===================================================================
@@ -57,14 +52,6 @@ load_module_from_test_distributed_dir(Config, ModuleName) ->
         _ ->
             ct:fail("Couldn't load module: ~p", [ModuleName])
     end.
-
-
--spec guids_to_object_ids([file_id:file_guid()]) -> [file_id:objectid()].
-guids_to_object_ids(Guids) ->
-    lists:map(fun(Guid) ->
-        {ok, ObjectId} = file_id:guid_to_objectid(Guid),
-        ObjectId
-    end, Guids).
 
 
 -spec ensure_defined

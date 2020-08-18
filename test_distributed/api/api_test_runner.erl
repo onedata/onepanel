@@ -31,10 +31,7 @@
 -include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
--export([
-    create_root_client/1, create_peer_client/1,
-    create_user_client/2, create_member_client/2, create_member_client/3
-]).
+
 -export([run_tests/2]).
 
 -type scenario_type() :: rest.
@@ -44,6 +41,8 @@
 -type api_client_placeholder() ::
     root | peer | guest | user |
     member | {member, Privileges :: [privileges:cluster_privilege()]}.
+-type api_client_or_placeholder() :: api_client() | api_client_placeholder().
+
 -type client_spec() :: #client_spec{}.
 -type data_spec() :: #data_spec{}.
 
@@ -76,7 +75,8 @@
 
 -export_type([
     scenario_type/0, target_nodes/0,
-    api_client/0, client_spec/0, data_spec/0,
+    api_client/0, api_client_placeholder/0, api_client_or_placeholder/0,
+    client_spec/0, data_spec/0,
     rest_args/0,
     api_test_ctx/0,
     setup_fun/0, teardown_fun/0, verify_fun/0,
@@ -97,64 +97,6 @@
 %%%===================================================================
 
 
--spec create_root_client(PanelNodes :: [node()]) -> api_client().
-create_root_client(PanelNodes) ->
-    Username = ?LOCAL_USERNAME,
-    Password = ?ONENV_EMERGENCY_PASSPHRASE,
-    BasicCredentials = {Username, Password},
-
-    Hash = base64:encode(<<Username/binary, ":", Password/binary>>),
-    BasicAuthHeaders = #{?HDR_AUTHORIZATION => <<"Basic ", Hash/binary>>},
-
-    Node = lists_utils:random_element(PanelNodes),
-    Token = obtain_local_token(Node, BasicAuthHeaders),
-
-    #api_client{
-        role = root,
-        basic_credentials = BasicCredentials,
-        token = Token
-    }.
-
-
--spec create_peer_client(PanelNodes :: [node()]) -> api_client().
-create_peer_client(PanelNodes) ->
-    Node = lists_utils:random_element(PanelNodes),
-    {ok, Token} = ?assertMatch({ok, _}, rpc:call(Node, invite_tokens, create, [])),
-    #api_client{role = peer, token = Token}.
-
-
--spec create_user_client(OzNode :: node(), SpaceId :: binary()) -> api_client().
-create_user_client(OzNode, SpaceId) ->
-    {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
-        ?ROOT, #{}
-    ])),
-    ?assertMatch({ok, _}, rpc:call(OzNode, space_logic, add_user, [
-        ?ROOT, SpaceId, UserId, privileges:space_member()
-    ])),
-    Token = create_oz_temp_token(OzNode, UserId),
-
-    #api_client{role = user, token = Token}.
-
-
--spec create_member_client(node(), clusters:id()) -> api_client().
-create_member_client(OzNode, ClusterId) ->
-    create_member_client(OzNode, ClusterId, privileges:cluster_member()).
-
-
--spec create_member_client(node(), clusters:id(), [privileges:cluster_privilege()]) ->
-    api_client().
-create_member_client(OzNode, ClusterId, Privileges) ->
-    {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
-        ?ROOT, #{}
-    ])),
-    ?assertMatch({ok, _}, rpc:call(OzNode, cluster_logic, add_user, [
-        ?ROOT, ClusterId, UserId, Privileges
-    ])),
-    Token = create_oz_temp_token(OzNode, UserId),
-
-    #api_client{role = user, token = Token}.
-
-
 -spec run_tests(config(), [scenario_spec() | suite_spec()]) ->
     boolean().
 run_tests(Config, Specs) ->
@@ -172,10 +114,17 @@ run_tests(Config, Specs) ->
 
 
 %% @private
-run_suite(Config, SuiteSpec) ->
+run_suite(Config, #suite_spec{
+    client_spec = ClientSpecWithPlaceholders,
+    target_nodes = PanelNodes
+} = SuiteSpec0) ->
     try
-        true
-        and run_invalid_clients_test_cases(Config, unauthorized, SuiteSpec)
+        ClientSpec = replace_client_placeholders_with_valid_clients(
+            ClientSpecWithPlaceholders, PanelNodes, Config
+        ),
+        SuiteSpec = SuiteSpec0#suite_spec{client_spec = ClientSpec},
+
+        run_invalid_clients_test_cases(Config, unauthorized, SuiteSpec)
         and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
         and run_malformed_data_test_cases(Config, SuiteSpec)
         and run_missing_required_data_test_cases(Config, SuiteSpec)
@@ -189,6 +138,92 @@ run_suite(Config, SuiteSpec) ->
             ]),
             false
     end.
+
+
+%% @private
+replace_client_placeholders_with_valid_clients(#client_spec{
+    correct = CorrectClientsAndPlaceholders,
+    unauthorized = UnauthorizedClientsAndPlaceholders,
+    forbidden = ForbiddenClientsAndPlaceholders
+}, PanelNodes, Config) ->
+    #client_spec{
+        correct = replace_client_placeholders(
+            CorrectClientsAndPlaceholders, PanelNodes, Config
+        ),
+        unauthorized = replace_client_placeholders(
+            UnauthorizedClientsAndPlaceholders, PanelNodes, Config
+        ),
+        forbidden = replace_client_placeholders(
+            ForbiddenClientsAndPlaceholders, PanelNodes, Config
+        )
+    }.
+
+
+%% @private
+replace_client_placeholders(ClientsAndPlaceholders, PanelNodes, Config) ->
+    lists:map(fun
+        ({ClientOrPlaceholder, {error, _} = Error}) ->
+            {get_or_create_client(ClientOrPlaceholder, PanelNodes, Config), Error};
+        (ClientOrPlaceholder) ->
+            get_or_create_client(ClientOrPlaceholder, PanelNodes, Config)
+    end, ClientsAndPlaceholders).
+
+
+%% @private
+get_or_create_client(guest, _PanelNodes, _Config) ->
+    ?API_GUEST;
+
+get_or_create_client(user, _PanelNodes, Config) ->
+    OzNode = ?OZ_NODE(Config),
+
+    {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
+        ?ROOT, #{}
+    ])),
+    Token = create_oz_temp_token(OzNode, UserId),
+
+    #api_client{role = user, token = Token};
+
+get_or_create_client(member, PanelNodes, Config) ->
+    get_or_create_client({member, privileges:cluster_member()}, PanelNodes, Config);
+
+get_or_create_client({member, Privileges}, PanelNodes, Config) ->
+    OzNode = ?OZ_NODE(Config),
+    PanelNode = lists_utils:random_element(PanelNodes),
+    ClusterId = rpc:call(PanelNode, clusters, get_id, []),
+
+    {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
+        ?ROOT, #{}
+    ])),
+    ?assertMatch({ok, _}, rpc:call(OzNode, cluster_logic, add_user, [
+        ?ROOT, ClusterId, UserId, Privileges
+    ])),
+    Token = create_oz_temp_token(OzNode, UserId),
+
+    #api_client{role = member, privileges = Privileges, token = Token};
+
+get_or_create_client(peer, PanelNodes, _Config) ->
+    Node = lists_utils:random_element(PanelNodes),
+    {ok, Token} = ?assertMatch({ok, _}, rpc:call(Node, invite_tokens, create, [])),
+    #api_client{role = peer, token = Token};
+
+get_or_create_client(root, PanelNodes, _Config) ->
+    Username = ?LOCAL_USERNAME,
+    Password = ?ONENV_EMERGENCY_PASSPHRASE,
+
+    Hash = base64:encode(<<Username/binary, ":", Password/binary>>),
+    BasicAuthHeaders = #{?HDR_AUTHORIZATION => <<"Basic ", Hash/binary>>},
+
+    Node = lists_utils:random_element(PanelNodes),
+    Token = obtain_local_token(Node, BasicAuthHeaders),
+
+    #api_client{
+        role = root,
+        basic_credentials = {Username, Password},
+        token = Token
+    };
+
+get_or_create_client(#api_client{} = ApiClient, _PanelNodes, _Config) ->
+    ApiClient.
 
 
 %% @private
@@ -821,7 +856,7 @@ get_onepanel_rest_endpoint(Node, ResourcePath) ->
 
     % Randomly select between testing direct request or proxy one via
     % Onezone/Oneprovider.
-    Port = case rand:uniform(1) of
+    Port = case rand:uniform(2) of
         1 -> <<>>;
         2 -> <<":9443">>
     end,

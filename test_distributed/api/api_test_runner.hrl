@@ -27,7 +27,7 @@
     %% guest - unauthenticated client, on endpoints with noauth enabled
     %% user - Onezone user not belonging to the cluster
     %% member - Onezone user belonging to the cluster, governed by privileges
-    %% peer - Onepanel node authorized with #authorization_nonce{}
+    %% peer - Onepanel authorized with #authorization_nonce{}
     %% root - client authenticated with the emergency passphrase
     role = guest :: guest | user | member | peer | root,
     privileges = undefined :: undefined | [privileges:cluster_privilege()],
@@ -61,9 +61,12 @@
 ]).
 
 -record(client_spec, {
-    correct = [] :: [api_test_runner:api_client()],
-    unauthorized = [] :: [api_test_runner:api_client() | {api_test_runner:api_client(), Reason :: errors:error()}],
-    forbidden = [] :: [api_test_runner:api_client()]
+    correct = [] :: [api_test_runner:api_client_or_placeholder()],
+    unauthorized = [] :: [
+        api_test_runner:api_client_or_placeholder() |
+        {api_test_runner:api_client_or_placeholder(), Reason :: errors:error()}
+    ],
+    forbidden = [] :: [api_test_runner:api_client_or_placeholder()]
 }).
 
 -record(data_spec, {
@@ -145,5 +148,12 @@
 -define(SCENARIO_NAME, atom_to_binary(?FUNCTION_NAME, utf8)).
 
 -define(REST_ERROR(__ERROR), #{<<"error">> => errors:to_json(__ERROR)}).
+
+-define(OZ_NODE(__CONFIG), lists_utils:random_element(
+    test_config:get_all_oz_worker_nodes(__CONFIG)
+)).
+-define(OP_NODE(__CONFIG), lists_utils:random_element(test_config:get_provider_nodes(
+    __CONFIG, hd(test_config:get_providers(__CONFIG))
+))).
 
 -endif.
