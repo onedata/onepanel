@@ -46,7 +46,7 @@ CHANGELOG
 
 -   VFS-4777 Introduced Ceph cluster deployment. Onepanel can
     orchestrate Ceph deployment among Onedata nodes and use the cluster
-    as Oneprovider\\\'s storage backend.
+    as Oneprovider\'s storage backend.
 
 -   VFS-4777 REST endpoint getTaskStatus now includes total number of
     steps to be executed.
@@ -68,8 +68,8 @@ CHANGELOG
     -   Endpoints creating a long-running task return a JSON body with
         the task id in addition to the Location header and use HTTP code
         202 Accepted.
-    -   POST requests \\\'support\_space\\\' and
-        \\\'add\_onezone\_user\\\' now use the 201 Created HTTP code,
+    -   POST requests \'support\_space\' and
+        \'add\_onezone\_user\' now use the 201 Created HTTP code,
         return the id of created resource in the response body, and
         provider the Location header.
     -   PATCH request modifying space support no longer returns the
@@ -127,7 +127,7 @@ CHANGELOG
 
 -   VFS-6076 Improve readability
 
--   VFS-6076 Use ctool\\\'s map utils
+-   VFS-6076 Use ctool\'s map utils
 
 -   VFS-6076 Resolve step hosts just before execution
 
@@ -185,7 +185,7 @@ CHANGELOG
 -   VFS-6108 Bump version to 20.02.0-beta1
 
 -   VFS-6108 Fix access token verification procedure to use
-    onepanel\\\'s serviceToken
+    onepanel\'s serviceToken
 
 -   VFS-6108 Update ctool ref, adjust to access and identity tokens
     being two separate types
@@ -206,7 +206,7 @@ CHANGELOG
 
 -   Update onedata-documentation ref
 
--   VFS-6075 Ensure only one Let\\\'s Encrypt cron job
+-   VFS-6075 Ensure only one Let\'s Encrypt cron job
 
 -   VFS-6075 Improve docs and type specs
 
@@ -260,8 +260,8 @@ CHANGELOG
 
 ### 19.02.1
 
--   VFS-5994 Make \\\'production\\\' Let\\\'s Encrypt mode the default
--   VFS-5940 Rename oz-worker\\\'s GUI package verification envs to more
+-   VFS-5994 Make \'production\' Let\'s Encrypt mode the default
+-   VFS-5940 Rename oz-worker\'s GUI package verification envs to more
     intuitive
 
 ### 19.02.0-rc2
@@ -279,7 +279,7 @@ CHANGELOG
     Onezone
 -   VFS-5687 Added fallback when rpc fails during service compatibility
     check
--   VFS-5500 Use op\_worker\\\'s graph sync to fetch space details
+-   VFS-5500 Use op\_worker\'s graph sync to fetch space details
 -   VFS-5500 Persist provider details
 -   VFS-5400 Use compatibility reference json in op
 -   VFS-5635 Ensure Onezone is configured with lowercase domain
@@ -322,7 +322,7 @@ CHANGELOG
 
 ### 18.02.1
 
--   VSF-5198 Renew Let\\\'s Encrypt certs 30 days before expiration
+-   VSF-5198 Renew Let\'s Encrypt certs 30 days before expiration
 -   Updating GUI, including: VFS-5187-spaces-support-fixes \* VFS-5187
     Fixed some graphical issues in supported spaces view; onepanel
     client library update
@@ -340,7 +340,7 @@ CHANGELOG
 -   VFS-5161 Add configuration endpoint to swagger-described path
 -   Updating GUI, including: VFS-5153-dns-autodetect-option \* VFS-5153
     Added DNS autodetect option
--   VFS-5146 Handle \\\'hostname -i\\\' returning multiple addresses
+-   VFS-5146 Handle \'hostname -i\' returning multiple addresses
 -   VFS-5146 Add builtInDnsServer switch to batch config
 -   VFS-5146 Allow use of default DNS for NS records check
 -   VFS-5146 Store oz domain before using it for IP detection
@@ -411,7 +411,7 @@ CHANGELOG
 -   Updating GUI, including: VFS-4663-onezone-web-cert \* VFS-4663 Web
     certificate management
 -   VFS-4029 Update API description from swagger
--   VFS-4029 Support http Let\\\'s Encrypt challenge in OZ and OP
+-   VFS-4029 Support http Let\'s Encrypt challenge in OZ and OP
 -   Updating GUI, including: VFS-4677-cephrados \* VFS-4677 Added Ceph
     RADOS storage support
 -   Updating GUI, including: VFS-4463-show-storage-id,
@@ -448,7 +448,7 @@ CHANGELOG
 -   Updating GUI, including: VFS-4587 \* VFS-4587 Fixing lack of space
     occupancy bar by updating onepanel client
 -   VFs-4586 Updated rest model with space occupancy field from swagger
--   VFS-4560 Detect existing Let\\\'s Encrypt certificates
+-   VFS-4560 Detect existing Let\'s Encrypt certificates
 -   VFS-4570 Fix endpoints for leaving cluster and querying nagios
 -   VFS-4367 Add rest callback accept\_possible
 -   VFS-4367 Refactor oneprovider rest to use batch argument copying
@@ -491,7 +491,7 @@ CHANGELOG
 -   VFS-4278 Start configured cluster services on startup
 -   VFS-4278 Wait indefinitely for other mnesia nodes
 -   VFS-4278 Create model for storing configuration milestones
--   VFS-4278 Add field \\\'master\\\' to REST configuration details
+-   VFS-4278 Add field \'master\' to REST configuration details
 -   VFS-4278 Introduce Master node
 -   VFS-4278 Introduce field \\\"ready\\\" in cluster configuration GET
 -   VFS-4278 Endpoint for starting oneprovider service
@@ -528,9 +528,9 @@ CHANGELOG
 -   VFS-4374 Retry checking TXT record at onezone
 -   VFs-4374 Ensure LE TXT presence by querying global DNS servers
 -   VFS-4374 Log verbose error on cert renewal chack failure
--   VFS-4374 Prevent too eager disabling of Let\\\'s Encrypt
+-   VFS-4374 Prevent too eager disabling of Let\'s Encrypt
 -   VFS-4374 Add verification of set txt record in letsencrypt
--   VFS-4374 Delete Let\\\'s Encrypt account on error
+-   VFS-4374 Delete Let\'s Encrypt account on error
 -   VFS-4374 Increase LE retries and decrease dns TTL to improve
     stability
 -   VFS-4374 Add option to retry the ensure\_webcert step
@@ -554,7 +554,7 @@ CHANGELOG
 -   VFS-4335 Return map when checking cluster IPs
 -   VFS-3703 Switched from mochiweb JSON parsing to jiffy
 -   VFS-4067 Fix setting cluster IPs in onezone
--   VFS-3745 Seperate Let\\\'s Encrypt client from oneprovdier
+-   VFS-3745 Seperate Let\'s Encrypt client from oneprovdier
 -   VFS-4267 Update images in services test suite
 -   Update web-client and ctool refs
 -   VFS-4267 Adjust code to erl 20, update deps
@@ -573,7 +573,7 @@ CHANGELOG
     improvements)
 -   VFS-4236 Check if storage exists before creating it
 -   VFS-4222 Change op\_worker function triggering oz connection
--   VFS-4222 Don\\\'t trigger Let\\\'s Encrypt on every provider
+-   VFS-4222 Don\'t trigger Let\'s Encrypt on every provider
     modification
 -   VFS-4222 Explicitly check oz connection after registration
 -   VFS-3745 Generate test web cert only once
@@ -588,7 +588,7 @@ CHANGELOG
 -   Updating GUI, including: VFS-4097 \* VFS-4097 Added cluster IPs
     configuration step and view for changing IPs after deployment
 -   VFS-4067 Move common function to utils
--   VFS-4067 Set default value for Let\\\'s Encrypt in batch config
+-   VFS-4067 Set default value for Let\'s Encrypt in batch config
 -   VFS-4067 Throw on unimplemented delete resource method
 -   VFS-4067 Mark IPs as configured in batch config
 -   VFS-4067 Do not set provider IP before registration in onezone
@@ -623,17 +623,17 @@ CHANGELOG
 -   VFS-3978 unify paths and env names related to certs with those in op
     and oz
 -   VFS-3765 Use provided admin email in provider registration and
-    Let\\\'s Encrypt cert procedure
+    Let\'s Encrypt cert procedure
 -   VFS-4015 Use PBKDF2 rather than bcrypt for user password hashing
 -   VFS-3622 Allow to use custom commands for starting underlying
     services and to pass overlay config upon onepanel start
--   VFS-3751 Use provider macaroons rather than certificates, don\\\'t
+-   VFS-3751 Use provider macaroons rather than certificates, don\'t
     fetch provider details unless it is registered
 -   VFS-3790 Automatically generate web certs on startup if not present,
     use secure connections where possible
 -   VFS-3635 Distribute OZ CA cert during registration
 -   Overwrite worker cert paths with onepanel certs
--   VFS-3609 Implement ACME protocol (Let\\\'s Encrypt) client
+-   VFS-3609 Implement ACME protocol (Let\'s Encrypt) client
 -   VFS-3614 Modify API to handle subdomain delegation
 -   VFS-3526 Combine provider urls and redirection\_point
 -   VFS-3606 GUI: Subdomain delegation functionality for provider
@@ -730,7 +730,7 @@ CHANGELOG
 
 ### 17.06.0-rc1
 
--   VFS-3448 Use single \\\'onedata\\\' bucket
+-   VFS-3448 Use single \'onedata\' bucket
 -   VFS-3384 add translation of luma configuration error
 -   VFS-3384 setup luma when adding storage
 -   VFS-3417 Increase default RAM quota of couchbase buckets
@@ -829,7 +829,7 @@ CHANGELOG
 
 ### 3.0.0-rc6
 
--   VFS-2180 Add \\\'sync\\\' bucket for oneprovider release
+-   VFS-2180 Add \'sync\' bucket for oneprovider release
 -   VFS-2525 Update onepanel\_gui ref
 -   VFS-2525 Fix docs generation
 -   VFS-2390 Upgrade rebar to version 3
@@ -847,7 +847,7 @@ CHANGELOG
 
 ### 3.0.0-RC3
 
--   VFS-2156 Make \\\'/tasks\\\' endpoint unauthorized
+-   VFS-2156 Make \'/tasks\' endpoint unauthorized
 -   VFS-2156 Add couchbase server and bucket quota
 -   VFS-2156 Accept application/x-yaml content type
 -   VFS-2156 Build package

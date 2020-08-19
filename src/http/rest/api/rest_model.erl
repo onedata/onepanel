@@ -1879,6 +1879,13 @@ ceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The username of the Ceph cluster user. In case of configuring
         %% storage, this field must be equal to name of the Ceph cluster admin.
         username => string,
@@ -1969,6 +1976,13 @@ ceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2014,6 +2028,13 @@ cephrados_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The username of the Ceph cluster administrator.
         username => string,
         %% The admin key to access the Ceph cluster.
@@ -2025,7 +2046,7 @@ cephrados_model() ->
         %% The Ceph pool name.
         poolName => string,
         %% Storage block size in bytes.
-        blockSize => {integer, optional},
+        blockSize => {integer, {optional, 4194304}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2082,6 +2103,13 @@ cephrados_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2127,12 +2155,19 @@ glusterfs_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The name of the volume to use as a storage backend.
         volume => string,
         %% The hostname (IP address or FQDN) of GlusterFS volume server.
         hostname => string,
         %% The GlusterFS port on volume server.
-        port => {integer, optional},
+        port => {integer, {optional, 24007}},
         %% The transport protocol to use to connect to the volume server.
         transport => {{enum, string, [<<"tcp">>, <<"rdma">>, <<"socket">>]}, optional},
         %% Relative mountpoint within the volume which should be used by
@@ -2197,6 +2232,13 @@ glusterfs_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2246,6 +2288,13 @@ http_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
@@ -2279,13 +2328,13 @@ http_model() ->
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
         %% will placed where `{}` is provided.
-        authorizationHeader => {string, optional},
+        authorizationHeader => {string, {optional, <<"Authorization: Bearer {}">>}},
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
         connectionPoolSize => {integer, {optional, 150}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
-        %% `0644`.
+        %% `0664`.
         fileMode => {string, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -2362,6 +2411,13 @@ http_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2424,6 +2480,13 @@ localceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Desired number of object replicas in the pool. When below this number
         %% the pool still may be used in 'degraded' mode. Defaults to
         %% `2` if there are at least 2 OSDs, `1` otherwise.
@@ -2481,6 +2544,13 @@ localceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The type of storage.
         type => {discriminator, <<"localceph">>}
     }.
@@ -2603,6 +2673,13 @@ nulldevice_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
         latencyMin => {integer, optional},
@@ -2688,6 +2765,13 @@ nulldevice_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2806,6 +2890,13 @@ posix_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
         mountPoint => string,
@@ -2865,6 +2956,13 @@ posix_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -2903,22 +3001,29 @@ s3_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The access key to the S3 storage.
-        accessKey => string,
+        accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
-        secretKey => string,
+        secretKey => {string, {optional, <<"">>}},
         %% The hostname of a machine where S3 storage is installed.
         hostname => string,
         %% The storage bucket name.
         bucketName => string,
         %% The version of signature used to sign requests. One of: 2, 4.
         %% Default: 4.
-        signatureVersion => {integer, optional},
+        signatureVersion => {integer, {optional, 4}},
         %% Storage block size in bytes. In case the block size is `0`
         %% and `canonical` path type is selected, each file is stored
         %% in a single S3 object. This value must be set to `0` to
         %% enable data import from an existing S3 bucket.
-        blockSize => {integer, optional},
+        blockSize => {integer, {optional, 10485760}},
         %% Defines the maximum size for objects, which can be modified on the S3
         %% storage in `canonical` path mode. In this mode, entire file
         %% needs to be downloaded to memory, modified and uploaded back, which
@@ -2927,11 +3032,11 @@ s3_model() ->
         %% Defines the file permissions, which files imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0644`.
-        fileMode => {string, optional},
+        fileMode => {string, {optional, <<"0664">>}},
         %% Defines the directory mode which directories imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0775`.
-        dirMode => {string, optional},
+        dirMode => {string, {optional, <<"0775">>}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2953,9 +3058,9 @@ s3_credentials_model() ->
         %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"s3">>},
         %% The access key to the S3 storage.
-        accessKey => string,
+        accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
-        secretKey => string
+        secretKey => {string, {optional, <<"">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -2988,6 +3093,13 @@ s3_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -3047,6 +3159,13 @@ swift_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% The Keystone authentication username.
         username => string,
         %% The Keystone authentication password.
@@ -3058,7 +3177,7 @@ swift_model() ->
         %% The name of the Swift storage container.
         containerName => string,
         %% Storage block size in bytes.
-        blockSize => {integer, optional},
+        blockSize => {integer, {optional, 10485760}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -3115,6 +3234,13 @@ swift_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -3160,6 +3286,13 @@ webdav_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
@@ -3193,7 +3326,7 @@ webdav_model() ->
         %% This field can contain any prefix that should be added to the header
         %% value. Default is `Authorization: Bearer {}`. The token
         %% will placed where `{}` is provided.
-        authorizationHeader => {string, optional},
+        authorizationHeader => {string, {optional, <<"Authorization: Bearer {}">>}},
         %% The type of partial write support enabled in the WebDAV server.
         %% Currently 2 types are supported `sabredav` which assumes
         %% the server supports the SabreDAV PartialUpdate extension via
@@ -3212,11 +3345,11 @@ webdav_model() ->
         %% Defines the file permissions, which files imported from WebDAV
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0644`.
-        fileMode => {string, optional},
+        fileMode => {string, {optional, <<"0664">>}},
         %% Defines the directory mode which directories imported from WebDAV
         %% storage will have in Onedata. Values should be provided in octal
         %% format e.g. `0775`.
-        dirMode => {string, optional},
+        dirMode => {string, {optional, <<"0775">>}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -3292,6 +3425,13 @@ webdav_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
@@ -3369,6 +3509,13 @@ xrootd_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Determines the types of credentials provided in the credentials
         %% field.
         credentialsType => {{enum, string, [<<"none">>, <<"pwd">>]}, {optional, <<"none">>}},
@@ -3387,12 +3534,12 @@ xrootd_model() ->
         %% readable file on XRootD would result in a file which is readable for
         %% all users, but file which is writeable in XRootD will be only
         %% writeable by user and group.
-        fileModeMask => {string, optional},
+        fileModeMask => {string, {optional, <<"0664">>}},
         %% Defines the directory permissions mask, which is used to map XRootD
         %% dir mode to POSIX mode. For instance a dirModeMask `0770`
         %% for readable directory on XRootD would result in a directory which is
         %% readable for owner and group but not for others.
-        dirModeMask => {string, optional},
+        dirModeMask => {string, {optional, <<"0775">>}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -3453,6 +3600,13 @@ xrootd_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
