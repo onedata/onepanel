@@ -650,12 +650,8 @@ get_space_details(#{id := SpaceId}) ->
     {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
-    ImportDetails = op_worker_storage_sync:get_storage_import_details(
-        Node, SpaceId, StorageId
-    ),
-    UpdateDetails = op_worker_storage_sync:get_storage_update_details(
-        Node, SpaceId, StorageId
-    ),
+    InitialScanDetails = op_worker_storage_sync:get_initial_scan_details(Node, SpaceId, StorageId),
+    AutoScanDetails = op_worker_storage_sync:get_auto_scan_details(Node, SpaceId, StorageId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
     #{
         id => SpaceId,
@@ -664,8 +660,8 @@ get_space_details(#{id := SpaceId}) ->
         name => Name,
         spaceOccupancy => CurrentSize,
         storageId => StorageId,
-        storageImport => ImportDetails,
-        storageUpdate => UpdateDetails,
+        storageImport => InitialScanDetails,
+        storageUpdate => AutoScanDetails,
         supportingProviders => Providers
     }.
 
@@ -677,11 +673,12 @@ get_space_details(#{id := SpaceId}) ->
 -spec modify_space(Ctx :: service:step_ctx()) -> #{id => op_worker_rpc:od_space_id()}.
 modify_space(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_update, Ctx, #{}),
+    InitialScanArgs = maps:get(storage_import, Ctx, #{}),
+    AutoScanArgs = maps:get(storage_update, Ctx, #{}),
+    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    StorageId = hd(StorageIds),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
-    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
+    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, StorageId, InitialScanArgs, AutoScanArgs),
     #{id => SpaceId}.
 
 
@@ -1184,10 +1181,11 @@ assert_storage_exists(Node, StorageId) ->
 %%--------------------------------------------------------------------
 -spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:step_ctx()) -> Id :: binary().
 configure_space(Node, SpaceId, Ctx) ->
-    ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
+    InitialScanArgs = maps:get(storage_import, Ctx, #{}),
+    AutoScanArgs = maps:get(storage_update, Ctx, #{}),
+    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    StorageId = hd(StorageIds),
+    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, StorageId, InitialScanArgs, AutoScanArgs),
     SpaceId.
 
 

@@ -18,12 +18,10 @@
 
 -type id() :: binary().
 -type args() :: map().
--type strategy_name() :: atom().
 
 %% API
 -export([start_scan/2, stop_scan/2]).
--export([maybe_configure_storage_import/3, maybe_configure_storage_update/3,
-    get_storage_import_details/3, get_storage_update_details/3, get_stats/4]).
+-export([maybe_configure_storage_import/5, get_initial_scan_details/3, get_auto_scan_details/3, get_stats/4]).
 
 
 %%%===================================================================
@@ -32,61 +30,50 @@
 
 -spec start_scan(node(), id()) -> ok.
 start_scan(Node, SpaceId) ->
-    op_worker_rpc:storage_sync_start_scan(Node, SpaceId).
+    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    StorageId = hd(StorageIds),
+    op_worker_rpc:storage_import_start_scan(Node, SpaceId, StorageId).
 
 -spec stop_scan(node(), id()) -> ok.
 stop_scan(Node, SpaceId) ->
-    op_worker_rpc:storage_sync_stop_scan(Node, SpaceId).
+    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
+    StorageId = hd(StorageIds),
+    op_worker_rpc:storage_import_stop_scan(Node, SpaceId, StorageId).
 
 %%-------------------------------------------------------------------
 %% @doc This function modifies storage_import configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), Args :: args()) -> ok.
-maybe_configure_storage_import(_Node, _SpaceId, Args0) when map_size(Args0) == 0 ->
+-spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), StorageId :: id(), InitialScanArgs :: args(),
+    AutoScanArgs :: args()) -> ok.
+maybe_configure_storage_import(_Node, _SpaceId, StorageId, InitialScanArgs, AutoScanArgs)
+    when map_size(InitialScanArgs) == 0 andalso map_size(AutoScanArgs) == 0 ->
     ok;
-maybe_configure_storage_import(Node, SpaceId, Args) ->
-    StrategyName = onepanel_utils:get_converted(strategy, Args, atom),
-    case current_import_strategy(Node, SpaceId) of
-        StrategyName ->
-            ok;  % ignore if NewStrategyName is the same as current
-        no_import ->
-            configure_storage_import(Node, SpaceId, Args, StrategyName);
-        _ ->
-            throw(?ERROR_STORAGE_IMPORT_STARTED)
+maybe_configure_storage_import(Node, SpaceId, StorageId, InitialScanArgs, AutoScanArgs) ->
+    case configure_storage_import(Node, SpaceId, StorageId, InitialScanArgs, AutoScanArgs) of
+        ok -> ok;
+        {error, _} = Error -> throw(Error)
     end.
 
-
-%%-------------------------------------------------------------------
-%% @doc This function modifies storage_update configuration on given Node.
-%% @end
-%%-------------------------------------------------------------------
--spec maybe_configure_storage_update(Node :: node(), SpaceId :: id(), Args :: args()) -> ok.
-maybe_configure_storage_update(_Node, _SpaceId, Args) when map_size(Args) == 0 ->
-    ok;
-maybe_configure_storage_update(Node, SpaceId, Args) ->
-    % todo VFS-5717
-    StrategyName = onepanel_utils:get_converted(strategy, Args, atom),
-    configure_storage_update(Node, SpaceId, Args, StrategyName).
 
 
 %%-------------------------------------------------------------------
 %% @doc Returns storage_import details from given node.
 %% @end
 %%-------------------------------------------------------------------
--spec get_storage_import_details(Node :: node(), SpaceId :: id(),
+-spec get_initial_scan_details(Node :: node(), SpaceId :: id(),
     StorageId :: id()) -> #{atom() => json_utils:json_term()}.
-get_storage_import_details(Node, SpaceId, StorageId) ->
+get_initial_scan_details(Node, SpaceId, StorageId) ->
     % todo VFS-5717
-    {ImportEnabled, Args} = op_worker_rpc:get_storage_import_details(Node, SpaceId, StorageId),
-    case ImportEnabled of
+    {ok, Details} = op_worker_rpc:storage_import_get_initial_scan_config(Node, SpaceId, StorageId),
+    case maps:get(enabled, Details) of
         false ->
             #{strategy => no_import};
         true ->
             #{
                 strategy => simple_scan,
-                maxDepth => maps:get(max_depth, Args),
-                syncAcl => maps:get(sync_acl, Args)
+                maxDepth => maps:get(max_depth, Details),
+                syncAcl => maps:get(sync_acl, Details)
             }
     end.
 
@@ -95,23 +82,22 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
 %% @doc Returns storage_update details from given node.
 %% @end
 %%-------------------------------------------------------------------
--spec get_storage_update_details(node(), SpaceId :: id(), StorageId :: id()) ->
+-spec get_auto_scan_details(node(), SpaceId :: id(), StorageId :: id()) ->
     #{atom() => json_utils:json_term()}.
-get_storage_update_details(Node, SpaceId, StorageId) ->
+get_auto_scan_details(Node, SpaceId, StorageId) ->
     % todo VFS-5717
-    {UpdateEnabled, Args} = op_worker_rpc:get_storage_update_details(
-        Node, SpaceId, StorageId),
-    case UpdateEnabled of
+    {ok, Details} = op_worker_rpc:storage_import_get_auto_scan_config(Node, SpaceId, StorageId),
+    case maps:get(enabled, Details) of
         false ->
             #{strategy => no_update};
         true ->
             #{
                 strategy => simple_scan,
-                maxDepth => maps:get(max_depth, Args),
-                scanInterval => maps:get(scan_interval, Args),
-                writeOnce => maps:get(write_once, Args),
-                deleteEnable => maps:get(delete_enable, Args),
-                syncAcl => maps:get(sync_acl, Args)
+                maxDepth => maps:get(max_depth, Details),
+                scanInterval => maps:get(scan_interval, Details),
+                writeOnce => maps:get(write_once, Details),
+                deleteEnable => maps:get(delete_enable, Details),
+                syncAcl => maps:get(sync_acl, Details)
             }
     end.
 
@@ -141,51 +127,41 @@ get_stats(Node, SpaceId, Period, Metrics) ->
 %% @doc This function modifies storage_import configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec configure_storage_import(Node :: node(), SpaceId :: id(), Args :: args(),
-    NewStrategyName :: strategy_name()) -> ok.
-configure_storage_import(Node, SpaceId, Args0, StrategyName) ->
-    Enabled = case StrategyName of
+-spec configure_storage_import(Node :: node(), SpaceId :: id(), StorageId :: id(),
+    InitialScanArgs0 :: args(), AutoScanArgs0 :: args()) -> ok.
+configure_storage_import(Node, SpaceId, StorageId, InitialScanArgs0, AutoScanArgs0) ->
     % todo VFS-5717 get rid of space_strategies boilerplate
+    ImportStrategyName = onepanel_utils:get_converted(strategy, InitialScanArgs0, atom, undefined),
+    UpdateStrategyName = onepanel_utils:get_converted(strategy, AutoScanArgs0, atom, undefined),
+    ImportEnabled = case ImportStrategyName of
         simple_scan -> true;
-        no_import -> false
+        no_import -> false;
+        undefined -> undefined
     end,
-    Args = maps_utils:remove_undefined(#{
-        max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
-        sync_acl => onepanel_utils:get_converted(sync_acl, Args0, boolean, undefined)
-    }),
-    ok = op_worker_rpc:configure_storage_import(Node, SpaceId, Enabled, Args).
+    AutoScanEnabled = case UpdateStrategyName of
+        simple_scan -> true;
+        no_update -> false;
+        undefined -> undefined
+    end,
 
-%%-------------------------------------------------------------------
-%% @private
-%% @doc This function modifies storage_update configuration on given Node.
-%% @end
-%%-------------------------------------------------------------------
--spec configure_storage_update(Node :: node(), SpaceId :: id(), Args :: args(),
-    NewStrategyName :: strategy_name()) -> ok.
-configure_storage_update(Node, SpaceId, _Args0, no_update) ->
-    % todo VFS-5717
-    ok = op_worker_rpc:configure_storage_update(Node, SpaceId, false, #{});
-configure_storage_update(Node, SpaceId, Args0, simple_scan) ->
-    Args = maps_utils:remove_undefined(#{
-        max_depth => onepanel_utils:get_converted(max_depth, Args0, integer, undefined),
-        scan_interval => onepanel_utils:get_converted(scan_interval, Args0, integer, undefined),
-        write_once => onepanel_utils:get_converted(write_once, Args0, boolean, undefined),
-        delete_enable => onepanel_utils:get_converted(delete_enable, Args0, boolean, undefined),
-        sync_acl => onepanel_utils:get_converted(sync_acl, Args0, boolean, undefined)
-    }),
-    ok = op_worker_rpc:configure_storage_update(Node, SpaceId, true, Args).
+    % if any of ImportEnabled or AutoScanEnabled is undefined, this setting will be filtered from args and
+    % therefore it won't be changed
 
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns current import strategy set in provider.
-%% @end
-%%-------------------------------------------------------------------
--spec current_import_strategy(Node :: node(), SpaceId :: id()) -> strategy_name().
-current_import_strategy(Node, SpaceId) ->
-    StorageId = op_worker_storage:get_supporting_storage(Node, SpaceId),
-    ImportDetails = op_worker_storage_sync:get_storage_import_details(Node,
-        SpaceId, StorageId),
-    maps:get(strategy, ImportDetails).
+    InitialScanArgs = maps_utils:remove_undefined(#{
+        enabled => ImportEnabled,
+        max_depth => onepanel_utils:get_converted(max_depth, InitialScanArgs0, integer, undefined),
+        sync_acl => onepanel_utils:get_converted(sync_acl, InitialScanArgs0, boolean, undefined)
+    }),
+    AutoScanArgs = maps_utils:remove_undefined(#{
+        enabled => AutoScanEnabled,
+        max_depth => onepanel_utils:get_converted(max_depth, AutoScanArgs0, integer, undefined),
+        scan_interval => onepanel_utils:get_converted(scan_interval, AutoScanArgs0, integer, undefined),
+        write_once => onepanel_utils:get_converted(write_once, AutoScanArgs0, boolean, undefined),
+        delete_enable => onepanel_utils:get_converted(delete_enable, AutoScanArgs0, boolean, undefined),
+        sync_acl => onepanel_utils:get_converted(sync_acl, AutoScanArgs0, boolean, undefined)
+    }),
+    op_worker_rpc:storage_import_configure(Node, SpaceId, StorageId, InitialScanArgs, AutoScanArgs).
+
 
 %%-------------------------------------------------------------------
 %% @private
