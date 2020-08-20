@@ -58,6 +58,10 @@
 -export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
     qos_parameters/0, helper_args/0, user_ctx/0]).
 
+-define(EXEC_AND_THROW_ON_ERROR(Fun, Args),
+    exec_and_throw_on_error(Fun, Args)
+).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -102,15 +106,19 @@ update(OpNode, Id, Params) ->
     PlainValues = maps:remove(qosParameters, Params),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
-    case maybe_update_qos_parameters(OpNode, Id, Params) of
-        ok -> ok;
-        {error, Reason} -> throw({error, Reason})
+    lists:foreach(fun({Fun, Args}) ->
+        ?EXEC_AND_THROW_ON_ERROR(Fun, Args)
     end,
-    ok = maybe_update_name(OpNode, Id, PlainValues),
-    ok = maybe_update_admin_ctx(OpNode, Id, Type, PlainValues),
-    ok = maybe_update_args(OpNode, Id, Type, PlainValues),
-    ok = maybe_update_luma_config(OpNode, Id, PlainValues),
-    ok = maybe_update_imported_storage(OpNode, Id, Params),
+        [
+            {fun maybe_update_qos_parameters/3, [OpNode, Id, Params]},
+            {fun maybe_update_name/3, [OpNode, Id, PlainValues]},
+            {fun maybe_update_admin_ctx/4, [OpNode, Id, Type, PlainValues]},
+            {fun maybe_update_args/4, [OpNode, Id, Type, PlainValues]},
+            {fun maybe_update_luma_config/3, [OpNode, Id, Params]},
+            {fun maybe_update_imported_storage/3, [OpNode, Id, Params]},
+            {fun maybe_update_readonly/3, [OpNode, Id, Params]}
+        ]
+    ),
     make_update_result(OpNode, Id).
 
 
@@ -293,12 +301,12 @@ add(OpNode, Name, Params) ->
     LumaConfig = make_luma_config(OpNode, StorageParams),
 
     LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
-    maybe_verify_storage(Helper, SkipStorageDetection, LumaFeed),
-
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
+    Readonly = onepanel_utils:get_converted(readonly, StorageParams, boolean, false),
+    maybe_verify_storage(Helper, SkipStorageDetection, Readonly, LumaFeed),
 
     ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
-    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, QosParameters) of
+    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, Readonly, QosParameters) of
         {ok, _StorageId} -> ok;
         {error, Reason} -> {error, Reason}
     end.
@@ -343,11 +351,14 @@ make_luma_config(OpNode, StorageParams) ->
 %% op_worker service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: helper(), SkipStorageDetection :: boolean(), luma_feed()) ->
-    skipped | verified | no_return().
-maybe_verify_storage(_Helper, true, _LumaFeed) ->
+-spec maybe_verify_storage(Helper :: helper(), SkipStorageDetection :: boolean(),
+    Readonly :: boolean(), luma_feed()) -> skipped | verified | no_return().
+maybe_verify_storage(_Helper, true, _, _LumaFeed) ->
     skipped;
-maybe_verify_storage(Helper, _, LumaFeed) ->
+maybe_verify_storage(_Helper, false, true, _LumaFeed) ->
+    % TODO VFS-6594 - Implement verification of read access on RO storage
+    skipped;
+maybe_verify_storage(Helper, false, false, LumaFeed) ->
     ?info("Verifying write access to storage"),
     verify_storage(Helper, LumaFeed),
     verified.
@@ -392,10 +403,11 @@ make_update_result(OpNode, StorageId) ->
     Details = ?MODULE:get(StorageId),
     #{name := Name, lumaFeed := LumaFeed} = Details,
     SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, Details, boolean, false),
+    Readonly = onepanel_utils:get_converted(readonly, Details, boolean, false),
     ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
     try
         {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
-        maybe_verify_storage(Helper, SkipStorageDetection, LumaFeed)
+        maybe_verify_storage(Helper, SkipStorageDetection, Readonly, LumaFeed)
     of
         skipped -> Details;
         verified -> Details#{verificationPassed => true}
@@ -515,6 +527,19 @@ update_imported_storage(OpNode, Id, Value) ->
     ok = op_worker_rpc:storage_set_imported_storage(OpNode, Id, Value).
 
 
+-spec maybe_update_readonly(OpNode :: node(), Id :: id(),
+    storage_params()) -> ok.
+maybe_update_readonly(OpNode, Id, #{readonly := Value}) ->
+    update_readonly(OpNode, Id, Value);
+maybe_update_readonly(_OpNode, _Id, _) ->
+    ok.
+
+
+-spec update_readonly(OpNode :: node(), Id :: id(),
+    boolean()) -> ok.
+update_readonly(OpNode, Id, Value) ->
+    ok = op_worker_rpc:storage_set_readonly(OpNode, Id, Value).
+
 %%--------------------------------------------------------------------
 %% @doc Checks if storage with given id exists.
 %% @end
@@ -602,3 +627,16 @@ parse_file_popularity_configuration(Args) ->
 -spec convert_to_binaries(#{term() => term()}) -> #{binary() => binary()}.
 convert_to_binaries(Map) ->
     onepanel_utils:convert(Map, {map, binary}).
+
+
+%% @private
+-spec exec_and_throw_on_error(function(), [term()]) -> ok | {ok, term()}.
+exec_and_throw_on_error(Function, Args) ->
+    try apply(Function, Args) of
+        ok -> ok;
+        {ok, Res} -> {ok, Res};
+        {error, _} = Error -> throw(Error)
+    catch
+        error:{badmatch, Error2} ->
+            throw(Error2)
+    end.

@@ -298,7 +298,9 @@ all() ->
     #{
         <<"type">> => <<"posix">>,
         <<"timeout">> => 10000,
-        <<"mountPoint">> => <<"someNewMountPoint">>
+        <<"mountPoint">> => <<"someNewMountPoint">>,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }
 }).
 
@@ -310,7 +312,9 @@ all() ->
         <<"monitorHostname">> => <<"someHostname">>,
         <<"poolName">> => <<"someName">>,
         <<"clusterName">> => <<"someName">>,
-        <<"timeout">> => 5000
+        <<"timeout">> => 5000,
+        <<"readonly">> => true,
+        <<"importedStorage">> => true
     },
     <<"someS3">> => #{
         <<"type">> => <<"s3">>,
@@ -318,7 +322,9 @@ all() ->
         <<"bucketName">> => <<"someName">>,
         <<"accessKey">> => <<"someKey">>,
         <<"secretKey">> => <<"someKey">>,
-        <<"blockSize">> => 1024
+        <<"blockSize">> => 1024,
+        <<"readonly">> => false,
+        <<"importedStorage">> => false
     }
 }).
 
@@ -715,7 +721,9 @@ post_should_add_storage(Config) ->
                     monitorHostname := <<"someHostname">>,
                     poolName := <<"someName">>,
                     username := <<"someName">>,
-                    timeout := 5000
+                    timeout := 5000,
+                    readonly := true,
+                    importedStorage := true
                 },
                 <<"someS3">> := #{
                     type := <<"s3">>,
@@ -723,7 +731,9 @@ post_should_add_storage(Config) ->
                     bucketName := <<"someName">>,
                     hostname := <<"someHostname">>,
                     secretKey := <<"someKey">>,
-                    blockSize := 1024
+                    blockSize := 1024,
+                    readonly := false,
+                    importedStorage := false
                 }
             }
         }}, ?TIMEOUT)
@@ -754,7 +764,12 @@ patch_should_update_storage(Config) ->
         ),
         ?assertReceivedMatch({service, op_worker, update_storage, #{
             id := <<"somePosixId">>,
-            storage := #{timeout := 10000, mountPoint := <<"someNewMountPoint">>}
+            storage := #{
+                timeout := 10000,
+                mountPoint := <<"someNewMountPoint">>,
+                importedStorage := false,
+                readonly := false
+            }
         }}, ?TIMEOUT)
     end).
 
