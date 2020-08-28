@@ -85,7 +85,7 @@ start() ->
         custom_cowboy_routes = Routes,
         dynamic_pages = DynamicPages,
         static_root = GuiStaticRoot,
-        custom_response_headers = fun common_response_headers/0
+        custom_response_headers = fun common_response_headers/1
     }),
 
     ?info("REST listener successfully started").
@@ -173,8 +173,8 @@ merge_routes(AllRoutes) ->
 %% @private @doc Returns headers which should be added to each response.
 %% @end
 %%--------------------------------------------------------------------
--spec common_response_headers() -> cowboy:http_headers().
-common_response_headers() ->
+-spec common_response_headers(cowboy_req:req()) -> cowboy:http_headers().
+common_response_headers(_Req) ->
     case rest_handler:allowed_origin() of
         undefined -> #{};
         Origin -> #{<<"access-control-allow-origin">> => Origin}
