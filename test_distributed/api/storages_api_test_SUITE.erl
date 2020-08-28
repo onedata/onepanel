@@ -21,11 +21,11 @@
 -export([init_per_suite/1, end_per_suite/1]).
 
 -export([
-    get_storages_ids/1
+    get_storages_ids/1, add_s3_storage/1
 ]).
 
 all() -> [
-    get_storages_ids
+    get_storages_ids, add_s3_storage
 ].
 
 
@@ -68,6 +68,65 @@ get_storages_ids(Config) ->
                                   end
         }
     ])).
+
+
+add_s3_storage(Config) ->
+    [P1] = test_config:get_providers(Config),
+    OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
+    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+
+    {ok, StorageIdsBeforeAdd} = rpc:call(hd(OpWorkerNodes), provider_logic, get_storage_ids, []),
+
+    RequestBody = #{
+        <<"s3Storage-1">> => #{
+            <<"type">> => <<"s3">>,
+            <<"bucketName">> => <<"bucket2.iam.example.com">>,
+            <<"hostname">> => <<"s3.amazonaws.com:80/">>,
+            <<"skipStorageDetection">> => <<"true">>
+        }
+    },
+
+    ?assert(api_test_runner:run_tests(Config, [
+        #scenario_spec{
+            name = <<"Add storage using /provider/storages rest endpoint">>,
+            type = rest,
+            target_nodes = OpPanelNodes,
+            client_spec = #client_spec{
+                correct = [
+                    root
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [peer]
+            },
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = post,
+                path = <<"provider/storages">>,
+                headers = #{<<"content-type">> => <<"application/json">>},
+                body = json_utils:encode(RequestBody)}
+            end,
+            validate_result_fun = fun(_, {ok, RespCode,_,_}) ->
+                {ok, StorageIdsAfterAdd} = rpc:call(hd(OpWorkerNodes), provider_logic, get_storage_ids, []),
+                [NewStorageID|_] = lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd),
+
+                {ok, StorageDetails} = rpc:call(hd(OpWorkerNodes), storage, describe, [NewStorageID]),
+                ?assertEqual({204, true}, {RespCode,assert_req_in_storage_details_resp(RequestBody,StorageDetails)})
+            end
+        }
+    ])).
+
+
+
+%% @private
+assert_req_in_storage_details_resp(RequestBody, StorageDetails) ->
+    [Name|_] = maps:keys(RequestBody),
+    RequestMap = maps:get(Name, RequestBody),
+    F = fun(K,_,Acc) -> (maps:get(K,StorageDetails)==maps:get(K,RequestMap)) and Acc
+    end,
+    maps:fold(F,true, RequestMap)and (maps:get(<<"name">>,StorageDetails)==Name).
 
 
 %%%===================================================================
