@@ -7,3 +7,4 @@ branches:
   op-worker: current_branch
   onepanel: current_branch
   oneclient: current_branch
+  cluster-manager: current_branch
