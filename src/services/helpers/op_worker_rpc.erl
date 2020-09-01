@@ -61,14 +61,15 @@
 -type od_space_id() :: binary().
 -type od_user_id() :: binary().
 -type space_quota_id() :: od_space_id().
--type storage_import_args() :: map().
+-type storage_import_config() :: map().
+-type auto_storage_import_scan_config() :: map().
 -type storage_id() :: binary().
 -type storage_import_status() :: atom().
 -type storage_name() :: binary().
 -type storage_qos_parameters() :: #{binary() => binary()}.
--type sync_monitoring_plot_counter_type() :: imported_files | updated_files |
+-type storage_import_monitoring_plot_counter_type() :: imported_files | updated_files |
     deleted_files | queue_length.
--type sync_monitoring_window() :: day | hour | minute.
+-type storage_import_monitoring_window() :: day | hour | minute.
 
 -export_type([storage_data/0, luma_config/0, helper/0,
     helper_args/0, helper_user_ctx/0, od_space_id/0, luma_feed/0, luma_details/0]).
@@ -148,13 +149,13 @@
 -export([force_oz_connection_start/0, force_oz_connection_start/1]).
 -export([provider_auth_save/2, provider_auth_save/3]).
 -export([get_root_token_file_path/0, get_root_token_file_path/1]).
--export([storage_import_get_initial_scan_config/2, storage_import_get_initial_scan_config/3]).
--export([storage_import_get_auto_scan_config/2, storage_import_get_auto_scan_config/3]).
--export([storage_import_configure/4, storage_import_configure/5]).
+-export([storage_import_get_configuration/2, storage_import_get_configuration/3]).
+-export([storage_import_enable_manual_import/2, storage_import_enable_manual_import/3]).
+-export([storage_import_configure_auto_import/3, storage_import_configure_auto_import/4]).
 -export([storage_import_start_scan/2, storage_import_start_scan/3]).
 -export([storage_import_stop_scan/2, storage_import_stop_scan/3]).
--export([storage_sync_monitoring_get_metric/3, storage_sync_monitoring_get_metric/4]).
--export([storage_sync_monitoring_get_status/1, storage_sync_monitoring_get_status/2]).
+-export([storage_import_monitoring_get_metric/3, storage_import_monitoring_get_metric/4]).
+-export([storage_import_monitoring_get_status/1, storage_import_monitoring_get_status/2]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
 -export([set_txt_record/3, set_txt_record/4]).
 -export([remove_txt_record/1, remove_txt_record/2]).
@@ -906,37 +907,35 @@ get_root_token_file_path(Node) ->
     ?CALL(Node, []).
 
 
--spec storage_import_get_initial_scan_config(od_space_id(), storage_id()) ->
-    {ok, storage_import_args()}.
-storage_import_get_initial_scan_config(SpaceId, StorageId) ->
+-spec storage_import_get_configuration(od_space_id(), storage_id()) ->
+    {ok, storage_import_config()}.
+storage_import_get_configuration(SpaceId, StorageId) ->
     ?CALL([SpaceId, StorageId]).
 
--spec storage_import_get_initial_scan_config(node(), od_space_id(), storage_id()) ->
-    {ok, storage_import_args()}.
-storage_import_get_initial_scan_config(Node, SpaceId, StorageId) ->
+-spec storage_import_get_configuration(node(), od_space_id(), storage_id()) ->
+    {ok, storage_import_config()}.
+storage_import_get_configuration(Node, SpaceId, StorageId) ->
     ?CALL(Node, [SpaceId, StorageId]).
 
 
--spec storage_import_get_auto_scan_config(od_space_id(), storage_id()) ->
-    {ok, storage_import_args()}.
-storage_import_get_auto_scan_config(SpaceId, StorageId) ->
+-spec storage_import_enable_manual_import(od_space_id(), storage_id()) -> ok | {error, term()}.
+storage_import_enable_manual_import(SpaceId, StorageId) ->
     ?CALL([SpaceId, StorageId]).
 
--spec storage_import_get_auto_scan_config(node(), od_space_id(), storage_id()) ->
-    {ok, storage_import_args()}.
-storage_import_get_auto_scan_config(Node, SpaceId, StorageId) ->
-    ?CALL(Node, [SpaceId, StorageId]).
+-spec storage_import_enable_manual_import(node(), od_space_id(), storage_id()) -> ok | {error, term()}.
+storage_import_enable_manual_import(Node, SpaceId, StorageId) ->
+    ?CALL([Node, SpaceId, StorageId]).
 
 
--spec storage_import_configure(od_space_id(), storage_id(), storage_import_args(), storage_import_args()) ->
+-spec storage_import_configure_auto_import(od_space_id(), storage_id(), auto_storage_import_scan_config()) ->
     ok | {error, term()}.
-storage_import_configure(SpaceId, StorageId, InitialScanArgs, AutoScanArgs) ->
-    ?CALL([SpaceId, StorageId, InitialScanArgs, AutoScanArgs]).
+storage_import_configure_auto_import(SpaceId, StorageId, ScanConfig) ->
+    ?CALL([SpaceId, StorageId, ScanConfig]).
 
--spec storage_import_configure(node(), od_space_id(), storage_id(), storage_import_args(), storage_import_args()) ->
+-spec storage_import_configure_auto_import(node(), od_space_id(), storage_id(), auto_storage_import_scan_config()) ->
     ok | {error, term()}.
-storage_import_configure(Node, SpaceId, StorageId, InitialScanArgs, AutoScanArgs) ->
-    ?CALL(Node, [SpaceId, StorageId, InitialScanArgs, AutoScanArgs]).
+storage_import_configure_auto_import(Node, SpaceId, StorageId, ScanConfig) ->
+    ?CALL(Node, [SpaceId, StorageId, ScanConfig]).
 
 
 -spec storage_import_start_scan(od_space_id(), storage_id()) -> ok.
@@ -957,27 +956,27 @@ storage_import_stop_scan(Node, SpaceId, StorageId) ->
     ?CALL(Node, [SpaceId, StorageId]).
 
 
--spec storage_sync_monitoring_get_metric(od_space_id(),
-    sync_monitoring_plot_counter_type(),
-    sync_monitoring_window()) -> proplists:proplist().
-storage_sync_monitoring_get_metric(SpaceId, Type, Window) ->
+-spec storage_import_monitoring_get_metric(od_space_id(),
+    storage_import_monitoring_plot_counter_type(),
+    storage_import_monitoring_window()) -> proplists:proplist().
+storage_import_monitoring_get_metric(SpaceId, Type, Window) ->
     ?CALL([SpaceId, Type, Window]).
 
--spec storage_sync_monitoring_get_metric(node(), od_space_id(),
-    sync_monitoring_plot_counter_type(),
-    sync_monitoring_window()) -> proplists:proplist().
-storage_sync_monitoring_get_metric(Node, SpaceId, Type, Window) ->
+-spec storage_import_monitoring_get_metric(node(), od_space_id(),
+    storage_import_monitoring_plot_counter_type(),
+    storage_import_monitoring_window()) -> proplists:proplist().
+storage_import_monitoring_get_metric(Node, SpaceId, Type, Window) ->
     ?CALL(Node, [SpaceId, Type, Window]).
 
 
--spec storage_sync_monitoring_get_status(od_space_id()) ->
+-spec storage_import_monitoring_get_status(od_space_id()) ->
     storage_import_status().
-storage_sync_monitoring_get_status(SpaceId) ->
+storage_import_monitoring_get_status(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_sync_monitoring_get_status(node(), od_space_id()) ->
+-spec storage_import_monitoring_get_status(node(), od_space_id()) ->
     storage_import_status().
-storage_sync_monitoring_get_status(Node, SpaceId) ->
+storage_import_monitoring_get_status(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

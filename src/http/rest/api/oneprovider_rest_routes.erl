@@ -201,6 +201,26 @@ routes() ->
             data_spec = (rest_model:space_auto_cleaning_configuration_model())
         }},
 
+        %% Get statistics of auto storage import mechanism.
+        {<<"/provider/spaces/:id/storage-import/auto/stats">>, #rest_req{
+            method = 'GET',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = auto_storage_import_stats,
+                scope = private
+            },
+            produces = [<<"application/json">>],
+            data_spec = #{
+                %% Predefined time period for which the statistics should be
+                %% fetched.
+                period => {string, optional},
+                %% Specify which statistic metrics should be returned - strings
+                %% delimited with comma.
+                metrics => {string, optional}
+            }
+        }},
+
         %% Get block devices for Ceph OSD
         {<<"/provider/ceph/preflight/block_devices">>, #rest_req{
             method = 'GET',
@@ -544,26 +564,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get statistics of storage synchronization
-        {<<"/provider/spaces/:id/sync">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_space,
-                id = ?BINDING(id),
-                aspect = sync_statistics,
-                scope = private
-            },
-            produces = [<<"application/json">>],
-            data_spec = #{
-                %% Predefined time period for which the statistics should be
-                %% fetched.
-                period => {string, optional},
-                %% Specify which statistic metrics should be returned - strings
-                %% delimited with comma.
-                metrics => {string, optional}
-            }
-        }},
-
         %% Get provider spaces
         {<<"/provider/spaces">>, #rest_req{
             method = 'GET',
@@ -771,6 +771,17 @@ routes() ->
             }
         }},
 
+        %% Start auto storage import scan
+        {<<"/provider/spaces/:id/storage-import/auto/start">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = start_auto_storage_import_scan,
+                scope = private
+            }
+        }},
+
         %% Start/stop provider database
         {<<"/provider/databases/:host">>, #rest_req{
             method = 'PATCH',
@@ -873,24 +884,13 @@ routes() ->
             }
         }},
 
-        %% Starts storage import scan
-        {<<"/provider/spaces/:id/sync/start">>, #rest_req{
+        %% Stop auto storage import scan
+        {<<"/provider/spaces/:id/storage-import/auto/stop">>, #rest_req{
             method = 'POST',
             b_gri = #b_gri{
                 type = onp_space,
                 id = ?BINDING(id),
-                aspect = start_storage_import_scan,
-                scope = private
-            }
-        }},
-
-        %% Stops storage import scan
-        {<<"/provider/spaces/:id/sync/stop">>, #rest_req{
-            method = 'POST',
-            b_gri = #b_gri{
-                type = onp_space,
-                id = ?BINDING(id),
-                aspect = stop_storage_import_scan,
+                aspect = stop_auto_storage_import_scan,
                 scope = private
             }
         }},

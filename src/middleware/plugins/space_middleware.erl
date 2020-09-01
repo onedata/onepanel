@@ -37,8 +37,8 @@
 operation_supported(create, support, private) -> onepanel:is_op_panel();
 operation_supported(create, start_auto_cleaning, private) -> onepanel:is_op_panel();
 operation_supported(create, cancel_auto_cleaning, private) -> onepanel:is_op_panel();
-operation_supported(create, start_storage_import_scan, private) -> onepanel:is_op_panel();
-operation_supported(create, stop_storage_import_scan, private) -> onepanel:is_op_panel();
+operation_supported(create, start_auto_storage_import_scan, private) -> onepanel:is_op_panel();
+operation_supported(create, stop_auto_storage_import_scan, private) -> onepanel:is_op_panel();
 
 operation_supported(get, instance, private) -> onepanel:is_op_panel();
 operation_supported(get, list, private) -> onepanel:is_op_panel();
@@ -48,7 +48,7 @@ operation_supported(get, auto_cleaning_reports_list, private) -> onepanel:is_op_
 operation_supported(get, auto_cleaning_status, private) -> onepanel:is_op_panel();
 operation_supported(get, file_popularity_configuration, private) -> onepanel:is_op_panel();
 operation_supported(get, {file_popularity_report, _ReportId}, private) -> onepanel:is_op_panel();
-operation_supported(get, sync_statistics, private) -> onepanel:is_op_panel();
+operation_supported(get, auto_storage_import_stats, private) -> onepanel:is_op_panel();
 
 operation_supported(update, support, private) -> onepanel:is_op_panel();
 operation_supported(update, auto_cleaning_configuration, private) -> onepanel:is_op_panel();
@@ -78,8 +78,8 @@ authorize(#onp_req{operation = Op, client = Client, gri = #gri{aspect = As}}, _)
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
-    Op == create, As == start_storage_import_scan;
-    Op == create, As == stop_storage_import_scan;
+    Op == create, As == start_auto_storage_import_scan;
+    Op == create, As == stop_auto_storage_import_scan;
     Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
     Op == update, As == file_popularity_configuration;
@@ -104,7 +104,7 @@ authorize(#onp_req{
     As == auto_cleaning_reports_list;
     As == auto_cleaning_status;
     As == file_popularity_configuration;
-    As == sync_statistics
+    As == auto_storage_import_stats
 ->
     true.
 
@@ -121,8 +121,8 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
-    Op == create, As == start_storage_import_scan;
-    Op == create, As == stop_storage_import_scan;
+    Op == create, As == start_auto_storage_import_scan;
+    Op == create, As == stop_auto_storage_import_scan;
 
     Op == get, As == instance;
     Op == get, As == list;
@@ -130,7 +130,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == get, As == auto_cleaning_reports_list;
     Op == get, As == auto_cleaning_status;
     Op == get, As == file_popularity_configuration;
-    Op == get, As == sync_statistics;
+    Op == get, As == auto_storage_import_stats;
 
     Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
@@ -149,10 +149,9 @@ create(#onp_req{gri = #gri{aspect = support} = GRI, data = Data}) ->
         {storageId, storage_id},
         {importedStorage, imported_storage}], Data),
     Ctx2 = get_storage_import_args(Data, Ctx),
-    Ctx3 = get_storage_update_args(Data, Ctx2),
 
     SpaceId = middleware_utils:result_from_service_action(
-        ?SERVICE_OP, support_space, Ctx3),
+        ?SERVICE_OP, support_space, Ctx2),
     {ok, value, GRI#gri{id = SpaceId}, #{id => SpaceId}};
 
 create(#onp_req{gri = #gri{id = SpaceId, aspect = start_auto_cleaning}}) ->
@@ -168,14 +167,14 @@ create(#onp_req{gri = #gri{id = SpaceId, aspect = cancel_auto_cleaning}}) ->
         ?SERVICE_OP, cancel_auto_cleaning, #{space_id => SpaceId}
     );
 
-create(#onp_req{gri = #gri{id = SpaceId, aspect = start_storage_import_scan}}) ->
+create(#onp_req{gri = #gri{id = SpaceId, aspect = start_auto_storage_import_scan}}) ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OP, start_storage_import_scan, #{space_id => SpaceId}
+        ?SERVICE_OP, start_auto_storage_import_scan, #{space_id => SpaceId}
     );
 
-create(#onp_req{gri = #gri{id = SpaceId, aspect = stop_storage_import_scan}}) ->
+create(#onp_req{gri = #gri{id = SpaceId, aspect = stop_auto_storage_import_scan}}) ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OP, stop_storage_import_scan, #{space_id => SpaceId}
+        ?SERVICE_OP, stop_auto_storage_import_scan, #{space_id => SpaceId}
     ).
 
 
@@ -213,18 +212,17 @@ get(#onp_req{gri = #gri{id = SpaceId, aspect = auto_cleaning_status}}, _Space) -
         ?SERVICE_OP, get_auto_cleaning_status, #{space_id => SpaceId}
     )};
 
-get(#onp_req{gri = #gri{id = SpaceId, aspect = sync_statistics}, data = Data}, _Space) ->
+get(#onp_req{gri = #gri{id = SpaceId, aspect = auto_storage_import_stats}, data = Data}, _Space) ->
     Ctx = maps:with([space_id, period, metrics], Data#{space_id => SpaceId}),
     {ok, value, middleware_utils:result_from_service_action(
-        ?SERVICE_OP, get_sync_stats, Ctx
+        ?SERVICE_OP, get_auto_storage_import_stats, Ctx
     )}.
 
 -spec update(middleware:req()) -> middleware:update_result().
 update(#onp_req{gri = #gri{id = Id, aspect = support}, data = Data}) ->
     Ctx1 = maps:with([size, space_id] , Data#{space_id => Id}),
-    Ctx2 = get_storage_update_args(Data, Ctx1),
-    Ctx3 = get_storage_import_args(Data, Ctx2),
-    middleware_utils:execute_service_action(?SERVICE_OP, modify_space, Ctx3);
+    Ctx2 = get_storage_import_args(Data, Ctx1),
+    middleware_utils:execute_service_action(?SERVICE_OP, modify_space, Ctx2);
 
 update(#onp_req{gri = #gri{id = Id, aspect = auto_cleaning_configuration}, data = Data}) ->
     Ctx = get_auto_cleaning_configuration(Data, #{space_id => Id}),
@@ -255,24 +253,6 @@ delete(#onp_req{gri = #gri{id = Id, aspect = support}}) ->
 
 %%-------------------------------------------------------------------
 %% @private
-%% @doc Parse args for storage_update.
-%% @end
-%%-------------------------------------------------------------------
--spec get_storage_update_args(Data :: middleware:data(), Ctx :: service:step_ctx())
-        -> service:step_ctx().
-get_storage_update_args(Data, Ctx) ->
-    kv_utils:copy_found([
-        {[storageUpdate, strategy], [storage_update, strategy]},
-        {[storageUpdate, maxDepth], [storage_update, max_depth]},
-        {[storageUpdate, writeOnce], [storage_update, write_once]},
-        {[storageUpdate, deleteEnable], [storage_update, delete_enable]},
-        {[storageUpdate, scanInterval], [storage_update, scan_interval]},
-        {[storageUpdate, syncAcl], [storage_update, sync_acl]}
-    ], Data, Ctx).
-
-
-%%-------------------------------------------------------------------
-%% @private
 %% @doc Parse args for storage_import.
 %% @end
 %%-------------------------------------------------------------------
@@ -280,9 +260,13 @@ get_storage_update_args(Data, Ctx) ->
         -> service:step_ctx().
 get_storage_import_args(Data, Ctx) ->
     kv_utils:copy_found([
-        {[storageImport, strategy], [storage_import, strategy]},
-        {[storageImport, maxDepth], [storage_import, max_depth]},
-        {[storageImport, syncAcl], [storage_import, sync_acl]}
+        {[storageImport, mode], [storage_import, mode]},
+        {[storageImport, scanConfig, maxDepth], [storage_import, scan_config, max_depth]},
+        {[storageImport, scanConfig, syncAcl], [storage_import, scan_config, sync_acl]},
+        {[storageImport, scanConfig, continuousScan], [storage_import, scan_config, continuous_scan]},
+        {[storageImport, scanConfig, scanInterval], [storage_import, scan_config, scan_interval]},
+        {[storageImport, scanConfig, detectModifications], [storage_import, scan_config, detect_modifications]},
+        {[storageImport, scanConfig, detectDeletions], [storage_import, scan_config, detect_deletions]}
     ], Data, Ctx).
 
 
