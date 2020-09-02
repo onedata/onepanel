@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% test SUITE for testing storage utils
+%%% This file provides tests concerning provider storages API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storages_api_test_SUITE).
@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
 %% API
@@ -24,8 +25,9 @@
     get_storages_ids/1, add_s3_storage/1, get_s3_storage/1, delete_s3_storage/1
 ]).
 
--define(S3_Storage_Spec,#{
-    <<"s3Storage-1">> => #{
+-define(S3_STORAGE_NAME, <<"s3Storage-1">>).
+-define(S3_STORAGE_SPEC,#{
+    ?S3_STORAGE_NAME => #{
         <<"type">> => <<"s3">>,
         <<"bucketName">> => <<"bucket2.iam.example.com">>,
         <<"hostname">> => <<"s3.amazonaws.com:80/">>,
@@ -71,7 +73,8 @@ get_storages_ids(Config) ->
                 ],
                 forbidden = [peer]
             },
-            prepare_args_fun = fun(_) -> #rest_args{method = get, path = <<"provider/storages">>}
+            prepare_args_fun = fun(_) ->
+                #rest_args{method = get, path = <<"provider/storages">>}
             end,
             validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
                 ?assertEqual({?HTTP_200_OK, ExpectedData}, {RespCode, RespBody})
@@ -87,7 +90,7 @@ add_s3_storage(Config) ->
 
     {ok, StorageIdsBeforeAdd} = rpc:call(hd(OpWorkerNodes), provider_logic, get_storage_ids, []),
 
-    RequestBody = ?S3_Storage_Spec,
+    RequestBody = ?S3_STORAGE_SPEC,
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -97,6 +100,8 @@ add_s3_storage(Config) ->
             client_spec = #client_spec{
                 correct = [
                     root
+                    % todo: VFS-6717 uncomment when test cases will be independent from each other
+                    %{member, [?CLUSTER_UPDATE]}
                 ],
                 unauthorized = [
                     guest,
@@ -111,24 +116,28 @@ add_s3_storage(Config) ->
                 headers = #{<<"content-type">> => <<"application/json">>},
                 body = json_utils:encode(RequestBody)}
             end,
-            validate_result_fun = fun(_, {ok, RespCode,_,_}) ->
+            validate_result_fun = fun(_, {ok, RespCode, _, _}) ->
                 {ok, StorageIdsAfterAdd} = rpc:call(hd(OpWorkerNodes), provider_logic, get_storage_ids, []),
                 [NewStorageID|_] = lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd),
-
                 {ok, StorageDetails} = rpc:call(hd(OpWorkerNodes), storage, describe, [NewStorageID]),
-                ?assertEqual({204, true}, {RespCode,assert_add_request_match_resp(RequestBody,StorageDetails)})
+                ?assertEqual(204,RespCode),
+                ?assert(add_request_match_response(RequestBody, StorageDetails))
+
+
             end
         }
     ])).
 
 
 %% @private
-assert_add_request_match_resp(RequestBody, StorageDetails) ->
-    [Name|_] = maps:keys(RequestBody),
-    RequestMap = maps:get(Name, RequestBody),
-    F = fun(K,_,Acc) -> (maps:get(K,StorageDetails)==maps:get(K,RequestMap)) and Acc
-    end,
-    maps:fold(F,true, RequestMap) and (maps:get(<<"name">>,StorageDetails)==Name).
+add_request_match_response(RequestBody, StorageDetails) ->
+    RequestMap = maps:get(?S3_STORAGE_NAME, RequestBody),
+    (RequestMap =:= maps:with(maps:keys(RequestMap), StorageDetails)) and (maps:get(<<"name">>,StorageDetails)=:=?S3_STORAGE_NAME).
+%%    [StorageName|_] = maps:keys(RequestBody),
+%%    RequestMap = maps:get(StorageName, RequestBody),
+%%    F = fun(K,_,Acc) -> (maps:get(K,StorageDetails)==maps:get(K,RequestMap)) and Acc
+%%    end,
+%%    maps:fold(F,true, RequestMap) and (maps:get(<<"name">>,StorageDetails)==StorageName).
 
 
 get_s3_storage(Config) ->
@@ -136,7 +145,7 @@ get_s3_storage(Config) ->
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
     OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
 
-    [StorageName|_] = maps:keys(?S3_Storage_Spec),
+    [StorageName|_] = maps:keys(?S3_STORAGE_SPEC),
     StorageId = get_storage_id_by_name(Config, StorageName),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -163,9 +172,11 @@ get_s3_storage(Config) ->
             end,
             validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
                 {ok, StorageDetails} = rpc:call(hd(OpWorkerNodes), storage, describe, [StorageId]),
-                StorageDetailsBinary = make_all_values_in_map_binary(StorageDetails),
-                RespBodyBinary = make_all_values_in_map_binary(RespBody),
-                ?assertEqual({?HTTP_200_OK, StorageDetailsBinary}, {RespCode, RespBodyBinary})
+                StorageDetailsBinary = onepanel_utils:convert_recursive(StorageDetails, {map, binary}),
+                RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
+
+                ?assertEqual(?HTTP_200_OK, RespCode),
+                ?assertEqual(StorageDetailsBinary, RespBodyBinary)
             end
         }
     ])).
@@ -183,30 +194,12 @@ get_storage_id_by_name(Config, StorageName)->
     StorageId.
 
 
-% There are some diffs between rpc and http response.
-% Not all values in http or rpc response are binary - type, for example:
-% rpc: <<"signatureVersion">> => <<"4">>
-% http: <<"signatureVersion">> => 4
-%% @private
-make_all_values_in_map_binary(Map) ->
-    Fun = fun(K, V) ->
-        case {is_atom(V), is_binary(V), is_integer(V), is_map(V)} of
-            {true, false, false, false} -> atom_to_binary(V, latin1);
-            {false, true, false, false} -> V;
-            {false, false, true, false} -> integer_to_binary(V);
-            {false, false, false, true} -> make_all_values_in_map_binary(V)
-        end
-    end,
-    maps:map(Fun, Map).
-
-
 delete_s3_storage(Config)->
     [P1] = test_config:get_providers(Config),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
     OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
 
-    [StorageName|_] = maps:keys(?S3_Storage_Spec),
-    StorageId = get_storage_id_by_name(Config, StorageName),
+    StorageId = get_storage_id_by_name(Config, ?S3_STORAGE_NAME),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -216,6 +209,8 @@ delete_s3_storage(Config)->
             client_spec = #client_spec{
                 correct = [
                     root
+                    % todo: VFS-6717 uncomment when test cases will be independent from each other
+                    %{member, [?CLUSTER_UPDATE]}
                 ],
                 unauthorized = [
                     guest,
