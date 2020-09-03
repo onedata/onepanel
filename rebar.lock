@@ -18,7 +18,7 @@
   2},
  {<<"ctool">>,
   {git,"ssh://git@git.onedata.org:7999/vfs/ctool.git",
-       {ref,"74faa95443dac595e3d9e9201c86a019bcd76654"}},
+       {ref,"6f999b0029c408cf14331b44bfef59755367970f"}},
   0},
  {<<"enacl_p">>,
   {git,"https://github.com/kzemek/enacl_p.git",
