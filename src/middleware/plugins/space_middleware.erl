@@ -49,6 +49,7 @@ operation_supported(get, auto_cleaning_status, private) -> onepanel:is_op_panel(
 operation_supported(get, file_popularity_configuration, private) -> onepanel:is_op_panel();
 operation_supported(get, {file_popularity_report, _ReportId}, private) -> onepanel:is_op_panel();
 operation_supported(get, auto_storage_import_stats, private) -> onepanel:is_op_panel();
+operation_supported(get, auto_storage_import_info, private) -> onepanel:is_op_panel();
 
 operation_supported(update, support, private) -> onepanel:is_op_panel();
 operation_supported(update, auto_cleaning_configuration, private) -> onepanel:is_op_panel();
@@ -104,7 +105,8 @@ authorize(#onp_req{
     As == auto_cleaning_reports_list;
     As == auto_cleaning_status;
     As == file_popularity_configuration;
-    As == auto_storage_import_stats
+    As == auto_storage_import_stats;
+    As == auto_storage_import_info
 ->
     true.
 
@@ -131,6 +133,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == get, As == auto_cleaning_status;
     Op == get, As == file_popularity_configuration;
     Op == get, As == auto_storage_import_stats;
+    Op == get, As == auto_storage_import_info;
 
     Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
@@ -216,6 +219,12 @@ get(#onp_req{gri = #gri{id = SpaceId, aspect = auto_storage_import_stats}, data 
     Ctx = maps:with([space_id, period, metrics], Data#{space_id => SpaceId}),
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OP, get_auto_storage_import_stats, Ctx
+    )};
+
+get(#onp_req{gri = #gri{id = SpaceId, aspect = auto_storage_import_info}}, _Space) ->
+    Ctx = #{space_id => SpaceId},
+    {ok, value, middleware_utils:result_from_service_action(
+        ?SERVICE_OP, get_auto_storage_import_info, Ctx
     )}.
 
 -spec update(middleware:req()) -> middleware:update_result().

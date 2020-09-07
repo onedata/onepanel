@@ -17,6 +17,7 @@
 
 -export([
     auto_storage_import_model/0,
+    auto_storage_import_info_model/0,
     auto_storage_import_stats_model/0,
     block_devices_model/0,
     block_devices_block_devices_model/0,
@@ -108,7 +109,6 @@
     task_id_model/0,
     task_status_model/0,
     time_stats_model/0,
-    time_stats_collection_model/0,
     token_model/0,
     transfers_mock_model/0,
     version_info_model/0,
@@ -201,18 +201,51 @@ auto_storage_import_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Status and statistics of auto storage import mechanism in given space.
+%% @doc Information about current (or last finished) auto storage import scan in
+%% given space.
+%% @end
+%%--------------------------------------------------------------------
+-spec auto_storage_import_info_model() -> onepanel_parser:object_spec().
+auto_storage_import_info_model() ->
+    #{
+        %% Describes status of current (or last finished) auto storage import
+        %% scan in given space.
+        status => {enum, string, [<<"enqueued">>, <<"running">>, <<"aborting">>, <<"completed">>, <<"failed">>, <<"aborted">>]},
+        %% Time at which current (or last finished) scan has been started.
+        start => integer,
+        %% Time at which current (or last finished) scan has been stopped.
+        stop => integer,
+        %% Counter of files that has been imported during current (or last
+        %% finished) scan.
+        importedFiles => integer,
+        %% Counter of files that has been updated during current (or last
+        %% finished) scan.
+        updatedFiles => integer,
+        %% Counter of files that has been deleted during current (or last
+        %% finished) scan.
+        deletedFiles => integer,
+        %% Estimated time at which next scan will be enqueued.
+        nextScan => {integer, optional},
+        %% Total number of performed scans.
+        totalScans => integer
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Statistics of auto storage import mechanism in given space over
+%% specified time.
 %% @end
 %%--------------------------------------------------------------------
 -spec auto_storage_import_stats_model() -> onepanel_parser:object_spec().
 auto_storage_import_stats_model() ->
     #{
-        %% Describes current status of storage import scan in given space.
-        status => {enum, string, [<<"enqueued">>, <<"running">>, <<"aborting">>, <<"done">>, <<"failed">>, <<"aborted">>]},
-        %% Estimated time at which next scan will be enqueued.
-        nextScan => {integer, optional},
-        %% Collection of statistics for requested metrics.
-        stats => {time_stats_collection_model(), optional}
+        %% Statistics of auto storage import jobs queue length.
+        queueLength => {time_stats_model(), optional},
+        %% Statistics of imported files count by auto storage import.
+        importCount => {time_stats_model(), optional},
+        %% Statistics of updated files count by auto storage import.
+        updateCount => {time_stats_model(), optional},
+        %% Statistics of deleted files count by auto storage import.
+        deleteCount => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1568,41 +1601,20 @@ task_status_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Statistics for single metric over specified time.
+%% @doc Statistics of single metric over specified time.
 %% @end
 %%--------------------------------------------------------------------
 -spec time_stats_model() -> onepanel_parser:object_spec().
 time_stats_model() ->
     #{
-        %% Name of metric for which this object holds statistics.
-        name => {enum, string, [<<"queueLength">>, <<"insertCount">>, <<"updateCount">>, <<"deleteCount">>]},
         %% Date of last measurement value in this object in ISO 8601 format.
         lastValueDate => string,
-        %% Predefined time period for which the statistics were fetched.
-        period => {{enum, string, [<<"minute">>, <<"hour">>, <<"day">>]}, optional},
         %% List of sample values for given metric. The used period is divided
         %% into array-length number of parts. E.g. if the used period is an
         %% hour, and if there are 12 values in this array, every value is a
         %% value for 1/12 of day, which gives value for every hour of the day.
         %% If the value is null, there is no sample for given time part.
         values => [number]
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc Statistics for single metric over specified time.
-%% @end
-%%--------------------------------------------------------------------
--spec time_stats_collection_model() -> onepanel_parser:object_spec().
-time_stats_collection_model() ->
-    #{
-        %% Statistics of storage sync jobs queue length.
-        queueLength => {time_stats_model(), optional},
-        %% Statistics of storage sync imported files.
-        insertCount => {time_stats_model(), optional},
-        %% Statistics of storage sync updated files.
-        updateCount => {time_stats_model(), optional},
-        %% Statistics of storage sync deleted files.
-        deleteCount => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------

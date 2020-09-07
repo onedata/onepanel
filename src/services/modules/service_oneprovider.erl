@@ -81,7 +81,8 @@
     modify_details/1, get_details/0, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
-    get_auto_storage_import_stats/1, get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
+    get_auto_storage_import_stats/1, get_auto_storage_import_info/1,
+    get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
     get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1,
     start_auto_storage_import_scan/1, stop_auto_storage_import_scan/1, check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
@@ -318,6 +319,7 @@ get_steps(Action, Ctx) when
     Action =:= start_auto_storage_import_scan;
     Action =:= stop_auto_storage_import_scan;
     Action =:= get_auto_storage_import_stats;
+    Action =:= get_auto_storage_import_info;
     Action =:= configure_file_popularity;
     Action =:= configure_auto_cleaning
     ->
@@ -650,7 +652,7 @@ get_space_details(#{id := SpaceId}) ->
     {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
-    StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId, StorageId),
+    StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
     #{
         id => SpaceId,
@@ -672,10 +674,8 @@ get_space_details(#{id := SpaceId}) ->
 modify_space(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     StorageImportConfig = maps:get(storage_import, Ctx, #{}),
-    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
-    StorageId = hd(StorageIds),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
-    op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageId, StorageImportConfig),
+    op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, StorageImportConfig),
     #{id => SpaceId}.
 
 
@@ -693,13 +693,19 @@ maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
 maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 
 
--spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> #{atom() => json_utils:json_term()}.
+-spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> json_utils:json_term().
 get_auto_storage_import_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     Period = onepanel_utils:get_converted(period, Ctx, binary, undefined),
     MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary, <<"">>),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
     op_worker_storage_import:get_stats(Node, SpaceId, Period, Metrics).
+
+
+-spec get_auto_storage_import_info(Ctx :: service:step_ctx()) -> json_utils:json_term().
+get_auto_storage_import_info(#{space_id := SpaceId})->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_storage_import:get_info(Node, SpaceId).
 
 
 %%--------------------------------------------------------------------
@@ -1175,9 +1181,7 @@ assert_storage_exists(Node, StorageId) ->
 -spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:step_ctx()) -> Id :: binary().
 configure_space(Node, SpaceId, Ctx) ->
     StorageImportConfig = maps:get(storage_import, Ctx, #{}),
-    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
-    StorageId = hd(StorageIds),
-    op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageId, StorageImportConfig),
+    op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageImportConfig),
     SpaceId.
 
 

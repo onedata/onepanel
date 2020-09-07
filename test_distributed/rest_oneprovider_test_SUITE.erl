@@ -199,6 +199,7 @@ all() ->
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/stats">>, get},
+    {<<"/provider/spaces/someSpaceId/storage-import/auto/info">>, get},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/start">>, post},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/stop">>, post},
 

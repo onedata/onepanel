@@ -17,11 +17,14 @@
 
 -type id() :: binary().
 -type args() :: map().
+-type metric_type() :: binary(). % <<"queueLength">>, <<"importCount">>, <<"updateCount">>, <<"deleteCount">>
 
 %% API
 -export([start_scan/2, stop_scan/2]).
--export([maybe_configure_storage_import/4, get_storage_import_details/3, get_stats/4]).
+-export([maybe_configure_storage_import/3, maybe_reconfigure_storage_import/3]).
+-export([get_storage_import_details/2, get_stats/4, get_info/2]).
 
+-export_type([metric_type/0]).
 
 %%%===================================================================
 %%% API functions
@@ -29,36 +32,39 @@
 
 -spec start_scan(node(), id()) -> ok.
 start_scan(Node, SpaceId) ->
-    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
-    StorageId = hd(StorageIds),
-    op_worker_rpc:storage_import_start_scan(Node, SpaceId, StorageId).
+    op_worker_rpc:storage_import_start_scan(Node, SpaceId).
 
 -spec stop_scan(node(), id()) -> ok.
 stop_scan(Node, SpaceId) ->
-    {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
-    StorageId = hd(StorageIds),
-    op_worker_rpc:storage_import_stop_scan(Node, SpaceId, StorageId).
+    op_worker_rpc:storage_import_stop_scan(Node, SpaceId).
 
-%%-------------------------------------------------------------------
-%% @doc This function modifies storage_import configuration on given Node.
-%% @end
-%%-------------------------------------------------------------------
--spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), StorageId :: id(),
-    StorageImportArgs :: args()) -> ok.
-maybe_configure_storage_import(_Node, _SpaceId, _StorageId, StorageImportConfig)
+
+-spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), StorageImportArgs :: args()) -> ok.
+maybe_configure_storage_import(_Node, _SpaceId, StorageImportConfig)
     when map_size(StorageImportConfig) == 0 ->
     ok;
-maybe_configure_storage_import(Node, SpaceId, StorageId, StorageImportConfig) ->
-    case configure_storage_import(Node, SpaceId, StorageId, StorageImportConfig) of
+maybe_configure_storage_import(Node, SpaceId, StorageImportConfig) ->
+    case configure_storage_import(Node, SpaceId, StorageImportConfig) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
     end.
 
 
--spec get_storage_import_details(node(), SpaceId :: id(), StorageId :: id()) ->
+-spec maybe_reconfigure_storage_import(Node :: node(), SpaceId :: id(), StorageImportArgs :: args()) -> ok.
+maybe_reconfigure_storage_import(_Node, _SpaceId, StorageImportConfig)
+    when map_size(StorageImportConfig) == 0 ->
+    ok;
+maybe_reconfigure_storage_import(Node, SpaceId, StorageImportConfig) ->
+    case reconfigure_storage_import(Node, SpaceId, StorageImportConfig) of
+        ok -> ok;
+        {error, _} = Error -> throw(Error)
+    end.
+
+
+-spec get_storage_import_details(node(), SpaceId :: id()) ->
     #{atom() => json_utils:json_term()}.
-get_storage_import_details(Node, SpaceId, StorageId) ->
-    {ok, StorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId, StorageId),
+get_storage_import_details(Node, SpaceId) ->
+    {ok, StorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
     kv_utils:copy_found([
         {[storage_import, mode], [storageImport, mode]},
         {[storage_import, scan_config, max_depth], [storageImport, scanConfig, maxDepth]},
@@ -69,21 +75,28 @@ get_storage_import_details(Node, SpaceId, StorageId) ->
         {[storage_import, scan_config, detect_deletions], [storageImport, scanConfig, detectDeletions]}
     ], StorageImportConfig).
 
+
+%%-------------------------------------------------------------------
+%% @doc Returns statistics of auto storage import for given SpaceId.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_info(Node :: node(), SpaceId :: id()) -> json_utils:json_term().
+get_info(Node, SpaceId) ->
+    {ok, Info} = op_worker_rpc:storage_import_get_info(Node, SpaceId),
+    Info.
+
+
 %%-------------------------------------------------------------------
 %% @doc Returns statistics of auto storage import for given SpaceId.
 %% @end
 %%-------------------------------------------------------------------
 -spec get_stats(Node :: node(), SpaceId :: id(), Period :: binary(),
-    Metrics :: [binary()]) -> #{atom() => json_utils:json_term()}.
-get_stats(Node, SpaceId, _Period, [<<"">>]) ->
-    #{
-        status => get_status(Node, SpaceId)
-    };
+    Metrics :: [binary()]) -> json_utils:json_term().
 get_stats(Node, SpaceId, Period, Metrics) ->
-    #{
-        status => get_status(Node, SpaceId),
-        stats => get_all_metrics(Node, SpaceId, Period, Metrics)
-    }.
+    assert_metrics(Metrics),
+    {ok, Results} = op_worker_rpc:storage_import_get_stats(
+        Node, SpaceId, Metrics, binary_to_atom(Period, utf8)),
+    Results.
 
 
 %%%===================================================================
@@ -95,79 +108,62 @@ get_stats(Node, SpaceId, Period, Metrics) ->
 %% @doc This function modifies storage_import configuration on given Node.
 %% @end
 %%-------------------------------------------------------------------
--spec configure_storage_import(Node :: node(), SpaceId :: id(), StorageId :: id(),
-    StorageImportConfig :: args()) -> ok | {error, term()}.
-configure_storage_import(Node, SpaceId, StorageId, StorageImportConfig) ->
+-spec configure_storage_import(Node :: node(), SpaceId :: id(), StorageImportConfig :: args()) ->
+    ok | {error, term()}.
+configure_storage_import(Node, SpaceId, StorageImportConfig) ->
     case onepanel_utils:get_converted(mode, StorageImportConfig, binary) of
         <<"auto">> ->
             ScanConfig = maps:get(scan_config, StorageImportConfig, #{}),
-            ScanConfig2 = maps_utils:remove_undefined(#{
-                max_depth => onepanel_utils:get_converted(max_depth, ScanConfig, integer, undefined),
-                scan_interval => onepanel_utils:get_converted(scan_interval, ScanConfig, integer, undefined),
-                continuous_scan => onepanel_utils:get_converted(continuous_scan, ScanConfig, boolean, undefined),
-                detect_modifications => onepanel_utils:get_converted(detect_modifications, ScanConfig, boolean, undefined),
-                detect_deletions => onepanel_utils:get_converted(detect_deletions, ScanConfig, boolean, undefined),
-                sync_acl => onepanel_utils:get_converted(sync_acl, ScanConfig, boolean, undefined)
-            }),
-            op_worker_rpc:storage_import_configure_auto_import(Node, SpaceId, StorageId, ScanConfig2);
+            configure_auto_storage_import(Node, SpaceId, ScanConfig);
         <<"manual">> ->
-            op_worker_rpc:storage_import_enable_manual_import(Node, SpaceId, StorageId)
+            op_worker_rpc:storage_import_set_manual_import(Node, SpaceId)
     end.
 
 
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns all auto storage import metrics.
-%% @end
-%%-------------------------------------------------------------------
--spec get_all_metrics(OpNode :: node(), SpaceId :: id(), Period :: binary(),
-    Metrics :: [Metric]) -> #{Metric => map()}
-    when Metric :: binary().
-get_all_metrics(OpNode, SpaceId, Period, Metrics) ->
-    lists:foldl(fun(Metric, Acc) ->
-        Acc#{Metric => get_metric(OpNode, SpaceId, Period, Metric)}
-    end, #{}, Metrics).
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns auto storage import metric for given period.
-%% @end
-%%-------------------------------------------------------------------
--spec get_metric(Node :: node(), SpaceId :: id(), Period :: binary(),
-    Metric :: binary()) -> map().
-get_metric(Node, SpaceId, Period, Metric) ->
-    Type = map_metric_name_to_type(Metric),
-    Results = op_worker_rpc:storage_import_monitoring_get_metric(
-        Node, SpaceId, Type, binary_to_atom(Period, utf8)),
-    LastValueTimestamp = proplists:get_value(timestamp, Results),
-    Values = proplists:get_value(values, Results),
-    #{
-        name => Metric,
-        lastValueDate => time_utils:epoch_to_iso8601(LastValueTimestamp),
-        values => Values
-    }.
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc
-%% Maps type of metric.
-%% @end
-%%-------------------------------------------------------------------
--spec map_metric_name_to_type(binary()) -> atom().
-map_metric_name_to_type(<<"queueLength">>) -> queue_length;
-map_metric_name_to_type(<<"insertCount">>) -> imported_files;
-map_metric_name_to_type(<<"updateCount">>) -> updated_files;
-map_metric_name_to_type(<<"deleteCount">>) -> deleted_files.
+-spec reconfigure_storage_import(Node :: node(), SpaceId :: id(), StorageImportConfig :: args()) ->
+    ok | {error, term()}.
+reconfigure_storage_import(Node, SpaceId, StorageImportConfig) ->
+    {ok, CurrentStorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
+    CurrentMode = onepanel_utils:get_converted(mode, CurrentStorageImportConfig, binary),
+    case CurrentMode of
+        <<"auto">> ->
+            ScanConfig = maps:get(scan_config, StorageImportConfig, #{}),
+            configure_auto_storage_import(Node, SpaceId, ScanConfig);
+        <<"manual">> ->
+            % there is nothing to reconfigure in manual mode
+            ok
+    end.
 
 
+-spec configure_auto_storage_import(Node :: node(), SpaceId :: id(), StorageImportConfig :: args()) ->
+    ok | {error, term()}.
+configure_auto_storage_import(Node, SpaceId, ScanConfig) ->
+    ScanConfig2 = maps_utils:remove_undefined(#{
+        max_depth => onepanel_utils:get_converted(max_depth, ScanConfig, integer, undefined),
+        scan_interval => onepanel_utils:get_converted(scan_interval, ScanConfig, integer, undefined),
+        continuous_scan => onepanel_utils:get_converted(continuous_scan, ScanConfig, boolean, undefined),
+        detect_modifications => onepanel_utils:get_converted(detect_modifications, ScanConfig, boolean, undefined),
+        detect_deletions => onepanel_utils:get_converted(detect_deletions, ScanConfig, boolean, undefined),
+        sync_acl => onepanel_utils:get_converted(sync_acl, ScanConfig, boolean, undefined)
+    }),
+    op_worker_rpc:storage_import_configure_auto_import(Node, SpaceId, ScanConfig2).
 
-%%-------------------------------------------------------------------
-%% @private
-%% @doc Returns current status of auto storage import mechanism
-%% @end
-%%-------------------------------------------------------------------
--spec get_status(Node :: node(), SpaceId :: id()) -> atom().
-get_status(Node, SpaceId) ->
-    op_worker_rpc:storage_import_monitoring_get_status(Node, SpaceId).
+
+-spec assert_metrics([binary()]) -> ok.
+assert_metrics(Metrics) ->
+    lists:foreach(fun(Metric) ->
+        case is_supported_metric(Metric) of
+            true -> ok;
+            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(Metric, supported_metrics()))
+        end
+    end, Metrics).
 
 
+-spec is_supported_metric(binary()) -> boolean().
+is_supported_metric(Metric) ->
+    lists:member(Metric, supported_metrics()).
+
+
+-spec supported_metrics() -> [metric_type()].
+supported_metrics() ->
+    [<<"queueLength">>, <<"importCount">>, <<"updateCount">>, <<"deleteCount">>].
