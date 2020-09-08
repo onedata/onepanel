@@ -135,7 +135,7 @@ add_s3_storage(Config) ->
 %% @private
 add_request_match_response(RequestBody, StorageDetails) ->
     RequestMap = maps:get(?S3_STORAGE_NAME, RequestBody),
-    maps_utils:is_component(RequestMap, StorageDetails) and (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
+    maps_utils:is_submap(RequestMap, StorageDetails) and (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
 
 
 get_s3_storage(Config) ->
