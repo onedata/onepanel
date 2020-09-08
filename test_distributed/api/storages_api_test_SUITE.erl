@@ -85,6 +85,7 @@ get_storages_ids(Config) ->
 
 
 add_s3_storage(Config) ->
+    % todo: VFS-6717 delete s3 storage after test
     [P1] = test_config:get_providers(Config),
     OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
@@ -101,7 +102,7 @@ add_s3_storage(Config) ->
             client_spec = #client_spec{
                 correct = [
                     root
-                    % todo: VFS-6717 uncomment when test cases will be independent from each other
+                    % todo: VFS-6717 uncomment when there will be no dependencies in test
                     %{member, [?CLUSTER_UPDATE]}
                 ],
                 unauthorized = [
@@ -119,6 +120,8 @@ add_s3_storage(Config) ->
             end,
             validate_result_fun = fun(_, {ok, RespCode, _, _}) ->
                 StorageIdsAfterAdd = rpc_api:get_storages_ids(OpWorkerNodes),
+
+                % todo: VFS-6716 get NewStorageId from HTTP response
                 [NewStorageID | _] = lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd),
                 StorageDetails = rpc_api:get_storage_details(OpWorkerNodes, NewStorageID),
 
@@ -136,6 +139,7 @@ add_request_match_response(RequestBody, StorageDetails) ->
 
 
 get_s3_storage(Config) ->
+    % todo: VFS-6717 add s3 storage before, and delete after test
     [P1] = test_config:get_providers(Config),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
     OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
@@ -190,6 +194,7 @@ get_storage_id_by_name(Config, StorageName)->
 
 
 delete_s3_storage(Config)->
+    % todo: VFS-6717 add s3 storage before test
     [P1] = test_config:get_providers(Config),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
     OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
@@ -204,7 +209,7 @@ delete_s3_storage(Config)->
             client_spec = #client_spec{
                 correct = [
                     root
-                    % todo: VFS-6717 uncomment when test cases will be independent from each other
+                    % todo: VFS-6717 uncomment when there will be no dependencies in test
                     %{member, [?CLUSTER_UPDATE]}
                 ],
                 unauthorized = [

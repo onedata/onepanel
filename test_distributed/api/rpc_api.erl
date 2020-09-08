@@ -12,6 +12,8 @@
 -module(rpc_api).
 -author("Piotr Duleba").
 
+-include_lib("ctool/include/test/test_utils.hrl").
+
 %% API
 -export([get_storages_ids/1, get_storage_details/2]).
 
@@ -23,11 +25,11 @@
 
 %% Returns list of provider`s storages ids.
 get_storages_ids(ProviderNodes)->
-    {ok, StorageIds} = rpc:call(hd(ProviderNodes), provider_logic, get_storage_ids, []),
+    {ok, StorageIds} = ?assertMatch({ok, _}, rpc:call(hd(ProviderNodes), provider_logic, get_storage_ids, [])),
     StorageIds.
 
 
 %% Returns map of provider`s storage details.
 get_storage_details(ProviderNodes, StorageId)->
-    {ok, StorageDetails} = rpc:call(hd(ProviderNodes), storage, describe, [StorageId]),
+    {ok, StorageDetails} = ?assertMatch({ok, _}, rpc:call(hd(ProviderNodes), storage, describe, [StorageId])),
     StorageDetails.
