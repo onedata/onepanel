@@ -6,22 +6,45 @@ CHANGELOG
 
 ### 20.02.1
 
--   **VFS-6344** GUI: showing information if QoS requirement is
-    impossible to be fulfilled
+-   **VFS-6568** Introduced concept of readonly storage. If enabled,
+    Oneprovider will block any operation that writes, modifies or
+    deletes data on the storage. Such storage can only be used to import
+    data into the space. Mandatory to ensure proper behaviour if the
+    backend storage is actually configured as readonly.
+-   **VFS-6535** Updated S3 SDK library to 1.8.7.
+-   **VFS-6504** Added HTTP storage helper allowing registration of HTTP
+    and HTTPS servers as storage sources for Onedata Spaces.
 -   **VFS-6474** Added initial support for XRootD storage, including
     direct access to XRootD storages and importing of legacy data sets
     stored on XRootD or EOS servers.
--   **VFS-6504** Added HTTP storage helper allowing registration of HTTP
-    and HTTPS servers as storage sources for Onedata Spaces.
 -   **VFS-6401** All authentication errors are now wrapped in
     UNAUTHORIZED error and map to 401 HTTP code to avoid ambiguity when
     reporting token related errors - tokens can be used for
     authentication as well as input data for some operations (e.g.
     invite tokens).
+-   **VFS-6378** Onepanel GUI and REST API now explicitly block
+    supporting a space with more than one imported storage (globally) -
+    such operation was possible in the past but was never supported by
+    the internal storage import logic and led to incoherent view on
+    space data.
 -   **VFS-6346** GUI improvements: added Oneprovider GUI notifications,
     better file selection, additional error handling, better file
     manager refresh UX, fixed overflow of context menu in file browser,
     fixes in responsive layout.
+-   **VFS-6344** GUI: showing information if QoS requirement is
+    impossible to be fulfilled.
+-   **VFS-6343** Added delete account feature in GUI.
+-   **VFS-6184** Added the space owner concept. Space owner works like
+    \"root\" within the space - such user is allowed to perform all
+    file/API operations, regardless of the assigned privileges and file
+    permissions / ACLs. Ownership can be assigned to any number of
+    users, and it is forbidden to leave a space without an owner -
+    ownership must be transferred first.
+-   **VFS-5648** Extended QoS expression to allow comparators (\<, \>,
+    \<=, \>=) and numeric values. Changed \"-\" operator to \"\\\".
+    Space characters (\" \"), dashes (\"-\") and underscores (\"\_\")
+    are now allowed in QoS parameters. Added more details to invalid QoS
+    expression errors.
 -   **VFS-4760** Added implicit API caveats that limit access tokens
     used by Onedata GUIs behind the scenes for authentication and
     authorization. Different services in the system are presented with
@@ -29,11 +52,6 @@ CHANGELOG
     the service to handle user requests. For example, Oneproviders do
     not have access to APIs that could alter or delete user data and
     memberships.
--   **VFS-6378** Onepanel GUI and REST API now explicitly block
-    supporting a space with more than one imported storage (globally) -
-    such operation was possible in the past but was never supported by
-    the internal storage import logic and led to incoherent view on
-    space data.
 
 ### 20.02.0-beta4
 

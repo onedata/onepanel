@@ -306,7 +306,9 @@ add(OpNode, Name, Params) ->
     maybe_verify_storage(Helper, SkipStorageDetection, Readonly, LumaFeed),
 
     ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
-    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, Readonly, QosParameters) of
+    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage, 
+        Readonly,  normalize_numeric_qos_parameters(QosParameters)
+    ) of
         {ok, _StorageId} -> ok;
         {error, Reason} -> {error, Reason}
     end.
@@ -502,7 +504,7 @@ maybe_update_luma_config(OpNode, Id, Params) ->
 -spec maybe_update_qos_parameters(OpNode :: node(), Id :: id(),
     storage_params()) -> ok | errors:error().
 maybe_update_qos_parameters(OpNode, Id, #{qosParameters := Parameters}) ->
-    update_qos_parameters(OpNode, Id, Parameters);
+    update_qos_parameters(OpNode, Id, normalize_numeric_qos_parameters(Parameters));
 maybe_update_qos_parameters(_OpNode, _Id, _) ->
     ok.
 
@@ -628,6 +630,16 @@ parse_file_popularity_configuration(Args) ->
 convert_to_binaries(Map) ->
     onepanel_utils:convert(Map, {map, binary}).
 
+
+%% @private
+-spec normalize_numeric_qos_parameters(#{Term => binary()}) -> #{Term => binary() | integer()}.
+normalize_numeric_qos_parameters(QosParameters) ->
+    maps:map(fun(_Key, Value) ->
+        case re:run(Value, <<"^[0-9]+$">>, [{capture, none}]) of
+            match -> binary_to_integer(Value);
+            nomatch -> Value
+        end
+    end, QosParameters).
 
 %% @private
 -spec exec_and_throw_on_error(function(), [term()]) -> ok | {ok, term()}.
