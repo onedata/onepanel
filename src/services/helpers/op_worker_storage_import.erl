@@ -32,11 +32,17 @@
 
 -spec start_scan(node(), id()) -> ok.
 start_scan(Node, SpaceId) ->
-    op_worker_rpc:storage_import_start_scan(Node, SpaceId).
+    case op_worker_rpc:storage_import_start_scan(Node, SpaceId) of
+        ok -> ok;
+        {error, already_started} -> throw(?ERROR_ALREADY_EXISTS)
+    end.
 
 -spec stop_scan(node(), id()) -> ok.
 stop_scan(Node, SpaceId) ->
-    op_worker_rpc:storage_import_stop_scan(Node, SpaceId).
+    case op_worker_rpc:storage_import_stop_scan(Node, SpaceId) of
+        ok -> ok;
+        {error, not_found} -> throw(?ERROR_NOT_FOUND)
+    end.
 
 
 -spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), StorageImportArgs :: args()) -> ok.
@@ -125,13 +131,20 @@ configure_storage_import(Node, SpaceId, StorageImportConfig) ->
 reconfigure_storage_import(Node, SpaceId, StorageImportConfig) ->
     {ok, CurrentStorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
     CurrentMode = onepanel_utils:get_converted(mode, CurrentStorageImportConfig, binary),
-    case CurrentMode of
-        <<"auto">> ->
-            ScanConfig = maps:get(scan_config, StorageImportConfig, #{}),
-            configure_auto_storage_import(Node, SpaceId, ScanConfig);
-        <<"manual">> ->
-            % there is nothing to reconfigure in manual mode
-            ok
+    % storage import mode should not be changed
+    NewMode = onepanel_utils:get_converted(mode, StorageImportConfig, binary, CurrentMode),
+    case CurrentMode =/= NewMode of
+        true ->
+            throw(?ERROR_STORAGE_IMPORT_MODE_CANNOT_BE_CHANGED(SpaceId));
+        false ->
+            case CurrentMode of
+                <<"auto">> ->
+                    ScanConfig = maps:get(scan_config, StorageImportConfig, #{}),
+                    configure_auto_storage_import(Node, SpaceId, ScanConfig);
+                <<"manual">> ->
+                    % there is nothing to reconfigure in manual mode
+                    ok
+            end
     end.
 
 
