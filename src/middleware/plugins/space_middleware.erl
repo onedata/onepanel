@@ -37,8 +37,8 @@
 operation_supported(create, support, private) -> onepanel:is_op_panel();
 operation_supported(create, start_auto_cleaning, private) -> onepanel:is_op_panel();
 operation_supported(create, cancel_auto_cleaning, private) -> onepanel:is_op_panel();
-operation_supported(create, start_auto_storage_import_scan, private) -> onepanel:is_op_panel();
-operation_supported(create, stop_auto_storage_import_scan, private) -> onepanel:is_op_panel();
+operation_supported(create, force_start_auto_storage_import_scan, private) -> onepanel:is_op_panel();
+operation_supported(create, force_stop_auto_storage_import_scan, private) -> onepanel:is_op_panel();
 
 operation_supported(get, instance, private) -> onepanel:is_op_panel();
 operation_supported(get, list, private) -> onepanel:is_op_panel();
@@ -79,8 +79,8 @@ authorize(#onp_req{operation = Op, client = Client, gri = #gri{aspect = As}}, _)
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
-    Op == create, As == start_auto_storage_import_scan;
-    Op == create, As == stop_auto_storage_import_scan;
+    Op == create, As == force_start_auto_storage_import_scan;
+    Op == create, As == force_stop_auto_storage_import_scan;
     Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
     Op == update, As == file_popularity_configuration;
@@ -120,14 +120,14 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = {As, _}}}, _) when
     ok;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = auto_storage_import_stats}, data = Data}, _) ->
-    op_worker_storage_import:validate_period(Data),
-    op_worker_storage_import:validate_metrics(Data);
+    validate_period(Data),
+    validate_metrics(Data);
 validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
-    Op == create, As == start_auto_storage_import_scan;
-    Op == create, As == stop_auto_storage_import_scan;
+    Op == create, As == force_start_auto_storage_import_scan;
+    Op == create, As == force_stop_auto_storage_import_scan;
 
     Op == get, As == instance;
     Op == get, As == list;
@@ -173,14 +173,14 @@ create(#onp_req{gri = #gri{id = SpaceId, aspect = cancel_auto_cleaning}}) ->
         ?SERVICE_OP, cancel_auto_cleaning, #{space_id => SpaceId}
     );
 
-create(#onp_req{gri = #gri{id = SpaceId, aspect = start_auto_storage_import_scan}}) ->
+create(#onp_req{gri = #gri{id = SpaceId, aspect = force_start_auto_storage_import_scan}}) ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OP, start_auto_storage_import_scan, #{space_id => SpaceId}
+        ?SERVICE_OP, force_start_auto_storage_import_scan, #{space_id => SpaceId}
     );
 
-create(#onp_req{gri = #gri{id = SpaceId, aspect = stop_auto_storage_import_scan}}) ->
+create(#onp_req{gri = #gri{id = SpaceId, aspect = force_stop_auto_storage_import_scan}}) ->
     middleware_utils:execute_service_action(
-        ?SERVICE_OP, stop_auto_storage_import_scan, #{space_id => SpaceId}
+        ?SERVICE_OP, force_stop_auto_storage_import_scan, #{space_id => SpaceId}
     ).
 
 
@@ -233,7 +233,7 @@ get(#onp_req{gri = #gri{id = SpaceId, aspect = auto_storage_import_info}}, _Spac
 -spec update(middleware:req()) -> middleware:update_result().
 update(#onp_req{gri = #gri{id = Id, aspect = support}, data = Data}) ->
     Ctx1 = maps:with([size, space_id] , Data#{space_id => Id}),
-    Ctx2 = get_storage_import_args(Data, Ctx1),
+    Ctx2 = get_auto_storage_import_args(Data, Ctx1),
     middleware_utils:execute_service_action(?SERVICE_OP, modify_space, Ctx2);
 
 update(#onp_req{gri = #gri{id = Id, aspect = auto_cleaning_configuration}, data = Data}) ->
@@ -269,7 +269,7 @@ delete(#onp_req{gri = #gri{id = Id, aspect = support}}) ->
 %% @end
 %%-------------------------------------------------------------------
 -spec get_storage_import_args(Data :: middleware:data(), Ctx :: service:step_ctx())
-        -> service:step_ctx().
+    -> service:step_ctx().
 get_storage_import_args(Data, Ctx) ->
     kv_utils:copy_found([
         {[storageImport, mode], [storage_import, mode]},
@@ -281,6 +281,23 @@ get_storage_import_args(Data, Ctx) ->
         {[storageImport, scanConfig, detectDeletions], [storage_import, scan_config, detect_deletions]}
     ], Data, Ctx).
 
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc Parse args for storage_import.
+%% @end
+%%-------------------------------------------------------------------
+-spec get_auto_storage_import_args(Data :: middleware:data(), Ctx :: service:step_ctx())
+    -> service:step_ctx().
+get_auto_storage_import_args(Data, Ctx) ->
+    kv_utils:copy_found([
+        {[scanConfig, maxDepth], [scan_config, max_depth]},
+        {[scanConfig, syncAcl], [scan_config, sync_acl]},
+        {[scanConfig, continuousScan], [scan_config, continuous_scan]},
+        {[scanConfig, scanInterval], [scan_config, scan_interval]},
+        {[scanConfig, detectModifications], [scan_config, detect_modifications]},
+        {[scanConfig, detectDeletions], [scan_config, detect_deletions]}
+    ], Data, Ctx).
 
 %%-------------------------------------------------------------------
 %% @private
@@ -303,3 +320,49 @@ get_auto_cleaning_configuration(Data, Ctx) ->
         {[rules, maxDailyMovingAverage], [rules, max_daily_moving_average]},
         {[rules, maxMonthlyMovingAverage], [rules, max_monthly_moving_average]}
     ], Data, Ctx).
+
+-spec validate_metrics(middleware:data()) -> ok.
+validate_metrics(Data) ->
+    case maps:get(metrics, Data, undefined) of
+        undefined -> throw(?ERROR_MISSING_REQUIRED_VALUE(metrics));
+        MetricsJoined ->
+            lists:foreach(fun(Metric) ->
+                case is_supported_metric(Metric) of
+                    true -> ok;
+                    false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"metrics">>, supported_metrics()))
+                end
+            end, binary:split(MetricsJoined, <<",">>, [global, trim]))
+    end.
+
+
+-spec validate_period(middleware:data()) -> ok.
+validate_period(Data) ->
+    case maps:get(period, Data, undefined) of
+        undefined -> throw(?ERROR_MISSING_REQUIRED_VALUE(period));
+        Period ->
+            case is_supported_period(Period) of
+                true -> ok;
+                false ->
+                    throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"period">>, supported_periods()))
+            end
+    end.
+
+
+-spec is_supported_period(binary()) -> boolean().
+is_supported_period(Period) ->
+    lists:member(Period, supported_periods()).
+
+
+-spec supported_periods() -> [op_worker_storage_import:period()].
+supported_periods() ->
+    [<<"minute">>, <<"hour">>, <<"day">>].
+
+
+-spec is_supported_metric(binary()) -> boolean().
+is_supported_metric(Metric) ->
+    lists:member(Metric, supported_metrics()).
+
+
+-spec supported_metrics() -> [op_worker_storage_import:metric_type()].
+supported_metrics() ->
+    [<<"queueLength">>, <<"importCount">>, <<"updateCount">>, <<"deleteCount">>].

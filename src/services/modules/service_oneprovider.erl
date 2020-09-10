@@ -84,7 +84,8 @@
     get_auto_storage_import_stats/1, get_auto_storage_import_info/1,
     get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
     get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1,
-    start_auto_storage_import_scan/1, stop_auto_storage_import_scan/1, check_oz_connection/0,
+    force_start_auto_storage_import_scan/1, force_stop_auto_storage_import_scan/1,
+    check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
@@ -316,8 +317,8 @@ get_steps(Action, Ctx) when
     Action =:= format_cluster_ips;
     Action =:= start_auto_cleaning;
     Action =:= cancel_auto_cleaning;
-    Action =:= start_auto_storage_import_scan;
-    Action =:= stop_auto_storage_import_scan;
+    Action =:= force_start_auto_storage_import_scan;
+    Action =:= force_stop_auto_storage_import_scan;
     Action =:= get_auto_storage_import_stats;
     Action =:= get_auto_storage_import_info;
     Action =:= configure_file_popularity;
@@ -673,7 +674,7 @@ get_space_details(#{id := SpaceId}) ->
 -spec modify_space(Ctx :: service:step_ctx()) -> #{id => op_worker_rpc:od_space_id()}.
 modify_space(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    StorageImportConfig = maps:get(storage_import, Ctx, #{}),
+    StorageImportConfig = maps:get(scan_config, Ctx, #{}),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
     op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, StorageImportConfig),
     #{id => SpaceId}.
@@ -831,8 +832,8 @@ cancel_auto_cleaning(#{space_id := SpaceId}) ->
 %% Manually starts scan of storage import mechanism.
 %% @end
 %%-------------------------------------------------------------------
--spec start_auto_storage_import_scan(Ctx :: service:step_ctx()) -> ok.
-start_auto_storage_import_scan(#{space_id := SpaceId}) ->
+-spec force_start_auto_storage_import_scan(Ctx :: service:step_ctx()) -> ok.
+force_start_auto_storage_import_scan(#{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = op_worker_storage_import:start_scan(Node, SpaceId).
 
@@ -842,8 +843,8 @@ start_auto_storage_import_scan(#{space_id := SpaceId}) ->
 %% Manually stops scan of storage import mechanism.
 %% @end
 %%-------------------------------------------------------------------
--spec stop_auto_storage_import_scan(Ctx :: service:step_ctx()) -> ok.
-stop_auto_storage_import_scan(#{space_id := SpaceId}) ->
+-spec force_stop_auto_storage_import_scan(Ctx :: service:step_ctx()) -> ok.
+force_stop_auto_storage_import_scan(#{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     ok = op_worker_storage_import:stop_scan(Node, SpaceId).
 

@@ -201,6 +201,28 @@ routes() ->
             data_spec = (rest_model:space_auto_cleaning_configuration_model())
         }},
 
+        %% Force start auto storage import scan
+        {<<"/provider/spaces/:id/storage-import/auto/force-start">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = force_start_auto_storage_import_scan,
+                scope = private
+            }
+        }},
+
+        %% Force stop auto storage import scan
+        {<<"/provider/spaces/:id/storage-import/auto/force-stop">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = force_stop_auto_storage_import_scan,
+                scope = private
+            }
+        }},
+
         %% Get information about auto storage import scan.
         {<<"/provider/spaces/:id/storage-import/auto/info">>, #rest_req{
             method = 'GET',
@@ -793,17 +815,6 @@ routes() ->
             }
         }},
 
-        %% Start auto storage import scan
-        {<<"/provider/spaces/:id/storage-import/auto/start">>, #rest_req{
-            method = 'POST',
-            b_gri = #b_gri{
-                type = onp_space,
-                id = ?BINDING(id),
-                aspect = start_auto_storage_import_scan,
-                scope = private
-            }
-        }},
-
         %% Start/stop provider database
         {<<"/provider/databases/:host">>, #rest_req{
             method = 'PATCH',
@@ -903,17 +914,6 @@ routes() ->
                 %% service will be started or stopped in order to match the
                 %% requested state.
                 started => {boolean, {optional, true}}
-            }
-        }},
-
-        %% Stop auto storage import scan
-        {<<"/provider/spaces/:id/storage-import/auto/stop">>, #rest_req{
-            method = 'POST',
-            b_gri = #b_gri{
-                type = onp_space,
-                id = ?BINDING(id),
-                aspect = stop_auto_storage_import_scan,
-                scope = private
             }
         }},
 
