@@ -18,11 +18,13 @@
 -type id() :: binary().
 -type args() :: map().
 -type metric_type() :: binary(). % <<"queueLength">>, <<"importCount">>, <<"updateCount">>, <<"deleteCount">>
+-type period() :: binary(). % <<"minute">>, <<"hour">>, <<"day">>
 
 %% API
 -export([start_scan/2, stop_scan/2]).
 -export([maybe_configure_storage_import/3, maybe_reconfigure_storage_import/3]).
 -export([get_storage_import_details/2, get_stats/4, get_info/2]).
+-export([validate_metrics/1, validate_period/1]).
 
 -export_type([metric_type/0]).
 
@@ -72,13 +74,13 @@ maybe_reconfigure_storage_import(Node, SpaceId, StorageImportConfig) ->
 get_storage_import_details(Node, SpaceId) ->
     {ok, StorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
     kv_utils:copy_found([
-        {[storage_import, mode], [storageImport, mode]},
-        {[storage_import, scan_config, max_depth], [storageImport, scanConfig, maxDepth]},
-        {[storage_import, scan_config, sync_acl], [storageImport, scanConfig, syncAcl]},
-        {[storage_import, scan_config, continuous_scan], [storageImport, scanConfig, continuousScan]},
-        {[storage_import, scan_config, scan_interval], [storageImport, scanConfig, scanInterval]},
-        {[storage_import, scan_config, detect_modifications], [storageImport, scanConfig, detectModifications]},
-        {[storage_import, scan_config, detect_deletions], [storageImport, scanConfig, detectDeletions]}
+        {[mode], [mode]},
+        {[scan_config, max_depth], [scanConfig, maxDepth]},
+        {[scan_config, sync_acl], [scanConfig, syncAcl]},
+        {[scan_config, continuous_scan], [scanConfig, continuousScan]},
+        {[scan_config, scan_interval], [scanConfig, scanInterval]},
+        {[scan_config, detect_modifications], [scanConfig, detectModifications]},
+        {[scan_config, detect_deletions], [scanConfig, detectDeletions]}
     ], StorageImportConfig).
 
 
@@ -99,10 +101,36 @@ get_info(Node, SpaceId) ->
 -spec get_stats(Node :: node(), SpaceId :: id(), Period :: binary(),
     Metrics :: [binary()]) -> json_utils:json_term().
 get_stats(Node, SpaceId, Period, Metrics) ->
-    assert_metrics(Metrics),
     {ok, Results} = op_worker_rpc:storage_import_get_stats(
         Node, SpaceId, Metrics, binary_to_atom(Period, utf8)),
     Results.
+
+
+-spec validate_metrics(middleware:data()) -> ok.
+validate_metrics(Data) ->
+    case maps:get(metrics, Data, undefined) of
+        undefined -> throw(?ERROR_MISSING_REQUIRED_VALUE(metrics));
+        MetricsJoined ->
+            lists:foreach(fun(Metric) ->
+                case is_supported_metric(Metric) of
+                    true -> ok;
+                    false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"metrics">>, supported_metrics()))
+                end
+            end, binary:split(MetricsJoined, <<",">>, [global, trim]))
+    end.
+
+
+-spec validate_period(middleware:data()) -> ok.
+validate_period(Data) ->
+    case maps:get(period, Data, undefined) of
+        undefined -> throw(?ERROR_MISSING_REQUIRED_VALUE(period));
+        Period ->
+            case is_supported_period(Period) of
+                true -> ok;
+                false ->
+                    throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"period">>, supported_periods()))
+            end
+    end.
 
 
 %%%===================================================================
@@ -162,14 +190,14 @@ configure_auto_storage_import(Node, SpaceId, ScanConfig) ->
     op_worker_rpc:storage_import_configure_auto_import(Node, SpaceId, ScanConfig2).
 
 
--spec assert_metrics([binary()]) -> ok.
-assert_metrics(Metrics) ->
-    lists:foreach(fun(Metric) ->
-        case is_supported_metric(Metric) of
-            true -> ok;
-            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(Metric, supported_metrics()))
-        end
-    end, Metrics).
+-spec is_supported_period(binary()) -> boolean().
+is_supported_period(Period) ->
+    lists:member(Period, supported_periods()).
+
+
+-spec supported_periods() -> [period()].
+supported_periods() ->
+    [<<"minute">>, <<"hour">>, <<"day">>].
 
 
 -spec is_supported_metric(binary()) -> boolean().

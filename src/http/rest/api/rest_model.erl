@@ -1484,7 +1484,7 @@ space_modify_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => {integer, optional},
-        storageImport => {storage_import_model(), optional}
+        scanConfig => {auto_storage_import_model(), optional}
     }.
 
 %%--------------------------------------------------------------------

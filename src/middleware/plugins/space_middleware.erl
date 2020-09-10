@@ -119,6 +119,9 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = {As, _}}}, _) when
 ->
     ok;
 
+validate(#onp_req{operation = get, gri = #gri{aspect = auto_storage_import_stats}, data = Data}, _) ->
+    op_worker_storage_import:validate_period(Data),
+    op_worker_storage_import:validate_metrics(Data);
 validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == support;
     Op == create, As == start_auto_cleaning;

@@ -696,8 +696,8 @@ maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 -spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> json_utils:json_term().
 get_auto_storage_import_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    Period = onepanel_utils:get_converted(period, Ctx, binary, undefined),
-    MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary, <<"">>),
+    Period = onepanel_utils:get_converted(period, Ctx, binary),
+    MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
     op_worker_storage_import:get_stats(Node, SpaceId, Period, Metrics).
 
