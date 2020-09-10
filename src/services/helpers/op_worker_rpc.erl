@@ -936,20 +936,20 @@ storage_import_configure_auto_import(Node, SpaceId, ScanConfig) ->
     ?CALL(Node, [SpaceId, ScanConfig]).
 
 
--spec storage_import_start_scan(od_space_id()) -> ok.
+-spec storage_import_start_scan(od_space_id()) ->  ok | {error, term()}.
 storage_import_start_scan(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_import_start_scan(node(), od_space_id()) -> ok.
+-spec storage_import_start_scan(node(), od_space_id()) -> ok | {error, term()}.
 storage_import_start_scan(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec storage_import_stop_scan(od_space_id()) -> ok.
+-spec storage_import_stop_scan(od_space_id()) ->  ok | {error, term()}.
 storage_import_stop_scan(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_import_stop_scan(node(), od_space_id()) -> ok.
+-spec storage_import_stop_scan(node(), od_space_id()) ->  ok | {error, term()}.
 storage_import_stop_scan(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
