@@ -14,19 +14,23 @@
 -include("authentication.hrl").
 -include("onepanel_test_utils.hrl").
 -include("onepanel_test_rest.hrl").
--include("modules/errors.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 %% API
 -export([auth_request/4, auth_request/5, auth_request/6, auth_request/7,
     noauth_request/3, noauth_request/4, noauth_request/5, noauth_request/6]).
 -export([assert_body_fields/2, assert_body_values/2, assert_body/2]).
--export([set_default_passphrase/1, mock_token_authentication/1,
+-export([
+    set_default_passphrase/1, mock_token_authentication/1,
     oz_token_auth/1, oz_token_auth/2, oz_token_auth/3,
-    obtain_local_token/2]).
+    obtain_local_token/2, obtain_invite_token/1, construct_token/1
+]).
 
 -type config() :: string() | proplists:proplist().
 -type endpoint() :: http_client:url() | {noprefix, http_client:url()}.
@@ -36,10 +40,9 @@
                 {cookie, Name :: binary(), Value :: binary()} |
                 {token, Token :: binary()} |
                 none.
--type headers() :: http_client:headers().
+-type headers() :: [{binary(), binary()}].
 -type body() :: http_client:body().
--type code() :: http_client:code().
--type response() :: {ok, Code :: code(), Headers :: headers(), Body :: body()} |
+-type response() :: {ok, Code :: http_client:code(), Headers :: headers(), Body :: body()} |
                     {error, Reason :: term()}.
 
 -export_type([auth/0]).
@@ -102,7 +105,7 @@ auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, Name, Value},
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {token, Token},
     Headers, Body) ->
-    NewHeaders = [{<<"x-auth-token">>, Token} | Headers],
+    NewHeaders = [{?HDR_X_AUTH_TOKEN, Token} | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
@@ -111,7 +114,9 @@ auth_request(HostOrConfig, Port, Endpoint, Method, <<Passphrase/binary>>,
     auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Passphrase}, Headers, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {Username, Password}, Headers, Body) ->
-    NewHeaders = [onepanel_utils:get_basic_auth_header(Username, Password) | Headers],
+    NewHeaders =
+        maps:to_list(onepanel_utils:get_basic_auth_header(Username, Password))
+        ++ Headers,
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
 auth_request(HostOrConfig, Port, Endpoint, Method, [_ | _] = Auths, Headers, Body) ->
@@ -176,14 +181,17 @@ noauth_request(HostOrConfig, Endpoint, Method, Headers, Body) ->
 noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
     Host = case io_lib:printable_unicode_list(HostOrConfig) of
         true -> HostOrConfig;
-        false -> utils:random_element(?config(all_hosts, HostOrConfig))
+        false -> lists_utils:random_element(?config(all_hosts, HostOrConfig))
     end,
     NewHeaders = [
-        {<<"content-type">>, <<"application/json">>} |
+        {?HDR_CONTENT_TYPE, <<"application/json">>} |
         Headers
     ],
     Url = onepanel_utils:join(["https://", Host, ":", Port, Path]),
-    JsonBody = json_utils:encode(Body),
+    JsonBody = case string:is_empty(Body) of
+        true -> <<>>;
+        false -> json_utils:encode(Body)
+    end,
     http_client:request(Method, Url, maps:from_list(NewHeaders), JsonBody,
         [{ssl_options, [{secure, false}]}]);
 
@@ -206,8 +214,12 @@ assert_body_fields(JsonBody, Fields) ->
 %% values match the expected ones.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_body_values(JsonBody :: binary(), Values :: [{binary(), any()}]) -> ok.
-assert_body_values(JsonBody, Values) ->
+-spec assert_body_values(JsonBody :: binary(),
+    Values :: [{binary(), any()}] | #{binary() => any()}) -> ok.
+assert_body_values(JsonBody, Values) when is_map(Values) ->
+    assert_body_values(JsonBody, maps:to_list(Values));
+
+assert_body_values(JsonBody, Values) when is_list(Values) ->
     onepanel_test_utils:assert_values(json_utils:decode(JsonBody), Values).
 
 
@@ -250,15 +262,21 @@ mock_token_authentication([{_, _} | _] = Config) ->
 mock_token_authentication(Nodes) ->
     test_utils:mock_new(Nodes, [onezone_tokens]),
     test_utils:mock_expect(Nodes, onezone_tokens, authenticate_user, fun
-        (<<"valid-token:", ClientB64/binary>> = Token) ->
+        (<<"valid-token:", ClientB64/binary>> = Token, _PeerIp) ->
             ClientBin = base64:decode(ClientB64),
             Client = erlang:binary_to_term(ClientBin),
             case onepanel_env:get_cluster_type() of
-                oneprovider -> Client#client{zone_auth = {rest, {gui_token, Token}}};
-                onezone -> Client#client{zone_auth = {rpc, opaque_client}}
+                oneprovider -> Client#client{
+                    zone_credentials = {rest, {token, Token}},
+                    auth = aai:user_auth(<<"user-id">>)
+                };
+                onezone -> Client#client{
+                    zone_credentials = {rpc, opaque_client},
+                    auth = aai:user_auth(<<"user-id">>)
+                }
             end;
-        (_BadToken) -> ?make_error(?ERR_INVALID_AUTH_TOKEN)
-end).
+        (_BadToken, _PeerIp) -> ?ERROR_UNAUTHORIZED(?ERROR_TOKEN_INVALID)
+    end).
 
 
 %%--------------------------------------------------------------------
@@ -318,3 +336,30 @@ obtain_local_token(HostOrConfig, Auth) ->
 
     #{<<"token">> := Token} = json_utils:decode(TokenJson),
     {token, Token}.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Obtains invite token.
+%% @end
+%%--------------------------------------------------------------------
+-spec obtain_invite_token(Host :: config()) -> auth().
+obtain_invite_token(Host) ->
+    {ok, _, _, Response} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _},
+        auth_request(Host, <<"/invite_tokens">>, post, ?EMERGENCY_PASSPHRASE)
+    ),
+    #{<<"inviteToken">> := InviteToken} = json_utils:decode(Response),
+    {token, InviteToken}.
+
+
+-spec construct_token([caveats:caveat()]) -> tokens:serialized().
+construct_token(Caveats) ->
+    {ok, Token} = tokens:serialize(tokens:construct(#token{
+        type = ?ACCESS_TOKEN,
+        subject = ?SUB(user, <<"userId">>),
+        onezone_domain = <<"someonezone.test">>,
+        persistence = {temporary, 1},
+        id = str_utils:rand_hex(16)
+    }, <<"someSecret">>, Caveats)),
+    Token.

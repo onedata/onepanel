@@ -56,13 +56,19 @@
           "type": "webdav",
           "name": "someWebDAV",
           "storagePathType": "canonical"
+        },
+        {
+          "type": "xrootd",
+          "name": "someXRootD",
+          "storagePathType": "canonical"
         }
+
       ]
     }
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:19.02.1",
+      "image": "docker.onedata.org/onezone-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -88,7 +94,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:19.02.1",
+      "image": "docker.onedata.org/oneprovider-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {

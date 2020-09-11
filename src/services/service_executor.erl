@@ -7,6 +7,24 @@
 %%%--------------------------------------------------------------------
 %%% @doc This module allows for synchronous and asynchronous service action
 %%% execution.
+%%%
+%%% Service actions are a mechanism for executing functions on selected hosts.
+%%% Steps are defined in service_*:get_steps/2 callback functions.
+%%% Each #step{} record describes invocation of one function.
+%%% A #steps{} record allows nesting of another action.
+%%% A single step is executed in parallel on all selected hosts.
+%%% All nested steps are resolved into a flat list of #step{} records before
+%%% action execution starts.
+%%%
+%%% Each action invocation (service:apply_sync and service:apply_async)
+%%% causes creation of 2 processes by the service_executor:
+%%% - worker - this process resolves the steps list and performs onepanel_rpc
+%%%            calls to execute the functions
+%%% - handler - a simple process storing the executed steps in its state.
+%%%
+%%% A started action is given a task id, which can be used to retrieve
+%%% the execution results as long as the handler process exists.
+%%% It is removed after task_ttl milliseconds.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(service_executor).
@@ -15,26 +33,29 @@
 -behaviour(gen_server).
 
 -include("modules/errors.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include("names.hrl").
 
 %% API
--export([start_link/0, handle_results/1, receive_results/2]).
+-export([start_link/0, handle_results/0, handle_results/2,
+    receive_results/2, receive_count/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
+% @formatter:off
 -type task_id() :: binary().
--type hosts_results() :: {GoodResults :: onepanel_rpc:results(),
-    BadResults :: onepanel_rpc:results()}.
--type step_result() :: {Module :: module(), Function :: atom()} |
-{Module :: module(), Function :: atom(), HostsResults :: hosts_results()}.
--type action_result() :: {task_finished, {
-    Service :: service:name(), Action :: service:action(), Result :: ok | #error{}
-}}.
+-type hosts_results() :: {
+    GoodResults :: onepanel_rpc:results(),
+    BadResults :: onepanel_rpc:results()
+}.
+-type step_result() :: #step_begin{} | #step_end{}.
+-type action_result() :: #action_end{}.
 -type result() :: action_result() | step_result().
 -type results() :: [result()].
+% @formatter:on
 
 -export_type([task_id/0, hosts_results/0, step_result/0, action_result/0,
     result/0, results/0]).
@@ -69,33 +90,56 @@ start_link() ->
 %% @doc Loop that stores the asynchronous operation results.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_results(Results :: service_executor:results()) -> no_return().
-handle_results(Results) ->
+-spec handle_results() -> no_return().
+handle_results() ->
+    handle_results([], 0).
+
+-spec handle_results(service_executor:results(), StepsCount :: non_neg_integer()) ->
+    no_return().
+handle_results(History, StepsCount) ->
     receive
-        {step_begin, Result} ->
-            ?MODULE:handle_results([Result | Results]);
-        {step_end, Result} ->
-            ?MODULE:handle_results([Result | Results]);
-        {action_end, Result} ->
-            ?MODULE:handle_results([{task_finished, Result} | Results]);
+        #action_steps_count{count = NewStepsCount} ->
+            ?MODULE:handle_results(History, NewStepsCount);
+        #step_begin{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        #step_end{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        #action_end{} = Result ->
+            ?MODULE:handle_results([Result | History], StepsCount);
+        {forward_count, TaskId, Pid} ->
+            Pid ! {step_count, TaskId, StepsCount},
+            ?MODULE:handle_results(History, StepsCount);
         {forward_results, TaskId, Pid} ->
-            Pid ! {task, TaskId, lists:reverse(Results)},
-            ?MODULE:handle_results(Results);
+            Pid ! {task, TaskId, lists:reverse(History)},
+            ?MODULE:handle_results(History, StepsCount);
         _ ->
-            ?MODULE:handle_results(Results)
+            ?MODULE:handle_results(History, StepsCount)
     end.
 
 %%--------------------------------------------------------------------
 %% @doc Returns the asynchronous operation results.
 %% @end
 %%--------------------------------------------------------------------
--spec receive_results(TaskId :: task_id(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+-spec receive_results(TaskId :: task_id(), timeout()) ->
+    Results :: service_executor:results() | ?ERROR_TIMEOUT.
 receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
     after
-        Timeout -> ?make_error(?ERR_TIMEOUT, [TaskId, Timeout])
+        Timeout -> ?ERROR_TIMEOUT
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc Returns total number of steps resolved for given task.
+%% @end
+%%--------------------------------------------------------------------
+-spec receive_count(TaskId :: task_id(), timeout()) ->
+    Count :: non_neg_integer() | ?ERROR_TIMEOUT.
+receive_count(TaskId, Timeout) ->
+    receive
+        {step_count, TaskId, Count} -> Count
+    after
+        Timeout -> ?ERROR_TIMEOUT
     end.
 
 %%%===================================================================
@@ -127,7 +171,7 @@ init([]) ->
 handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
     workers = Workers, handlers = Handlers} = State) ->
     TaskId = onepanel_utils:gen_uuid(),
-    {Handler, _} = erlang:spawn_monitor(?MODULE, handle_results, [[]]),
+    {Handler, _} = erlang:spawn_monitor(?MODULE, handle_results, []),
     {Worker, _} = erlang:spawn_monitor(service, apply,
         [Service, Action, Ctx, Handler]),
     Task = #task{owner = Owner, worker = Worker, handler = Handler},
@@ -140,7 +184,7 @@ handle_call({apply, Service, Action, Ctx}, {Owner, _}, #state{tasks = Tasks,
 handle_call({abort_task, TaskId}, _From, State) ->
     case task_cleanup(TaskId, State) of
         {true, NewState} -> {reply, ok, NewState};
-        {false, NewState} -> {reply, ?make_error(?ERR_NOT_FOUND), NewState}
+        {false, NewState} -> {reply, {error, not_found}, NewState}
     end;
 
 handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
@@ -149,13 +193,22 @@ handle_call({exists_task, TaskId}, _From, #state{tasks = Tasks} = State) ->
         error -> {reply, false, State}
     end;
 
+handle_call({get_count, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
+    case maps:find(TaskId, Tasks) of
+        {ok, #task{handler = Handler}} ->
+            Handler ! {forward_count, TaskId, From},
+            {reply, ok, State};
+        error ->
+            {reply, {error, not_found}, State}
+    end;
+
 handle_call({get_results, TaskId}, {From, _}, #state{tasks = Tasks} = State) ->
     case maps:find(TaskId, Tasks) of
         {ok, #task{handler = Handler}} ->
             Handler ! {forward_results, TaskId, From},
             {reply, ok, State};
         error ->
-            {reply, ?make_error(?ERR_NOT_FOUND), State}
+            {reply, {error, not_found}, State}
     end;
 
 handle_call(Request, _From, State) ->
@@ -202,13 +255,13 @@ handle_info({'DOWN', _, _, Pid, _}, #state{workers = Workers, handlers = Handler
     Result = case {maps:find(Pid, Workers), maps:find(Pid, Handlers)} of
         {{ok, Id}, _} -> {ok, Id};
         {_, {ok, Id}} -> {ok, Id};
-        {_, _} -> ?make_error(?ERR_NOT_FOUND)
+        {_, _} -> not_found
     end,
     NewState = case Result of
         {ok, TaskId} ->
             {_, CleanState} = task_cleanup(TaskId, State),
             CleanState;
-        #error{reason = ?ERR_NOT_FOUND} -> State
+        not_found -> State
     end,
     {noreply, NewState};
 

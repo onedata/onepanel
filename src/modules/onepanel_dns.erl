@@ -124,7 +124,7 @@ check([], [], _Type, _Servers) ->
     [#dns_check{summary = ok, expected = [], got = []}];
 
 check(Expected, Names, Type, Servers) ->
-    Results = utils:pmap(fun(Server) ->
+    Results = lists_utils:pmap(fun(Server) ->
         check_on_server(Expected, Names, Type, Server)
     end, Servers),
     WithoutErrors = lists:filter(fun
@@ -133,8 +133,7 @@ check(Expected, Names, Type, Servers) ->
     end, Results),
 
     case WithoutErrors of
-        [] -> ?throw_error(?ERR_DNS_CHECK_ERROR(
-            str_utils:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
+        [] -> throw(?ERROR_DNS_SERVERS_UNREACHABLE(Servers));
         _ -> WithoutErrors
     end.
 
@@ -152,9 +151,9 @@ check_on_server(Expected, Names, Type, ServerIP) ->
     case lookup(Names, Type, ServerIP) of
         error -> error;
         Resolved ->
-            Correct = onepanel_lists:intersect(Resolved, Expected),
-            Missing = onepanel_lists:subtract(Expected, Resolved),
-            Additional = onepanel_lists:subtract(Resolved, Expected),
+            Correct = lists_utils:intersect(Resolved, Expected),
+            Missing = lists_utils:subtract(Expected, Resolved),
+            Additional = lists_utils:subtract(Resolved, Expected),
 
             Summary = if
                 Resolved == [] -> unresolvable;
@@ -180,7 +179,7 @@ check_on_server(Expected, Names, Type, ServerIP) ->
 -spec lookup(Quries :: [dns_name()], Type :: dns_type(),
     DnsServerIP :: inet:ip4_address() | default) -> [dns_value()] | error.
 lookup(Names, Type, DnsServerIP) ->
-    Results = lists:flatten(utils:pmap(fun(Name) ->
+    Results = lists:flatten(lists_utils:pmap(fun(Name) ->
         NameStr = onepanel_utils:convert(Name, list),
         Opts = case DnsServerIP of
             default -> [];

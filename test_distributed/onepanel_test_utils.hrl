@@ -26,7 +26,7 @@
     ?callAny(Config, all_nodes, Module, Function, Args)).
 
 -define(callAny(Config, NodesType, Module, Function, Args),
-    rpc:call(utils:random_element(?config(NodesType, Config)),
+    rpc:call(lists_utils:random_element(?config(NodesType, Config)),
         Module, Function, Args)).
 
 -define(callAll(Config, Module, Function, Args),

@@ -14,7 +14,7 @@
 
 -ifdef(TEST).
 
--include("modules/errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 %%%===================================================================
@@ -46,12 +46,11 @@ read_should_return_value(_) ->
 
 
 read_should_report_missing_key(_) ->
-    ?_assertMatch(#error{reason = ?ERR_NOT_FOUND},
-        onepanel_vm:read(<<"k4">>, "p1")).
+    ?_assertMatch(error, onepanel_vm:read(<<"k4">>, "p1")).
 
 
 read_should_pass_errors(_) ->
-    ?_assertThrow(#error{reason = enoent}, onepanel_vm:read(<<"k1">>, "p2")).
+    ?_assertThrow(?ERROR_FILE_ACCESS("p2", enoent), onepanel_vm:read(<<"k1">>, "p2")).
 
 
 write_should_append_value(_) ->
@@ -88,7 +87,7 @@ write_should_replace_value(_) ->
 
 
 write_should_pass_errors(_) ->
-    ?_assertThrow(#error{reason = enoent},
+    ?_assertThrow(?ERROR_FILE_ACCESS("p2", enoent),
         onepanel_vm:write(<<"k1">>, <<"v1">>, "p2")).
 
 %%%===================================================================
@@ -142,7 +141,7 @@ pop_msg() ->
 %% @doc Returns first message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
--spec pop_msg(Timeout :: timeout()) -> Any :: term() | timeout.
+-spec pop_msg(timeout()) -> Any :: term() | timeout.
 pop_msg(Timeout) ->
     receive
         Any -> Any
@@ -152,7 +151,7 @@ pop_msg(Timeout) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Removes all message from porcess message queue.
+%% @doc Removes all message from process message queue.
 %% @end
 %%--------------------------------------------------------------------
 -spec remove_msgs() -> ok.

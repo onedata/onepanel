@@ -68,14 +68,13 @@ all() ->
 create_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
     ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
-    ?assertMatch(#error{reason = ?ERR_ALREADY_EXISTS},
+    ?assertMatch(?ERR_ALREADY_EXISTS,
         ?callAny(Config, model, create, [?MODEL, Record])).
 
 
 get_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND}, ?callAny(Config, model, get,
-        [?MODEL, 1])),
+    ?assertMatch(?ERR_DOC_NOT_FOUND, ?callAny(Config, model, get, [?MODEL, 1])),
     ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
     ?assertEqual({ok, Record}, ?callAny(Config, model, get, [?MODEL, 1])).
 
@@ -91,7 +90,7 @@ save_test(Config) ->
 
 
 update_test(Config) ->
-    ?assertMatch(#error{reason = ?ERR_NOT_FOUND},
+    ?assertMatch(?ERR_DOC_NOT_FOUND,
         ?callAny(Config, model, update, [?MODEL, 1, #{}])),
 
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
@@ -213,7 +212,8 @@ upgrade_loop_is_detected_test(Config) ->
         mnesia:write(?MODEL, OldDoc, write)
     end])),
 
-    ?assertMatch(#error{}, rpc:call(Node, onepanel_db, upgrade_tables, [])).
+    ?assertMatch({badrpc, {'EXIT', {_, _}}},
+        rpc:call(Node, onepanel_db, upgrade_tables, [])).
 
 
 %%%===================================================================
@@ -224,7 +224,8 @@ init_per_testcase(Case, Config) when
     Case =:= list_test;
     Case =:= select_test;
     Case =:= size_test;
-    Case =:= clear_test ->
+    Case =:= clear_test
+->
     NewConfig = init_per_testcase(default, Config),
     Records = lists:sort([
         #?MODEL{field1 = 1, field2 = <<"field1">>, field3 = field1},
@@ -277,7 +278,7 @@ init_per_testcase(_Case, Config) ->
 
     % 'service' model required for detecting unregistered provider
     % in https_listener:response_headers/0
-    test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, ?MODEL] end),
+    test_utils:mock_expect(Nodes, model, get_models, fun() -> [service, authorization_nonce, ?MODEL] end),
 
     % required for successful deployment
     test_utils:mock_expect(Nodes, onepanel_deployment, is_set,

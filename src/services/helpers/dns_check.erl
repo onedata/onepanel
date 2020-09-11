@@ -26,14 +26,12 @@
 -include("deployment_progress.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 
 -define(REFRESH_INTERVAL, onepanel_env:get(dns_check_interval)). % 6 hours
 
 % Set to multiple of ?REFRESH_INTERVAL to allow some failed tests
 -define(CACHE_TTL, ?REFRESH_INTERVAL * 3). % 18 hours
-
--define(TIMESTAMP_KEY, dns_check_attempt_timestamp).
--define(CACHE_KEY, dns_check).
 
 % Check names match expected fields in REST API.
 -type check() :: domain | dnsZone.
@@ -82,10 +80,10 @@ get(Service, _ForceRefresh = false) ->
 %%--------------------------------------------------------------------
 -spec update_cache(worker_service()) -> result() | no_return().
 update_cache(Service) ->
-    service:update_ctx(Service, #{?TIMESTAMP_KEY => get_timestamp()}),
+    service:update_ctx(Service, #{?DNS_CHECK_TIMESTAMP_KEY => get_timestamp()}),
     Checks = get_checks(Service),
     Result = compute_results(Service, Checks),
-    service:update_ctx(Service, #{?CACHE_KEY => Result}),
+    service:update_ctx(Service, #{?DNS_CHECK_CACHE_KEY => Result}),
     Result.
 
 
@@ -101,8 +99,8 @@ async_update_cache(Service) ->
         try
             update_cache(Service)
         catch
-            throw:#error{reason = ?ERR_DNS_CHECK_ERROR(Message)} ->
-                ?error("DNS check refresh failed: ~s", [Message]);
+            throw:?ERROR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
+                ?error("DNS check refresh failed: no connection to servers ~ps", [UsedServers]);
             Type:Error ->
                 % Catch all as a process failure with exception
                 % causes an ugly error log
@@ -122,7 +120,7 @@ should_update_cache(Service) ->
     Now = get_timestamp(),
     Interval = ?REFRESH_INTERVAL,
     case service:get_ctx(Service) of
-        #{?TIMESTAMP_KEY := LastAttempt}
+        #{?DNS_CHECK_TIMESTAMP_KEY := LastAttempt}
             when LastAttempt + Interval > Now ->
             false;
         _ ->
@@ -138,7 +136,7 @@ should_update_cache(Service) ->
 -spec invalidate_cache(worker_service()) -> ok | no_return().
 invalidate_cache(Service) ->
     service:update(Service, fun(#service{ctx = Ctx} = S) ->
-        Ctx2 = lists:foldl(fun maps:remove/2, Ctx, [?CACHE_KEY, ?TIMESTAMP_KEY]),
+        Ctx2 = maps:without([?DNS_CHECK_CACHE_KEY, ?DNS_CHECK_TIMESTAMP_KEY], Ctx),
         S#service{ctx = Ctx2}
     end).
 
@@ -205,7 +203,7 @@ retrieve_cached(Service) ->
     TTL = ?CACHE_TTL,
 
     case service:get_ctx(Service) of
-        #{?CACHE_KEY := #{timestamp := Timestamp} = Cached} when
+        #{?DNS_CHECK_CACHE_KEY := #{timestamp := Timestamp} = Cached} when
             Timestamp + TTL >= Now ->
             {ok, Cached};
         _ -> error
@@ -271,7 +269,7 @@ compute_results(Service, Checks) ->
 %% @doc Returns current time as unix epoch.
 %% @end
 %%--------------------------------------------------------------------
--spec get_timestamp() -> non_neg_integer().
+-spec get_timestamp() -> time_utils:seconds().
 get_timestamp() ->
     time_utils:system_time_seconds().
 

@@ -34,7 +34,8 @@ start(Service, SystemLimits) ->
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
     end, Tokens, SystemLimits),
-    onepanel_shell:ensure_success(Tokens2).
+    onepanel_shell:ensure_success(Tokens2),
+    ?info("Service ~s started", [Service]).
 
 
 %%--------------------------------------------------------------------
@@ -45,10 +46,12 @@ start(Service, SystemLimits) ->
 stop(Service) ->
     Tokens = [get_script(Service), "stop"],
     case onepanel_shell:execute(Tokens) of
-        {0, _} -> ok;
-        {Code, Output} ->
-            ?warning("Failed to stop service '~s' because of~n~p ~p",
-                [Service, Code, Output]),
+        {0, _, _} ->
+            ?info("Service ~s stopped", [Service]),
+            ok;
+        {Code, Output, StdErr} ->
+            ?warning("Failed to stop service '~ts' because of~n~tp ~ts~n~ts",
+                [Service, Code, Output, StdErr]),
             ok
     end.
 
@@ -66,21 +69,16 @@ restart(Service) ->
 %%--------------------------------------------------------------------
 %% @doc Checks service status using given command.
 %% Services started with custom binary paths require the 'ping'
-%% command, otherwise status can be used.
+%% command, otherwise 'status' can be used.
 %% @end
 %%--------------------------------------------------------------------
 -spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
 status(Service, Command) ->
     Tokens = [get_script(Service), Command],
-    try
-        % use ensure_success/1 instead of execute/1 to log error on failure
-        onepanel_shell:ensure_success(Tokens),
-        running
-    catch
-        throw:#error{reason = ?ERR_CMD_FAILURE(127, _)} ->
-            missing;
-        throw:#error{reason = ?ERR_CMD_FAILURE(_Code, _)} ->
-            stopped
+    case onepanel_shell:execute(Tokens) of
+        {0, _, _} -> running;
+        {127, _, _} -> missing;
+        {_, _, _} -> stopped
     end.
 
 
@@ -97,7 +95,8 @@ status(Service, Command) ->
 %% according to convention servicename_cmd.
 %% @end
 %%--------------------------------------------------------------------
--spec get_script(Service :: service:name()) -> onepanel_shell:token() | no_return().
+-spec get_script(Service :: service:name()) ->
+    onepanel_shell:token() | no_return().
 get_script(Service) ->
     EnvName = list_to_atom(atom_to_list(Service) ++ "_cmd"),
     onepanel_env:get(EnvName).

@@ -18,7 +18,7 @@
 
 -behaviour(oz_plugin_behaviour).
 
--type auth() :: none | provider | {gui_token, binary()} | {access_token, binary()}.
+-type auth() :: none | op_panel | provider | {token, tokens:serialized()}.
 -export_type([auth/0]).
 
 %% OZ behaviour callbacks
@@ -84,29 +84,31 @@ get_provider_cacerts_dir() ->
 %%--------------------------------------------------------------------
 -spec auth_to_rest_client(Auth :: auth()) ->
     {headers, #{Header :: binary() => Value :: binary()}} |
-    {provider, Macaroon :: binary()} |
+    {provider, tokens:serialized()} |
     none.
 auth_to_rest_client(none) ->
     none;
 
-auth_to_rest_client({access_token, AccessToken}) ->
-    {headers, tokens:build_access_token_header(AccessToken)};
-
-auth_to_rest_client({gui_token, GuiToken}) ->
-    ProviderMacaroon = service_oneprovider:get_auth_token(),
-    AudienceToken = tokens:serialize_audience_token(?OP_PANEL, ProviderMacaroon),
-    Headers = maps:merge(
-        tokens:build_access_token_header(GuiToken),
-        tokens:build_audience_token_header(AudienceToken)
+auth_to_rest_client({token, Token}) ->
+    OneproviderIdentityToken = service_oneprovider:get_identity_token(),
+    OpPanelIdentityToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderIdentityToken
     ),
-    {headers, Headers#{
-        % Added for future compatibility with Onezone v. 20.02.*
-        <<"x-onedata-service-token">> => AudienceToken
-    }};
+    {headers, maps:merge(
+        tokens:access_token_header(Token),
+        tokens:service_token_header(OpPanelIdentityToken)
+    )};
+
+auth_to_rest_client(op_panel) ->
+    OneproviderAccessToken = service_oneprovider:get_access_token(),
+    OpPanelAccessToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderAccessToken
+    ),
+    {headers, tokens:access_token_header(OpPanelAccessToken)};
 
 auth_to_rest_client(provider) ->
-    ProviderMacaroon = service_oneprovider:get_auth_token(),
-    {provider, ProviderMacaroon}.
+    ProviderAccessToken = service_oneprovider:get_access_token(),
+    {provider, ProviderAccessToken}.
 
 
 %%%===================================================================

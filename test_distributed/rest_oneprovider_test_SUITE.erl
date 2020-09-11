@@ -13,12 +13,16 @@
 
 -include("authentication.hrl").
 -include("modules/models.hrl").
--include("onepanel_test_utils.hrl").
+-include("names.hrl").
 -include("onepanel_test_rest.hrl").
+-include("onepanel_test_utils.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 
 %% export for ct
@@ -29,7 +33,6 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
-    delete_should_return_forbidden_error/1,
     method_should_return_conflict_error/1,
     method_should_return_service_unavailable_error/1,
     get_should_return_provider_details/1,
@@ -39,14 +42,14 @@
     patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
     get_should_return_supported_spaces/1,
-    post_should_create_or_support_space/1,
+    post_should_support_space/1,
     patch_should_modify_space_support/1,
     get_should_return_space_details/1,
     delete_should_revoke_space_support/1,
     get_should_return_storages/1,
     get_should_return_storage/1,
     post_should_add_storage/1,
-    patch_should_modify_storage_update/1,
+    patch_should_configure_storage_update/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
     get_should_return_autocleaning_report/1,
@@ -54,10 +57,50 @@
     get_should_return_autocleaning_configuration/1,
     get_should_return_file_popularity_configuration/1,
     patch_should_update_file_popularity/1,
+    post_should_start_auto_cleaning/1,
     patch_should_update_auto_cleaning/1,
     patch_with_incomplete_config_should_update_auto_cleaning/1,
     patch_with_incorrect_config_should_fail/1,
-    patch_should_invalidate_luma_cache/1,
+
+    % tests of LUMA endpoints
+    get_should_return_luma_configuration/1,
+    delete_should_clear_luma_db/1,
+
+    % local feed LUMA
+    post_should_add_user_mapping_to_local_feed_luma/1,
+    get_should_return_user_mapping_from_local_feed_luma/1,
+    patch_should_modify_user_mapping_in_local_feed_luma/1,
+    delete_should_remove_user_mapping_from_local_feed_luma/1,
+    get_should_return_default_credentials_from_local_feed_luma/1,
+    put_should_set_default_credentials_in_local_feed_luma/1,
+    delete_should_remove_default_credentials_from_local_feed_luma/1,
+    get_should_return_display_credentials_from_local_feed_luma/1,
+    put_should_set_display_credentials_in_local_feed_luma/1,
+    delete_should_remove_display_credentials_from_local_feed_luma/1,
+    get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma/1,
+    put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma/1,
+    delete_should_remove_uid_to_onedata_user_mapping_from_local_feed_luma/1,
+    get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma/1,
+    put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma/1,
+    delete_should_remove_acl_user_to_onedata_user_mapping_from_local_feed_luma/1,
+    get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma/1,
+    put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma/1,
+    delete_should_remove_acl_group_to_onedata_group_mapping_from_local_feed_luma/1,
+
+    % LUMA with all feed types
+    get_should_return_user_mapping_from_luma/1,
+    delete_should_remove_user_mapping_from_luma/1,
+    get_should_return_default_credentials_from_luma/1,
+    delete_should_remove_default_credentials_from_luma/1,
+    get_should_return_display_credentials_from_luma/1,
+    delete_should_remove_display_credentials_from_luma/1,
+    get_should_return_uid_to_onedata_user_mapping_from_luma/1,
+    delete_should_remove_uid_to_onedata_user_mapping_from_luma/1,
+    get_should_return_acl_user_to_onedata_user_mapping_from_luma/1,
+    delete_should_remove_acl_user_to_onedata_user_mapping_from_luma/1,
+    get_should_return_acl_group_to_onedata_group_mapping_from_luma/1,
+    delete_should_remove_acl_group_to_onedata_group_mapping_from_luma/1,
+    
     patch_should_update_transfers_mock/1,
     get_should_return_transfers_mock/1]).
 
@@ -65,7 +108,6 @@ all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
-        delete_should_return_forbidden_error,
         method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
         get_should_return_provider_details,
@@ -75,14 +117,14 @@ all() ->
         patch_should_modify_provider_ips,
         delete_should_unregister_provider,
         get_should_return_supported_spaces,
-        post_should_create_or_support_space,
+        post_should_support_space,
         patch_should_modify_space_support,
         get_should_return_space_details,
         delete_should_revoke_space_support,
         get_should_return_storages,
         get_should_return_storage,
         post_should_add_storage,
-        patch_should_modify_storage_update,
+        patch_should_configure_storage_update,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
         get_should_return_autocleaning_report,
@@ -90,21 +132,63 @@ all() ->
         get_should_return_autocleaning_configuration,
         get_should_return_file_popularity_configuration,
         patch_should_update_file_popularity,
+        post_should_start_auto_cleaning,
         patch_should_update_auto_cleaning,
         patch_with_incomplete_config_should_update_auto_cleaning,
         patch_with_incorrect_config_should_fail,
-        patch_should_invalidate_luma_cache,
+
+        % tests of LUMA endpoints
+        get_should_return_luma_configuration,
+        delete_should_clear_luma_db,
+
+        % local feed LUMA
+        post_should_add_user_mapping_to_local_feed_luma,
+        get_should_return_user_mapping_from_local_feed_luma,
+        patch_should_modify_user_mapping_in_local_feed_luma,
+        delete_should_remove_user_mapping_from_local_feed_luma,
+        get_should_return_default_credentials_from_local_feed_luma,
+        put_should_set_default_credentials_in_local_feed_luma,
+        delete_should_remove_default_credentials_from_local_feed_luma,
+        get_should_return_display_credentials_from_local_feed_luma,
+        put_should_set_display_credentials_in_local_feed_luma,
+        delete_should_remove_display_credentials_from_local_feed_luma,
+        get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma,
+        put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma,
+        delete_should_remove_uid_to_onedata_user_mapping_from_local_feed_luma,
+        get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma,
+        put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma,
+        delete_should_remove_acl_user_to_onedata_user_mapping_from_local_feed_luma,
+        get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma,
+        put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma,
+        delete_should_remove_acl_group_to_onedata_group_mapping_from_local_feed_luma,
+
+        % LUMA with all feed types
+        get_should_return_user_mapping_from_luma,
+        delete_should_remove_user_mapping_from_luma,
+        get_should_return_default_credentials_from_luma,
+        delete_should_remove_default_credentials_from_luma,
+        get_should_return_display_credentials_from_luma,
+        delete_should_remove_display_credentials_from_luma,
+        get_should_return_uid_to_onedata_user_mapping_from_luma,
+        delete_should_remove_uid_to_onedata_user_mapping_from_luma,
+        get_should_return_acl_user_to_onedata_user_mapping_from_luma,
+        delete_should_remove_acl_user_to_onedata_user_mapping_from_luma,
+        get_should_return_acl_group_to_onedata_group_mapping_from_luma,
+        delete_should_remove_acl_group_to_onedata_group_mapping_from_luma,
+        
         patch_should_update_transfers_mock,
         get_should_return_transfers_mock
     ]).
 
 -define(TIMEOUT, timer:seconds(5)).
+-define(TASK_ID, "someTaskId").
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
     {<<"/provider">>, get},
     {<<"/provider">>, post},
     {<<"/provider">>, patch},
     {<<"/provider">>, delete},
+    {<<"/provider/nagios">>, get},
     {<<"/provider/spaces">>, get},
     {<<"/provider/spaces">>, post},
     {<<"/provider/spaces/someSpaceId">>, get},
@@ -112,18 +196,56 @@ all() ->
     {<<"/provider/spaces/someSpaceId">>, delete},
     {<<"/provider/spaces/someSpaceId/sync">>, get},
 
+    {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, get},
+    {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, patch},
+
     {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/configuration">>, patch},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/reports">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/reports/someReportId">>, get},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/start">>, post},
+    {<<"/provider/spaces/someSpaceId/auto-cleaning/cancel">>, post},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/status">>, get},
 
     {<<"/provider/storages">>, get},
     {<<"/provider/storages">>, post},
     {<<"/provider/storages/someStorageId">>, get},
     {<<"/provider/storages/someStorageId">>, patch},
-    {<<"/provider/storages/someStorageId/invalidate_luma">>, patch},
+    {<<"/provider/storages/someStorageId">>, delete},
+
+    {<<"/provider/storages/someStorageId/luma/config">>, get},
+    {<<"/provider/storages/someStorageId/luma/db">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials">>, post},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/onedataUserId">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/onedataUserId">>, patch},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/onedataUserId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, delete},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, get},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, put},
+    {<<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/onedataUserId">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/onedataUserId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>, get},
+    {<<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>, delete},
 
     {<<"/provider/cluster_ips">>, get},
     {<<"/provider/cluster_ips">>, patch},
@@ -132,14 +254,14 @@ all() ->
     {<<"/provider/debug/transfers_mock">>, patch}
 ]).
 
--define(REGISTER_REQUEST_JSON, #{
+-define(REGISTER_REQUEST_JSON(Token), #{
     <<"name">> => <<"someName">>,
     <<"subdomainDelegation">> => false,
     <<"domain">> => <<"somedomain">>,
     <<"adminEmail">> => <<"admin@onedata.org">>,
     <<"geoLongitude">> => 10.0,
     <<"geoLatitude">> => 20.0,
-    <<"token">> => <<"someToken">>
+    <<"token">> => Token
 }).
 
 -define(PROVIDER_DETAILS_JSON, #{
@@ -153,9 +275,7 @@ all() ->
 
 -define(SPACE_JSON, #{<<"id">> => <<"someId1">>}).
 
--define(SPACES_JSON, #{
-    <<"ids">> => [<<"someId1">>, <<"someId2">>, <<"someId3">>]
-}).
+-define(SPACE_IDS, [<<"someId1">>, <<"someId2">>, <<"someId3">>]).
 
 -define(CLUSTER_IPS_JSON(_Hosts), #{
     <<"hosts">> =>
@@ -166,31 +286,35 @@ all() ->
 }).
 
 
--define(STORAGE_JSON, #{
+-define(STORAGE_JSON, (maps:merge(#{
     <<"id">> => <<"somePosixId">>,
     <<"mountPoint">> => <<"someMountPoint">>,
     <<"name">> => <<"somePosix">>,
     <<"type">> => <<"posix">>
-}).
+}, ?LUMA_CONFIG_JSON))).
 
 -define(STORAGE_UPDATE_JSON, #{
     <<"somePosix">> =>
     #{
         <<"type">> => <<"posix">>,
         <<"timeout">> => 10000,
-        <<"mountPoint">> => <<"someNewMountPoint">>
+        <<"mountPoint">> => <<"someNewMountPoint">>,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }
 }).
 
 -define(STORAGES_JSON, #{
     <<"someCeph">> => #{
-        <<"type">> => <<"ceph">>,
+        <<"type">> => <<"cephrados">>,
         <<"username">> => <<"someName">>,
         <<"key">> => <<"someKey">>,
         <<"monitorHostname">> => <<"someHostname">>,
         <<"poolName">> => <<"someName">>,
         <<"clusterName">> => <<"someName">>,
-        <<"timeout">> => 5000
+        <<"timeout">> => 5000,
+        <<"readonly">> => true,
+        <<"importedStorage">> => true
     },
     <<"someS3">> => #{
         <<"type">> => <<"s3">>,
@@ -198,7 +322,9 @@ all() ->
         <<"bucketName">> => <<"someName">>,
         <<"accessKey">> => <<"someKey">>,
         <<"secretKey">> => <<"someKey">>,
-        <<"blockSize">> => 1024
+        <<"blockSize">> => 1024,
+        <<"readonly">> => false,
+        <<"importedStorage">> => false
     }
 }).
 
@@ -217,8 +343,10 @@ all() ->
     <<"id">> => <<"someId">>,
     <<"name">> => <<"someName">>,
     <<"storageId">> => <<"someId">>,
+    <<"localStorages">> => [<<"someId">>],
     <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
     <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON,
+    <<"spaceOccupancy">> => 1000,
     <<"supportingProviders">> => #{
         <<"someId1">> => 1024,
         <<"someId2">> => 2048,
@@ -246,7 +374,7 @@ all() ->
     <<"stoppedAt">> => null
 }).
 
--define(AUTO_CLEANING_REPORTS, [?AUTO_CLEANING_REPORT1, ?AUTO_CLEANING_REPORT2]).
+-define(AUTO_CLEANING_REPORT_IDS, [<<"id1">>, <<"id2">>]).
 
 -define(AUTO_CLEANING_STATUS, #{
     <<"inProgress">> => false,
@@ -291,83 +419,105 @@ all() ->
     <<"transfersMock">> => true
 }).
 
--define(run(Config, Function), Function(hd(?config(oneprovider_hosts, Config)))).
+-define(LUMA_CONFIG_JSON, #{
+    <<"lumaFeed">> => <<"someFeed">>,
+    <<"lumaFeedUrl">> => <<"someUrl">>,
+    <<"lumaFeedApiKey">> => <<"someApiKey">>
+}).
+
+
+-define(LUMA_USER_MAPPING_JSON, #{
+    <<"onedataUser">> => ?LUMA_ONEDATA_USER_JSON,
+    <<"storageUser">> => #{
+        <<"storageCredentials">> => #{
+            <<"type">> => <<"posix">>,
+            <<"uid">> => 1000
+        },
+        <<"displayUid">> => 2000
+    }
+}).
+
+-define(LUMA_USER_STORAGE_CREDENTIALS_JSON, #{
+    <<"storageCredentials">> => #{
+        <<"type">> => <<"posix">>,
+        <<"uid">> => 2000
+    }
+}).
+
+-define(LUMA_POSIX_CREDENTIALS_JSON, #{
+    <<"uid">> => 1111,
+    <<"gid">> => 9999
+}).
+
+-define(LUMA_ONEDATA_USER_JSON, #{
+    <<"mappingScheme">> => <<"onedataUser">>,
+    <<"onedataUserId">> => <<"someUserId">>
+}).
+
+-define(LUMA_ONEDATA_GROUP_JSON, #{
+    <<"mappingScheme">> => <<"onedataGroup">>,
+    <<"onedataGroupId">> => <<"someGroupId">>
+}).
 
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
 
 method_should_return_unauthorized_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            lists:foreach(fun(Auth) ->
-                ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-                    Host, Endpoint, Method, Auth
-                ))
-            end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-        end, ?COMMON_ENDPOINTS_WITH_METHODS)
-    end).
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        lists:foreach(fun(Auth) ->
+            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
+                Host, Endpoint, Method, Auth
+            ))
+        end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
+    end, [{<<"/provider/onezone_info">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_forbidden_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            % highest rights which still should not grant access to these endpoints
-            Auths = case {Endpoint, Method} of
-                {<<"/provider">>, delete} ->
-                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
-                _ ->
-                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
-            end,
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        % highest rights which still should not grant access to these endpoints
+        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
+            {_, get} ->
+                [];
+            {<<"/provider">>, delete} ->
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_DELETE]);
+            _ ->
+                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
+        end,
 
-            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, Auths
-            ))
-        end, [{E, M} || {E, M} <- ?COMMON_ENDPOINTS_WITH_METHODS, M /= get])
-    end).
-
-
-delete_should_return_forbidden_error(Config) ->
-    ?run(Config, fun(Host) ->
-        % verify that user with cluster_update but without cluster_delete
-        % cannot deregister the Oneprovider. Less privileged users
-        % are check in method_should_return_forbidden_error/1
-        Privileges = privileges:cluster_admin() -- [?CLUSTER_DELETE],
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Host, "/provider", delete, ?OZ_AUTHS(Host, Privileges)
+            Host, Endpoint, Method, Auths ++ ?PEER_AUTHS(Host)
         ))
-    end).
+    end, [{<<"/provider/onezone_info">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_conflict_error(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         % provider is mocked as already registered
         ?assertMatch({ok, ?HTTP_409_CONFLICT, _, _}, onepanel_test_rest:auth_request(
-            Host, "/provider", post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-            ?REGISTER_REQUEST_JSON
+            Host, "/provider", post, ?ROOT_AUTHS(Config),
+            ?REGISTER_REQUEST_JSON(<<"someToken">>)
         ))
     end).
 
 
 method_should_return_service_unavailable_error(Config) ->
-    ?run(Config, fun(Host) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, ?ALL_AUTHS(Host)
+    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
+        ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _},
+            onepanel_test_rest:auth_request(
+                Host, Endpoint, Method,
+                ?OZ_OR_ROOT_AUTHS(Host, privileges:cluster_admin())
             ))
-        end, lists:subtract(
-            ?COMMON_ENDPOINTS_WITH_METHODS, [
-                {<<"/provider/cluster_ips">>, get},
-                {<<"/provider">>, get},
-                {<<"/provider/debug/transfers_mock">>, get},
-                {<<"/provider/debug/transfers_mock">>, patch}
-            ])
-        )
-    end).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS -- [
+        {<<"/provider/cluster_ips">>, get},
+        {<<"/provider">>, get},
+        {<<"/provider/debug/transfers_mock">>, get},
+        {<<"/provider/debug/transfers_mock">>, patch}
+    ]).
 
 
 get_should_return_provider_details(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider">>, get,
@@ -381,7 +531,7 @@ get_should_return_provider_details(Config) ->
 get_should_return_cluster_ips(Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun hosts:from_node/1, Nodes),
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/cluster_ips">>, get,
@@ -393,13 +543,16 @@ get_should_return_cluster_ips(Config) ->
 
 
 post_should_register_provider(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
+        % a proper token must be generated to allow extracting onezone domain
+        Token = onepanel_test_utils:create_registration_token(<<"some.domain">>),
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, post,
-            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON
+            ?ROOT_AUTHS(Host), ?REGISTER_REQUEST_JSON(Token)
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
-            oneprovider_token := <<"someToken">>,
+            oneprovider_token := Token,
+            onezone_domain := <<"some.domain">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
@@ -409,7 +562,7 @@ post_should_register_provider(Config) ->
 
 
 patch_should_modify_provider_details(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, patch,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
@@ -431,7 +584,7 @@ patch_should_modify_provider_details(Config) ->
 patch_should_modify_provider_ips(Config) ->
     % There is one node in test environment
     NewIP = <<"1.2.3.4">>,
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/cluster_ips">>, patch,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
@@ -449,7 +602,7 @@ patch_should_modify_provider_ips(Config) ->
 
 
 delete_should_unregister_provider(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider">>, delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_DELETE])
         )),
@@ -458,19 +611,19 @@ delete_should_unregister_provider(Config) ->
 
 
 get_should_return_supported_spaces(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, get, ?OZ_OR_ROOT_AUTHS(Host, [])
             )
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?SPACES_JSON)
+        onepanel_test_rest:assert_body(JsonBody, #{<<"ids">> => ?SPACE_IDS})
     end).
 
 
-post_should_create_or_support_space(Config) ->
-    ?run(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+post_should_support_space(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {_, _, Headers, JsonBody} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces">>, post,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
@@ -482,26 +635,30 @@ post_should_create_or_support_space(Config) ->
                 }
             )
         ),
+        ?assertMatch( #{<<"location">> :=
+            <<"/api/v3/onepanel/provider/spaces/", _/binary>>}, Headers),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
 
 patch_should_modify_space_support(Config) ->
     NewSize = 99000000,
-    ?run(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
                 #{<<"size">> => NewSize}
             )
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
+        ?assertReceivedMatch({service, oneprovider, modify_space,
+            #{space_id := <<"someId1">>, size := NewSize}
+        }, ?TIMEOUT)
     end).
 
 
 get_should_return_space_details(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId">>, get,
@@ -513,7 +670,7 @@ get_should_return_space_details(Config) ->
 
 
 delete_should_revoke_space_support(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/spaces/someId">>, delete,
             ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
@@ -525,7 +682,7 @@ delete_should_revoke_space_support(Config) ->
 
 
 get_should_return_storages(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages">>, get,
@@ -537,7 +694,7 @@ get_should_return_storages(Config) ->
 
 
 get_should_return_storage(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, get,
@@ -549,7 +706,7 @@ get_should_return_storage(Config) ->
 
 
 post_should_add_storage(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages">>,
             post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
@@ -558,13 +715,15 @@ post_should_add_storage(Config) ->
         ?assertReceivedMatch({service, op_worker, add_storages, #{
             storages := #{
                 <<"someCeph">> := #{
-                    type := <<"ceph">>,
+                    type := <<"cephrados">>,
                     clusterName := <<"someName">>,
                     key := <<"someKey">>,
                     monitorHostname := <<"someHostname">>,
                     poolName := <<"someName">>,
                     username := <<"someName">>,
-                    timeout := 5000
+                    timeout := 5000,
+                    readonly := true,
+                    importedStorage := true
                 },
                 <<"someS3">> := #{
                     type := <<"s3">>,
@@ -572,16 +731,18 @@ post_should_add_storage(Config) ->
                     bucketName := <<"someName">>,
                     hostname := <<"someHostname">>,
                     secretKey := <<"someKey">>,
-                    blockSize := 1024
+                    blockSize := 1024,
+                    readonly := false,
+                    importedStorage := false
                 }
             }
         }}, ?TIMEOUT)
     end).
 
 
-patch_should_modify_storage_update(Config) ->
-    ?run(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+patch_should_configure_storage_update(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
@@ -589,13 +750,12 @@ patch_should_modify_storage_update(Config) ->
                     <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
                 }
             )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
+        )
     end).
 
 
 patch_should_update_storage(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/storages/somePosixId">>, patch,
@@ -604,23 +764,28 @@ patch_should_update_storage(Config) ->
         ),
         ?assertReceivedMatch({service, op_worker, update_storage, #{
             id := <<"somePosixId">>,
-            storage := #{timeout := 10000, mountPoint := <<"someNewMountPoint">>}
+            storage := #{
+                timeout := 10000,
+                mountPoint := <<"someNewMountPoint">>,
+                importedStorage := false,
+                readonly := false
+            }
         }}, ?TIMEOUT)
     end).
 
 
 get_should_return_autocleaning_reports(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/reports">>,
                 get, ?OZ_OR_ROOT_AUTHS(Host, []), [])
         ),
-        onepanel_test_rest:assert_body(JsonBody, ?AUTO_CLEANING_REPORTS)
+        onepanel_test_rest:assert_body(JsonBody, #{<<"ids">> => ?AUTO_CLEANING_REPORT_IDS})
     end).
 
 get_should_return_autocleaning_report(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/reports/someReportId">>,
@@ -630,7 +795,7 @@ get_should_return_autocleaning_report(Config) ->
     end).
 
 get_should_return_autocleaning_status(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/status">>,
@@ -640,7 +805,7 @@ get_should_return_autocleaning_status(Config) ->
     end).
 
 get_should_return_autocleaning_configuration(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/auto-cleaning/configuration">>,
@@ -650,7 +815,7 @@ get_should_return_autocleaning_configuration(Config) ->
     end).
 
 get_should_return_file_popularity_configuration(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(Host,
                 <<"/provider/spaces/someId/file-popularity/configuration">>,
@@ -660,14 +825,12 @@ get_should_return_file_popularity_configuration(Config) ->
     end).
 
 patch_should_update_file_popularity(Config) ->
-    ?run(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces/someId/file-popularity/configuration">>, patch,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                ?FILE_POPULARITY_CONFIG
-            )
-        ),
+    ?eachHost(Config, fun(Host) ->
+        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
+            Host, <<"/provider/spaces/someId/file-popularity/configuration">>,
+            patch, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+            ?FILE_POPULARITY_CONFIG
+        )),
         ?assertReceivedMatch({service, oneprovider, configure_file_popularity, #{
             space_id := <<"someId">>,
             enabled := true,
@@ -677,8 +840,30 @@ patch_should_update_file_popularity(Config) ->
         }}, ?TIMEOUT)
     end).
 
+
+post_should_start_auto_cleaning(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, Headers, JsonBody} = ?assertMatch(
+            {ok, ?HTTP_202_ACCEPTED, #{?HDR_LOCATION := _}, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/auto-cleaning/start">>, post,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, start_auto_cleaning, #{
+            space_id := <<"someId">>
+        }}, ?TIMEOUT),
+        onepanel_test_rest:assert_body_fields(JsonBody, [<<"reportId">>]),
+        #{<<"reportId">> := ReportId} = json_utils:decode(JsonBody),
+        ?assertMatch(<<
+            "/api/v3/onepanel/provider/spaces/someId/"
+            "auto-cleaning/reports/", ReportId/binary
+        >>, maps:get(?HDR_LOCATION, Headers))
+    end).
+
+
 patch_should_update_auto_cleaning(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
@@ -704,7 +889,7 @@ patch_should_update_auto_cleaning(Config) ->
     end).
 
 patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
@@ -720,7 +905,7 @@ patch_with_incomplete_config_should_update_auto_cleaning(Config) ->
     end).
 
 patch_with_incorrect_config_should_fail(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId/auto-cleaning/configuration">>, patch,
@@ -729,21 +914,400 @@ patch_with_incorrect_config_should_fail(Config) ->
         )
     end).
 
-patch_should_invalidate_luma_cache(Config) ->
-    ?run(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
+get_should_return_luma_configuration(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider/storages/someId/invalidate_luma">>, patch,
+                Host, <<"/provider/storages/someId/luma/config">>, get,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
             )
         ),
-        ?assertReceivedMatch({service, op_worker, invalidate_luma_cache, #{
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_CONFIG_JSON)
+    end).
+
+delete_should_clear_luma_db(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/storages/someId/luma/db">>, delete,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
+            )
+        ),
+        ?assertReceivedMatch({service, op_worker, clear_luma_db, #{
             id := <<"someId">>
         }}, ?TIMEOUT)
     end).
 
+post_should_add_user_mapping_to_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials">>,
+            post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
+            ?LUMA_USER_MAPPING_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_onedata_user_to_credentials_mapping, #{
+            id := <<"someStorageId">>,
+            onedataUser := #{
+                mappingScheme := <<"onedataUser">>,
+                onedataUserId := <<"someUserId">>
+            },
+            storageUser := #{
+                storageCredentials := #{
+                    type := <<"posix">>,
+                    uid := 1000
+                },
+                displayUid := 2000
+            }
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_user_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/someUserId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_USER_MAPPING_JSON)
+    end).
+
+patch_should_modify_user_mapping_in_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/someUserId">>,
+            patch, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_USER_STORAGE_CREDENTIALS_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, update_user_mapping, #{
+            id := <<"someStorageId">>,
+            onedataUserId := <<"someUserId">>,
+            storageUser := #{
+                storageCredentials := #{
+                   type := <<"posix">>,
+                    uid := 2000
+        }}}}, ?TIMEOUT)
+    end).
+
+delete_should_remove_user_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/all/onedata_user_to_credentials/someUserId">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_onedata_user_to_credentials_mapping, #{
+            id := <<"someStorageId">>,
+            onedataUserId := <<"someUserId">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_default_credentials_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
+    end).
+
+put_should_set_default_credentials_in_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>,
+            put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_POSIX_CREDENTIALS_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_default_posix_credentials, #{
+            id := <<"someStorageId">>,
+            spaceId := <<"someSpaceId">>,
+            credentials := #{
+                    uid := 1111,
+                    gid := 9999
+            }}}, ?TIMEOUT)
+    end).
+
+delete_should_remove_default_credentials_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_access/posix_compatible/default_credentials/someSpaceId">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_default_posix_credentials, #{
+            id := <<"someStorageId">>,
+            spaceId := <<"someSpaceId">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_display_credentials_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
+    end).
+
+put_should_set_display_credentials_in_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>,
+            put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_POSIX_CREDENTIALS_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_display_credentials, #{
+            id := <<"someStorageId">>,
+            spaceId := <<"someSpaceId">>,
+            credentials := #{
+                uid := 1111,
+                gid := 9999
+            }}}, ?TIMEOUT)
+    end).
+
+delete_should_remove_display_credentials_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/display_credentials/all/default/someSpaceId">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_display_credentials, #{
+            id := <<"someStorageId">>,
+            spaceId := <<"someSpaceId">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
+    end).
+
+put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
+            put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_ONEDATA_USER_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_uid_to_onedata_user_mapping, #{
+            id := <<"someStorageId">>,
+            uid := 1234,
+            onedataUser := #{
+                mappingScheme := <<"onedataUser">>,
+                onedataUserId := <<"someUserId">>
+            }}}, ?TIMEOUT)
+    end).
+
+delete_should_remove_uid_to_onedata_user_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_uid_to_onedata_user_mapping, #{
+            id := <<"someStorageId">>,
+            uid := 1234
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
+    end).
+
+put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_ONEDATA_USER_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_acl_user_to_onedata_user_mapping, #{
+            id := <<"someStorageId">>,
+            aclUser := <<"someUsername">>,
+            onedataUser := #{
+                mappingScheme := <<"onedataUser">>,
+                onedataUserId := <<"someUserId">>
+            }}}, ?TIMEOUT)
+    end).
+
+delete_should_remove_acl_user_to_onedata_user_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_acl_user_to_onedata_user_mapping, #{
+            id := <<"someStorageId">>,
+            aclUser := <<"someUsername">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_GROUP_JSON)
+    end).
+
+put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            put, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?LUMA_ONEDATA_GROUP_JSON
+        )),
+        ?assertReceivedMatch({service, op_worker, add_acl_group_to_onedata_group_mapping, #{
+            id := <<"someStorageId">>,
+            aclGroup := <<"someGroupname">>,
+            onedataGroup := #{
+                mappingScheme := <<"onedataGroup">>,
+                onedataGroupId := <<"someGroupId">>
+            }}}, ?TIMEOUT)
+    end).
+
+delete_should_remove_acl_group_to_onedata_group_mapping_from_local_feed_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/local_feed/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_acl_group_to_onedata_group_mapping, #{
+            id := <<"someStorageId">>,
+            aclGroup := <<"someGroupname">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_user_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/someUserId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_USER_MAPPING_JSON)
+    end).
+
+delete_should_remove_user_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_access/all/onedata_user_to_credentials/someUserId">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_onedata_user_to_credentials_mapping, #{
+            id := <<"someStorageId">>,
+            onedataUserId := <<"someUserId">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_default_credentials_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
+    end).
+
+delete_should_remove_default_credentials_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_access/posix_compatible/default_credentials/someSpaceId">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_default_posix_credentials, #{
+            id := <<"someStorageId">>,
+            spaceId := <<"someSpaceId">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_display_credentials_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_POSIX_CREDENTIALS_JSON)
+    end).
+
+delete_should_remove_display_credentials_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/display_credentials/all/default/someSpaceId">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_display_credentials, #{
+            id := <<"someStorageId">>,
+            spaceId := <<"someSpaceId">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_uid_to_onedata_user_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
+    end).
+
+delete_should_remove_uid_to_onedata_user_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/uid_to_onedata_user/1234">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_uid_to_onedata_user_mapping, #{
+            id := <<"someStorageId">>,
+            uid := 1234
+        }}, ?TIMEOUT)
+    end).
+
+
+get_should_return_acl_user_to_onedata_user_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_USER_JSON)
+    end).
+
+
+delete_should_remove_acl_user_to_onedata_user_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_user_to_onedata_user/someUsername">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_acl_user_to_onedata_user_mapping, #{
+            id := <<"someStorageId">>,
+            aclUser := <<"someUsername">>
+        }}, ?TIMEOUT)
+    end).
+
+get_should_return_acl_group_to_onedata_group_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            get, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
+        )),
+        onepanel_test_rest:assert_body(JsonBody, ?LUMA_ONEDATA_GROUP_JSON)
+    end).
+
+delete_should_remove_acl_group_to_onedata_group_mapping_from_luma(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+            Host, <<"/provider/storages/someStorageId/luma/db/storage_import/posix_compatible/acl_group_to_onedata_group/someGroupname">>,
+            delete, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+        )),
+        ?assertReceivedMatch({service, op_worker, remove_acl_group_to_onedata_group_mapping, #{
+            id := <<"someStorageId">>,
+            aclGroup := <<"someGroupname">>
+        }}, ?TIMEOUT)
+    end).
+
 patch_should_update_transfers_mock(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/debug/transfers_mock">>, patch,
@@ -756,7 +1320,7 @@ patch_should_update_transfers_mock(Config) ->
     end).
 
 get_should_return_transfers_mock(Config) ->
-    ?run(Config, fun(Host) ->
+    ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/debug/transfers_mock">>, get,
@@ -780,21 +1344,23 @@ init_per_suite(Config) ->
     end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
-
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
+    test_utils:mock_new(Nodes, [onepanel_parser]),
+    test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> false end),
     test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
+    % do not require valid payload in requests
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     NewConfig;
 
 init_per_testcase(get_should_return_provider_details, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_details, {
-            [{'node@host1', ?PROVIDER_DETAILS_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_details,
+            good_bad_results = {[{'node@host1', ?PROVIDER_DETAILS_JSON}], []}},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -803,10 +1369,11 @@ init_per_testcase(get_should_return_cluster_ips, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = lists:map(fun hosts:from_node/1, Nodes),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, format_cluster_ips, {
-            [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = format_cluster_ips,
+            good_bad_results = {
+                [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -826,13 +1393,13 @@ init_per_testcase(post_should_register_provider, Config) ->
 init_per_testcase(get_should_return_storage, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
-    test_utils:mock_new(Nodes, rest_oneprovider),
-    test_utils:mock_expect(Nodes, rest_oneprovider, exists_resource, fun(Req, _) ->
-        {true, Req}
-    end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', keys_to_atoms(?STORAGE_JSON)}], []}},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -841,10 +1408,12 @@ init_per_testcase(get_should_return_storages, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_storages, {[{'node@host1', [
-            {<<"ids">>, [<<"id1">>, <<"id2">>, <<"id3">>]}
-        ]}], []}},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', [<<"id1">>, <<"id2">>, <<"id3">>]}],
+                []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
 
@@ -852,10 +1421,9 @@ init_per_testcase(get_should_return_supported_spaces, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_spaces, {
-            [{'node@host1', ?SPACES_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_spaces,
+            good_bad_results = {[{'node@host1', ?SPACE_IDS}], []}},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -864,58 +1432,121 @@ init_per_testcase(get_should_return_supported_spaces, Config) ->
 init_per_testcase(get_should_return_space_details, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
+
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_space_details, {
-            [{'node@host1', ?SPACE_DETAILS_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ] end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
     NewConfig;
 
-init_per_testcase(delete_should_revoke_space_support, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
-        fun(#{space_id := _Id}) -> true end),
-    NewConfig;
-
-init_per_testcase(post_should_create_or_support_space, Config) ->
+init_per_testcase(post_should_support_space, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, support_space, {
-            [{'node@host1', ?SPACE_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
+        #step_end{module = service_oneprovider, function = support_space,
+            good_bad_results = {
+                [{'node@host1', <<"someId1">>}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
 
-init_per_testcase(patch_should_modify_space_support, Config) ->
+init_per_testcase(Case, Config) when
+    Case == get_should_return_autocleaning_reports;
+    Case == get_should_return_autocleaning_status;
+    Case == patch_should_modify_space_support;
+    Case == patch_should_configure_storage_update;
+    Case == post_should_start_auto_cleaning;
+    Case == patch_should_update_auto_cleaning;
+    Case == patch_should_update_file_popularity;
+    Case == patch_with_incomplete_config_should_update_auto_cleaning;
+    Case == patch_with_incorrect_config_should_fail;
+    Case == delete_should_revoke_space_support;
+    Case == post_should_add_user_mapping_to_local_feed_luma;
+    Case == patch_should_modify_user_mapping_in_local_feed_luma;
+    Case == delete_should_remove_user_mapping_from_local_feed_luma;
+    Case == put_should_set_default_credentials_in_local_feed_luma;
+    Case == delete_should_remove_default_credentials_from_local_feed_luma;
+    Case == put_should_set_display_credentials_in_local_feed_luma;
+    Case == delete_should_remove_display_credentials_from_local_feed_luma;
+    Case == put_should_set_uid_to_onedata_user_mapping_in_local_feed_luma;
+    Case == delete_should_remove_uid_to_onedata_user_mapping_from_local_feed_luma;
+    Case == put_should_set_acl_user_to_onedata_user_mapping_in_local_feed_luma;
+    Case == delete_should_remove_acl_user_to_onedata_user_mapping_from_local_feed_luma;
+    Case == put_should_set_acl_group_to_onedata_group_mapping_in_local_feed_luma;
+    Case == delete_should_remove_acl_group_to_onedata_group_mapping_from_local_feed_luma;
+    Case == delete_should_remove_user_mapping_from_luma;
+    Case == delete_should_remove_default_credentials_from_luma;
+    Case == delete_should_remove_display_credentials_from_luma;
+    Case == delete_should_remove_uid_to_onedata_user_mapping_from_luma;
+    Case == delete_should_remove_acl_user_to_onedata_user_mapping_from_luma;
+    Case == delete_should_remove_acl_group_to_onedata_group_mapping_from_luma
+->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, modify_space, {
-            [{'node@host1', ?SPACE_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
-    ]
-    end),
-    test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
-        fun(#{space_id := _Id}) -> true end),
-    NewConfig;
-
-init_per_testcase(patch_should_modify_storage_update, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, modify_space, {
-            [{'node@host1', ?SPACE_JSON}], []
-        }},
-        {task_finished, {service, action, ok}}
-    ]
+    Self = self(),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun
+        (?SERVICE_OP, get_space_details, _) -> [
+            % satisfy middleware:fetch_entity
+            #step_end{module = service_oneprovider, function = get_space_details,
+                good_bad_results = {
+                    [{'node@host1',
+                        onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                    []
+                }}];
+        (?SERVICE_OP = Service, modify_space = Action, Ctx) ->
+            Self ! {service, Service, Action, Ctx},
+            [
+                #step_end{module = service_oneprovider, function = modify_space,
+                    good_bad_results = {
+                        [{'node@host1', ?SPACE_JSON}], []
+                    }},
+                #action_end{service = service, action = action, result = ok}
+            ];
+        (?SERVICE_OP = Service, start_auto_cleaning = Action, Ctx) ->
+            Self ! {service, Service, Action, Ctx},
+            [
+                #step_end{module = service_oneprovider, function = start_auto_cleaning,
+                    good_bad_results = {
+                        [{'node@host1', {ok, <<"someReportId">>}}], []
+                    }},
+                #action_end{service = service, action = action, result = ok}
+            ];
+        (?SERVICE_OP, get_auto_cleaning_reports, _Ctx) -> [
+            #step_end{module = service_oneprovider, function = get_auto_cleaning_reports,
+                good_bad_results = {
+                    [{'node@host1', ?AUTO_CLEANING_REPORT_IDS}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
+        ];
+        (?SERVICE_OP, get_auto_cleaning_status, _Ctx) -> [
+            #step_end{module = service_oneprovider, function = get_auto_cleaning_status,
+                good_bad_results = {
+                    [{'node@host1', ?AUTO_CLEANING_STATUS}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
+        ];
+        (?SERVICE_OPW, get_storages, _Ctx) ->
+            [
+                % satisfy middleware:fetch_entity
+                #step_end{module = service_op_worker, function = get_storages,
+                    good_bad_results = {
+                        [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                        []
+                    }},
+                #action_end{service = service, action = action, result = ok}
+            ];
+        (Service, Action, Ctx) ->
+            Self ! {service, Service, Action, Ctx},
+            [#action_end{service = service, action = action, result = ok}]
     end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
@@ -924,38 +1555,24 @@ init_per_testcase(patch_should_modify_storage_update, Config) ->
 init_per_testcase(patch_should_update_storage, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_new(Nodes, rest_oneprovider),
-    test_utils:mock_expect(Nodes, rest_oneprovider, exists_resource, fun(Req, _) ->
-        {true, Req}
-    end),
     Self = self(),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
-        Data  = ?STORAGE_JSON#{timeout => 10000, verificationPassed => true},
-        Result = onepanel_utils:convert(Data, {keys, atom}),
-        Self ! {service, Service, Action, Ctx},
-        [
-            {service_op_worker, update_storage, {[{hd(Nodes), Result}], []}},
-            {task_finished, {service, action, ok}}
+    test_utils:mock_expect(Nodes, service, apply_sync, fun
+        (?SERVICE_OPW = Service, update_storage = Action, Ctx) ->
+            Data = ?STORAGE_JSON#{timeout => 10000, verificationPassed => true},
+            Result = onepanel_utils:convert(Data, {keys, atom}),
+            Self ! {service, Service, Action, Ctx},
+            [
+                #step_end{module = service_op_worker, function = update_storage,
+                    good_bad_results = {[{hd(Nodes), Result}], []}},
+                #action_end{service = service, action = action, result = ok}
+            ];
+        (?SERVICE_OPW, get_storages, _) -> [
+            #step_end{module = service_op_worker, function = get_storages,
+                good_bad_results = {
+                    [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                    []
+                }}
         ]
-    end),
-    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
-        Self ! {service, Service, Action, Ctx},
-        <<"someTaskId">>
-    end),
-    test_utils:mock_expect(Nodes, op_worker_storage, get, fun(<<"somePosixId">>) ->
-        onepanel_utils:convert(?STORAGE_JSON, {keys, atom})
-    end),
-    NewConfig;
-
-init_per_testcase(get_should_return_autocleaning_reports, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_auto_cleaning_reports, {
-            [{'node@host1', ?AUTO_CLEANING_REPORTS}], []
-        }},
-        {task_finished, {service, action, ok}}
-    ]
     end),
     NewConfig;
 
@@ -963,22 +1580,18 @@ init_per_testcase(get_should_return_autocleaning_report, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_auto_cleaning_report, {
-            [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
-        }},
-        {task_finished, {service, action, ok}}
-    ]
-    end),
-    NewConfig;
-
-init_per_testcase(get_should_return_autocleaning_status, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_auto_cleaning_status, {
-            [{'node@host1', ?AUTO_CLEANING_STATUS}], []
-        }},
-        {task_finished, {service, action, ok}}
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_auto_cleaning_report,
+            good_bad_results = {
+                [{'node@host1', ?AUTO_CLEANING_REPORT1}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -986,12 +1599,22 @@ init_per_testcase(get_should_return_autocleaning_status, Config) ->
 init_per_testcase(get_should_return_autocleaning_configuration, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_auto_cleaning_configuration, {
-            [{'node@host1', ?AUTO_CLEANING_CONFIG}], []
-        }},
-        {task_finished, {service, action, ok}}
-    ]
+    test_utils:mock_expect(Nodes, service, apply_sync, fun
+        (?SERVICE_OP, get_space_details, _) -> [
+            % satisfy middleware:fetch_entity
+            #step_end{module = service_oneprovider, function = get_space_details,
+                good_bad_results = {
+                    [{'node@host1',
+                        onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                    []
+                }}];
+        (?SERVICE_OP, get_auto_cleaning_configuration, _Ctx) -> [
+            #step_end{module = service_oneprovider, function = get_auto_cleaning_configuration,
+                good_bad_results = {
+                    [{'node@host1', ?AUTO_CLEANING_CONFIG}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
+        ]
     end),
     NewConfig;
 
@@ -999,10 +1622,18 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_oneprovider, get_file_popularity_configuration, {
-            [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
-        }},
-        {task_finished, {service, action, ok}}
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_file_popularity_configuration,
+            good_bad_results = {
+                [{'node@host1', ?FILE_POPULARITY_CONFIG}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
@@ -1010,38 +1641,172 @@ init_per_testcase(get_should_return_file_popularity_configuration, Config) ->
 init_per_testcase(get_should_return_transfers_mock, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service_op_worker, is_transfers_mock_enabled,
+        fun() -> true end),
+    NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case == method_should_return_forbidden_error;
+    Case == method_should_return_unauthorized_error
+    ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config2),
+    test_utils:mock_new(Nodes, [space_middleware, onepanel_parser]),
+    test_utils:mock_expect(Nodes, space_middleware, fetch_entity, fun
+        (_) -> {ok, {undefined, 1}}
+    end),
+    % do not require valid payload in requests
+    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
+    Config2;
+
+init_per_testcase(get_should_return_luma_configuration, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        {service_op_worker, get_transfers_mock, {
-            [{'node@host1', ?TRANSFERS_MOCK_CONFIG}], []
-        }},
-        {task_finished, {service, action, ok}}
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_luma_configuration,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_CONFIG_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
     ]
     end),
     NewConfig;
 
-init_per_testcase(patch_should_update_file_popularity, Config) ->
+init_per_testcase(Case, Config) when
+    Case =:= get_should_return_user_mapping_from_local_feed_luma;
+    Case =:= get_should_return_user_mapping_from_luma
+->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_new(Nodes, rest_oneprovider),
-    Self = self(),
-    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
-        Self ! {service, Service, Action, Ctx},
-        <<"someTaskId">>
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_onedata_user_to_credentials_mapping,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_USER_MAPPING_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
     end),
     NewConfig;
 
 init_per_testcase(Case, Config) when
-    Case =:= patch_should_update_auto_cleaning;
-    Case =:= patch_with_incomplete_config_should_update_auto_cleaning;
-    Case =:= patch_with_incorrect_config_should_fail
-    ->
+    Case =:= get_should_return_default_credentials_from_local_feed_luma;
+    Case =:= get_should_return_default_credentials_from_luma
+->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config),
-    test_utils:mock_new(Nodes, rest_oneprovider),
-    Self = self(),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
-        Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_default_posix_credentials,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_POSIX_CREDENTIALS_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case =:= get_should_return_display_credentials_from_local_feed_luma;
+    Case =:= get_should_return_display_credentials_from_luma
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_display_credentials,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_POSIX_CREDENTIALS_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case =:= get_should_return_uid_to_onedata_user_mapping_from_local_feed_luma;
+    Case =:= get_should_return_uid_to_onedata_user_mapping_from_luma
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_uid_to_onedata_user_mapping,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_ONEDATA_USER_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case =:= get_should_return_acl_user_to_onedata_user_mapping_from_local_feed_luma;
+    Case =:= get_should_return_acl_user_to_onedata_user_mapping_from_luma
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_acl_user_to_onedata_user_mapping,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_ONEDATA_USER_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(Case, Config) when
+    Case =:= get_should_return_acl_group_to_onedata_group_mapping_from_local_feed_luma;
+    Case =:= get_should_return_acl_group_to_onedata_group_mapping_from_luma
+->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_op_worker, function = get_storages,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
+                []
+            }},
+        #step_end{module = service_op_worker, function = get_acl_group_to_onedata_group_mapping,
+            good_bad_results = {
+                [{'node@host1', ?LUMA_ONEDATA_GROUP_JSON}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
     end),
     NewConfig;
 
@@ -1049,18 +1814,41 @@ init_per_testcase(_Case, Config) ->
     Nodes = ?config(oneprovider_nodes, Config),
     Hosts = ?config(oneprovider_hosts, Config),
     Self = self(),
-    test_utils:mock_new(Nodes, [service, service_oneprovider]),
+    test_utils:mock_new(Nodes, [service, service_oneprovider, op_worker_storage]),
     test_utils:mock_expect(Nodes, service, exists, fun
-        (oneprovider) -> true; (op_worker) -> true
+        (oneprovider) -> true; (op_worker) -> true; (ceph) -> false
     end),
     test_utils:mock_expect(Nodes, service, get, fun
-        (oneprovider) -> {ok, #service{ctx = #{registered => true}}};
-        (op_worker) -> {ok, #service{hosts = Hosts}}
+        (oneprovider) -> {ok, #service{
+            ctx = #{registered => true, onezone_domain => "oz.example.local"}
+        }};
+        (op_worker) -> {ok, #service{hosts = Hosts, ctx = #{
+            status => maps:from_list([{Host, healthy} || Host <- Hosts])
+        }}}
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
-        [{task_finished, {service, action, ok}}]
+        % various step results for entity fetches
+        [
+            #step_end{module = service_oneprovider, function = get_space_details,
+                good_bad_results = {
+                    [{'node@host1',
+                        onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                    []
+                }},
+            #step_end{module = service_op_worker, function = get_storages,
+                good_bad_results = {
+                    [{'node@host1', keys_to_atoms(?STORAGE_JSON)}], []
+                }},
+            #action_end{service = service, action = action, result = ok}
+        ]
     end),
+    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
+        Self ! {service, Service, Action, Ctx},
+        <<?TASK_ID>>
+    end),
+    test_utils:mock_expect(Nodes, op_worker_storage, exists,
+        fun(_) -> true end),
     ok = onepanel_test_rest:mock_token_authentication(Nodes),
 
     Config.

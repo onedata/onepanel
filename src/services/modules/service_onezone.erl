@@ -21,14 +21,31 @@
 -include_lib("ctool/include/onedata.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/global_definitions.hrl").
--include_lib("ctool/include/api_errors.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
+
+
+
+% @formatter:off
+-type model_ctx() :: #{
+    % dedicated host for initiating cluster startup process after restart
+    master_host => service:host(),
+
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()},
+    % 'dns_check' module cache
+    ?DNS_CHECK_TIMESTAMP_KEY => time_utils:seconds(),
+    ?DNS_CHECK_CACHE_KEY => dns_check:result(),
+    % 'clusters' module cache
+    cluster => #{atom() := term()}
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
-
-%% API
--export([gui_message_exists/1]).
 
 %% Steps
 -export([set_up_service_in_onezone/0]).
@@ -74,20 +91,20 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
 get_steps(deploy, Ctx) ->
     SelfHost = hosts:self(),
 
-    {ok, OpaCtx} = onepanel_maps:get([cluster, ?SERVICE_PANEL], Ctx),
-    {ok, LeCtx} = onepanel_maps:get([cluster, ?SERVICE_LE], Ctx),
-    {ok, CbCtx} = onepanel_maps:get([cluster, ?SERVICE_CB], Ctx),
-    {ok, CmCtx} = onepanel_maps:get([cluster, ?SERVICE_CM], Ctx),
-    {ok, OzwCtx} = onepanel_maps:get([cluster, ?SERVICE_OZW], Ctx),
+    OpaCtx = kv_utils:get([cluster, ?SERVICE_PANEL], Ctx),
+    LeCtx = kv_utils:get([cluster, ?SERVICE_LE], Ctx),
+    CbCtx = kv_utils:get([cluster, ?SERVICE_CB], Ctx),
+    CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
+    OzwCtx = kv_utils:get([cluster, ?SERVICE_OZW], Ctx),
 
-    DnsConfig = onepanel_maps:get([name(), dns_check_config], Ctx, #{}),
+    DnsConfig = kv_utils:get([name(), dns_check_config], Ctx, #{}),
 
-    OzCtx1 = onepanel_maps:get(name(), Ctx, #{}),
+    OzCtx1 = kv_utils:get(name(), Ctx, #{}),
     OzCtx2 = OzCtx1#{
         master_host => SelfHost
     },
@@ -185,9 +202,7 @@ get_steps(status, _Ctx) ->
     ];
 
 get_steps(set_cluster_ips, Ctx) ->
-    GeneratedConfigFile = service_ctx:get(oz_worker_generated_config_file, Ctx),
     Ctx2 = Ctx#{
-        generated_config_file => GeneratedConfigFile,
         name => ?SERVICE_OZW
     }, [
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
@@ -201,6 +216,9 @@ get_steps(add_users, #{onezone_users := _}) ->
 get_steps(add_users, _Ctx) ->
     [];
 
+get_steps(add_user, _UserData) ->
+    [#step{module = onezone_users, function = add_user, selection = any}];
+
 get_steps(migrate_users, _Ctx) ->
     [
         #step{module = onezone_users, function = migrate_users, selection = any,
@@ -212,29 +230,19 @@ get_steps(UsersFunction, _Ctx) when
     UsersFunction == set_user_password;
     UsersFunction == create_default_admin;
     UsersFunction == list_users;
-    UsersFunction == get_user ->
+    UsersFunction == get_user
+->
     [#step{module = onezone_users, function = UsersFunction, selection = any}];
 
 get_steps(Function, _Ctx) when
     Function == get_gui_message;
     Function == update_gui_message;
-    Function == format_cluster_ips ->
+    Function == format_cluster_ips
+->
     [#step{function = Function, selection = any}];
 
 get_steps(set_up_service_in_onezone, _Ctx) ->
     [#step{function = set_up_service_in_onezone, args = [], selection = any}].
-
-
-%%%===================================================================
-%%% API functions
-%%%===================================================================
-
--spec gui_message_exists(MessageId :: binary()) -> boolean().
-gui_message_exists(MessageId) ->
-    {ok, Node} = nodes:any(?SERVICE_OZW),
-    case rpc:call(Node, zone_logic, gui_message_exists, [MessageId]) of
-        Bool when is_boolean(Bool) -> Bool
-    end.
 
 
 %%%===================================================================
@@ -245,7 +253,7 @@ gui_message_exists(MessageId) ->
 %% @doc Returns IPs of hosts with oz_worker instances.
 %% @end
 %%--------------------------------------------------------------------
--spec format_cluster_ips(service:ctx()) ->
+-spec format_cluster_ips(service:step_ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 format_cluster_ips(Ctx) ->
     service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OZW}).
@@ -256,7 +264,7 @@ format_cluster_ips(Ctx) ->
 %% Marks all configuration steps as already performed.
 %% @end
 %%-------------------------------------------------------------------
--spec mark_configured(service:ctx()) -> ok.
+-spec mark_configured(service:step_ctx()) -> ok.
 mark_configured(_Ctx) ->
     onepanel_deployment:set_marker([
         ?PROGRESS_LETSENCRYPT_CONFIG,
@@ -276,18 +284,18 @@ set_up_service_in_onezone() ->
     ?info("Setting up Onezone panel service in Onezone"),
 
     GuiPackagePath = https_listener:gui_package_path(),
-    {ok, OzNode} = nodes:any(?SERVICE_OZW),
-    {BuildVersion, AppVersion} = onepanel_app:get_build_and_version(),
+    {BuildVersion, AppVersion} = onepanel:get_build_and_version(),
 
-    {ok, GuiHash} = rpc:call(OzNode, gui_static, deploy_package, [
+    {ok, GuiHash} = oz_worker_rpc:deploy_static_gui_package(
         ?ONEPANEL_GUI, AppVersion, filename:absname(GuiPackagePath), false
-    ]),
+    ),
     ?info("Deployed static GUI files (~s)", [GuiHash]),
 
     {rpc, Client} = onezone_client:root_auth(),
     VersionInfo = {AppVersion, BuildVersion, GuiHash},
-    ok = rpc:call(OzNode, cluster_logic, update_version_info,
-        [Client, clusters:get_id(), ?ONEPANEL, VersionInfo]),
+    ok = oz_worker_rpc:update_cluster_version_info(
+        Client, clusters:get_id(), ?ONEPANEL, VersionInfo
+    ),
 
     % pre-warm cache
     clusters:get_current_cluster(),
@@ -295,21 +303,18 @@ set_up_service_in_onezone() ->
     ?info("Onezone panel service successfully set up in Onezone").
 
 
--spec get_gui_message(#{message_id := binary()}) ->
-    #{enabled := boolean(), body := binary()}.
+-spec get_gui_message(#{message_id := oz_worker_rpc:gui_message_id()}) ->
+    oz_worker_rpc:gui_message_map_repr().
 get_gui_message(#{message_id := MessageId}) ->
-    {ok, Node} = nodes:any(?SERVICE_OZW),
-    {ok, Result} = rpc:call(Node, zone_logic, get_gui_message_as_map, [MessageId]),
+    {ok, Result} = oz_worker_rpc:get_gui_message_as_map(MessageId),
     Result.
 
 
--spec update_gui_message(#{message_id := binary(),
+-spec update_gui_message(#{message_id := oz_worker_rpc:gui_message_id(),
     enabled => boolean(), body => binary()}) -> ok.
 update_gui_message(#{message_id := MessageId} = Ctx) ->
-    {ok, Node} = nodes:any(?SERVICE_OZW),
-    Diff = onepanel_maps:get_store_multiple([
+    Diff = kv_utils:copy_found([
         {body, <<"body">>}, {enabled, <<"enabled">>}
-    ], Ctx, #{}),
+    ], Ctx),
     {rpc, Auth} = onezone_client:root_auth(),
-    ok = rpc:call(Node, zone_logic, update_gui_message,
-        [Auth, MessageId, Diff]).
+    ok = oz_worker_rpc:update_gui_message(Auth, MessageId, Diff).

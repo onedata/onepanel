@@ -44,13 +44,14 @@ local(ServiceName) ->
 %% @doc Returns one of given service's nodes.
 %% If Opts contain 'hosts' key, nodes are selected from those hosts without
 %%   ensuring they belong to given service.
-%% If Opts contain 'node' key and specified node is of given service,
+%% If Opts contain 'node' key and specified node matches requested service,
 %%   this node is returned. This allows reuse of an already resolved
 %%   node by passing the "Ctx" argument in step functions.
-%% If among considered hosts is the current one, this host's node is returned.
+%% If among considered hosts is the local one, this host's node is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec any(ServiceNameOrOpts :: service:name() | opts()) -> {ok, node()} | #error{}.
+-spec any(ServiceNameOrOpts :: service:name() | opts()) ->
+    {ok, node()} | ?ERROR_NO_SERVICE_NODES(_).
 any(ServiceName) when ?IS_SERVICE_NAME(ServiceName) ->
     any(#{service => ServiceName});
 
@@ -62,12 +63,12 @@ any(#{service := ServiceName, node := Node} = Opts) ->
 
 any(#{service := ServiceName} = Opts) ->
     case hosts:all(Opts) of
-        [] -> ?make_error(?ERR_NO_SERVICE_HOSTS(ServiceName));
+        [] -> ?ERROR_NO_SERVICE_NODES(ServiceName);
         Hosts ->
             Self = hosts:self(),
             Host = case lists:member(Self, Hosts) of
                 true -> Self;
-                false -> utils:random_element(Hosts)
+                false -> lists_utils:random_element(Hosts)
             end,
             {ok, service_to_node(ServiceName, Host)}
     end.

@@ -13,15 +13,24 @@
 
 -include("names.hrl").
 -include("onepanel_test_utils.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 
 %% API
 -export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
     mock_start/1]).
 -export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
--export([service_host_action/3, service_host_action/4,
-    service_action/3, service_action/4]).
+-export([
+    service_host_action/3, service_host_action/4,
+    service_action/3, service_action/4, attempt_service_action/4
+]).
 -export([get_domain/1]).
+-export([create_registration_token/1, create_registration_token/2]).
+-export([
+    mock_system_time/1, unmock_system_time/1,
+    simulate_system_time_passing/2, get_mocked_system_time/1
+]).
 
 -type config() :: proplists:proplist().
 
@@ -41,6 +50,8 @@
     {oz_worker_overlay_config_file, "/etc/oz_worker/overlay.config"},
     {services_check_period, timer:hours(1)}
 ]).
+
+-define(TIME_MOCK_STARTING_TIMESTAMP, 1500000000).
 
 %%%===================================================================
 %%% API functions
@@ -183,7 +194,8 @@ clear_msg_inbox() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_host_action(Node :: node(), Service :: service:name(),
-    Action :: atom()) -> ok | no_return().
+    Action :: atom()) ->
+    service_executor:results() | no_return().
 service_host_action(Node, Service, Action) ->
     service_host_action(Node, Service, Action, #{}).
 
@@ -193,7 +205,8 @@ service_host_action(Node, Service, Action) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec service_host_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
+    Action :: atom(), Ctx :: service:step_ctx()) ->
+    service_executor:results() | no_return().
 service_host_action(Node, Service, Action, Ctx) ->
     Host = hosts:from_node(Node),
     service_action(Node, Service, Action, Ctx#{hosts => [Host]}).
@@ -210,16 +223,42 @@ service_action(Node, Service, Action) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Performs service action on given node.
+%% @doc Performs service action on given node and ensures success.
 %% @end
 %%--------------------------------------------------------------------
 -spec service_action(Node :: node(), Service :: service:name(),
-    Action :: atom(), Ctx :: service:ctx()) -> ok | no_return().
+    Action :: atom(), Ctx :: service:step_ctx()) ->
+    service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
+    case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
+        Results when is_list(Results) ->
+            case service_utils:results_contain_error(Results) of
+                {true, Error} ->
+                    ct:pal("Service action ~tp:~tp on node ~tp failed.~n"
+                        "Error: ~tp~nCtx: ~tp~nSteps history: ~tp",
+                        [Service, Action, Node, Error, Ctx, Results]),
+                    ?assert(false);
+                false ->
+                    Results
+            end;
+        Error ->
+            ct:pal("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",
+                [Service, Action, Node, Ctx, Error]),
+            ?assert(false)
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Performs service action on given node without checking
+%% its result.
+%% @end
+%%--------------------------------------------------------------------
+-spec attempt_service_action(Node :: node(), Service :: service:name(),
+    Action :: atom(), Ctx :: service:step_ctx()) -> ok | {error, _}.
+attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [Service, Action, Ctx, Self]
-    )).
+    rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
+
 
 %%--------------------------------------------------------------------
 %% @doc Returns hostname stripped of the first segment.
@@ -231,6 +270,63 @@ get_domain(Hostname) when not is_binary(Hostname) ->
 get_domain(Hostname) ->
     [_Hostname, Domain] = binary:split(Hostname, <<".">>),
     Domain.
+
+
+-spec create_registration_token(OnezoneDomain :: binary()) -> tokens:serialized().
+create_registration_token(OnezoneDomain) ->
+    create_registration_token(OnezoneDomain, <<"someAdminId">>).
+
+
+-spec create_registration_token(OnezoneDomain :: binary(), AdminId :: binary()) ->
+    tokens:serialized().
+create_registration_token(OnezoneDomain, AdminId) ->
+    {ok, Token} = tokens:serialize(tokens:construct(#token{
+        type = #invite_token_typespec{
+            invite_type = ?REGISTER_ONEPROVIDER,
+            target_entity = AdminId
+        },
+        onezone_domain = OnezoneDomain,
+        subject = ?SUB(user, AdminId),
+        id = <<"id">>,
+        persistence = {temporary, 1}
+    }, tokens:generate_secret(), [])),
+    Token.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Mocks system time - stops the clock at one value and allows to manually
+%% simulate time passing.
+%% @end
+%%--------------------------------------------------------------------
+-spec mock_system_time([node()]) -> ok.
+mock_system_time(Nodes) ->
+    ok = test_utils:mock_new(Nodes, time_utils, [passthrough]),
+    ok = test_utils:mock_expect(Nodes, time_utils, system_time_seconds, fun() ->
+        onepanel_env:get(mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP)
+    end).
+
+
+-spec unmock_system_time([node()]) -> ok.
+unmock_system_time(Nodes) ->
+    ok = test_utils:mock_unload(Nodes, time_utils).
+
+
+-spec simulate_system_time_passing(node(), time_utils:seconds()) -> ok.
+simulate_system_time_passing(Nodes, Seconds) ->
+    lists:foreach(fun(Node) ->
+        rpc:call(Node, onepanel_env, set, [
+            mocked_time, get_mocked_system_time(Node) + Seconds
+        ])
+    end, Nodes).
+
+
+-spec get_mocked_system_time(node()) -> time_utils:seconds().
+get_mocked_system_time(Node) ->
+    rpc:call(Node, onepanel_env, get, [
+        mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP
+    ]).
+
 
 %%%===================================================================
 %%% Internal functions
@@ -258,8 +354,6 @@ create_cluster([]) ->
 
 create_cluster([Node | _] = Nodes) ->
     Hosts = hosts:from_nodes(Nodes),
-    ?assertEqual(ok, rpc:call(Node, service, apply,
-        [onepanel, deploy, #{
-            hosts => Hosts, api_version => ?API_VERSION
-        }]
-    )).
+    onepanel_test_utils:service_action(Node,
+        onepanel, deploy, #{hosts => Hosts}
+    ).

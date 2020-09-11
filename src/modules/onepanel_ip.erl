@@ -14,7 +14,7 @@
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([determine_ip/0, ip4_to_binary/1, parse_ip4/1, is_ip/1]).
+-export([determine_ip/0, ip4_to_binary/1, is_ip/1, hostname_ips/0]).
 
 %%%===================================================================
 %%% API
@@ -27,7 +27,7 @@
 -spec determine_ip() -> inet:ip4_address().
 determine_ip() ->
     % use first working method of getting IP
-    onepanel_lists:foldl_while(fun(IpSupplier, PrevResult) ->
+    lists_utils:foldl_while(fun(IpSupplier, PrevResult) ->
         try
             {ok, IP} = IpSupplier(),
             {halt, IP}
@@ -42,38 +42,43 @@ determine_ip() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Attempts to parse given argument as IP string or tuple.
-%% @end
-%%--------------------------------------------------------------------
--spec parse_ip4(inet:ip4_address() | binary() | string()) ->
-    {ok, inet:ip4_address()} | {error, einval} | no_return().
-parse_ip4({_, _, _, _} = IP) ->
-    {ok, IP};
-parse_ip4(Value) ->
-    List = onepanel_utils:convert(Value, list),
-    inet:parse_ipv4strict_address(List).
-
-
-%%--------------------------------------------------------------------
 %% @doc Converts IP tuple to binary.
 %% @end
 %%--------------------------------------------------------------------
--spec ip4_to_binary(inet:ip4_address()) -> binary().
+-spec ip4_to_binary(ip_utils:ip()) -> binary().
 ip4_to_binary(IPTuple) ->
-    list_to_binary(inet:ntoa(IPTuple)).
+    {ok, Binary} = ip_utils:to_binary(IPTuple),
+    Binary.
 
 
 %%--------------------------------------------------------------------
-%% @doc Detects IP address in a string, binary or tuple form.
+%% @doc Detects IP address in a string, binary, or tuple form.
 %% @end
 %%--------------------------------------------------------------------
 -spec is_ip(term()) -> boolean().
 is_ip(Value) ->
-    try parse_ip4(Value) of
+    try ip_utils:to_ip4_address(Value) of
         {ok, _} -> true;
         _ -> false
-    catch _:_ -> false
-    end.
+    catch _:_ -> false end.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns list of IPv4 addresses returned by shell command 'hostname i'.
+%% @end
+%%--------------------------------------------------------------------
+-spec hostname_ips() -> [inet:ip4_address()].
+hostname_ips() ->
+    {_, Result, _} = onepanel_shell:execute(["hostname", "-i"]),
+    Words = string:split(Result, " ", all),
+    % filter out IPv6 addresses
+    lists:filtermap(fun(Word) ->
+        case ip_utils:to_ip4_address(Word) of
+            {ok, IP} -> {true, IP};
+            _ -> false
+        end
+    end, Words).
 
 
 %%%===================================================================
@@ -93,7 +98,7 @@ determine_ip_by_oz() ->
         andalso service_oneprovider:is_registered(#{}) of
         true ->
             {ok, IPBin} = oz_providers:check_ip_address(none),
-            parse_ip4(IPBin);
+            ip_utils:to_ip4_address(IPBin);
         _ -> {error, not_registered}
     end.
 
@@ -119,7 +124,7 @@ determine_ip_by_domain() ->
         [{_, _, _, _} = IP] -> {ok, IP};
         ManyIPs ->
             HostnameIPs = hostname_ips(),
-            case onepanel_lists:intersect(HostnameIPs, ManyIPs) of
+            case lists_utils:intersect(HostnameIPs, ManyIPs) of
                 [] -> {ok, hd(ManyIPs)};
                 [IP | _] -> {ok, IP}
             end
@@ -139,7 +144,7 @@ determine_ip_by_external_service() ->
     case http_client:get(URL) of
         {ok, _, _, Body} ->
             Trimmed = onepanel_utils:trim(Body, both),
-            parse_ip4(Trimmed);
+            ip_utils:to_ip4_address(Trimmed);
         Error -> Error
     end.
 
@@ -156,22 +161,3 @@ determine_ip_by_shell() ->
         [Head | _] -> {ok, Head};
         [] -> {error, no_address}
     end.
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Returns list of IPv4 addresses returned by shell command 'hostname i'.
-%% @end
-%%--------------------------------------------------------------------
--spec hostname_ips() -> [inet:ip4_address()].
-hostname_ips() ->
-    {_, Result} = onepanel_shell:execute(["hostname", "-i"]),
-    Words = string:split(Result, " ", all),
-    % filter out IPv6 addresses
-    lists:filtermap(fun(Word) ->
-        case parse_ip4(Word) of
-            {ok, IP} -> {true, IP};
-            _ -> false
-        end
-    end, Words).

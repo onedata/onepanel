@@ -6,6 +6,10 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module provides an extension of rpc module functionality.
+%%% ?MODULE:call_any/4 may be used in lieu of rpc:call/4 in order
+%%% to rethrow any exceptions which occurred remotely.
+%%% The multicall (?MODULE:call) functionality is used primarily by
+%%% the service action execution mechanism.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_rpc).
@@ -30,17 +34,30 @@
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates a function from a given module with provided arguments.
-%% Returns a tuple consisting of node where execution took place and a result.
+%% @doc
+%% Exported for rpc access.
+%% Evaluates a function from a given module with provided arguments.
+%%
+%% rpc-calling this function rather than the target function directly
+%% adds node information to the result (otherwise rpc:multicall
+%% looses information about which nodes returned which result).
+%% In case of error logs it and returns an error-tuple or #exception.
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Module :: module(), Function :: atom(), Args :: [term()]) ->
+-spec apply(module(), Function :: atom(), Args :: [term()]) ->
     {Node :: node(), Result :: term()}.
 apply(Module, Function, Args) ->
     try
         {node(), erlang:apply(Module, Function, Args)}
     catch
-        _:Reason -> {node(), ?make_stacktrace(Reason)}
+        throw:{error, _} = Reason ->
+            {node(), Reason};
+        Type:Reason ->
+            ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp",
+                [Module, Function, erlang:length(Args), Type, Reason]),
+            {node(), {error, #exception{
+                % do not store stacktrace not to pollute logs since it's logged here
+                type = Type, value = Reason, stacktrace = []}}}
     end.
 
 
@@ -48,7 +65,7 @@ apply(Module, Function, Args) ->
 %% @doc @equiv call(service_onepanel:get_nodes(), Module, Function, Args)
 %% @end
 %%--------------------------------------------------------------------
--spec call(Module :: module(), Function :: atom(), Args :: [term()]) ->
+-spec call(module(), Function :: atom(), Args :: [term()]) ->
     Results :: results().
 call(Module, Function, Args) ->
     call(service_onepanel:get_nodes(), Module, Function, Args).
@@ -58,7 +75,7 @@ call(Module, Function, Args) ->
 %% @doc Evaluates {@link call/5} with a default timeout.
 %% @end
 %%--------------------------------------------------------------------
--spec call(Nodes :: [node()], Module :: module(), Function :: atom(),
+-spec call(Nodes :: [node()] | node(), module(), Function :: atom(),
     Args :: [term()]) -> Results :: results().
 call(Nodes, Module, Function, Args) ->
     Timeout = onepanel_env:get(rpc_timeout),
@@ -71,9 +88,10 @@ call(Nodes, Module, Function, Args) ->
 %% Nodes must by a list of onepanel nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec call(Nodes :: [node()], Module :: module(), Function :: atom(),
-    Args :: [term()], Timeout :: timeout()) -> Results :: results().
-call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
+-spec call([node()] | node(), module(), Function :: atom(),
+    Args :: [term()], timeout()) -> results().
+call(NodeOrNodes, Module, Function, Args, Timeout) ->
+    Nodes = utils:ensure_list(NodeOrNodes),
     {Values, _} = rpc:multicall(
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
@@ -85,9 +103,9 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
         ({_Node, _Result}) -> true
     end, Values),
 
-    BadNodes = onepanel_lists:subtract(Nodes, proplists:get_keys(Results)),
+    BadNodes = lists_utils:subtract(Nodes, proplists:get_keys(Results)),
     AllResults = Results ++
-        [{BadNode, ?make_error(?ERR_BAD_NODE)} || BadNode <- BadNodes],
+        [{BadNode, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE} || BadNode <- BadNodes],
 
     ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
         [Module, Function, Args, Nodes, Timeout, AllResults]),
@@ -95,11 +113,11 @@ call(Nodes, Module, Function, Args, Timeout) when is_list(Nodes) ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Evaluates {@link call/3} and verifies that there is no errors.
+%% @doc Evaluates {@link call/3} and verifies that there are no errors.
 %% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
--spec call_all(Module :: module(), Function :: atom(), Args :: [term()]) ->
+-spec call_all(module(), Function :: atom(), Args :: [term()]) ->
     Results :: results() | no_return().
 call_all(Module, Function, Args) ->
     all(call(Module, Function, Args)).
@@ -110,7 +128,7 @@ call_all(Module, Function, Args) ->
 %% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
--spec call_all(Nodes :: [node()], Module :: module(), Function :: atom(),
+-spec call_all(Nodes :: [node()] | node(), module(), Function :: atom(),
     Args :: [term()]) -> Results :: results() | no_return().
 call_all(Nodes, Module, Function, Args) ->
     all(call(Nodes, Module, Function, Args)).
@@ -121,8 +139,8 @@ call_all(Nodes, Module, Function, Args) ->
 %% In case of an error throws an exception.
 %% @end
 %%--------------------------------------------------------------------
--spec call_all(Nodes :: [node()], Module :: module(), Function :: atom(),
-    Args :: [term()], Timeout :: timeout()) -> Results :: results() | no_return().
+-spec call_all(Nodes :: [node()] | node(), module(), Function :: atom(),
+    Args :: [term()], timeout()) -> Results :: results() | no_return().
 call_all(Nodes, Module, Function, Args, Timeout) ->
     all(call(Nodes, Module, Function, Args, Timeout)).
 
@@ -132,7 +150,7 @@ call_all(Nodes, Module, Function, Args, Timeout) ->
 %% successful result. In case of errors on all nodes throws an exception.
 %% @end
 %%--------------------------------------------------------------------
--spec call_any(Module :: module(), Function :: atom(), Args :: [term()]) ->
+-spec call_any(module(), Function :: atom(), Args :: [term()]) ->
     Value :: term() | no_return().
 call_any(Module, Function, Args) ->
     any(call(Module, Function, Args)).
@@ -143,7 +161,7 @@ call_any(Module, Function, Args) ->
 %% successful result. In case of errors on all nodes throws an exception.
 %% @end
 %%--------------------------------------------------------------------
--spec call_any(Nodes :: [node()], Module :: module(), Function :: atom(),
+-spec call_any(Nodes :: [node()] | node(), module(), Function :: atom(),
     Args :: [term()]) -> Value :: term() | no_return().
 call_any(Nodes, Module, Function, Args) ->
     any(call(Nodes, Module, Function, Args)).
@@ -154,10 +172,11 @@ call_any(Nodes, Module, Function, Args) ->
 %% successful result. In case of errors on all nodes throws an exception.
 %% @end
 %%--------------------------------------------------------------------
--spec call_any(Nodes :: [node()], Module :: module(), Function :: atom(),
-    Args :: [term()], Timeout :: timeout()) -> Value :: term() | no_return().
+-spec call_any(Nodes :: [node()] | node(), module(), Function :: atom(),
+    Args :: [term()], timeout()) -> Value :: term() | no_return().
 call_any(Nodes, Module, Function, Args, Timeout) ->
     any(call(Nodes, Module, Function, Args, Timeout)).
+
 
 %%%===================================================================
 %%% Internal functions
@@ -169,13 +188,12 @@ call_any(Nodes, Module, Function, Args, Timeout) ->
 -spec all(Results :: results()) -> Results :: results() | no_return().
 all(Results) ->
     BadResults = lists:filtermap(fun
-        ({_, #error{}}) -> true;
-        ({_, {error, Reason}}) -> {true, ?make_error(Reason)};
+        ({_, {error, _} = Error}) -> {true, Error};
         ({_, _}) -> false
     end, Results),
     case BadResults of
         [] -> Results;
-        _ -> ?throw_error(BadResults)
+        [{error, Reason} | _] -> reraise(Reason)
     end.
 
 
@@ -189,11 +207,21 @@ any([]) ->
 
 any(Results) ->
     GoodResults = lists:filtermap(fun
-        ({_, #error{}}) -> false;
         ({_, {error, _}}) -> false;
         ({_, Value}) -> {true, Value}
     end, Results),
-    case GoodResults of
-        [] -> ?throw_error(?ERR_FAILURE_ON_ALL_NODES);
-        [Value | _] -> Value
+    case {GoodResults, Results} of
+        {[Value | _], _} -> Value;
+        {[], [{_Node, {error, Reason}} | _]} -> reraise(Reason)
     end.
+
+
+-spec reraise(#exception{} | term()) -> no_return().
+reraise(#exception{type = Type, value = Value, stacktrace = []}) ->
+    erlang:Type(Value);
+
+reraise(#exception{type = Type, value = Value, stacktrace = Stacktrace}) ->
+    erlang:raise(Type, Value, Stacktrace);
+
+reraise(Value) ->
+    throw(Value).

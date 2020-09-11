@@ -23,23 +23,67 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
 
+
+% @formatter:off
+-type model_ctx() :: #{
+    %% Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()},
+
+    %% Deprecated (removed from ctx after upgrading past 18.02.0-rc1)
+    %% {@link pop_legacy_ips_configured/0}
+    cluster_ips_configured => boolean()
+}.
+% @formatter:on
+
+-export_type([model_ctx/0]).
+
+
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
+
 %% LE behaviour callbacks
 -export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
     get_domain/0, get_admin_email/0, set_http_record/2,
     supports_letsencrypt_challenge/1]).
 
-%% API
--export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, add_storages/1, get_storages/1,
-    update_storage/1, remove_storage/1,
-    invalidate_luma_cache/1, reload_webcert/1,
-    set_transfers_mock/1, get_transfers_mock/1,
-    get_compatible_onezones/0, is_connected_to_oz/0]).
--export([migrate_generated_config/1]).
+%% Public API
+-export([get_compatible_onezones/0, is_connected_to_oz/0,
+    is_transfers_mock_enabled/0]).
 
--define(INIT_SCRIPT, "op_worker").
+%% Step functions
+-export([configure/1, configure_additional_node/1, import_provider_auth_file/1,
+    start/1, stop/1, status/1, health/1, wait_for_init/1,
+    get_nagios_response/1, get_nagios_status/1, add_storage/1, get_storages/1,
+    update_storage/1, remove_storage/1, reload_webcert/1,
+    set_transfers_mock/1]).
+
+%% LUMA step functions
+-export([
+    get_luma_configuration/1,
+    clear_luma_db/1,
+    get_onedata_user_to_credentials_mapping/1,
+    get_default_posix_credentials/1,
+    get_display_credentials/1,
+    get_uid_to_onedata_user_mapping/1,
+    get_acl_user_to_onedata_user_mapping/1,
+    get_acl_group_to_onedata_group_mapping/1,
+    add_onedata_user_to_credentials_mapping/1,
+    add_default_posix_credentials/1,
+    add_display_credentials/1,
+    add_uid_to_onedata_user_mapping/1,
+    add_acl_user_to_onedata_user_mapping/1,
+    add_acl_group_to_onedata_group_mapping/1,
+    update_user_mapping/1,
+    remove_onedata_user_to_credentials_mapping/1,
+    remove_default_posix_credentials/1,
+    remove_display_credentials/1,
+    remove_uid_to_onedata_user_mapping/1,
+    remove_acl_user_to_onedata_user_mapping/1,
+    remove_acl_group_to_onedata_group_mapping/1
+]).
+
+-export([migrate_generated_config/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -76,16 +120,39 @@ get_nodes() ->
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
--spec get_steps(Action :: service:action(), Args :: service:ctx()) ->
+-spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
-get_steps(add_storages, #{hosts := Hosts, storages := _} = Ctx) ->
-    [#step{hosts = Hosts, function = add_storages, selection = first, ctx = Ctx}];
+get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
+    case get_hosts() of
+        [] ->
+            {ok, Ctx2} = kv_utils:rename_entry(new_hosts, hosts, Ctx),
+            [#steps{action = deploy, ctx = Ctx2}];
+        [ExistingHost | _] ->
+            Ctx2 = Ctx#{name => name(), reference_host => ExistingHost},
+            [
+                #step{function = configure_additional_node, hosts = NewHosts, ctx = Ctx2},
+                #step{function = import_provider_auth_file, hosts = NewHosts, ctx = Ctx2,
+                    condition = fun(_) -> service_oneprovider:is_registered() end}
+                | service_cluster_worker:add_nodes_steps(Ctx2)
+            ]
+    end;
 
-get_steps(add_storages, #{storages := _} = Ctx) ->
-    get_steps(add_storages, Ctx#{hosts => get_hosts()});
+get_steps(add_storages, #{storages := Storages} = Ctx) ->
+    ?info("~b storage(s) will be added", [maps:size(Storages)]),
+    StoragesList = maps:to_list(Storages),
+    [
+        #steps{action = add_storage, ctx = Ctx#{name => Name, params => Params}}
+        || {Name, Params} <- StoragesList
+    ] ++ [
+        #step{module = onepanel_deployment, function = set_marker,
+            args = [?PROGRESS_STORAGE_SETUP], hosts = [hosts:self()]}
+    ];
 
 get_steps(add_storages, _Ctx) ->
     [];
+
+get_steps(add_storage, _Ctx) ->
+    [#step{function = add_storage, selection = first}];
 
 get_steps(get_storages, #{hosts := Hosts}) ->
     [#step{hosts = Hosts, function = get_storages, selection = any}];
@@ -93,28 +160,56 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
 
-get_steps(update_storage, _Ctx) ->
-    [#step{function = update_storage, selection = any}];
+get_steps(update_storage, Ctx) ->
+    #{id := Id, storage := Changes} = Ctx,
+    Current = op_worker_storage:get(Id),
+    case matches_local_ceph_pool(Current) of
+        true ->
+            [
+                #steps{service = ?SERVICE_CEPH, action = modify_pool,
+                    ctx = Changes#{name => maps:get(poolName, Current)}},
+                #step{function = update_storage, selection = any}
+            ];
+        false ->
+            [
+                #step{function = update_storage, selection = any}
+            ]
+    end;
 
-get_steps(remove_storage, _Ctx) ->
-    [#step{function = remove_storage, selection = any}];
-
-get_steps(invalidate_luma_cache, #{hosts := Hosts}) ->
-    [#step{hosts = Hosts, function = invalidate_luma_cache, selection = any}];
-
-get_steps(invalidate_luma_cache, Ctx) ->
-    get_steps(invalidate_luma_cache, Ctx#{hosts => get_hosts()});
-
-get_steps(Function, _Ctx) when
-    Function == get_transfers_mock ->
+get_steps(Function, _Ctx) when 
+    Function == remove_storage;
+    Function == clear_luma_db;
+    Function == get_luma_configuration;
+    Function == get_onedata_user_to_credentials_mapping;
+    Function == get_default_posix_credentials;
+    Function == get_display_credentials;
+    Function == get_uid_to_onedata_user_mapping;
+    Function == get_acl_user_to_onedata_user_mapping;
+    Function == get_acl_group_to_onedata_group_mapping;
+    Function == add_onedata_user_to_credentials_mapping;
+    Function == add_default_posix_credentials;
+    Function == add_display_credentials;
+    Function == add_uid_to_onedata_user_mapping;
+    Function == add_acl_user_to_onedata_user_mapping;
+    Function == add_acl_group_to_onedata_group_mapping;
+    Function == update_user_mapping;
+    Function == remove_onedata_user_to_credentials_mapping;
+    Function == remove_default_posix_credentials;
+    Function == remove_display_credentials;
+    Function == remove_uid_to_onedata_user_mapping;
+    Function == remove_acl_user_to_onedata_user_mapping;
+    Function == remove_acl_group_to_onedata_group_mapping
+->
     [#step{function = Function, selection = any}];
 
 get_steps(Function, _Ctx) when
-    Function == set_transfers_mock ->
+    Function == set_transfers_mock
+->
     [#step{function = Function, selection = all}];
 
 get_steps(Action, Ctx) ->
     service_cluster_worker:get_steps(Action, Ctx#{name => name()}).
+
 
 %%%===================================================================
 %%% Public API
@@ -129,10 +224,10 @@ get_steps(Action, Ctx) ->
 get_compatible_onezones() ->
     % Try to retrieve oneprovider version from op worker.
     % When opw is not responding use onepanel version instead.
-    {_, PanelVersion} = onepanel_app:get_build_and_version(),
+    {_, PanelVersion} = onepanel:get_build_and_version(),
     OpVersion = case nodes:any(?SERVICE_OPW) of
         {ok, Node} ->
-            case rpc:call(Node, oneprovider, get_version, []) of
+            case op_worker_rpc:get_op_worker_version(Node) of
                 {badrpc, _} ->
                     PanelVersion;
                 V ->
@@ -155,9 +250,19 @@ get_compatible_onezones() ->
 -spec is_connected_to_oz() -> boolean().
 is_connected_to_oz() ->
     case nodes:any(?SERVICE_OPW) of
-        {ok, Node} -> true == rpc:call(Node, oneprovider, is_connected_to_oz, []);
+        {ok, OpwNode} -> true == op_worker_rpc:is_connected_to_oz(OpwNode);
         _ -> false
     end.
+
+
+-spec is_transfers_mock_enabled() -> boolean().
+is_transfers_mock_enabled() ->
+    {ok, OpwNode} = nodes:any(name()),
+    case onepanel_env:get_remote(OpwNode, rtransfer_mock, name()) of
+        Boolean when is_boolean(Boolean) -> Boolean;
+        _ -> false
+    end.
+
 
 %%%===================================================================
 %%% Step functions
@@ -167,10 +272,9 @@ is_connected_to_oz() ->
 %% @doc Configures the service.
 %% @end
 %%--------------------------------------------------------------------
--spec configure(Ctx :: service:ctx()) -> ok | no_return().
+-spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(Ctx) ->
-    GeneratedConfigFile = onepanel_env:get_config_path(name(), generated),
-    VmArgsFile = service_ctx:get(op_worker_vm_args_file, Ctx),
+    VmArgsFile = onepanel_env:get(op_worker_vm_args_file),
 
     case maps:get(mark_cluster_ips_configured, Ctx, false)
         orelse pop_legacy_ips_configured() of
@@ -178,13 +282,12 @@ configure(Ctx) ->
         _ -> ok
     end,
 
-    ok = service_cluster_worker:configure(Ctx#{
+    ok = service_cluster_worker:configure(maps:merge(#{
         name => name(),
         app_config => #{},
-        generated_config_file => GeneratedConfigFile,
         vm_args_file => VmArgsFile,
-        initialize_ip => false % do not set IP until onezone is connected
-    }),
+        initialize_ip => service_oneprovider:is_registered() % do not set IP until onezone is connected
+    }, Ctx)),
 
     {ok, RecvBuffer} = onepanel_env:read_effective(
         [rtransfer_link, transfer, recv_buffer_size], name()),
@@ -200,13 +303,54 @@ configure(Ctx) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Configures new op_worker node, assuming there are already
+%% some cluster_manager and op_worker instances.
+%% @end
+%%--------------------------------------------------------------------
+-spec configure_additional_node(#{reference_host := service:host(), _ => _}) -> ok.
+configure_additional_node(#{reference_host := _} = Ctx) ->
+    {ok, MainCmHost} = service_cluster_manager:get_main_host(),
+    CmHosts = service_cluster_manager:get_hosts(),
+    DbHosts  = service_couchbase:get_hosts(),
+
+    AppConfig = case service_oneprovider:is_registered() of
+        true -> #{oz_domain => service_oneprovider:get_oz_domain()};
+        false -> #{}
+    end,
+    NewCtx = maps_utils:merge([
+        #{
+            main_cm_host => MainCmHost, cm_hosts => CmHosts,
+            db_hosts => DbHosts,
+            app_config => AppConfig#{
+                rtransfer_mock => is_transfers_mock_enabled()
+            }
+        },
+        Ctx
+    ]),
+    configure(NewCtx).
+
+
+%%--------------------------------------------------------------------
+%% @doc Copies file storing provider's token to the current node.
+%% @end
+%%--------------------------------------------------------------------
+-spec import_provider_auth_file(
+    #{reference_host := service:host() | node(), _ => _}
+) -> ok.
+import_provider_auth_file(#{reference_host := RefHost}) ->
+    RefNode = nodes:service_to_node(?SERVICE_PANEL, RefHost),
+    Path = onepanel_env:get_remote(RefNode, op_worker_root_token_path, ?APP_NAME),
+    ok = rpc:call(RefNode, onepanel_utils, distribute_file, [[hosts:self()], Path]).
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link service_cli:start/1}
 %% @end
 %%--------------------------------------------------------------------
--spec start(Ctx :: service:ctx()) -> ok | no_return().
+-spec start(Ctx :: service:step_ctx()) -> ok | no_return().
 start(Ctx) ->
     NewCtx = maps:merge(#{
-        open_files => service_ctx:get(op_worker_open_files_limit, Ctx)
+        open_files => onepanel_env:get(op_worker_open_files_limit)
     }, Ctx),
     service_cluster_worker:start(NewCtx#{name => name()}).
 
@@ -215,7 +359,7 @@ start(Ctx) ->
 %% @doc {@link service_cli:stop/1}
 %% @end
 %%--------------------------------------------------------------------
--spec stop(Ctx :: service:ctx()) -> ok | no_return().
+-spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
     service_cluster_worker:stop(Ctx#{name => name()}).
 
@@ -224,7 +368,7 @@ stop(Ctx) ->
 %% @doc {@link service_cli:status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec status(Ctx :: service:ctx()) -> service:status().
+-spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
     % Since this function is invoked periodically by onepanel_cron
     % use it to schedule DNS check refresh on a single node
@@ -236,7 +380,7 @@ status(Ctx) ->
 %% @doc Checks if a running service is in a fully functional state.
 %% @end
 %%--------------------------------------------------------------------
--spec health(service:ctx()) -> service:status().
+-spec health(service:step_ctx()) -> service:status().
 health(Ctx) ->
     case (catch get_nagios_status(Ctx)) of
         ok -> healthy;
@@ -248,14 +392,12 @@ health(Ctx) ->
 %% @doc {@link service_cluster_worker:wait_for_init/1}
 %% @end
 %%--------------------------------------------------------------------
--spec wait_for_init(Ctx :: service:ctx()) -> ok | no_return().
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
     service_cluster_worker:wait_for_init(Ctx#{
         name => name(),
-        wait_for_init_attempts => service_ctx:get(
-            op_worker_wait_for_init_attempts, Ctx, integer),
-        wait_for_init_delay => service_ctx:get(
-            op_worker_wait_for_init_delay, Ctx, integer)
+        wait_for_init_attempts => onepanel_env:get(op_worker_wait_for_init_attempts),
+        wait_for_init_delay => onepanel_env:get(op_worker_wait_for_init_delay)
     }).
 
 
@@ -263,12 +405,12 @@ wait_for_init(Ctx) ->
 %% @doc {@link service_cluster_worker:get_nagios_response/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_response(Ctx :: service:ctx()) ->
+-spec get_nagios_response(Ctx :: service:step_ctx()) ->
     Response :: http_client:response().
 get_nagios_response(Ctx) ->
     service_cluster_worker:get_nagios_response(Ctx#{
-        nagios_protocol => service_ctx:get(op_worker_nagios_protocol, Ctx),
-        nagios_port => service_ctx:get(op_worker_nagios_port, Ctx, integer)
+        nagios_protocol => onepanel_env:get(op_worker_nagios_protocol),
+        nagios_port => onepanel_env:get(op_worker_nagios_port)
     }).
 
 
@@ -276,11 +418,11 @@ get_nagios_response(Ctx) ->
 %% @doc {@link service_cluster_worker:get_nagios_status/1}
 %% @end
 %%--------------------------------------------------------------------
--spec get_nagios_status(Ctx :: service:ctx()) -> Status :: atom().
+-spec get_nagios_status(Ctx :: service:step_ctx()) -> Status :: atom().
 get_nagios_status(Ctx) ->
     service_cluster_worker:get_nagios_status(Ctx#{
-        nagios_protocol => service_ctx:get(op_worker_nagios_protocol, Ctx),
-        nagios_port => service_ctx:get(op_worker_nagios_port, Ctx, integer)
+        nagios_protocol => onepanel_env:get(op_worker_nagios_protocol),
+        nagios_port => onepanel_env:get(op_worker_nagios_port)
     }).
 
 
@@ -288,17 +430,26 @@ get_nagios_status(Ctx) ->
 %% @doc Configures the service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storages(Ctx :: service:ctx()) -> ok | no_return().
-add_storages(#{storages := Storages, ignore_exists := IgnoreExists})
-    when map_size(Storages) > 0 ->
-    op_worker_storage:add(Storages, IgnoreExists),
-    onepanel_deployment:set_marker(?PROGRESS_STORAGE_SETUP);
+-spec add_storage(Ctx :: service:step_ctx()) -> ok | no_return().
+add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
+    Type == ?LOCAL_CEPH_STORAGE_TYPE ->
+    case hosts:all(?SERVICE_CEPH_OSD) of
+        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
+        _ -> ok
+    end,
 
-add_storages(#{storages := _, ignore_exists := _}) ->
-    ok;
+    case ceph_pool:exists(Name) of
+        true -> ok;
+        false ->
+            service_utils:throw_on_error(service:apply_sync(
+                ?SERVICE_CEPH, create_pool, Params#{name => Name}
+            ))
+    end,
+    FilledParams = maps:merge(Params, service_ceph:make_storage_params(Name)),
+    add_storage(Ctx#{params => FilledParams});
 
-add_storages(Ctx) ->
-    add_storages(Ctx#{ignore_exists => false}).
+add_storage(#{params := _, name := _} = Ctx) ->
+    op_worker_storage:add(Ctx).
 
 
 %%--------------------------------------------------------------------
@@ -307,9 +458,13 @@ add_storages(Ctx) ->
 %%--------------------------------------------------------------------
 -spec get_storages(#{id => op_worker_storage:id()}) ->
     op_worker_storage:storage_details()
-    | #{ids => [op_worker_storage:id()]}.
+    | [op_worker_storage:id()].
 get_storages(#{id := Id}) ->
-    op_worker_storage:get(Id);
+    Details = op_worker_storage:get(Id),
+    case matches_local_ceph_pool(Details) of
+        true -> service_ceph:decorate_storage_details(Details);
+        false -> Details
+    end;
 
 get_storages(_Ctx) ->
     op_worker_storage:list().
@@ -319,7 +474,7 @@ get_storages(_Ctx) ->
 %% @doc Modifies storage configuration.
 %% @end
 %%--------------------------------------------------------------------
--spec update_storage(Ctx :: service:ctx()) ->
+-spec update_storage(Ctx :: service:step_ctx()) ->
     op_worker_storage:storage_params() | no_return().
 update_storage(#{id := Id, storage := Params}) ->
     {ok, Node} = nodes:any(name()),
@@ -333,30 +488,166 @@ update_storage(#{id := Id, storage := Params}) ->
 -spec remove_storage(Ctx :: #{id := op_worker_storage:id(), _ => _}) -> ok | no_return().
 remove_storage(#{id := Id}) ->
     {ok, Node} = nodes:any(name()),
-    op_worker_storage:remove(Node, Id).
+    #{name := Name} = Details = op_worker_storage:get(Id),
+    op_worker_storage:remove(Node, Id),
+    case matches_local_ceph_pool(Details) of
+        true ->
+            service_utils:throw_on_error(service:apply_sync(
+                ?SERVICE_CEPH, delete_pool, #{name => Name}
+            )),
+            ok;
+        false ->
+            ok
+    end.
 
 
-%%-------------------------------------------------------------------
-%% @doc
-%% This function is responsible for invalidating luma cache on given
-%% provider for given storage.
-%% @end
-%%-------------------------------------------------------------------
--spec invalidate_luma_cache(Ctx :: service:ctx()) -> ok.
-invalidate_luma_cache(#{id := StorageId}) ->
-    op_worker_storage:invalidate_luma_cache(StorageId).
+-spec get_luma_configuration(Ctx :: service:step_ctx()) -> op_worker_rpc:luma_details().
+get_luma_configuration(#{storage := Storage}) ->
+    kv_utils:copy_found([
+        {lumaFeedUrl, lumaFeedUrl},
+        {lumaFeedApiKey, lumaFeedApiKey},
+        {lumaFeed, lumaFeed}
+    ], Storage).
+
+
+-spec clear_luma_db(Ctx :: service:step_ctx()) -> ok.
+clear_luma_db(#{id := StorageId}) ->
+    op_worker_rpc:luma_clear_db(StorageId).
+
+
+-spec get_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> {ok, json_utils:json_map()}.
+get_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, onedataUserId := OnedataUserId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_storage_users_get_and_describe(StorageId, OnedataUserId)
+    end, Ctx).
+
+
+-spec get_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.
+get_default_posix_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_posix_storage_defaults_get_and_describe(StorageId, SpaceId)
+    end, Ctx).
+
+
+-spec get_display_credentials(Ctx :: service:step_ctx()) -> ok.
+get_display_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_display_defaults_get_and_describe(StorageId, SpaceId)
+    end, Ctx).
+
+
+-spec get_uid_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
+get_uid_to_onedata_user_mapping(Ctx = #{id := StorageId, uid := Uid}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_get_by_uid_and_describe(StorageId, Uid)
+    end, Ctx).
+
+
+-spec get_acl_user_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
+get_acl_user_to_onedata_user_mapping(Ctx = #{id := StorageId, aclUser := AclUser}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_get_by_acl_user_and_describe(StorageId, AclUser)
+    end, Ctx).
+
+-spec get_acl_group_to_onedata_group_mapping(Ctx :: service:step_ctx()) -> ok.
+get_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclUser}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_groups_get_and_describe(StorageId, AclUser)
+    end, Ctx).
+
+-spec add_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> ok.
+add_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, storageUser := StorageUser, onedataUser := OnedataUser}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+        StorageUser2 = onepanel_utils:convert_recursive(StorageUser, {keys, binary}),
+        op_worker_rpc:luma_storage_users_store(StorageId, OnedataUser2, StorageUser2)
+    end, Ctx).
+
+-spec add_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.
+add_default_posix_credentials(Ctx = #{id := StorageId, spaceId := SpaceId, credentials := Credentials}) ->
+    op_worker_luma:execute(fun() ->
+        Credentials2 = onepanel_utils:convert(Credentials, {keys, binary}),
+        op_worker_rpc:luma_spaces_posix_storage_defaults_store(StorageId, SpaceId, Credentials2)
+    end, Ctx).
+
+-spec add_display_credentials(Ctx :: service:step_ctx()) -> ok.
+add_display_credentials(Ctx = #{id := StorageId, spaceId := SpaceId, credentials := Credentials}) ->
+    op_worker_luma:execute(fun() ->
+        Credentials2 = onepanel_utils:convert(Credentials, {keys, binary}),
+        op_worker_rpc:luma_spaces_display_defaults_store(StorageId, SpaceId, Credentials2)
+    end, Ctx).
+
+-spec add_uid_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
+add_uid_to_onedata_user_mapping(Ctx = #{id := StorageId, uid := Uid, onedataUser := OnedataUser}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+        op_worker_rpc:luma_onedata_users_store_by_uid(StorageId, Uid, OnedataUser2)
+    end, Ctx).
+
+-spec add_acl_user_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
+add_acl_user_to_onedata_user_mapping(Ctx = #{id := StorageId, aclUser := AclUser, onedataUser := OnedataUser}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+        op_worker_rpc:luma_onedata_users_store_by_acl_user(StorageId, AclUser, OnedataUser2)
+    end, Ctx).
+
+-spec add_acl_group_to_onedata_group_mapping(Ctx :: service:step_ctx()) -> ok.
+add_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclGroup, onedataGroup := OnedataGroup}) ->
+    op_worker_luma:execute(fun() ->
+        OnedataGroup2 = onepanel_utils:convert(OnedataGroup, {keys, binary}),
+        op_worker_rpc:luma_onedata_groups_store(StorageId, AclGroup, OnedataGroup2)
+    end, Ctx).
+
+-spec update_user_mapping(Ctx :: service:step_ctx()) -> ok.
+update_user_mapping(Ctx = #{id := StorageId, onedataUserId := OnedataUserId, storageUser := StorageUser}) ->
+    op_worker_luma:execute(fun() ->
+        StorageUser2 = onepanel_utils:convert_recursive(StorageUser, {keys, binary}),
+        op_worker_rpc:luma_storage_users_update(StorageId, OnedataUserId, StorageUser2)
+    end, Ctx).
+
+-spec remove_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> ok.
+remove_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, onedataUserId := OnedataUserId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_storage_users_delete(StorageId, OnedataUserId)
+    end, Ctx).
+
+-spec remove_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.
+remove_default_posix_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_posix_storage_defaults_delete(StorageId, SpaceId)
+end, Ctx).
+
+-spec remove_display_credentials(Ctx :: service:step_ctx()) -> ok.
+remove_display_credentials(Ctx = #{id := StorageId, spaceId := SpaceId}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_spaces_display_defaults_delete(StorageId, SpaceId)
+    end, Ctx).
+
+
+-spec remove_uid_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
+remove_uid_to_onedata_user_mapping(Ctx = #{id := StorageId, uid := Uid}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_delete_uid_mapping(StorageId, Uid)
+    end, Ctx).
+
+
+-spec remove_acl_user_to_onedata_user_mapping(Ctx :: service:step_ctx()) -> ok.
+remove_acl_user_to_onedata_user_mapping(Ctx = #{id := StorageId, aclUser := AclUser}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_users_delete_acl_user_mapping(StorageId, AclUser)
+    end, Ctx).
+
+
+-spec remove_acl_group_to_onedata_group_mapping(Ctx :: service:step_ctx()) -> ok.
+remove_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclGroup}) ->
+    op_worker_luma:execute(fun() ->
+        op_worker_rpc:luma_onedata_groups_delete(StorageId, AclGroup)
+    end, Ctx).
 
 
 -spec set_transfers_mock(#{transfers_mock := boolean()}) -> ok.
 set_transfers_mock(#{transfers_mock := Enabled}) ->
     env_write_and_set(rtransfer_mock, Enabled).
-
-
--spec get_transfers_mock(service:ctx()) -> #{transfersMock := boolean()}.
-get_transfers_mock(_Ctx) ->
-    {ok, Node} = nodes:any(name()),
-    Enabled = onepanel_env:get_remote(Node, rtransfer_mock, name()),
-    #{transfersMock => Enabled}.
 
 
 %%--------------------------------------------------------------------
@@ -365,33 +656,37 @@ get_transfers_mock(_Ctx) ->
 %% on the current node.
 %% @end
 %%--------------------------------------------------------------------
--spec reload_webcert(service:ctx()) -> ok.
+-spec reload_webcert(service:step_ctx()) -> ok.
 reload_webcert(Ctx) ->
     service_cluster_worker:reload_webcert(Ctx#{name => name()}),
 
     Node = nodes:local(name()),
-    ok = rpc:call(Node, rtransfer_config, restart_link, []).
+    ok = op_worker_rpc:restart_rtransfer_link(Node).
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Checks if the provider has subdomain delegation enabled
-%% needed for Let's Encrypt to be available.
+%% Checks if given Let's Encrypt challenge can be fulfilled.
 %% @end
 %%--------------------------------------------------------------------
 -spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
     boolean().
-supports_letsencrypt_challenge(http) ->
-    service:healthy(name()) andalso
-        service_oneprovider:is_registered(); % unregistered provider does not have a domain
-supports_letsencrypt_challenge(dns) ->
-    try
-        service:healthy(name()) andalso
-            service_oneprovider:is_registered() andalso
-            maps:get(subdomainDelegation, service_oneprovider:get_details(), false)
-    catch
-        _:_ -> false
+supports_letsencrypt_challenge(Challenge) when
+    Challenge == http;
+    Challenge == dns
+->
+    ?MODULE:get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
+    service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    case Challenge of
+        http -> true;
+        dns ->
+            case maps:get(subdomainDelegation, service_oneprovider:get_details(), false) of
+                true -> true;
+                false -> false
+            end
     end;
+
 supports_letsencrypt_challenge(_) -> false.
 
 
@@ -413,10 +708,9 @@ set_http_record(Name, Value) ->
 %% Sets txt record in onezone dns via oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec set_txt_record(Ctx :: service:ctx()) -> ok.
+-spec set_txt_record(Ctx :: service:step_ctx()) -> ok.
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
-    {ok, Node} = nodes:any(name()),
-    ok = rpc:call(Node, provider_logic, set_txt_record, [Name, Value, TTL]).
+    ok = op_worker_rpc:set_txt_record(Name, Value, TTL).
 
 
 %%--------------------------------------------------------------------
@@ -424,10 +718,9 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %% Removes txt record from onezone dns via oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec remove_txt_record(Ctx :: service:ctx()) -> ok.
+-spec remove_txt_record(Ctx :: service:step_ctx()) -> ok.
 remove_txt_record(#{txt_name := Name}) ->
-    {ok, Node} = nodes:any(name()),
-    ok = rpc:call(Node, provider_logic, remove_txt_record, [Name]).
+    ok = op_worker_rpc:remove_txt_record(Name).
 
 
 %%--------------------------------------------------------------------
@@ -463,10 +756,11 @@ get_admin_email() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc {@link onepanel_env:migrate_generated_config/2}
+%% @doc Copies given variables from old app.config file to the "generated"
+%% app config file. Afterwards moves the legacy file to a backup location.
 %% @end
 %%--------------------------------------------------------------------
--spec migrate_generated_config(service:ctx()) -> ok | no_return().
+-spec migrate_generated_config(service:step_ctx()) -> ok | no_return().
 migrate_generated_config(Ctx) ->
     service_cluster_worker:migrate_generated_config(Ctx#{
         name => name(),
@@ -525,9 +819,29 @@ maybe_check_dns() ->
 -spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
 env_write_and_set(Variable, Value) ->
     Node = nodes:local(name()),
-    Path = onepanel_env:get_config_path(name(), generated),
-    onepanel_env:write([name(), Variable], Value, Path),
+    onepanel_env:write([name(), Variable], Value, ?SERVICE_OPW),
     % if op-worker is offline failure can be ignored,
     % the variable will be read on next startup
     catch onepanel_env:set_remote(Node, Variable, Value, name()),
     ok.
+
+
+%%-------------------------------------------------------------------
+%% @private
+%% @doc
+%% Checks if a storage using cephrados helper has a corresponding pool
+%% in the local Ceph cluster.
+%% @end
+%%-------------------------------------------------------------------
+-spec matches_local_ceph_pool
+    (op_worker_storage:storage_details() | op_worker_storage:id()) -> boolean().
+matches_local_ceph_pool(#{type := Type, name := Name, clusterName := ClusterName}) when
+    Type == ?LOCAL_CEPH_STORAGE_TYPE; % when checking against op_worker output
+    Type == ?CEPH_STORAGE_HELPER_NAME % when checking user input
+->
+    service:exists(?SERVICE_CEPH)
+        andalso ceph:get_cluster_name() == ClusterName
+        andalso ceph_pool:exists(Name);
+
+matches_local_ceph_pool(#{}) ->
+    false.
