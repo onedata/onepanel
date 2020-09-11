@@ -62,7 +62,7 @@
 -type od_user_id() :: binary().
 -type space_quota_id() :: od_space_id().
 -type storage_import_config() :: map().
--type auto_storage_import_scan_config() :: map().
+-type auto_storage_import_config() :: map().
 -type storage_id() :: binary().
 -type storage_name() :: binary().
 -type storage_qos_parameters() :: #{binary() => binary()}.
@@ -925,15 +925,15 @@ storage_import_set_manual_import(Node, SpaceId) ->
     ?CALL([Node, SpaceId]).
 
 
--spec storage_import_configure_auto_import(od_space_id(), auto_storage_import_scan_config()) ->
+-spec storage_import_configure_auto_import(od_space_id(), auto_storage_import_config()) ->
     ok | {error, term()}.
-storage_import_configure_auto_import(SpaceId, ScanConfig) ->
-    ?CALL([SpaceId, ScanConfig]).
+storage_import_configure_auto_import(SpaceId, AutoStorageImportConfig) ->
+    ?CALL([SpaceId, AutoStorageImportConfig]).
 
--spec storage_import_configure_auto_import(node(), od_space_id(), auto_storage_import_scan_config()) ->
+-spec storage_import_configure_auto_import(node(), od_space_id(), auto_storage_import_config()) ->
     ok | {error, term()}.
-storage_import_configure_auto_import(Node, SpaceId, ScanConfig) ->
-    ?CALL(Node, [SpaceId, ScanConfig]).
+storage_import_configure_auto_import(Node, SpaceId, AutoStorageImportConfig) ->
+    ?CALL(Node, [SpaceId, AutoStorageImportConfig]).
 
 
 -spec storage_import_start_scan(od_space_id()) ->  ok | {error, term()}.

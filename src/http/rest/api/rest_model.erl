@@ -16,7 +16,7 @@
 -author("Krzysztof Trzepla").
 
 -export([
-    auto_storage_import_model/0,
+    auto_storage_import_config_model/0,
     auto_storage_import_info_model/0,
     auto_storage_import_stats_model/0,
     block_devices_model/0,
@@ -173,8 +173,8 @@
 %% and directories.
 %% @end
 %%--------------------------------------------------------------------
--spec auto_storage_import_model() -> onepanel_parser:object_spec().
-auto_storage_import_model() ->
+-spec auto_storage_import_config_model() -> onepanel_parser:object_spec().
+auto_storage_import_config_model() ->
     #{
         %% Maximum depth of filesystem tree that will be traversed during the
         %% scan.
@@ -1484,7 +1484,7 @@ space_modify_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => {integer, optional},
-        scanConfig => {auto_storage_import_model(), optional}
+        autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1540,9 +1540,9 @@ storage_import_model() ->
         %% `auto` mode, the storage will be automatically scanned and
         %% data will be imported from storage into the assigned Onedata space
         %% without need for copying the data. Configuration of the auto storage
-        %% import can be passed in the `scanConfig` parameter. It is
-        %% possible to enable periodical scans for automatic detection of
-        %% changes on the storage (refer to the option
+        %% import can be passed in the `autoStorageImportConfig`
+        %% parameter. It is possible to enable periodical scans for automatic
+        %% detection of changes on the storage (refer to the option
         %% `continuousScan` in the config). In case of
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
@@ -1550,7 +1550,7 @@ storage_import_model() ->
         %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
         %% /File-registration
         mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
-        scanConfig => {auto_storage_import_model(), optional}
+        autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
 
 %%--------------------------------------------------------------------

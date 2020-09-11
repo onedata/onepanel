@@ -273,12 +273,12 @@ delete(#onp_req{gri = #gri{id = Id, aspect = support}}) ->
 get_storage_import_args(Data, Ctx) ->
     kv_utils:copy_found([
         {[storageImport, mode], [storage_import, mode]},
-        {[storageImport, scanConfig, maxDepth], [storage_import, scan_config, max_depth]},
-        {[storageImport, scanConfig, syncAcl], [storage_import, scan_config, sync_acl]},
-        {[storageImport, scanConfig, continuousScan], [storage_import, scan_config, continuous_scan]},
-        {[storageImport, scanConfig, scanInterval], [storage_import, scan_config, scan_interval]},
-        {[storageImport, scanConfig, detectModifications], [storage_import, scan_config, detect_modifications]},
-        {[storageImport, scanConfig, detectDeletions], [storage_import, scan_config, detect_deletions]}
+        {[storageImport, autoStorageImportConfig, maxDepth], [storage_import, auto_storage_import_config, max_depth]},
+        {[storageImport, autoStorageImportConfig, syncAcl], [storage_import, auto_storage_import_config, sync_acl]},
+        {[storageImport, autoStorageImportConfig, continuousScan], [storage_import, auto_storage_import_config, continuous_scan]},
+        {[storageImport, autoStorageImportConfig, scanInterval], [storage_import, auto_storage_import_config, scan_interval]},
+        {[storageImport, autoStorageImportConfig, detectModifications], [storage_import, auto_storage_import_config, detect_modifications]},
+        {[storageImport, autoStorageImportConfig, detectDeletions], [storage_import, auto_storage_import_config, detect_deletions]}
     ], Data, Ctx).
 
 
@@ -291,12 +291,12 @@ get_storage_import_args(Data, Ctx) ->
     -> service:step_ctx().
 get_auto_storage_import_args(Data, Ctx) ->
     kv_utils:copy_found([
-        {[scanConfig, maxDepth], [scan_config, max_depth]},
-        {[scanConfig, syncAcl], [scan_config, sync_acl]},
-        {[scanConfig, continuousScan], [scan_config, continuous_scan]},
-        {[scanConfig, scanInterval], [scan_config, scan_interval]},
-        {[scanConfig, detectModifications], [scan_config, detect_modifications]},
-        {[scanConfig, detectDeletions], [scan_config, detect_deletions]}
+        {[autoStorageImportConfig, maxDepth], [auto_storage_import_config, max_depth]},
+        {[autoStorageImportConfig, syncAcl], [auto_storage_import_config, sync_acl]},
+        {[autoStorageImportConfig, continuousScan], [auto_storage_import_config, continuous_scan]},
+        {[autoStorageImportConfig, scanInterval], [auto_storage_import_config, scan_interval]},
+        {[autoStorageImportConfig, detectModifications], [auto_storage_import_config, detect_modifications]},
+        {[autoStorageImportConfig, detectDeletions], [auto_storage_import_config, detect_deletions]}
     ], Data, Ctx).
 
 %%-------------------------------------------------------------------
@@ -323,28 +323,22 @@ get_auto_cleaning_configuration(Data, Ctx) ->
 
 -spec validate_metrics(middleware:data()) -> ok.
 validate_metrics(Data) ->
-    case maps:get(metrics, Data, undefined) of
-        undefined -> throw(?ERROR_MISSING_REQUIRED_VALUE(metrics));
-        MetricsJoined ->
-            lists:foreach(fun(Metric) ->
-                case is_supported_metric(Metric) of
-                    true -> ok;
-                    false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"metrics">>, supported_metrics()))
-                end
-            end, binary:split(MetricsJoined, <<",">>, [global, trim]))
-    end.
+    MetricsJoined = maps:get(metrics, Data),
+    lists:foreach(fun(Metric) ->
+        case is_supported_metric(Metric) of
+            true -> ok;
+            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"metrics">>, supported_metrics()))
+        end
+    end, binary:split(MetricsJoined, <<",">>, [global, trim])).
 
 
 -spec validate_period(middleware:data()) -> ok.
 validate_period(Data) ->
-    case maps:get(period, Data, undefined) of
-        undefined -> throw(?ERROR_MISSING_REQUIRED_VALUE(period));
-        Period ->
-            case is_supported_period(Period) of
-                true -> ok;
-                false ->
-                    throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"period">>, supported_periods()))
-            end
+    Period = maps:get(period, Data),
+    case is_supported_period(Period) of
+        true -> ok;
+        false ->
+        throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"period">>, supported_periods()))
     end.
 
 

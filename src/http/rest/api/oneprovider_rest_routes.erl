@@ -232,15 +232,7 @@ routes() ->
                 aspect = auto_storage_import_info,
                 scope = private
             },
-            produces = [<<"application/json">>],
-            data_spec = #{
-                %% Predefined time period for which the statistics should be
-                %% fetched.
-                period => {string, optional},
-                %% Specify which statistic metrics should be returned - strings
-                %% delimited with comma.
-                metrics => {string, optional}
-            }
+            produces = [<<"application/json">>]
         }},
 
         %% Get statistics of auto storage import mechanism.
@@ -256,12 +248,12 @@ routes() ->
             data_spec = #{
                 %% Predefined time period for which the statistics should be
                 %% fetched.
-                period => {string, optional},
+                period => string,
                 %% Specify which statistic metrics should be returned - strings
                 %% delimited with comma. Accepted values are:
                 %% `queueLength`, `importCount`,
                 %% `updateCount`, `deleteCount`
-                metrics => {string, optional}
+                metrics => string
             }
         }},
 

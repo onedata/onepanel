@@ -674,9 +674,9 @@ get_space_details(#{id := SpaceId}) ->
 -spec modify_space(Ctx :: service:step_ctx()) -> #{id => op_worker_rpc:od_space_id()}.
 modify_space(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    StorageImportConfig = maps:get(scan_config, Ctx, #{}),
+    AutoStorageImportConfig = maps:get(auto_storage_import_config, Ctx, #{}),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
-    op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, StorageImportConfig),
+    op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig),
     #{id => SpaceId}.
 
 

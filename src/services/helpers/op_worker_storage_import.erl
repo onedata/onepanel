@@ -59,11 +59,11 @@ maybe_configure_storage_import(Node, SpaceId, StorageImportConfig) ->
 
 
 -spec maybe_reconfigure_storage_import(Node :: node(), SpaceId :: id(), StorageImportArgs :: args()) -> ok.
-maybe_reconfigure_storage_import(_Node, _SpaceId, StorageImportConfig)
-    when map_size(StorageImportConfig) == 0 ->
+maybe_reconfigure_storage_import(_Node, _SpaceId, AutoStorageImportConfig)
+    when map_size(AutoStorageImportConfig) == 0 ->
     ok;
-maybe_reconfigure_storage_import(Node, SpaceId, StorageImportConfig) ->
-    case reconfigure_storage_import(Node, SpaceId, StorageImportConfig) of
+maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig) ->
+    case reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
     end.
@@ -75,12 +75,12 @@ get_storage_import_details(Node, SpaceId) ->
     {ok, StorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
     kv_utils:copy_found([
         {[mode], [mode]},
-        {[scan_config, max_depth], [scanConfig, maxDepth]},
-        {[scan_config, sync_acl], [scanConfig, syncAcl]},
-        {[scan_config, continuous_scan], [scanConfig, continuousScan]},
-        {[scan_config, scan_interval], [scanConfig, scanInterval]},
-        {[scan_config, detect_modifications], [scanConfig, detectModifications]},
-        {[scan_config, detect_deletions], [scanConfig, detectDeletions]}
+        {[auto_storage_import_config, max_depth], [autoStorageImportConfig, maxDepth]},
+        {[auto_storage_import_config, sync_acl], [autoStorageImportConfig, syncAcl]},
+        {[auto_storage_import_config, continuous_scan], [autoStorageImportConfig, continuousScan]},
+        {[auto_storage_import_config, scan_interval], [autoStorageImportConfig, scanInterval]},
+        {[auto_storage_import_config, detect_modifications], [autoStorageImportConfig, detectModifications]},
+        {[auto_storage_import_config, detect_deletions], [autoStorageImportConfig, detectDeletions]}
     ], StorageImportConfig).
 
 
@@ -108,36 +108,36 @@ get_stats(Node, SpaceId, Period, Metrics) ->
 configure_storage_import(Node, SpaceId, StorageImportConfig) ->
     case onepanel_utils:get_converted(mode, StorageImportConfig, binary) of
         <<"auto">> ->
-            ScanConfig = maps:get(scan_config, StorageImportConfig, #{}),
-            configure_auto_storage_import(Node, SpaceId, ScanConfig);
+            AutoStorageImportConfig = maps:get(auto_storage_import_config, StorageImportConfig, #{}),
+            configure_auto_storage_import(Node, SpaceId, AutoStorageImportConfig);
         <<"manual">> ->
             op_worker_rpc:storage_import_set_manual_import(Node, SpaceId)
     end.
 
 
--spec reconfigure_storage_import(Node :: node(), SpaceId :: id(), ScanConfig :: args()) ->
+-spec reconfigure_storage_import(Node :: node(), SpaceId :: id(), AutoStorageImportConfig :: args()) ->
     ok | {error, term()}.
-reconfigure_storage_import(Node, SpaceId, ScanConfig) ->
+reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig) ->
     {ok, CurrentStorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
     CurrentMode = onepanel_utils:get_converted(mode, CurrentStorageImportConfig, binary),
     case CurrentMode of
         <<"auto">> ->
-            configure_auto_storage_import(Node, SpaceId, ScanConfig);
+            configure_auto_storage_import(Node, SpaceId, AutoStorageImportConfig);
         <<"manual">> ->
             % there is nothing to reconfigure in manual mode
             ok
     end.
 
 
--spec configure_auto_storage_import(Node :: node(), SpaceId :: id(), ScanConfig :: args()) ->
+-spec configure_auto_storage_import(Node :: node(), SpaceId :: id(), AutoStorageImportConfig :: args()) ->
     ok | {error, term()}.
-configure_auto_storage_import(Node, SpaceId, ScanConfig) ->
-    ScanConfig2 = maps_utils:remove_undefined(#{
-        max_depth => onepanel_utils:get_converted(max_depth, ScanConfig, integer, undefined),
-        scan_interval => onepanel_utils:get_converted(scan_interval, ScanConfig, integer, undefined),
-        continuous_scan => onepanel_utils:get_converted(continuous_scan, ScanConfig, boolean, undefined),
-        detect_modifications => onepanel_utils:get_converted(detect_modifications, ScanConfig, boolean, undefined),
-        detect_deletions => onepanel_utils:get_converted(detect_deletions, ScanConfig, boolean, undefined),
-        sync_acl => onepanel_utils:get_converted(sync_acl, ScanConfig, boolean, undefined)
+configure_auto_storage_import(Node, SpaceId, AutoStorageImportConfig) ->
+    AutoStorageImportConfig2 = maps_utils:remove_undefined(#{
+        max_depth => onepanel_utils:get_converted(max_depth, AutoStorageImportConfig, integer, undefined),
+        scan_interval => onepanel_utils:get_converted(scan_interval, AutoStorageImportConfig, integer, undefined),
+        continuous_scan => onepanel_utils:get_converted(continuous_scan, AutoStorageImportConfig, boolean, undefined),
+        detect_modifications => onepanel_utils:get_converted(detect_modifications, AutoStorageImportConfig, boolean, undefined),
+        detect_deletions => onepanel_utils:get_converted(detect_deletions, AutoStorageImportConfig, boolean, undefined),
+        sync_acl => onepanel_utils:get_converted(sync_acl, AutoStorageImportConfig, boolean, undefined)
     }),
-    op_worker_rpc:storage_import_configure_auto_import(Node, SpaceId, ScanConfig2).
+    op_worker_rpc:storage_import_configure_auto_import(Node, SpaceId, AutoStorageImportConfig2).

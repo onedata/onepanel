@@ -341,7 +341,7 @@ all() ->
 
 -define(STORAGE_IMPORT_DETAILS_JSON, #{
     <<"mode">> => <<"auto">>,
-    <<"scanConfig">> => ?AUTO_SCAN_CONFIG_JSON
+    <<"autoStorageImportConfig">> => ?AUTO_SCAN_CONFIG_JSON
 }).
 
 -define(AUTO_SCAN_CONFIG_JSON, #{
@@ -780,7 +780,7 @@ patch_should_configure_auto_storage_import(Config) ->
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
-                    <<"scanConfig">> => ?AUTO_SCAN_CONFIG_JSON
+                    <<"autoStorageImportConfig">> => ?AUTO_SCAN_CONFIG_JSON
                 }
             )
         )
