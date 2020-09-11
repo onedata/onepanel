@@ -264,6 +264,8 @@ CHANGELOG
 -   VFS-6035 Add VM option that forbids terminating the node with Ctrl +
     C
 
+### 19.02.4
+
 ### 19.02.3
 
 -   Releasing new version 19.02.3
