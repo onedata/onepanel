@@ -24,6 +24,7 @@
 -export([start_scan/2, stop_scan/2]).
 -export([maybe_configure_storage_import/3, maybe_reconfigure_storage_import/3]).
 -export([get_storage_import_details/2, get_stats/4, get_info/2]).
+-export([get_manual_example/2]).
 
 -export_type([period/0, metric_type/0]).
 
@@ -96,6 +97,12 @@ get_stats(Node, SpaceId, Period, Metrics) ->
     {ok, Results} = op_worker_rpc:storage_import_get_stats(
         Node, SpaceId, Metrics, binary_to_atom(Period, utf8)),
     Results.
+
+
+-spec get_manual_example(Node :: node(), SpaceId :: id()) -> json_utils:json_term().
+get_manual_example(Node, SpaceId) ->
+    {ok, ExampleCurl} = op_worker_rpc:storage_import_get_manual_example(Node, SpaceId),
+    #{curl => ExampleCurl}.
 
 
 %%%===================================================================

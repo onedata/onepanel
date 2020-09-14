@@ -154,6 +154,7 @@
 -export([storage_import_stop_scan/1, storage_import_stop_scan/2]).
 -export([storage_import_get_stats/3, storage_import_get_stats/4]).
 -export([storage_import_get_info/1, storage_import_get_info/2]).
+-export([storage_import_get_manual_example/1, storage_import_get_manual_example/2]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
 -export([set_txt_record/3, set_txt_record/4]).
 -export([remove_txt_record/1, remove_txt_record/2]).
@@ -975,6 +976,17 @@ storage_import_get_info(SpaceId) ->
 -spec storage_import_get_info(node(), od_space_id()) ->
     {ok, json_utils:json_term()}.
 storage_import_get_info(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
+
+
+-spec storage_import_get_manual_example(od_space_id()) ->
+    {ok, json_utils:json_term()}.
+storage_import_get_manual_example(SpaceId) ->
+    ?CALL([SpaceId]).
+
+-spec storage_import_get_manual_example(node(), od_space_id()) ->
+    {ok, json_utils:json_term()}.
+storage_import_get_manual_example(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

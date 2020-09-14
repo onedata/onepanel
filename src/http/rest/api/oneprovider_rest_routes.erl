@@ -441,6 +441,18 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
+        %% Get manual storage import example.
+        {<<"/provider/spaces/:id/storage-import/manual/example">>, #rest_req{
+            method = 'GET',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = manual_storage_import_example,
+                scope = private
+            },
+            produces = [<<"application/json">>]
+        }},
+
         %% Get Onezone information
         {<<"/provider/onezone_info">>, #rest_req{
             method = 'GET',

@@ -81,7 +81,7 @@
     modify_details/1, get_details/0, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
-    get_auto_storage_import_stats/1, get_auto_storage_import_info/1,
+    get_auto_storage_import_stats/1, get_auto_storage_import_info/1, get_manual_storage_import_example/1,
     get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
     get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1,
     force_start_auto_storage_import_scan/1, force_stop_auto_storage_import_scan/1,
@@ -321,6 +321,7 @@ get_steps(Action, Ctx) when
     Action =:= force_stop_auto_storage_import_scan;
     Action =:= get_auto_storage_import_stats;
     Action =:= get_auto_storage_import_info;
+    Action =:= get_manual_storage_import_example;
     Action =:= configure_file_popularity;
     Action =:= configure_auto_cleaning
     ->
@@ -707,6 +708,12 @@ get_auto_storage_import_stats(#{space_id := SpaceId} = Ctx) ->
 get_auto_storage_import_info(#{space_id := SpaceId})->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     op_worker_storage_import:get_info(Node, SpaceId).
+
+
+-spec get_manual_storage_import_example(Ctx :: service:step_ctx()) -> json_utils:json_term().
+get_manual_storage_import_example(#{space_id := SpaceId})->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_storage_import:get_manual_example(Node, SpaceId).
 
 
 %%--------------------------------------------------------------------

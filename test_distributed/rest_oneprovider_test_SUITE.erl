@@ -65,6 +65,7 @@
     get_should_return_auto_storage_import_info/1,
     post_should_start_auto_storage_import_scan/1,
     post_should_stop_auto_storage_import_scan/1,
+    get_should_return_manual_storage_import_example/1,
 
     % tests of LUMA endpoints
     get_should_return_luma_configuration/1,
@@ -111,7 +112,7 @@
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
-        method_should_return_forbidden_error,
+        method_should_return_forbidden_erroget_should_return_manual_storage_import_exampler,
         method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
         get_should_return_provider_details,
@@ -144,6 +145,7 @@ all() ->
         get_should_return_auto_storage_import_info,
         post_should_start_auto_storage_import_scan,
         post_should_stop_auto_storage_import_scan,
+        get_should_return_manual_storage_import_example,
 
         % tests of LUMA endpoints
         get_should_return_luma_configuration,
@@ -202,10 +204,12 @@ all() ->
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
+
     {<<"/provider/spaces/someSpaceId/storage-import/auto/stats">>, get},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/info">>, get},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/force-start">>, post},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/force-stop">>, post},
+    {<<"/provider/spaces/someSpaceId/storage-import/manual/example">>, get},
 
     {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, get},
     {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, patch},
@@ -493,6 +497,11 @@ all() ->
         <<"values">> => [9,9,9,9,9,9]
     }
 }).
+
+-define(MANUAL_STORAGE_IMPORT_EXAMPLE, #{
+    <<"curl">> => <<"EXAMPLE CURL">>
+}).
+
 
 %%%===================================================================
 %%% Test functions
@@ -999,6 +1008,18 @@ post_should_stop_auto_storage_import_scan(Config) ->
         ?assertReceivedMatch({service, oneprovider, force_stop_auto_storage_import_scan, #{
             space_id := <<"someId">>
         }}, ?TIMEOUT)
+    end).
+
+
+get_should_return_manual_storage_import_example(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/storage-import/manual/example">>, get,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?MANUAL_STORAGE_IMPORT_EXAMPLE)
     end).
 
 
@@ -1783,6 +1804,26 @@ init_per_testcase(get_should_return_auto_storage_import_info, Config) ->
         #step_end{module = service_oneprovider, function = get_auto_storage_import_info,
             good_bad_results = {
                 [{'node@host1', keys_to_atoms(?AUTO_STORAGE_IMPORT_INFO)}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_manual_storage_import_example, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_manual_storage_import_example,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?MANUAL_STORAGE_IMPORT_EXAMPLE)}], []
             }},
         #action_end{service = service, action = action, result = ok}
     ]

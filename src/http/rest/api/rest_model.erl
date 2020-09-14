@@ -65,6 +65,7 @@
     luma_storage_user_model/0,
     luma_user_mapping_model/0,
     manager_hosts_model/0,
+    manual_storage_import_example_model/0,
     modify_cluster_ips_model/0,
     node_model/0,
     onezone_info_model/0,
@@ -858,6 +859,19 @@ manager_hosts_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Example `curl` command that can be executed to manually import
+%% (register) file from storage. For more info please read:
+%% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
+%% registration
+%% @end
+%%--------------------------------------------------------------------
+-spec manual_storage_import_example_model() -> onepanel_parser:object_spec().
+manual_storage_import_example_model() ->
+    #{
+        curl => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc External IPs used by cluster nodes.
 %% @end
 %%--------------------------------------------------------------------
@@ -1537,14 +1551,14 @@ storage_get_details_model() ->
 -spec storage_import_model() -> onepanel_parser:object_spec().
 storage_import_model() ->
     #{
-        %% Mode of the storage import within the space. In case of
+        %% Mode of the storage import within the space.  In case of
         %% `auto` mode, the storage will be automatically scanned and
         %% data will be imported from storage into the assigned Onedata space
-        %% without need for copying the data. Configuration of the auto storage
+        %% without need for copying the data.  Configuration of the auto storage
         %% import can be passed in the `autoStorageImportConfig`
         %% parameter. It is possible to enable periodical scans for automatic
         %% detection of changes on the storage (refer to the option
-        %% `continuousScan` in the config). In case of
+        %% `continuousScan` in the config).  In case of
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
         %% supported. For more info please read:
