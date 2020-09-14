@@ -251,8 +251,8 @@ routes() ->
                 period => string,
                 %% Specify which statistic metrics should be returned - strings
                 %% delimited with comma. Accepted values are:
-                %% `queueLength`, `importCount`,
-                %% `updateCount`, `deleteCount`
+                %% `queueLength`, `createdFiles`,
+                %% `modifiedFiles`, `deletedFiles`
                 metrics => string
             }
         }},

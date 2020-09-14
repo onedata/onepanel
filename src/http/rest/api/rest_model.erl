@@ -215,14 +215,14 @@ auto_storage_import_info_model() ->
         start => integer,
         %% Time at which current (or last finished) scan has been stopped.
         stop => integer,
-        %% Counter of files that has been imported during current (or last
-        %% finished) scan.
-        importedFiles => integer,
-        %% Counter of files that has been updated during current (or last
-        %% finished) scan.
-        updatedFiles => integer,
-        %% Counter of files that has been deleted during current (or last
-        %% finished) scan.
+        %% Counter of created files that has been detected during current (or
+        %% last finished) scan.
+        createdFiles => integer,
+        %% Counter of modified files that has been detected during current (or
+        %% last finished) scan.
+        modifiedFiles => integer,
+        %% Counter of deleted files that has been detected during current (or
+        %% last finished) scan.
         deletedFiles => integer,
         %% Estimated time at which next scan will be enqueued.
         nextScan => {integer, optional},
@@ -240,12 +240,13 @@ auto_storage_import_stats_model() ->
     #{
         %% Statistics of auto storage import jobs queue length.
         queueLength => {time_stats_model(), optional},
-        %% Statistics of imported files count by auto storage import.
-        importCount => {time_stats_model(), optional},
-        %% Statistics of updated files count by auto storage import.
-        updateCount => {time_stats_model(), optional},
-        %% Statistics of deleted files count by auto storage import.
-        deleteCount => {time_stats_model(), optional}
+        %% Statistics of count of created files detected by auto storage import.
+        createdFiles => {time_stats_model(), optional},
+        %% Statistics of count of modified files detected by auto storage
+        %% import.
+        modifiedFiles => {time_stats_model(), optional},
+        %% Statistics of count of deleted files detected by auto storage import.
+        deletedFiles => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------

@@ -476,8 +476,8 @@ all() ->
     <<"status">> => <<"completed">>,
     <<"start">> => 1599745646,
     <<"stop">> => 1599745706,
-    <<"importedFiles">> => 1000,
-    <<"updatedFiles">> => 2000,
+    <<"createdFiles">> => 1000,
+    <<"modifiedFiles">> => 2000,
     <<"deletedFiles">> => 3000,
     <<"nextScan">> => 1599745776,
     <<"totalScans">> => 1234
@@ -488,7 +488,7 @@ all() ->
         <<"lastValueDate">> => <<"someDate">>,
         <<"values">> => [1,2,3,4,5,6]
     },
-    <<"importCount">> => #{
+    <<"createdFiles">> => #{
         <<"lastValueDate">> => <<"someDate2">>,
         <<"values">> => [9,9,9,9,9,9]
     }
@@ -952,7 +952,7 @@ get_should_return_auto_storage_import_stats(Config) ->
     ?eachHost(Config, fun(Host) ->
         {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
             onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces/someId/storage-import/auto/stats?period=minute&metrics=queueLength,importCount">>, get,
+                Host, <<"/provider/spaces/someId/storage-import/auto/stats?period=minute&metrics=queueLength,createdFiles">>, get,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
             )
         ),

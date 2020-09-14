@@ -17,7 +17,7 @@
 
 -type id() :: binary().
 -type args() :: map().
--type metric_type() :: binary(). % <<"queueLength">>, <<"importCount">>, <<"updateCount">>, <<"deleteCount">>
+-type metric_type() :: binary(). % <<"queueLength">>, <<"createdFiles">>, <<"modifiedFiles">>, <<"deletedFiles">>
 -type period() :: binary(). % <<"minute">>, <<"hour">>, <<"day">>
 
 %% API

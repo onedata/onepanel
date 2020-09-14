@@ -359,4 +359,4 @@ is_supported_metric(Metric) ->
 
 -spec supported_metrics() -> [op_worker_storage_import:metric_type()].
 supported_metrics() ->
-    [<<"queueLength">>, <<"importCount">>, <<"updateCount">>, <<"deleteCount">>].
+    [<<"queueLength">>, <<"createdFiles">>, <<"modifiedFiles">>, <<"deletedFiles">>].
