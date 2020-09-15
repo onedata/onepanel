@@ -112,7 +112,7 @@
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
-        method_should_return_forbidden_erroget_should_return_manual_storage_import_exampler,
+        method_should_return_forbidden_error,
         method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
         get_should_return_provider_details,
