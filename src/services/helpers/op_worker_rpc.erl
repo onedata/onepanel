@@ -907,12 +907,12 @@ get_root_token_file_path(Node) ->
 
 
 -spec storage_import_get_configuration(od_space_id()) ->
-    {ok, storage_import_config()}.
+    {ok, storage_import_config()} | {error, term()}.
 storage_import_get_configuration(SpaceId) ->
     ?CALL([SpaceId]).
 
 -spec storage_import_get_configuration(node(), od_space_id()) ->
-    {ok, storage_import_config()}.
+    {ok, storage_import_config()} | {error, term()}.
 storage_import_get_configuration(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
