@@ -656,7 +656,7 @@ get_space_details(#{id := SpaceId}) ->
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
     StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
-    #{
+    maps_utils:remove_undefined(#{
         id => SpaceId,
         importedStorage => ImportedStorage,
         localStorages => StorageIds,
@@ -665,7 +665,7 @@ get_space_details(#{id := SpaceId}) ->
         storageId => StorageId,
         storageImport => StorageImportDetails,
         supportingProviders => Providers
-    }.
+    }).
 
 
 %%--------------------------------------------------------------------

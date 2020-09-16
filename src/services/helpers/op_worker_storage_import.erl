@@ -71,18 +71,22 @@ maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig) ->
 
 
 -spec get_storage_import_details(node(), SpaceId :: id()) ->
-    #{atom() => json_utils:json_term()}.
+    #{atom() => json_utils:json_term()} | undefined.
 get_storage_import_details(Node, SpaceId) ->
-    {ok, StorageImportConfig} = op_worker_rpc:storage_import_get_configuration(Node, SpaceId),
-    kv_utils:copy_found([
-        {[mode], [mode]},
-        {[auto_storage_import_config, max_depth], [autoStorageImportConfig, maxDepth]},
-        {[auto_storage_import_config, sync_acl], [autoStorageImportConfig, syncAcl]},
-        {[auto_storage_import_config, continuous_scan], [autoStorageImportConfig, continuousScan]},
-        {[auto_storage_import_config, scan_interval], [autoStorageImportConfig, scanInterval]},
-        {[auto_storage_import_config, detect_modifications], [autoStorageImportConfig, detectModifications]},
-        {[auto_storage_import_config, detect_deletions], [autoStorageImportConfig, detectDeletions]}
-    ], StorageImportConfig).
+    case op_worker_rpc:storage_import_get_configuration(Node, SpaceId) of
+        {ok, StorageImportConfig} ->
+            kv_utils:copy_found([
+                {[mode], [mode]},
+                {[auto_storage_import_config, max_depth], [autoStorageImportConfig, maxDepth]},
+                {[auto_storage_import_config, sync_acl], [autoStorageImportConfig, syncAcl]},
+                {[auto_storage_import_config, continuous_scan], [autoStorageImportConfig, continuousScan]},
+                {[auto_storage_import_config, scan_interval], [autoStorageImportConfig, scanInterval]},
+                {[auto_storage_import_config, detect_modifications], [autoStorageImportConfig, detectModifications]},
+                {[auto_storage_import_config, detect_deletions], [autoStorageImportConfig, detectDeletions]}
+            ], StorageImportConfig);
+        {error, not_found} ->
+            undefined
+    end.
 
 
 -spec get_info(Node :: node(), SpaceId :: id()) -> json_utils:json_term().
