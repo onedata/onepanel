@@ -923,7 +923,7 @@ storage_import_set_manual_import(SpaceId) ->
 
 -spec storage_import_set_manual_import(node(), od_space_id()) -> ok | {error, term()}.
 storage_import_set_manual_import(Node, SpaceId) ->
-    ?CALL([Node, SpaceId]).
+    ?CALL(Node, [SpaceId]).
 
 
 -spec storage_import_configure_auto_import(od_space_id(), auto_storage_import_config()) ->
