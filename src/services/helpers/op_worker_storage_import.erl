@@ -91,16 +91,19 @@ get_storage_import_details(Node, SpaceId) ->
 
 -spec get_info(Node :: node(), SpaceId :: id()) -> json_utils:json_term().
 get_info(Node, SpaceId) ->
-    {ok, Info} = op_worker_rpc:storage_import_get_info(Node, SpaceId),
-    Info.
+    case op_worker_rpc:storage_import_get_info(Node, SpaceId) of
+        {ok, Info} -> Info;
+        Error -> throw(Error)
+    end.
 
 
 -spec get_stats(Node :: node(), SpaceId :: id(), Period :: binary(),
     Metrics :: [binary()]) -> json_utils:json_term().
 get_stats(Node, SpaceId, Period, Metrics) ->
-    {ok, Results} = op_worker_rpc:storage_import_get_stats(
-        Node, SpaceId, Metrics, binary_to_atom(Period, utf8)),
-    Results.
+    case op_worker_rpc:storage_import_get_stats(Node, SpaceId, Metrics, binary_to_atom(Period, utf8)) of
+        {ok, Results} -> Results;
+        Error -> throw(Error)
+    end.
 
 
 -spec get_manual_example(Node :: node(), SpaceId :: id()) -> json_utils:json_term().
