@@ -957,24 +957,24 @@ storage_import_stop_scan(Node, SpaceId) ->
 
 -spec storage_import_get_stats(od_space_id(),
     [storage_import_monitoring_plot_counter_type()],
-    storage_import_monitoring_window()) -> {ok, json_utils:json_term()}.
+    storage_import_monitoring_window()) -> {ok, json_utils:json_term()} | {error, term()}.
 storage_import_get_stats(SpaceId, Types, Window) ->
     ?CALL([SpaceId, Types, Window]).
 
 -spec storage_import_get_stats(node(), od_space_id(),
     [storage_import_monitoring_plot_counter_type()],
-    storage_import_monitoring_window()) -> {ok, json_utils:json_term()}.
+    storage_import_monitoring_window()) -> {ok, json_utils:json_term()} | {error, term()}.
 storage_import_get_stats(Node, SpaceId, Types, Window) ->
     ?CALL(Node, [SpaceId, Types, Window]).
 
 
 -spec storage_import_get_info(od_space_id()) ->
-    {ok, json_utils:json_term()}.
+    {ok, json_utils:json_term()} | {error, term()}.
 storage_import_get_info(SpaceId) ->
     ?CALL([SpaceId]).
 
 -spec storage_import_get_info(node(), od_space_id()) ->
-    {ok, json_utils:json_term()}.
+    {ok, json_utils:json_term()} | {error, term()}.
 storage_import_get_info(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
