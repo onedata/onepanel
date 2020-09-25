@@ -49,9 +49,6 @@ stop_scan(Node, SpaceId) ->
 
 
 -spec maybe_configure_storage_import(Node :: node(), SpaceId :: id(), StorageImportArgs :: args()) -> ok.
-maybe_configure_storage_import(_Node, _SpaceId, StorageImportConfig)
-    when map_size(StorageImportConfig) == 0 ->
-    ok;
 maybe_configure_storage_import(Node, SpaceId, StorageImportConfig) ->
     case configure_storage_import(Node, SpaceId, StorageImportConfig) of
         ok -> ok;
@@ -120,7 +117,7 @@ get_manual_example(Node, SpaceId) ->
 -spec configure_storage_import(Node :: node(), SpaceId :: id(), StorageImportConfig :: args()) ->
     ok | {error, term()}.
 configure_storage_import(Node, SpaceId, StorageImportConfig) ->
-    case onepanel_utils:get_converted(mode, StorageImportConfig, binary) of
+    case onepanel_utils:get_converted(mode, StorageImportConfig, binary, <<"auto">>) of
         <<"auto">> ->
             AutoStorageImportConfig = maps:get(auto_storage_import_config, StorageImportConfig, #{}),
             configure_auto_storage_import(Node, SpaceId, AutoStorageImportConfig);

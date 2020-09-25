@@ -607,7 +607,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     Token = onepanel_utils:get_converted(token, Ctx, binary),
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
-        {ok, SpaceId} -> configure_space(Node, SpaceId, Ctx);
+        {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
         Error -> throw(Error)
     end.
 
@@ -1186,10 +1186,16 @@ assert_storage_exists(Node, StorageId) ->
 %% Configures storage of a supported space.
 %% @end
 %%--------------------------------------------------------------------
--spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:step_ctx()) -> Id :: binary().
-configure_space(Node, SpaceId, Ctx) ->
-    StorageImportConfig = maps:get(storage_import, Ctx, #{}),
-    op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageImportConfig),
+-spec configure_space(OpNode :: node(), SpaceId :: binary(), StorageId :: binary(),
+    Ctx :: service:step_ctx()) -> Id :: binary().
+configure_space(Node, SpaceId, StorageId, Ctx) ->
+    case op_worker_storage:is_imported_storage(Node, StorageId) of
+        true ->
+            StorageImportConfig = maps:get(storage_import, Ctx),
+            op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageImportConfig);
+        false ->
+            ok
+    end,
     SpaceId.
 
 
