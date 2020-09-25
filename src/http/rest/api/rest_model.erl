@@ -16,6 +16,9 @@
 -author("Krzysztof Trzepla").
 
 -export([
+    auto_storage_import_config_model/0,
+    auto_storage_import_info_model/0,
+    auto_storage_import_stats_model/0,
     block_devices_model/0,
     block_devices_block_devices_model/0,
     ceph_global_params_model/0,
@@ -62,6 +65,7 @@
     luma_storage_user_model/0,
     luma_user_mapping_model/0,
     manager_hosts_model/0,
+    manual_storage_import_example_model/0,
     modify_cluster_ips_model/0,
     node_model/0,
     onezone_info_model/0,
@@ -97,18 +101,15 @@
     space_file_popularity_configuration_model/0,
     space_modify_request_model/0,
     space_support_request_model/0,
-    space_sync_stats_model/0,
     storage_create_details_model/0,
     storage_create_request_model/0,
     storage_get_details_model/0,
-    storage_import_details_model/0,
+    storage_import_model/0,
     storage_modify_details_model/0,
     storage_modify_request_model/0,
-    storage_update_details_model/0,
     task_id_model/0,
     task_status_model/0,
     time_stats_model/0,
-    time_stats_collection_model/0,
     token_model/0,
     transfers_mock_model/0,
     version_info_model/0,
@@ -166,6 +167,88 @@
     xrootd_modify_model/0
 ]).
 
+
+%%--------------------------------------------------------------------
+%% @doc Configuration of auto storage import mechanism. The auto import is based
+%% on scans - gradual traversing of the file system and registration of files
+%% and directories.
+%% @end
+%%--------------------------------------------------------------------
+-spec auto_storage_import_config_model() -> onepanel_parser:object_spec().
+auto_storage_import_config_model() ->
+    #{
+        %% Maximum depth of filesystem tree that will be traversed during the
+        %% scan.
+        maxDepth => {integer, optional},
+        %% Flag that enables synchronization of NFSv4 ACLs.
+        syncAcl => {boolean, optional},
+        %% With this option enabled the storage will be scanned periodically and
+        %% direct changes on the storage will be reflected in the assigned
+        %% Onedata space (upon the consecutive scan).
+        continuousScan => {boolean, optional},
+        %% Period between subsequent scans in seconds (counted from end of one
+        %% scan till beginning of the following). This parameter is relevant
+        %% only for continuous scans.
+        scanInterval => {integer, optional},
+        %% Flag determining that modifications of files on the synchronized
+        %% storage will be detected. If disabled, the storage will be treated as
+        %% immutable (only creations and deletions of files on storage will be
+        %% detected). This parameter is relevant only for continuous scans.
+        detectModifications => {boolean, optional},
+        %% Flag determining that deletions of files from the synchronized
+        %% storage will be detected. This parameter is relevant only for
+        %% continuous scans.
+        detectDeletions => {boolean, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Information about current (or last finished) auto storage import scan in
+%% given space.
+%% @end
+%%--------------------------------------------------------------------
+-spec auto_storage_import_info_model() -> onepanel_parser:object_spec().
+auto_storage_import_info_model() ->
+    #{
+        %% Describes status of current (or last finished) auto storage import
+        %% scan in given space.
+        status => {enum, string, [<<"enqueued">>, <<"running">>, <<"aborting">>, <<"completed">>, <<"failed">>, <<"aborted">>]},
+        %% Time at which current (or last finished) scan has been started.
+        start => integer,
+        %% Time at which current (or last finished) scan has been stopped.
+        stop => integer,
+        %% Counter of created files that has been detected during current (or
+        %% last finished) scan.
+        createdFiles => integer,
+        %% Counter of modified files that has been detected during current (or
+        %% last finished) scan.
+        modifiedFiles => integer,
+        %% Counter of deleted files that has been detected during current (or
+        %% last finished) scan.
+        deletedFiles => integer,
+        %% Estimated time at which next scan will be enqueued.
+        nextScan => {integer, optional},
+        %% Total number of performed scans.
+        totalScans => integer
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Statistics of auto storage import mechanism in given space over
+%% specified time.
+%% @end
+%%--------------------------------------------------------------------
+-spec auto_storage_import_stats_model() -> onepanel_parser:object_spec().
+auto_storage_import_stats_model() ->
+    #{
+        %% Statistics of auto storage import jobs queue length.
+        queueLength => {time_stats_model(), optional},
+        %% Statistics of count of created files detected by auto storage import.
+        createdFiles => {time_stats_model(), optional},
+        %% Statistics of count of modified files detected by auto storage
+        %% import.
+        modifiedFiles => {time_stats_model(), optional},
+        %% Statistics of count of deleted files detected by auto storage import.
+        deletedFiles => {time_stats_model(), optional}
+    }.
 
 %%--------------------------------------------------------------------
 %% @doc List of block device descriptions.
@@ -776,6 +859,19 @@ manager_hosts_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc Example `curl` command that can be executed to manually import
+%% (register) file from storage. For more info please read:
+%% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
+%% registration
+%% @end
+%%--------------------------------------------------------------------
+-spec manual_storage_import_example_model() -> onepanel_parser:object_spec().
+manual_storage_import_example_model() ->
+    #{
+        curl => string
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc External IPs used by cluster nodes.
 %% @end
 %%--------------------------------------------------------------------
@@ -1366,8 +1462,7 @@ space_details_model() ->
         %% The collection of provider IDs with associated supported storage
         %% space in bytes.
         supportingProviders => #{'_' => integer},
-        storageImport => {storage_import_details_model(), optional},
-        storageUpdate => {storage_update_details_model(), optional},
+        storageImport => {storage_import_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
     }.
@@ -1404,8 +1499,7 @@ space_modify_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => {integer, optional},
-        storageImport => {storage_import_details_model(), optional},
-        storageUpdate => {storage_update_details_model(), optional}
+        autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1423,23 +1517,7 @@ space_support_request_model() ->
         size => integer,
         %% The Id of the storage resource where the space data should be stored.
         storageId => string,
-        storageImport => {storage_import_details_model(), optional},
-        storageUpdate => {storage_update_details_model(), optional}
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc Status and statistics of storage/space synchronization.
-%% @end
-%%--------------------------------------------------------------------
--spec space_sync_stats_model() -> onepanel_parser:object_spec().
-space_sync_stats_model() ->
-    #{
-        %% Describes import algorithm run status.
-        importStatus => {enum, string, [<<"inProgress">>, <<"done">>]},
-        %% Describes update algorithm run status.
-        updateStatus => {{enum, string, [<<"waiting">>, <<"inProgress">>]}, optional},
-        %% Collection of statistics for requested metrics.
-        stats => {time_stats_collection_model(), optional}
+        storageImport => {storage_import_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1467,20 +1545,27 @@ storage_get_details_model() ->
     {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
 
 %%--------------------------------------------------------------------
-%% @doc The storage import configuration. Storage import allows to import data
-%% from storage to space without need for copying the data.
+%% @doc Configuration of the storage import within the space.
 %% @end
 %%--------------------------------------------------------------------
--spec storage_import_details_model() -> onepanel_parser:object_spec().
-storage_import_details_model() ->
+-spec storage_import_model() -> onepanel_parser:object_spec().
+storage_import_model() ->
     #{
-        %% The import strategy. One of no_import, simple_scan.
-        strategy => string,
-        %% Maximum depth of filesystem tree that will be traversed during
-        %% storage synchronization.
-        maxDepth => {integer, optional},
-        %% Flag that enables synchronization of NFSv4 ACLs.
-        syncAcl => {boolean, optional}
+        %% Mode of the storage import within the space.  In case of
+        %% `auto` mode, the storage will be automatically scanned and
+        %% data will be imported from storage into the assigned Onedata space
+        %% without need for copying the data.  Configuration of the auto storage
+        %% import can be passed in the `autoStorageImportConfig`
+        %% parameter. It is possible to enable periodical scans for automatic
+        %% detection of changes on the storage (refer to the option
+        %% `continuousScan` in the config).  In case of
+        %% `manual` mode, the files must be registered manually by the
+        %% space users with REST API. Registration of directories is not
+        %% supported. For more info please read:
+        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
+        %% /File-registration
+        mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
+        autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1502,32 +1587,6 @@ storage_modify_details_model() ->
 -spec storage_modify_request_model() -> onepanel_parser:object_spec().
 storage_modify_request_model() ->
     #{'_' => storage_modify_details_model()}.
-
-%%--------------------------------------------------------------------
-%% @doc The storage update configuration. Storage update ensures that all
-%% changes on storage will be reflected in space.
-%% @end
-%%--------------------------------------------------------------------
--spec storage_update_details_model() -> onepanel_parser:object_spec().
-storage_update_details_model() ->
-    #{
-        %% The update strategy. One of no_update, simple_scan.
-        strategy => string,
-        %% Maximum depth of filesystem tree that will be traversed during
-        %% storage synchronization.
-        maxDepth => {integer, optional},
-        %% Period between subsequent scans in seconds (counted from end of one
-        %% scan till beginning of the following).
-        scanInterval => {integer, optional},
-        %% Flag determining that synchronized storage will be treated as
-        %% immutable (only creations and deletions of files on storage will be
-        %% detected).
-        writeOnce => {boolean, optional},
-        %% Flag determining that deletions of files will be detected.
-        deleteEnable => {boolean, optional},
-        %% Flag that enables synchronization of NFSv4 ACLs.
-        syncAcl => {boolean, optional}
-    }.
 
 %%--------------------------------------------------------------------
 %% @doc Object providing task Id of the started task.
@@ -1557,41 +1616,20 @@ task_status_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Statistics for single metric over specified time.
+%% @doc Statistics of single metric over specified time.
 %% @end
 %%--------------------------------------------------------------------
 -spec time_stats_model() -> onepanel_parser:object_spec().
 time_stats_model() ->
     #{
-        %% Name of metric for which this object holds statistics.
-        name => {enum, string, [<<"queueLength">>, <<"insertCount">>, <<"updateCount">>, <<"deleteCount">>]},
         %% Date of last measurement value in this object in ISO 8601 format.
         lastValueDate => string,
-        %% Predefined time period for which the statistics were fetched.
-        period => {{enum, string, [<<"minute">>, <<"hour">>, <<"day">>]}, optional},
         %% List of sample values for given metric. The used period is divided
         %% into array-length number of parts. E.g. if the used period is an
         %% hour, and if there are 12 values in this array, every value is a
         %% value for 1/12 of day, which gives value for every hour of the day.
         %% If the value is null, there is no sample for given time part.
         values => [number]
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc Statistics for single metric over specified time.
-%% @end
-%%--------------------------------------------------------------------
--spec time_stats_collection_model() -> onepanel_parser:object_spec().
-time_stats_collection_model() ->
-    #{
-        %% Statistics of storage sync jobs queue length.
-        queueLength => {time_stats_model(), optional},
-        %% Statistics of storage sync imported files.
-        insertCount => {time_stats_model(), optional},
-        %% Statistics of storage sync updated files.
-        updateCount => {time_stats_model(), optional},
-        %% Statistics of storage sync deleted files.
-        deleteCount => {time_stats_model(), optional}
     }.
 
 %%--------------------------------------------------------------------

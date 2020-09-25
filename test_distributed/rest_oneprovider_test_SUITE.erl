@@ -49,7 +49,7 @@
     get_should_return_storages/1,
     get_should_return_storage/1,
     post_should_add_storage/1,
-    patch_should_configure_storage_update/1,
+    patch_should_configure_auto_storage_import/1,
     patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
     get_should_return_autocleaning_report/1,
@@ -61,6 +61,11 @@
     patch_should_update_auto_cleaning/1,
     patch_with_incomplete_config_should_update_auto_cleaning/1,
     patch_with_incorrect_config_should_fail/1,
+    get_should_return_auto_storage_import_stats/1,
+    get_should_return_auto_storage_import_info/1,
+    post_should_start_auto_storage_import_scan/1,
+    post_should_stop_auto_storage_import_scan/1,
+    get_should_return_manual_storage_import_example/1,
 
     % tests of LUMA endpoints
     get_should_return_luma_configuration/1,
@@ -124,7 +129,7 @@ all() ->
         get_should_return_storages,
         get_should_return_storage,
         post_should_add_storage,
-        patch_should_configure_storage_update,
+        patch_should_configure_auto_storage_import,
         patch_should_update_storage,
         get_should_return_autocleaning_reports,
         get_should_return_autocleaning_report,
@@ -136,6 +141,11 @@ all() ->
         patch_should_update_auto_cleaning,
         patch_with_incomplete_config_should_update_auto_cleaning,
         patch_with_incorrect_config_should_fail,
+        get_should_return_auto_storage_import_stats,
+        get_should_return_auto_storage_import_info,
+        post_should_start_auto_storage_import_scan,
+        post_should_stop_auto_storage_import_scan,
+        get_should_return_manual_storage_import_example,
 
         % tests of LUMA endpoints
         get_should_return_luma_configuration,
@@ -194,7 +204,12 @@ all() ->
     {<<"/provider/spaces/someSpaceId">>, get},
     {<<"/provider/spaces/someSpaceId">>, patch},
     {<<"/provider/spaces/someSpaceId">>, delete},
-    {<<"/provider/spaces/someSpaceId/sync">>, get},
+
+    {<<"/provider/spaces/someSpaceId/storage-import/auto/stats">>, get},
+    {<<"/provider/spaces/someSpaceId/storage-import/auto/info">>, get},
+    {<<"/provider/spaces/someSpaceId/storage-import/auto/force-start">>, post},
+    {<<"/provider/spaces/someSpaceId/storage-import/auto/force-stop">>, post},
+    {<<"/provider/spaces/someSpaceId/storage-import/manual/example">>, get},
 
     {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, get},
     {<<"/provider/spaces/someSpaceId/file-popularity/configuration">>, patch},
@@ -329,14 +344,17 @@ all() ->
 }).
 
 -define(STORAGE_IMPORT_DETAILS_JSON, #{
-    <<"someIntegerDetail">> => 1,
-    <<"strategy">> => <<"someStrategy">>
+    <<"mode">> => <<"auto">>,
+    <<"autoStorageImportConfig">> => ?AUTO_SCAN_CONFIG_JSON
 }).
 
--define(STORAGE_UPDATE_DETAILS_JSON, #{
-    <<"someBooleanDetail">> => false,
-    <<"someIntegerDetail">> => 2,
-    <<"strategy">> => <<"someStrategy">>
+-define(AUTO_SCAN_CONFIG_JSON, #{
+        <<"continuousScan">> => true,
+        <<"scanInterval">> => 60,
+        <<"syncAcl">> => true,
+        <<"maxDepth">> => 100,
+        <<"detectDeletions">> => true,
+        <<"detectModifications">> => false
 }).
 
 -define(SPACE_DETAILS_JSON, #{
@@ -345,7 +363,6 @@ all() ->
     <<"storageId">> => <<"someId">>,
     <<"localStorages">> => [<<"someId">>],
     <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
-    <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON,
     <<"spaceOccupancy">> => 1000,
     <<"supportingProviders">> => #{
         <<"someId1">> => 1024,
@@ -458,6 +475,33 @@ all() ->
     <<"mappingScheme">> => <<"onedataGroup">>,
     <<"onedataGroupId">> => <<"someGroupId">>
 }).
+
+-define(AUTO_STORAGE_IMPORT_INFO, #{
+    <<"status">> => <<"completed">>,
+    <<"start">> => 1599745646,
+    <<"stop">> => 1599745706,
+    <<"createdFiles">> => 1000,
+    <<"modifiedFiles">> => 2000,
+    <<"deletedFiles">> => 3000,
+    <<"nextScan">> => 1599745776,
+    <<"totalScans">> => 1234
+}).
+
+-define(AUTO_STORAGE_IMPORT_STATS, #{
+    <<"queueLength">> => #{
+        <<"lastValueDate">> => <<"someDate">>,
+        <<"values">> => [1,2,3,4,5,6]
+    },
+    <<"createdFiles">> => #{
+        <<"lastValueDate">> => <<"someDate2">>,
+        <<"values">> => [9,9,9,9,9,9]
+    }
+}).
+
+-define(MANUAL_STORAGE_IMPORT_EXAMPLE, #{
+    <<"curl">> => <<"EXAMPLE CURL">>
+}).
+
 
 %%%===================================================================
 %%% Test functions
@@ -630,8 +674,7 @@ post_should_support_space(Config) ->
                     <<"token">> => <<"someToken">>,
                     <<"size">> => 1024,
                     <<"storageId">> => <<"someId">>,
-                    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
-                    <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
+                    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON
                 }
             )
         ),
@@ -740,14 +783,13 @@ post_should_add_storage(Config) ->
     end).
 
 
-patch_should_configure_storage_update(Config) ->
+patch_should_configure_auto_storage_import(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
             onepanel_test_rest:auth_request(
                 Host, <<"/provider/spaces/someId1">>, patch,
                 ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
-                    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON,
-                    <<"storageUpdate">> => ?STORAGE_UPDATE_DETAILS_JSON
+                    <<"autoStorageImportConfig">> => ?AUTO_SCAN_CONFIG_JSON
                 }
             )
         )
@@ -913,6 +955,73 @@ patch_with_incorrect_config_should_fail(Config) ->
             )
         )
     end).
+
+
+get_should_return_auto_storage_import_stats(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/storage-import/auto/stats?period=minute&metrics=queueLength,createdFiles">>, get,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_STORAGE_IMPORT_STATS)
+    end).
+
+
+get_should_return_auto_storage_import_info(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/storage-import/auto/info">>, get,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?AUTO_STORAGE_IMPORT_INFO)
+    end).
+
+
+post_should_start_auto_storage_import_scan(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch(
+            {ok, ?HTTP_204_NO_CONTENT, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/storage-import/auto/force-start">>, post,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, force_start_auto_storage_import_scan, #{
+            space_id := <<"someId">>
+        }}, ?TIMEOUT)
+    end).
+
+
+post_should_stop_auto_storage_import_scan(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        ?assertMatch(
+            {ok, ?HTTP_204_NO_CONTENT, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/storage-import/auto/force-stop">>, post,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
+            )
+        ),
+        ?assertReceivedMatch({service, oneprovider, force_stop_auto_storage_import_scan, #{
+            space_id := <<"someId">>
+        }}, ?TIMEOUT)
+    end).
+
+
+get_should_return_manual_storage_import_example(Config) ->
+    ?eachHost(Config, fun(Host) ->
+        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
+            onepanel_test_rest:auth_request(
+                Host, <<"/provider/spaces/someId/storage-import/manual/example">>, get,
+                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{}
+            )
+        ),
+        onepanel_test_rest:assert_body(JsonBody, ?MANUAL_STORAGE_IMPORT_EXAMPLE)
+    end).
+
 
 get_should_return_luma_configuration(Config) ->
     ?eachHost(Config, fun(Host) ->
@@ -1463,12 +1572,14 @@ init_per_testcase(Case, Config) when
     Case == get_should_return_autocleaning_reports;
     Case == get_should_return_autocleaning_status;
     Case == patch_should_modify_space_support;
-    Case == patch_should_configure_storage_update;
+    Case == patch_should_configure_auto_storage_import;
     Case == post_should_start_auto_cleaning;
     Case == patch_should_update_auto_cleaning;
     Case == patch_should_update_file_popularity;
     Case == patch_with_incomplete_config_should_update_auto_cleaning;
     Case == patch_with_incorrect_config_should_fail;
+    Case == post_should_start_auto_storage_import_scan;
+    Case == post_should_stop_auto_storage_import_scan;
     Case == delete_should_revoke_space_support;
     Case == post_should_add_user_mapping_to_local_feed_luma;
     Case == patch_should_modify_user_mapping_in_local_feed_luma;
@@ -1658,6 +1769,66 @@ init_per_testcase(Case, Config) when
     % do not require valid payload in requests
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     Config2;
+
+init_per_testcase(get_should_return_auto_storage_import_stats, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_auto_storage_import_stats,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?AUTO_STORAGE_IMPORT_STATS)}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_auto_storage_import_info, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_auto_storage_import_info,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?AUTO_STORAGE_IMPORT_INFO)}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
+
+init_per_testcase(get_should_return_manual_storage_import_example, Config) ->
+    NewConfig = init_per_testcase(default, Config),
+    Nodes = ?config(oneprovider_nodes, Config),
+    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
+        % satisfy middleware:fetch_entity
+        #step_end{module = service_oneprovider, function = get_space_details,
+            good_bad_results = {
+                [{'node@host1',
+                    onepanel_utils:convert(?SPACE_DETAILS_JSON, {keys, atom})}],
+                []
+            }},
+        #step_end{module = service_oneprovider, function = get_manual_storage_import_example,
+            good_bad_results = {
+                [{'node@host1', keys_to_atoms(?MANUAL_STORAGE_IMPORT_EXAMPLE)}], []
+            }},
+        #action_end{service = service, action = action, result = ok}
+    ]
+    end),
+    NewConfig;
 
 init_per_testcase(get_should_return_luma_configuration, Config) ->
     NewConfig = init_per_testcase(default, Config),

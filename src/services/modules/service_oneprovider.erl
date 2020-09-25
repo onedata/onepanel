@@ -81,8 +81,11 @@
     modify_details/1, get_details/0, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
     get_space_details/1, modify_space/1, format_cluster_ips/1,
-    get_sync_stats/1, get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
-    get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1, check_oz_connection/0,
+    get_auto_storage_import_stats/1, get_auto_storage_import_info/1, get_manual_storage_import_example/1,
+    get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
+    get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1,
+    force_start_auto_storage_import_scan/1, force_stop_auto_storage_import_scan/1,
+    check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
@@ -314,7 +317,11 @@ get_steps(Action, Ctx) when
     Action =:= format_cluster_ips;
     Action =:= start_auto_cleaning;
     Action =:= cancel_auto_cleaning;
-    Action =:= get_sync_stats;
+    Action =:= force_start_auto_storage_import_scan;
+    Action =:= force_stop_auto_storage_import_scan;
+    Action =:= get_auto_storage_import_stats;
+    Action =:= get_auto_storage_import_info;
+    Action =:= get_manual_storage_import_example;
     Action =:= configure_file_popularity;
     Action =:= configure_auto_cleaning
     ->
@@ -600,7 +607,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     Token = onepanel_utils:get_converted(token, Ctx, binary),
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
-        {ok, SpaceId} -> configure_space(Node, SpaceId, Ctx);
+        {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
         Error -> throw(Error)
     end.
 
@@ -647,24 +654,18 @@ get_space_details(#{id := SpaceId}) ->
     {ok, StorageIds} = op_worker_storage:get_supporting_storages(Node, SpaceId),
     StorageId = hd(StorageIds),
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
-    ImportDetails = op_worker_storage_sync:get_storage_import_details(
-        Node, SpaceId, StorageId
-    ),
-    UpdateDetails = op_worker_storage_sync:get_storage_update_details(
-        Node, SpaceId, StorageId
-    ),
+    StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
-    #{
+    maps_utils:remove_undefined(#{
         id => SpaceId,
         importedStorage => ImportedStorage,
         localStorages => StorageIds,
         name => Name,
         spaceOccupancy => CurrentSize,
         storageId => StorageId,
-        storageImport => ImportDetails,
-        storageUpdate => UpdateDetails,
+        storageImport => StorageImportDetails,
         supportingProviders => Providers
-    }.
+    }).
 
 
 %%--------------------------------------------------------------------
@@ -674,11 +675,9 @@ get_space_details(#{id := SpaceId}) ->
 -spec modify_space(Ctx :: service:step_ctx()) -> #{id => op_worker_rpc:od_space_id()}.
 modify_space(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_update, Ctx, #{}),
+    AutoStorageImportConfig = maps:get(auto_storage_import_config, Ctx, #{}),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
-    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
+    op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig),
     #{id => SpaceId}.
 
 
@@ -696,17 +695,25 @@ maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
 maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 
 
-%%--------------------------------------------------------------------
-%% @doc Get storage_sync stats
-%% @end
-%%--------------------------------------------------------------------
--spec get_sync_stats(Ctx :: service:step_ctx()) -> #{atom() => json_utils:json_term()}.
-get_sync_stats(#{space_id := SpaceId} = Ctx) ->
+-spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> json_utils:json_term().
+get_auto_storage_import_stats(#{space_id := SpaceId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
-    Period = onepanel_utils:get_converted(period, Ctx, binary, undefined),
-    MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary, <<"">>),
+    Period = onepanel_utils:get_converted(period, Ctx, binary),
+    MetricsJoined = onepanel_utils:get_converted(metrics, Ctx, binary),
     Metrics = binary:split(MetricsJoined, <<",">>, [global, trim]),
-    op_worker_storage_sync:get_stats(Node, SpaceId, Period, Metrics).
+    op_worker_storage_import:get_stats(Node, SpaceId, Period, Metrics).
+
+
+-spec get_auto_storage_import_info(Ctx :: service:step_ctx()) -> json_utils:json_term().
+get_auto_storage_import_info(#{space_id := SpaceId})->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_storage_import:get_info(Node, SpaceId).
+
+
+-spec get_manual_storage_import_example(Ctx :: service:step_ctx()) -> json_utils:json_term().
+get_manual_storage_import_example(#{space_id := SpaceId})->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_storage_import:get_manual_example(Node, SpaceId).
 
 
 %%--------------------------------------------------------------------
@@ -825,6 +832,28 @@ start_auto_cleaning(#{space_id := SpaceId}) ->
 -spec cancel_auto_cleaning(Ctx :: service:step_ctx()) -> ok.
 cancel_auto_cleaning(#{space_id := SpaceId}) ->
     ok = op_worker_rpc:autocleaning_cancel_run(SpaceId).
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Manually starts scan of storage import mechanism.
+%% @end
+%%-------------------------------------------------------------------
+-spec force_start_auto_storage_import_scan(Ctx :: service:step_ctx()) -> ok.
+force_start_auto_storage_import_scan(#{space_id := SpaceId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    ok = op_worker_storage_import:start_scan(Node, SpaceId).
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Manually stops scan of storage import mechanism.
+%% @end
+%%-------------------------------------------------------------------
+-spec force_stop_auto_storage_import_scan(Ctx :: service:step_ctx()) -> ok.
+force_stop_auto_storage_import_scan(#{space_id := SpaceId}) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    ok = op_worker_storage_import:stop_scan(Node, SpaceId).
 
 
 %%-------------------------------------------------------------------
@@ -1157,12 +1186,16 @@ assert_storage_exists(Node, StorageId) ->
 %% Configures storage of a supported space.
 %% @end
 %%--------------------------------------------------------------------
--spec configure_space(OpNode :: node(), SpaceId :: binary(), Ctx :: service:step_ctx()) -> Id :: binary().
-configure_space(Node, SpaceId, Ctx) ->
-    ImportArgs = maps:get(storage_import, Ctx, #{}),
-    UpdateArgs = maps:get(storage_update, Ctx, #{}),
-    op_worker_storage_sync:maybe_configure_storage_import(Node, SpaceId, ImportArgs),
-    op_worker_storage_sync:maybe_configure_storage_update(Node, SpaceId, UpdateArgs),
+-spec configure_space(OpNode :: node(), SpaceId :: binary(), StorageId :: binary(),
+    Ctx :: service:step_ctx()) -> Id :: binary().
+configure_space(Node, SpaceId, StorageId, Ctx) ->
+    case op_worker_storage:is_imported_storage(Node, StorageId) of
+        true ->
+            StorageImportConfig = maps:get(storage_import, Ctx, #{}),
+            op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageImportConfig);
+        false ->
+            ok
+    end,
     SpaceId.
 
 
