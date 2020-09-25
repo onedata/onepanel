@@ -1191,7 +1191,7 @@ assert_storage_exists(Node, StorageId) ->
 configure_space(Node, SpaceId, StorageId, Ctx) ->
     case op_worker_storage:is_imported_storage(Node, StorageId) of
         true ->
-            StorageImportConfig = maps:get(storage_import, Ctx),
+            StorageImportConfig = maps:get(storage_import, Ctx, #{}),
             op_worker_storage_import:maybe_configure_storage_import(Node, SpaceId, StorageImportConfig);
         false ->
             ok
