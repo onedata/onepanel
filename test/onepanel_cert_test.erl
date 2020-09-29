@@ -55,7 +55,7 @@ read_dates_as_epoch_test() ->
 
 get_seconds_till_expiration_test() ->
     {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-    ?assertEqual(?UNTIL - time_utils:system_time_seconds(),
+    ?assertEqual(?UNTIL - time_utils:timestamp_seconds(),
         onepanel_cert:get_seconds_till_expiration(Cert)).
 
 

@@ -89,7 +89,7 @@ delete(Id) ->
 %%--------------------------------------------------------------------
 -spec timestamp() -> non_neg_integer().
 timestamp() ->
-    time_utils:system_time_seconds().
+    time_utils:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------

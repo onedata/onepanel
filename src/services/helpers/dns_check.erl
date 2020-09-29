@@ -271,7 +271,7 @@ compute_results(Service, Checks) ->
 %%--------------------------------------------------------------------
 -spec get_timestamp() -> time_utils:seconds().
 get_timestamp() ->
-    time_utils:system_time_seconds().
+    time_utils:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------

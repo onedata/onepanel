@@ -59,8 +59,8 @@ get_response(#gri{aspect = dns_check}, Result) ->
                 <<"got">> => lists:map(IpOrTxtToBinary, G),
                 <<"recommended">> => Records
             }};
-        (timestamp, Epoch, Acc) ->
-            Acc#{<<"timestamp">> => time_utils:epoch_to_iso8601(Epoch)};
+        (timestamp, Seconds, Acc) ->
+            Acc#{<<"timestamp">> => time_utils:seconds_to_iso8601(Seconds)};
         (Key, LiteralValue, Acc) ->
             Acc#{str_utils:to_binary(Key) => LiteralValue}
     end, #{}, Result),

@@ -302,7 +302,7 @@ create_registration_token(OnezoneDomain, AdminId) ->
 -spec mock_system_time([node()]) -> ok.
 mock_system_time(Nodes) ->
     ok = test_utils:mock_new(Nodes, time_utils, [passthrough]),
-    ok = test_utils:mock_expect(Nodes, time_utils, system_time_seconds, fun() ->
+    ok = test_utils:mock_expect(Nodes, time_utils, timestamp_seconds, fun() ->
         onepanel_env:get(mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP)
     end).
 
