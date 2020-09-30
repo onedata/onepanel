@@ -1009,7 +1009,7 @@ root_token_from_file() ->
             RootTokenBin = maps:get(root_token, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
-            Now = time_utils:system_time_seconds(),
+            Now = time_utils:timestamp_seconds(),
             tokens:confine(RootTokenBin, #cv_time{valid_until = Now + TTL});
         {ok, Other} ->
             <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])

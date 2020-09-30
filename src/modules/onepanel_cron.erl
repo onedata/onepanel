@@ -33,7 +33,7 @@
 %% Frequency of checks
 -define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
--define(NOW(), time_utils:system_time_millis()).
+-define(NOW(), time_utils:timestamp_millis()).
 
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).

@@ -695,7 +695,7 @@ get_correct_value(Key, #data_spec{correct_values = CorrectValues}) ->
 -spec create_oz_temp_token(node(), UserId :: binary()) -> tokens:serialized().
 create_oz_temp_token(OzNode, UserId) ->
     Auth = ?USER(UserId),
-    Now = rpc:call(OzNode, time_utils, cluster_time_seconds, []),
+    Now = rpc:call(OzNode, time_utils, timestamp_seconds, []),
 
     {ok, Token} = ?assertMatch(
         {ok, _},

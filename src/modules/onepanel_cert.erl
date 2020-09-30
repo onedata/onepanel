@@ -139,7 +139,7 @@ verify_hostname(Cert, Hostname) ->
 -spec get_seconds_till_expiration(cert()) -> integer().
 get_seconds_till_expiration(#'Certificate'{} = Cert) ->
     {_, ExpirationTime} = get_times(Cert),
-    ExpirationTime - time_utils:system_time_seconds().
+    ExpirationTime - time_utils:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------
@@ -155,7 +155,7 @@ get_times(#'Certificate'{} = Cert) ->
         validity = Validity
     } = Cert#'Certificate'.tbsCertificate,
     {'Validity', NotBeforeStr, NotAfterStr} = Validity,
-    {time_str_to_epoch(NotBeforeStr), time_str_to_epoch(NotAfterStr)}.
+    {time_str_to_seconds(NotBeforeStr), time_str_to_seconds(NotAfterStr)}.
 
 
 %%--------------------------------------------------------------------
@@ -174,7 +174,7 @@ backup_exisiting_certs() ->
             false -> ok;
             true ->
                 BackupPath = str_utils:format("~s.~B.bak", [
-                    Path, time_utils:system_time_seconds()
+                    Path, time_utils:timestamp_seconds()
                 ]),
                 file:copy(Path, BackupPath)
         end
@@ -239,24 +239,24 @@ get_common_name(RdnSequence) ->
 %% Converts time string YYmmDDHHMMSS to epoch seconds.
 %% @end
 %%--------------------------------------------------------------------
--spec time_str_to_epoch({utcTime | generalTime, string()}) -> integer().
-time_str_to_epoch({utcTime, [Y1,Y2,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,Z]}) ->
+-spec time_str_to_seconds({utcTime | generalTime, string()}) -> integer().
+time_str_to_seconds({utcTime, [Y1,Y2,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,Z]}) ->
     case list_to_integer([Y1,Y2]) of
         N when N >= 50 ->
-            time_str_to_epoch({generalTime,
+            time_str_to_seconds({generalTime,
                 [$1,$9,Y1,Y2,M1,M2,D1,D2,
                     H1,H2,M3,M4,S1,S2,Z]});
         _ ->
-            time_str_to_epoch({generalTime,
+            time_str_to_seconds({generalTime,
                 [$2,$0,Y1,Y2,M1,M2,D1,D2,
                     H1,H2,M3,M4,S1,S2,Z]})
     end;
 
-time_str_to_epoch({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
+time_str_to_seconds({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
     Year  = list_to_integer([Y1, Y2, Y3, Y4]),
     Month = list_to_integer([M1, M2]),
     Day   = list_to_integer([D1, D2]),
     Hour  = list_to_integer([H1, H2]),
     Min   = list_to_integer([M3, M4]),
     Sec   = list_to_integer([S1, S2]),
-    time_utils:datetime_to_epoch({{Year, Month, Day}, {Hour, Min, Sec}}).
+    time_utils:datetime_to_seconds({{Year, Month, Day}, {Hour, Min, Sec}}).

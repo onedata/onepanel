@@ -37,7 +37,7 @@
 -define(NONCE_TTL, onepanel_env:get(
     panel_authorization_nonce_ttl_sec, ?APP_NAME, 3600
 )).
--define(NOW(), time_utils:system_time_seconds()).
+-define(NOW(), time_utils:timestamp_seconds()).
 
 
 %%%===================================================================
