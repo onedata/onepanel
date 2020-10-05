@@ -7,10 +7,10 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc REST API definitions for onepanel.
+%%% @doc REST API definitions for cluster.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onepanel_rest_routes).
+-module('cluster_rest_routes').
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
@@ -31,7 +31,7 @@
     [{Path :: binary(), #rest_req{}}].
 routes() ->
     [
-        %% Adds given host to the cluster
+        %% Add given host to the cluster
         {<<"/hosts">>, #rest_req{
             method = 'POST',
             b_gri = #b_gri{
@@ -41,23 +41,6 @@ routes() ->
                 scope = private
             },
             data_spec = (rest_model:host_add_request_model())
-        }},
-
-        %% Check correctness of DNS entries for the cluster's domain.
-        {<<"/dns_check">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = dns_check,
-                scope = private
-            },
-            produces = [<<"application/json">>],
-            data_spec = #{
-                %% If true the DNS check cache is overridden and check is
-                %% performed during handling of the request.
-                forceCheck => {boolean, {optional, false}}
-            }
         }},
 
         %% Create node invite token
@@ -81,18 +64,6 @@ routes() ->
                 aspect = invite_user_token,
                 scope = private
             }
-        }},
-
-        %% Get details of a user's cluster
-        {<<"/user/clusters/:id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_cluster,
-                id = ?BINDING(id),
-                aspect = instance,
-                scope = private
-            },
-            produces = [<<"application/json">>]
         }},
 
         %% Get cluster cookie
@@ -131,18 +102,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% List user's clusters
-        {<<"/user/clusters">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_user,
-                id = undefined,
-                aspect = current_user_clusters,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
         %% Get public configuration
         {<<"/configuration">>, #rest_req{
             method = 'GET',
@@ -167,43 +126,7 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get Onepanel user details of currently logged in user.
-        {<<"/user">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_user,
-                id = undefined,
-                aspect = current_user,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Return settings used when performing the DNS check.
-        {<<"/dns_check/configuration">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = dns_check_configuration,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get emergency passphrase status
-        {<<"/emergency_passphrase">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = emergency_passphrase,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get information about current onepanel node.
+        %% Get information about current onepanel node
         {<<"/node">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
@@ -227,18 +150,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get details of a remote Oneprovider.
-        {<<"/providers/:id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_provider,
-                id = ?BINDING(id),
-                aspect = remote_instance,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
         %% Get background task result
         {<<"/tasks/:id">>, #rest_req{
             method = 'GET',
@@ -246,18 +157,6 @@ routes() ->
                 type = onp_panel,
                 id = undefined,
                 aspect = {task, ?BINDING(id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get information about SSL certificates configuration and status.
-        {<<"/web_cert">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = web_cert,
                 scope = private
             },
             produces = [<<"application/json">>]
@@ -275,19 +174,6 @@ routes() ->
             data_spec = (rest_model:invite_token_model())
         }},
 
-        %% Configure dns check
-        {<<"/dns_check/configuration">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = dns_check_configuration,
-                scope = private
-            },
-            %% The configuration changes.
-            data_spec = (rest_model:dns_check_configuration_model())
-        }},
-
         %% Modify progress markers
         {<<"/progress">>, #rest_req{
             method = 'PATCH',
@@ -300,19 +186,6 @@ routes() ->
             data_spec = (rest_model:progress_modify_model())
         }},
 
-        %% Modify SSL certificate configuration
-        {<<"/web_cert">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = web_cert,
-                scope = private
-            },
-            %% New values for certificate management configuration.
-            data_spec = (rest_model:web_cert_modify_request_model())
-        }},
-
         %% Remove host from cluster
         {<<"/hosts/:host">>, #rest_req{
             method = 'DELETE',
@@ -322,30 +195,6 @@ routes() ->
                 aspect = instance,
                 scope = private
             }
-        }},
-
-        %% Set emergency passphrase
-        {<<"/emergency_passphrase">>, #rest_req{
-            method = 'PUT',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = emergency_passphrase,
-                scope = private
-            },
-            data_spec = (rest_model:emergency_passphrase_change_request_model())
-        }},
-
-        %% Get test image
-        {<<"/test_image">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = test_image,
-                scope = private
-            },
-            produces = [<<"image/png">>]
         }}
 
     ].

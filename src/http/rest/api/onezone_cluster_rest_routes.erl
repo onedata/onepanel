@@ -7,10 +7,10 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc REST API definitions for onezone.
+%%% @doc REST API definitions for onezone_cluster.
 %%% @end
 %%%--------------------------------------------------------------------
--module(onezone_rest_routes).
+-module('onezone_cluster_rest_routes').
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
@@ -31,19 +31,6 @@
     [{Path :: binary(), #rest_req{}}].
 routes() ->
     [
-        %% Create Onezone user
-        {<<"/zone/users">>, #rest_req{
-            method = 'POST',
-            b_gri = #b_gri{
-                type = onp_user,
-                id = undefined,
-                aspect = instance,
-                scope = private
-            },
-            %% The user configuration details.
-            data_spec = (rest_model:onezone_user_create_request_model())
-        }},
-
         %% Add zone databases
         {<<"/zone/databases">>, #rest_req{
             method = 'POST',
@@ -85,18 +72,6 @@ routes() ->
             data_spec = (rest_model:service_hosts_model())
         }},
 
-        %% Set password for Onezone user
-        {<<"/zone/users/:id">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_user,
-                id = ?BINDING(id),
-                aspect = instance,
-                scope = private
-            },
-            data_spec = (rest_model:password_change_request_model())
-        }},
-
         %% Configure zone deployment
         {<<"/zone/configuration">>, #rest_req{
             method = 'POST',
@@ -108,42 +83,6 @@ routes() ->
             },
             %% The zone configuration description.
             data_spec = (rest_model:zone_configuration_model())
-        }},
-
-        %% Get settings of a Onezone GUI message.
-        {<<"/zone/gui_messages/:id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_zone,
-                id = undefined,
-                aspect = {gui_message, ?BINDING(id)},
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% Get Onezone user details
-        {<<"/zone/users/:id">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_user,
-                id = ?BINDING(id),
-                aspect = instance,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
-        %% List Onezone users
-        {<<"/zone/users">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_user,
-                id = undefined,
-                aspect = list,
-                scope = private
-            },
-            produces = [<<"application/json">>]
         }},
 
         %% Get zone cluster nodes IPs
@@ -230,18 +169,6 @@ routes() ->
             produces = [<<"text/xml">>]
         }},
 
-        %% Get Onezone policies.
-        {<<"/zone/policies">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_zone,
-                id = undefined,
-                aspect = policies,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
         %% Get zone cluster worker status
         {<<"/zone/workers/:host">>, #rest_req{
             method = 'GET',
@@ -266,18 +193,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Modify settings of a Onezone GUI message.
-        {<<"/zone/gui_messages/:id">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_zone,
-                id = undefined,
-                aspect = {gui_message, ?BINDING(id)},
-                scope = private
-            },
-            data_spec = (rest_model:gui_message_model())
-        }},
-
         %% Set external IPs of nodes in application config
         {<<"/zone/cluster_ips">>, #rest_req{
             method = 'PATCH',
@@ -289,19 +204,6 @@ routes() ->
             },
             %% The zone configuration description.
             data_spec = (rest_model:modify_cluster_ips_model())
-        }},
-
-        %% Modify current Onezone policies
-        {<<"/zone/policies">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_zone,
-                id = undefined,
-                aspect = policies,
-                scope = private
-            },
-            %% New values for Onezone policies.
-            data_spec = (rest_model:zone_policies_model())
         }},
 
         %% Start/stop zone databases
