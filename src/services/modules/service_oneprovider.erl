@@ -765,7 +765,8 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
                     {stopped_at, stoppedAt},
                     {released_bytes, releasedBytes},
                     {bytes_to_release, bytesToRelease},
-                    {files_number, filesNumber}
+                    {files_number, filesNumber},
+                    {status, status}
                 ], Report));
         {error, _} = Error ->
             throw(Error)

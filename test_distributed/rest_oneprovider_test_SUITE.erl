@@ -378,7 +378,8 @@ all() ->
     <<"filesNumber">> => 10,
     <<"releasedBytes">> => 100,
     <<"startedAt">> => <<"2004-02-12T15:19:21.423Z">>,
-    <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>
+    <<"stoppedAt">> => <<"2004-02-12T15:29:11.598Z">>,
+    <<"status">> => <<"failed">>
 }).
 
 -define(AUTO_CLEANING_REPORT2, #{
