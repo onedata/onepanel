@@ -69,7 +69,7 @@
 -type storage_import_monitoring_plot_counter_type() :: op_worker_storage_import:metric_type().
 -type storage_import_monitoring_window() :: day | hour | minute.
 
--export_type([storage_data/0, luma_config/0, helper/0,
+-export_type([storage_data/0, luma_config/0, helper/0, helper_name/0,
     helper_args/0, helper_user_ctx/0, od_space_id/0, luma_feed/0, luma_details/0]).
 
 -export([storage_create/6, storage_create/7]).
@@ -79,8 +79,7 @@
 -export([storage_get_helper/1, storage_get_helper/2]).
 -export([storage_update_admin_ctx/2, storage_update_admin_ctx/3]).
 -export([storage_update_helper_args/2, storage_update_helper_args/3]).
--export([storage_set_imported_storage/2, storage_set_imported_storage/3]).
--export([storage_set_readonly/2, storage_set_readonly/3]).
+-export([storage_update_readonly_and_imported/3, storage_update_readonly_and_imported/4]).
 -export([storage_set_qos_parameters/2, storage_set_qos_parameters/3]).
 -export([storage_update_luma_config/2, storage_update_luma_config/3]).
 -export([storage_update_name/2, storage_update_name/3]).
@@ -88,6 +87,7 @@
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([storage_get_luma_feed/1, storage_get_luma_feed/2]).
+-export([storage_verify_configuration/4, storage_verify_configuration/5]).
 -export([luma_clear_db/1, luma_clear_db/2]).
 -export([luma_storage_users_get_and_describe/2, luma_storage_users_get_and_describe/3]).
 -export([luma_storage_users_store/3, luma_storage_users_store/4]).
@@ -235,26 +235,15 @@ storage_update_helper_args(Node, StorageId, Changes) ->
     ?CALL(Node, [StorageId, Changes]).
 
 
--spec storage_set_imported_storage(storage_id(), boolean()) ->
+-spec storage_update_readonly_and_imported(storage_id(), boolean(), boolean()) ->
     ok | {error, term()}.
-storage_set_imported_storage(StorageId, Value) ->
-    ?CALL([StorageId, Value]).
+storage_update_readonly_and_imported(StorageId, Readonly, Imported) ->
+    ?CALL([StorageId, Readonly, Imported]).
 
--spec storage_set_imported_storage(node(), storage_id(), boolean()) ->
+-spec storage_update_readonly_and_imported(node(), storage_id(), boolean(), boolean()) ->
     ok | {error, term()}.
-storage_set_imported_storage(Node, StorageId, Value) ->
-    ?CALL(Node, [StorageId, Value]).
-
-
--spec storage_set_readonly(storage_id(), boolean()) ->
-    ok | {error, term()}.
-storage_set_readonly(StorageId, Value) ->
-    ?CALL([StorageId, Value]).
-
--spec storage_set_readonly(node(), storage_id(), boolean()) ->
-    ok | {error, term()}.
-storage_set_readonly(Node, StorageId, Value) ->
-    ?CALL(Node, [StorageId, Value]).
+storage_update_readonly_and_imported(Node, StorageId, Readonly, Imported) ->
+    ?CALL(Node, [StorageId, Readonly, Imported]).
 
 
 -spec storage_update_luma_config(storage_id(), Diff) -> ok | {error, term()}
@@ -328,6 +317,17 @@ storage_get_luma_feed(Storage) ->
 -spec storage_get_luma_feed(node(), storage_data()) -> luma_feed().
 storage_get_luma_feed(Node, Storage) ->
     ?CALL(Node, [Storage]).
+
+
+-spec storage_verify_configuration(storage_id() | storage_name(), helper_name(),
+    boolean(), boolean()) -> ok | {error, term()}.
+storage_verify_configuration(NameOrId, HelperName, Imported, Readonly) ->
+    ?CALL([NameOrId, HelperName, Imported, Readonly]).
+
+-spec storage_verify_configuration(node(), storage_id() | storage_name(), helper_name(),
+    boolean(), boolean()) -> ok.
+storage_verify_configuration(Node, NameOrId, HelperName, Imported, Readonly) ->
+    ?CALL(Node, [NameOrId, HelperName, Imported, Readonly]).
 
 
 -spec luma_clear_db(storage_id()) -> ok.
