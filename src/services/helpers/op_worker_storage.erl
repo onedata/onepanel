@@ -635,14 +635,12 @@ convert_to_binaries(Map) ->
 -spec normalize_numeric_qos_parameters(#{Term => binary()}) -> #{Term => binary() | number()}.
 normalize_numeric_qos_parameters(QosParameters) ->
     maps:map(fun(_Key, Value) ->
-        case re:run(Value, <<"^[0-9]+$">>, [{capture, none}]) of
-            match -> binary_to_integer(Value);
-            nomatch ->
-                case re:run(Value, <<"^[0-9]+\\.[0-9]+((E|e)(\\+|\\-)?[0-9]+)?$">>, [{capture, none}]) of
-                    match -> binary_to_float(Value);
-                    nomatch -> Value
-                end
-        end
+        try
+            %% JSON decoding parses any number (integer or float) expressed as string
+            json_utils:decode(Value)
+        catch
+            throw:invalid_json -> Value
+        end 
     end, QosParameters).
 
 %% @private
