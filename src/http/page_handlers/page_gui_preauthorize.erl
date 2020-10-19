@@ -35,8 +35,7 @@
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"POST">>, Req) ->
     case gui_session:validate(Req) of
-        {ok, _Username, Cookie, NewReq} ->
-            SessionId = gui_session:get_session_id(Cookie),
+        {ok, _Username, SessionId, NewReq} ->
             {ok, Session} = onepanel_session:get(SessionId),
             #onepanel_session{username = ?LOCAL_SESSION_USERNAME} = Session,
             #onepanel_session{

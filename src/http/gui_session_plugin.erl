@@ -29,7 +29,6 @@ end).
     get/1,
     update/2,
     delete/1,
-    timestamp/0,
     session_cookie_key/0
 ]).
 
@@ -80,16 +79,6 @@ update(Id, Diff) ->
 -spec delete(gui_session:id()) -> ok | {error, term()}.
 delete(Id) ->
     onepanel_session:delete(Id).
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% {@link gui_session_plugin_behaviour} callback timestamp/0.
-%% @end
-%%--------------------------------------------------------------------
--spec timestamp() -> non_neg_integer().
-timestamp() ->
-    time_utils:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------

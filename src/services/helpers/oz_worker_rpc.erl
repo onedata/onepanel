@@ -96,7 +96,10 @@ authenticate_by_token(Node, Token, PeerIp)  ->
         % @TODO VFS-5913 Fully recognize peerIp, interface and consumerToken
         % auth ctx in onepanel
         ip = PeerIp,
-        service = ?SERVICE(?OZ_PANEL, ?ONEZONE_CLUSTER_ID)
+        service = ?SERVICE(?OZ_PANEL, ?ONEZONE_CLUSTER_ID),
+        % accept any session - only oz-worker requires a proper session cookie
+        % as it hosts the actual GUI
+        session_id = any
     },
     ?CALL(Node, [Token, AuthCtx]).
 
