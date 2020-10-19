@@ -14,11 +14,11 @@
 
 -include("api_test_runner.hrl").
 
-
 -export([load_module_from_test_distributed_dir/2]).
 
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
+-export([get_storage_id_by_name/2]).
 
 
 %%%===================================================================
@@ -39,7 +39,7 @@ load_module_from_test_distributed_dir(Config, ModuleName) ->
     code:add_pathz(TestsRootDir),
 
     CompileOpts = [
-        verbose,report_errors,report_warnings,
+        verbose, report_errors, report_warnings,
         {i, TestsRootDir},
         {i, filename:join([TestsRootDir, "..", "include"])},
         {i, filename:join([TestsRootDir, "..", "_build", "default", "lib"])}
@@ -68,6 +68,14 @@ maybe_substitute_bad_id(ValidId, Data) ->
         {BadId, LeftoverData} -> {BadId, LeftoverData};
         error -> {ValidId, Data}
     end.
+
+
+get_storage_id_by_name(Config, StorageName) ->
+    StorageIds = op_worker_test_rpc:get_storage_ids(Config),
+    Storages = [op_worker_test_rpc:describe_storage(Config, X) || X <- StorageIds],
+
+    [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
+    StorageId.
 
 
 %%%===================================================================

@@ -19,21 +19,27 @@
 
 %% API
 -export([all/0]).
--export([init_per_suite/1, end_per_suite/1]).
+-export([
+    init_per_suite/1,
+    end_per_suite/1
+]).
 
 -export([
-    get_storages_ids/1, add_s3_storage/1, get_s3_storage/1, delete_s3_storage/1
+    get_storages_ids/1,
+    add_s3_storage/1,
+    get_s3_storage/1,
+    delete_s3_storage/1
 ]).
 
 -define(S3_STORAGE_NAME, <<"s3Storage-1">>).
--define(S3_STORAGE_SPEC,#{
+-define(S3_STORAGE_SPEC, #{
     ?S3_STORAGE_NAME => #{
         <<"type">> => <<"s3">>,
         <<"bucketName">> => <<"bucket2.iam.example.com">>,
         <<"hostname">> => <<"s3.amazonaws.com:80/">>,
         <<"skipStorageDetection">> => <<"true">>
     }
-} ).
+}).
 
 all() -> [
     get_storages_ids, add_s3_storage, get_s3_storage, delete_s3_storage
@@ -47,10 +53,9 @@ all() -> [
 
 get_storages_ids(Config) ->
     [P1] = test_config:get_providers(Config),
-    OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
 
-    StoragesIds = rpc_api:get_storages_ids(OpWorkerNodes),
+    StoragesIds = op_worker_test_rpc:get_storage_ids(Config),
 
     ExpectedData = #{
         <<"ids">> => StoragesIds
@@ -76,10 +81,9 @@ get_storages_ids(Config) ->
             prepare_args_fun = fun(_) ->
                 #rest_args{method = get, path = <<"provider/storages">>}
             end,
-            validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
-                ?assertEqual(?HTTP_200_OK, RespCode),
-                ?assertEqual(ExpectedData, RespBody)
-            end
+            validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
+                ?assertEqual(ExpectedData, Body)
+            end)
         }
     ])).
 
@@ -87,10 +91,9 @@ get_storages_ids(Config) ->
 add_s3_storage(Config) ->
     % todo: VFS-6717 delete s3 storage after test
     [P1] = test_config:get_providers(Config),
-    OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
 
-    StorageIdsBeforeAdd = rpc_api:get_storages_ids(OpWorkerNodes),
+    StorageIdsBeforeAdd = op_worker_test_rpc:get_storage_ids(Config),
 
     RequestBody = ?S3_STORAGE_SPEC,
 
@@ -118,18 +121,28 @@ add_s3_storage(Config) ->
                 headers = #{<<"content-type">> => <<"application/json">>},
                 body = json_utils:encode(RequestBody)}
             end,
-            validate_result_fun = fun(_, {ok, RespCode, _, _}) ->
-                StorageIdsAfterAdd = rpc_api:get_storages_ids(OpWorkerNodes),
-
-                % todo: VFS-6716 get NewStorageId from HTTP response
-                [NewStorageID | _] = lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd),
-                StorageDetails = rpc_api:get_storage_details(OpWorkerNodes, NewStorageID),
-
-                ?assertEqual(204, RespCode),
-                ?assert(add_request_match_response(RequestBody, StorageDetails))
-            end
+            verify_fun = build_add_s3_storage_verify_fun(Config, StorageIdsBeforeAdd, RequestBody),
+            validate_result_fun = api_test_validate:http_204_no_content()
         }
     ])).
+
+
+%% @private
+build_add_s3_storage_verify_fun(Config, StorageIdsBeforeAdd, RequestBody) ->
+    fun
+        (expected_success, _) ->
+            StorageIdsAfterAdd = op_worker_test_rpc:get_storage_ids(Config),
+
+            % todo: VFS-6716 get NewStorageId from HTTP response
+            [NewStorageID] = ?assertMatch([_], lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd)),
+            StorageDetails = op_worker_test_rpc:describe_storage(Config, NewStorageID),
+            ?assert(add_request_match_response(RequestBody, StorageDetails)),
+            true;
+        (expected_failure, _) ->
+            StorageIdsAfterAdd = op_worker_test_rpc:get_storage_ids(Config),
+            ?assertEqual(StorageIdsBeforeAdd, StorageIdsAfterAdd),
+            true
+    end.
 
 
 %% @private
@@ -142,10 +155,9 @@ get_s3_storage(Config) ->
     % todo: VFS-6717 add s3 storage before, and delete after test
     [P1] = test_config:get_providers(Config),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
 
-    [StorageName|_] = maps:keys(?S3_STORAGE_SPEC),
-    StorageId = get_storage_id_by_name(Config, StorageName),
+    [StorageName | _] = maps:keys(?S3_STORAGE_SPEC),
+    StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -169,37 +181,22 @@ get_s3_storage(Config) ->
                     method = get,
                     path = <<"provider/storages/", StorageId/binary>>}
             end,
-            validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
-                StorageDetails = rpc_api:get_storage_details(OpWorkerNodes, StorageId),
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                StorageDetails = op_worker_test_rpc:describe_storage(Config, StorageId),
                 StorageDetailsBinary = onepanel_utils:convert_recursive(StorageDetails, {map, binary}),
                 RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
-
-                ?assertEqual(?HTTP_200_OK, RespCode),
                 ?assertEqual(StorageDetailsBinary, RespBodyBinary)
-            end
+            end)
         }
     ])).
 
 
-%% @private
-get_storage_id_by_name(Config, StorageName)->
-    [P1] = test_config:get_providers(Config),
-    OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
-
-    StorageIds = rpc_api:get_storages_ids(OpWorkerNodes),
-    Storages = [rpc_api:get_storage_details(OpWorkerNodes, X) || X <- StorageIds],
-
-    [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
-    StorageId.
-
-
-delete_s3_storage(Config)->
+delete_s3_storage(Config) ->
     % todo: VFS-6717 add s3 storage before test
     [P1] = test_config:get_providers(Config),
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OpWorkerNodes = test_config:get_custom(Config, [provider_nodes, P1]),
 
-    StorageId = get_storage_id_by_name(Config, ?S3_STORAGE_NAME),
+    StorageId = api_test_utils:get_storage_id_by_name(Config, ?S3_STORAGE_NAME),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -224,13 +221,23 @@ delete_s3_storage(Config)->
                     method = delete,
                     path = <<"provider/storages/", StorageId/binary>>}
             end,
-            validate_result_fun = fun(_, {ok, RespCode, _, _}) ->
-                StorageIdsAfterDelete = rpc_api:get_storages_ids(OpWorkerNodes),
-                ?assertEqual(?HTTP_204_NO_CONTENT, RespCode),
-                ?assertNot(lists:member(StorageId, StorageIdsAfterDelete))
-            end
+            verify_fun = build_delete_s3_storage_verify_fun(Config, StorageId),
+            validate_result_fun = api_test_validate:http_204_no_content()
         }
     ])).
+
+
+%% @private
+build_delete_s3_storage_verify_fun(Config, StorageId) ->
+    fun
+        (ExpectedResult, _) ->
+            StorageIdsAfterDelete = op_worker_test_rpc:get_storage_ids(Config),
+            case ExpectedResult of
+                expected_success -> ?assertNot(lists:member(StorageId, StorageIdsAfterDelete));
+                expected_failure -> ?assert(lists:member(StorageId, StorageIdsAfterDelete))
+            end,
+            true
+    end.
 
 
 %%%===================================================================
@@ -239,18 +246,14 @@ delete_s3_storage(Config)->
 
 
 init_per_suite(Config) ->
-    Posthook = fun(NewConfig) ->
-        application:start(ssl),
-        hackney:start(),
-        onenv_test_utils:prepare_base_test_config(NewConfig)
-    end,
+    application:start(ssl),
+    hackney:start(),
     test_config:set_many(Config, [
         {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, Posthook}
+        {set_posthook, fun onenv_test_utils:prepare_base_test_config/1}
     ]).
 
 
 end_per_suite(_Config) ->
     hackney:stop(),
-    application:stop(ssl),
-    ok.
+    application:stop(ssl).
