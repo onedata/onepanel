@@ -65,7 +65,7 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get statistics of auto storage import mechanism.
+        %% Get statistics of auto storage import mechanism
         {<<"/provider/spaces/:id/storage-import/auto/stats">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{

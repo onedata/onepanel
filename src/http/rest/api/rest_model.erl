@@ -563,7 +563,7 @@ current_user_model() ->
         %% User's full name (given names + surname).
         username => string,
         %% List of cluster privileges held by the user in the current cluster.
-        clusterPrivileges => {[{enum, [string], [<<"cluster_view">>, <<"cluster_update">>, <<"cluster_delete">>, <<"cluster_view_privileges">>, <<"cluster_set_privileges">>, <<"cluster_add_user">>, <<"cluster_remove_user">>, <<"cluster_add_group">>, <<"cluster_remove_group">>]}], optional}
+        clusterPrivileges => [{enum, [string], [<<"cluster_view">>, <<"cluster_update">>, <<"cluster_delete">>, <<"cluster_view_privileges">>, <<"cluster_set_privileges">>, <<"cluster_add_user">>, <<"cluster_remove_user">>, <<"cluster_add_group">>, <<"cluster_remove_group">>]}]
     }.
 
 %%--------------------------------------------------------------------
@@ -1521,7 +1521,7 @@ space_support_request_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The cluster storage configuration.
+%% @doc The storage configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_create_details_model() -> onepanel_parser:multi_spec().
@@ -1537,7 +1537,7 @@ storage_create_request_model() ->
     #{'_' => storage_create_details_model()}.
 
 %%--------------------------------------------------------------------
-%% @doc The cluster storage configuration.
+%% @doc The storage configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_get_details_model() -> onepanel_parser:multi_spec().
@@ -1569,8 +1569,7 @@ storage_import_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The part of storage configuration which can be modified after storage
-%% creation.
+%% @doc An object with new values for storage parameters to be updated.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_modify_details_model() -> onepanel_parser:multi_spec().
@@ -1895,7 +1894,10 @@ blockdevice_model() ->
 -spec ceph_model() -> onepanel_parser:object_spec().
 ceph_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;ceph\&quot;`
+        %% (**DEPRECATED** - use Ceph RADOS instead) storage backend compatible
+        %% with [Ceph](http://ceph.com/ceph-storage/) object storage, using the
+        %% deprecated `libradosstriper` library.
         type => {discriminator, <<"ceph">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2023,7 +2025,11 @@ ceph_modify_model() ->
         readonly => {boolean, optional},
         %% Type of the modified storage. Must be given explicitly and must match
         %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% limitations of OpenAPI polymorphism.  `type =
+        %% \&quot;ceph\&quot;`  (**DEPRECATED** - use Ceph RADOS instead)
+        %% storage backend compatible with [Ceph](http://ceph.com/ceph-storage/)
+        %% object storage, using the deprecated `libradosstriper`
+        %% library.
         type => {discriminator, <<"ceph">>},
         %% The username of the Ceph cluster administrator.
         username => {string, optional},
@@ -2044,7 +2050,9 @@ ceph_modify_model() ->
 -spec cephrados_model() -> onepanel_parser:object_spec().
 cephrados_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;cephrados\&quot;`
+        %% Storage backend compatible with [Ceph](http://ceph.com/ceph-storage/)
+        %% object storage.
         type => {discriminator, <<"cephrados">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2148,9 +2156,9 @@ cephrados_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;cephrados\&quot;`
+        %% Storage backend compatible with [Ceph](http://ceph.com/ceph-storage/)
+        %% object storage.
         type => {discriminator, <<"cephrados">>},
         %% The username of the Ceph cluster administrator.
         username => {string, optional},
@@ -2171,7 +2179,9 @@ cephrados_modify_model() ->
 -spec glusterfs_model() -> onepanel_parser:object_spec().
 glusterfs_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;glusterfs\&quot;`
+        %% [GlusterFS](https://www.gluster.org/) volume directly attached to the
+        %% Oneprovider.
         type => {discriminator, <<"glusterfs">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2277,9 +2287,9 @@ glusterfs_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;glusterfs\&quot;`
+        %% [GlusterFS](https://www.gluster.org/) volume directly attached to the
+        %% Oneprovider.
         type => {discriminator, <<"glusterfs">>},
         %% The name of the volume to use as a storage backend.
         volume => {string, optional},
@@ -2304,7 +2314,10 @@ glusterfs_modify_model() ->
 -spec http_model() -> onepanel_parser:object_spec().
 http_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;http\&quot;`  Any
+        %% [HTTP](https://tools.ietf.org/html/rfc7231) or HTTPS compatible
+        %% server. Supported only with Readonly option enabled and in manual
+        %% import mode.
         type => {discriminator, <<"http">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2456,9 +2469,10 @@ http_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;http\&quot;`  Any
+        %% [HTTP](https://tools.ietf.org/html/rfc7231) or HTTPS compatible
+        %% server. Supported only with Readonly option enabled and in manual
+        %% import mode.
         type => {discriminator, <<"http">>},
         %% Full URL of the HTTP server, including scheme (http or https) and
         %% path.
@@ -2496,7 +2510,10 @@ http_modify_model() ->
 -spec localceph_model() -> onepanel_parser:object_spec().
 localceph_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;localceph\&quot;`
+        %% Local Ceph cluster that has been deployed during deployment of
+        %% Oneprovider. For more information on local Ceph deployment please see
+        %% [here](https://onedata.org/#/home/documentation/stable/doc/administering_onedata/ceph_cluster_deployment.html).
         type => {discriminator, <<"localceph">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2589,7 +2606,10 @@ localceph_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;localceph\&quot;`
+        %% Local Ceph cluster that has been deployed during deployment of
+        %% Oneprovider. For more information on local Ceph deployment please see
+        %% [here](https://onedata.org/#/home/documentation/stable/doc/administering_onedata/ceph_cluster_deployment.html).
         type => {discriminator, <<"localceph">>}
     }.
 
@@ -2689,7 +2709,12 @@ luma_onedata_user_scheme_model() ->
 -spec nulldevice_model() -> onepanel_parser:object_spec().
 nulldevice_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type =
+        %% \&quot;nulldevice\&quot;`  POSIX compatible storage which
+        %% emulates behavior of `/dev/null` on local filesystem.
+        %% Allows running various performance tests, which are not impacted by
+        %% actual storage latency. Skip storage detection option is obligatory
+        %% for this type of storage.
         type => {discriminator, <<"nulldevice">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2810,9 +2835,12 @@ nulldevice_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type =
+        %% \&quot;nulldevice\&quot;`  POSIX compatible storage which
+        %% emulates behavior of `/dev/null` on local filesystem.
+        %% Allows running various performance tests, which are not impacted by
+        %% actual storage latency. Skip storage detection option is obligatory
+        %% for this type of storage.
         type => {discriminator, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
@@ -2906,7 +2934,9 @@ oz_configuration_model() ->
 -spec posix_model() -> onepanel_parser:object_spec().
 posix_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;posix\&quot;`
+        %% Any POSIX compatible storage, typically attached over high-throughput
+        %% local network, such as NFS.
         type => {discriminator, <<"posix">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -3001,9 +3031,9 @@ posix_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;posix\&quot;`
+        %% Any POSIX compatible storage, typically attached over high-throughput
+        %% local network, such as NFS.
         type => {discriminator, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
@@ -3017,7 +3047,10 @@ posix_modify_model() ->
 -spec s3_model() -> onepanel_parser:object_spec().
 s3_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;s3\&quot;`
+        %% [Amazon
+        %% S3](http://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
+        %% compatible storage.
         type => {discriminator, <<"s3">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -3138,9 +3171,10 @@ s3_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;s3\&quot;`
+        %% [Amazon
+        %% S3](http://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
+        %% compatible storage.
         type => {discriminator, <<"s3">>},
         %% The hostname of a machine where S3 storage is installed.
         hostname => {string, optional},
@@ -3175,7 +3209,10 @@ s3_modify_model() ->
 -spec swift_model() -> onepanel_parser:object_spec().
 swift_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;swift\&quot;`
+        %% Storage backend compatible with
+        %% [OpenStack](http://docs.openstack.org/developer/swift/) SWIFT
+        %% protocol.
         type => {discriminator, <<"swift">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -3279,9 +3316,10 @@ swift_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;swift\&quot;`
+        %% Storage backend compatible with
+        %% [OpenStack](http://docs.openstack.org/developer/swift/) SWIFT
+        %% protocol.
         type => {discriminator, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => {string, optional},
@@ -3302,7 +3340,9 @@ swift_modify_model() ->
 -spec webdav_model() -> onepanel_parser:object_spec().
 webdav_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;webdav\&quot;`
+        %% Storage backend compatible with
+        %% [WebDAV](https://tools.ietf.org/html/rfc4918) protocol.
         type => {discriminator, <<"webdav">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -3470,9 +3510,9 @@ webdav_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;webdav\&quot;`
+        %% Storage backend compatible with
+        %% [WebDAV](https://tools.ietf.org/html/rfc4918) protocol.
         type => {discriminator, <<"webdav">>},
         %% Full URL of the WebDAV server, including scheme (http or https) and
         %% path.
@@ -3525,7 +3565,9 @@ webdav_modify_model() ->
 -spec xrootd_model() -> onepanel_parser:object_spec().
 xrootd_model() ->
     #{
-        %% The type of storage.
+        %% The type of storage.  `type = \&quot;xrootd\&quot;`
+        %% Storage backend compatible with [XRootD](http://www.xrootd.org/)
+        %% protocol.
         type => {discriminator, <<"xrootd">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -3645,9 +3687,9 @@ xrootd_modify_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Type of the modified storage. Must be given explicitly and must match
-        %% the actual type of subject storage - this redundancy is needed due to
-        %% limitations of OpenAPI polymorphism.
+        %% The type of storage.  `type = \&quot;xrootd\&quot;`
+        %% Storage backend compatible with [XRootD](http://www.xrootd.org/)
+        %% protocol.
         type => {discriminator, <<"xrootd">>},
         %% Full URL of the XRootD server, including scheme (root or http) and
         %% path, e.g. `root://192.168.0.1//data`. Please note, that

@@ -31,7 +31,7 @@
     [{Path :: binary(), #rest_req{}}].
 routes() ->
     [
-        %% Check correctness of DNS entries for the cluster's domain.
+        %% Check correctness of DNS entries for the cluster's domain
         {<<"/dns_check">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
@@ -60,7 +60,7 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get information about SSL certificates configuration and status.
+        %% Get information about SSL certificates configuration and status
         {<<"/web_cert">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{

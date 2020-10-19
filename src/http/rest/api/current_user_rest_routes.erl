@@ -55,7 +55,7 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get Onepanel user details of currently logged in user
+        %% Get details of authenticated user
         {<<"/user">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{

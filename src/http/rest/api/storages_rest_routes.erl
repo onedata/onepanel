@@ -41,7 +41,9 @@ routes() ->
                 scope = private
             },
             %% The configuration details of storage resources to be added to the
-            %% provider deployment.
+            %% provider deployment. Must be an object with unique names for the
+            %% storages as keys and their corresponding configuration (objects)
+            %% as values - see the request body example.
             data_spec = (rest_model:storage_create_request_model())
         }},
 
@@ -78,8 +80,9 @@ routes() ->
                 aspect = instance,
                 scope = private
             },
-            %% New values for storage configuration parameters which should be
-            %% changed. Must contain the current type of the storage.
+            %% An object with one key - the current name of the storage that is
+            %% being modified - and its value set to an object with updated
+            %% parameters.
             data_spec = (rest_model:storage_modify_request_model())
         }},
 
