@@ -16,7 +16,10 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+
+-define(ATTEMPTS, 60).
 
 -define(SUPPORT_SIZE, 300000000).
 -define(STORAGE_NAME, <<"posix">>).
@@ -374,18 +377,20 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
             StorageId = api_test_memory:get(MemRef, storage_id),
             SupportSize = api_test_memory:get(MemRef, support_size),
 
-            SpaceDetailsAfterTest = get_space_details_with_rpc(Config, SpaceId),
             ExpectedSpaceSupportSize = maps:get(<<"size">>, Data, SupportSize),
             ExpectedSpaceDetails = get_expected_space_details(Config, SpaceId, SpaceName, StorageId, ExpectedSpaceSupportSize),
 
-            ?assertEqual(ExpectedSpaceDetails, SpaceDetailsAfterTest),
+            % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+            % (effective relation) and the information with updated support size might come with a delay.
+            ?assertEqual(ExpectedSpaceDetails, catch get_space_details_with_rpc(Config, SpaceId), ?ATTEMPTS),
             true;
         (expected_failure, _) ->
             SpaceId = api_test_memory:get(MemRef, space_id),
-            SpaceDetailsAfterTest = get_space_details_with_rpc(Config, SpaceId),
             SpaceDetailsBeforeTest = api_test_memory:get(MemRef, space_details),
 
-            ?assertEqual(SpaceDetailsBeforeTest, SpaceDetailsAfterTest),
+            % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+            % (effective relation) and the information with updated support size might come with a delay.
+            ?assertEqual(SpaceDetailsBeforeTest, catch get_space_details_with_rpc(Config, SpaceId), ?ATTEMPTS),
             true
     end.
 
