@@ -7,10 +7,10 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc REST API definitions for file_popularity_and_auto_cleaning.
+%%% @doc REST API definitions for auto_cleaning.
 %%% @end
 %%%--------------------------------------------------------------------
--module('file_popularity_and_auto_cleaning_rest_routes').
+-module(auto_cleaning_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
@@ -42,19 +42,6 @@ routes() ->
             }
         }},
 
-        %% Configure file-popularity mechanism in the space.
-        {<<"/provider/spaces/:id/file-popularity/configuration">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_space,
-                id = ?BINDING(id),
-                aspect = file_popularity_configuration,
-                scope = private
-            },
-            %% Configuration of the file-popularity mechanism in the space.
-            data_spec = (rest_model:space_file_popularity_configuration_model())
-        }},
-
         %% Configure space auto-cleaning mechanism
         {<<"/provider/spaces/:id/auto-cleaning/configuration">>, #rest_req{
             method = 'PATCH',
@@ -67,18 +54,6 @@ routes() ->
             produces = [<<"application/json">>],
             %% New configuration of space auto-cleaning mechanism.
             data_spec = (rest_model:space_auto_cleaning_configuration_model())
-        }},
-
-        %% Get file-popularity configuration
-        {<<"/provider/spaces/:id/file-popularity/configuration">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_space,
-                id = ?BINDING(id),
-                aspect = file_popularity_configuration,
-                scope = private
-            },
-            produces = [<<"application/json">>]
         }},
 
         %% Get the report from a space auto-cleaning run

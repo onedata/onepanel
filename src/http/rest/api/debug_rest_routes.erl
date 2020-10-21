@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for debug.
 %%% @end
 %%%--------------------------------------------------------------------
--module('debug_rest_routes').
+-module(debug_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for storages.
 %%% @end
 %%%--------------------------------------------------------------------
--module('storages_rest_routes').
+-module(storages_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

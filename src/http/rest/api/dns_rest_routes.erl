@@ -7,10 +7,10 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc REST API definitions for dns_and_web_certificates.
+%%% @doc REST API definitions for dns.
 %%% @end
 %%%--------------------------------------------------------------------
--module('dns_and_web_certificates_rest_routes').
+-module(dns_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
@@ -60,18 +60,6 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Get information about SSL certificates configuration and status
-        {<<"/web_cert">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = web_cert,
-                scope = private
-            },
-            produces = [<<"application/json">>]
-        }},
-
         %% Configure dns check
         {<<"/dns_check/configuration">>, #rest_req{
             method = 'PATCH',
@@ -83,19 +71,6 @@ routes() ->
             },
             %% The configuration changes.
             data_spec = (rest_model:dns_check_configuration_model())
-        }},
-
-        %% Modify SSL certificate configuration
-        {<<"/web_cert">>, #rest_req{
-            method = 'PATCH',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = web_cert,
-                scope = private
-            },
-            %% New values for certificate management configuration.
-            data_spec = (rest_model:web_cert_modify_request_model())
         }}
 
     ].

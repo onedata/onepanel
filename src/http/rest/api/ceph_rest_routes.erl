@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for ceph.
 %%% @end
 %%%--------------------------------------------------------------------
--module('ceph_rest_routes').
+-module(ceph_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for user_management.
 %%% @end
 %%%--------------------------------------------------------------------
--module('user_management_rest_routes').
+-module(user_management_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

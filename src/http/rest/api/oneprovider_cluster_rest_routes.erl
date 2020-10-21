@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for oneprovider_cluster.
 %%% @end
 %%%--------------------------------------------------------------------
--module('oneprovider_cluster_rest_routes').
+-module(oneprovider_cluster_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

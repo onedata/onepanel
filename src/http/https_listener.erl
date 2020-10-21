@@ -58,18 +58,19 @@ start() ->
 
     CommonRoutes = cluster_rest_routes:routes()
         ++ security_rest_routes:routes()
-        ++ dns_and_web_certificates_rest_routes:routes()
+        ++ dns_rest_routes:routes()
         ++ current_user_rest_routes:routes()
         ++ internal_rest_routes:routes(),
     SpecificRoutes = case onepanel_env:get_cluster_type() of
         oneprovider ->
             oneprovider_cluster_rest_routes:routes()
-            ++ registration_and_identity_rest_routes:routes()
+            ++ oneprovider_identity_rest_routes:routes()
             ++ storages_rest_routes:routes()
             ++ space_support_rest_routes:routes()
             ++ luma_db_rest_routes:routes()
             ++ luma_db_local_feed_rest_routes:routes()
-            ++ file_popularity_and_auto_cleaning_rest_routes:routes()
+            ++ file_popularity_rest_routes:routes()
+            ++ auto_cleaning_rest_routes:routes()
             ++ ceph_rest_routes:routes()
             ++ debug_rest_routes:routes();
         onezone ->

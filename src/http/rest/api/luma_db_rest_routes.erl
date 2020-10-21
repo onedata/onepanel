@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for luma_db.
 %%% @end
 %%%--------------------------------------------------------------------
--module('luma_db_rest_routes').
+-module(luma_db_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

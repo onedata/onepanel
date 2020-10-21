@@ -7,10 +7,10 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc REST API definitions for internal.
+%%% @doc REST API definitions for file_popularity.
 %%% @end
 %%%--------------------------------------------------------------------
--module(internal_rest_routes).
+-module(file_popularity_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
@@ -31,28 +31,29 @@
     [{Path :: binary(), #rest_req{}}].
 routes() ->
     [
-        %% Get details of a remote Oneprovider
-        {<<"/providers/:id">>, #rest_req{
+        %% Configure file popularity mechanism in the space
+        {<<"/provider/spaces/:id/file-popularity/configuration">>, #rest_req{
+            method = 'PATCH',
+            b_gri = #b_gri{
+                type = onp_space,
+                id = ?BINDING(id),
+                aspect = file_popularity_configuration,
+                scope = private
+            },
+            %% Configuration of the file-popularity mechanism in the space.
+            data_spec = (rest_model:space_file_popularity_configuration_model())
+        }},
+
+        %% Get file popularity configuration
+        {<<"/provider/spaces/:id/file-popularity/configuration">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
-                type = onp_provider,
+                type = onp_space,
                 id = ?BINDING(id),
-                aspect = remote_instance,
+                aspect = file_popularity_configuration,
                 scope = private
             },
             produces = [<<"application/json">>]
-        }},
-
-        %% Get test image
-        {<<"/test_image">>, #rest_req{
-            method = 'GET',
-            b_gri = #b_gri{
-                type = onp_panel,
-                id = undefined,
-                aspect = test_image,
-                scope = private
-            },
-            produces = [<<"image/png">>]
         }}
 
     ].

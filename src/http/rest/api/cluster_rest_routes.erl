@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for cluster.
 %%% @end
 %%%--------------------------------------------------------------------
--module('cluster_rest_routes').
+-module(cluster_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

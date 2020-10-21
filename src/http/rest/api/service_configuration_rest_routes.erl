@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for service_configuration.
 %%% @end
 %%%--------------------------------------------------------------------
--module('service_configuration_rest_routes').
+-module(service_configuration_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

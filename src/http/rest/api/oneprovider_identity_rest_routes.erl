@@ -7,10 +7,10 @@
 %%% in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc REST API definitions for registration_and_identity.
+%%% @doc REST API definitions for oneprovider_identity.
 %%% @end
 %%%--------------------------------------------------------------------
--module('registration_and_identity_rest_routes').
+-module(oneprovider_identity_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for onezone_cluster.
 %%% @end
 %%%--------------------------------------------------------------------
--module('onezone_cluster_rest_routes').
+-module(onezone_cluster_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

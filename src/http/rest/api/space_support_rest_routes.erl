@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for space_support.
 %%% @end
 %%%--------------------------------------------------------------------
--module('space_support_rest_routes').
+-module(space_support_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").

@@ -10,7 +10,7 @@
 %%% @doc REST API definitions for luma_db_local_feed.
 %%% @end
 %%%--------------------------------------------------------------------
--module('luma_db_local_feed_rest_routes').
+-module(luma_db_local_feed_rest_routes).
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
