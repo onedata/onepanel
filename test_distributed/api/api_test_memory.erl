@@ -9,7 +9,7 @@
 %%% Utility functions used for environment manipulation in API tests.
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_test_env).
+-module(api_test_memory).
 -author("Bartosz Walkowicz").
 
 
