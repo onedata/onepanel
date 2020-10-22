@@ -154,7 +154,7 @@ sequential_join_should_create_cluster(Config) ->
         ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
 
-    onepanel_test_utils:mock_system_time(Nodes),
+    onepanel_test_utils:freeze_time(Nodes),
 
     {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
     {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
@@ -172,12 +172,12 @@ sequential_join_should_create_cluster(Config) ->
     ),
 
     % Assert that invite tokens expires after predefined period of time
-    onepanel_test_utils:simulate_system_time_passing(Nodes, 100000),
+    onepanel_test_utils:simulate_time_passing(Nodes, 100000),
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(Node5,
         ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     )),
     % Returning back in time to when token was still valid should make it usable
-    onepanel_test_utils:simulate_system_time_passing(Nodes, -100000),
+    onepanel_test_utils:simulate_time_passing(Nodes, -100000),
     onepanel_test_utils:service_action(Node5,
         ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     ),
@@ -187,7 +187,7 @@ sequential_join_should_create_cluster(Config) ->
             lists:sort(rpc:call(Node, service_onepanel, get_hosts, [])))
     end, Nodes),
 
-    onepanel_test_utils:unmock_system_time(Nodes).
+    onepanel_test_utils:unfreeze_time(Nodes).
 
 
 % ensure presence of deployed services does not prevent adding more nodes

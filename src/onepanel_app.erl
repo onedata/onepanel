@@ -55,7 +55,8 @@ start(_StartType, _StartArgs) ->
             {ok, Supervisor} ->
                 resume_service(),
                 {ok, Supervisor};
-            Error -> Error
+            Error ->
+                Error
         end
     catch
         _:Reason ->
@@ -101,6 +102,5 @@ resume_service() ->
             Task = service:apply_async(ClusterType, manage_restart, #{}),
             ?info("Resuming ~s (task id ~s)", [ClusterType, Task]);
         false -> ok % new deployment, managed by REST
-    end,
-    ok.
+    end.
 

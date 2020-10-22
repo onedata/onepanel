@@ -33,8 +33,8 @@
 
 {deps, [
     {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "800ab1b34a7"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "96439554da29"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "0b97fc40ffcb"}}},
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "c285b9931721"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "71157c68c84a"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.
 

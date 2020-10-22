@@ -137,13 +137,12 @@ configure(_Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec start(Ctx :: service:step_ctx()) -> ok | no_return().
-start(Ctx) ->
+start(_) ->
     Limits = #{
         open_files => onepanel_env:get(couchbase_open_files_limit)
     },
     service_cli:start(name(), Limits),
-    % update status cache
-    status(Ctx),
+    service:update_status(name(), unhealthy),
     service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
@@ -204,13 +203,15 @@ health(_Ctx) ->
 wait_for_init(Ctx) ->
     StartAttempts = onepanel_env:get(couchbase_wait_for_init_attempts),
     try
+        ?info("Awaiting connection to the couchbase server..."),
         onepanel_utils:wait_until(?MODULE, status, [Ctx],
-            {equal, healthy}, StartAttempts)
+            {equal, healthy}, StartAttempts),
+        ?info("Connection to the couchbase server OK")
     catch throw:attempts_limit_exceeded ->
         % Couchbase sometimes dies silently. Restart it once in such case
         % to reduce impact of this issue.
-        ?warning("Wait for couchbase to come up timed out. "
-            "Attempting restart of couchbase server."),
+        ?warning("Timed out when waiting for the couchbase server to come up. "
+            "Attempting restart..."),
         service_cli:restart(name()),
 
         onepanel_utils:wait_until(?MODULE, status, [Ctx],

@@ -21,7 +21,7 @@
 %% API
 -export([deploy_onezone/5, deploy_oneprovider/3]).
 -export([get_registration_token/1]).
--export([proxy_rpc/5]).
+-export([proxy_rpc/4, proxy_rpc/5]).
 
 -define(AWAIT_OZ_CONNECTIVITY_ATTEMPTS, 30).
 
@@ -145,10 +145,18 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
 %% @doc
 %% For unknown reasons sometimes direct rpc from testmaster to worker
 %% node doesn't work, but proxying through onepanel node does.
+%% proxy_rpc/4 chooses the proxy node automatically, proxy_rpc/5 accepts
+%% explicit proxy node.
 %% @end
 %%--------------------------------------------------------------------
--spec proxy_rpc(ProxyNode :: node(), TargetNode :: node(),
-    Module :: module(), Function :: atom(), Args :: [term()]) -> term().
+-spec proxy_rpc(TargetNode :: node(), Module :: module(),
+    Function :: atom(), Args :: [term()]) -> term().
+proxy_rpc(TargetNode, Module, Function, Args) ->
+    ProxyNode = nodes:service_to_node(?SERVICE_PANEL, TargetNode),
+    proxy_rpc(ProxyNode, TargetNode, Module, Function, Args).
+
+-spec proxy_rpc(ProxyNode :: node(), TargetNode :: node(), Module :: module(),
+    Function :: atom(), Args :: [term()]) -> term().
 proxy_rpc(ProxyNode, TargetNode, Module, Function, Args) ->
     rpc:call(ProxyNode, rpc, call, [
         TargetNode, Module, Function, Args

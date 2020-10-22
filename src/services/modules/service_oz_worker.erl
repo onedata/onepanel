@@ -55,6 +55,7 @@
 -export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
     configure_additional_node/1,
     get_nagios_response/1, get_nagios_status/1]).
+-export([synchronize_clock_upon_start/1]).
 -export([reconcile_dns/1, get_ns_hosts/0]).
 -export([migrate_generated_config/1, rename_variables/0]).
 -export([get_policies/0, set_policies/1]).
@@ -332,6 +333,12 @@ get_nagios_status(Ctx) ->
         nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
         nagios_port => onepanel_env:get(oz_worker_nagios_port)
     }).
+
+
+-spec synchronize_clock_upon_start(Ctx :: service:step_ctx()) -> ok | no_return().
+synchronize_clock_upon_start(_) ->
+    OzNode = nodes:local(name()),
+    onezone_cluster_clocks:synchronize_node_upon_start(OzNode).
 
 
 %%--------------------------------------------------------------------

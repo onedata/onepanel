@@ -269,9 +269,9 @@ compute_results(Service, Checks) ->
 %% @doc Returns current time as unix epoch.
 %% @end
 %%--------------------------------------------------------------------
--spec get_timestamp() -> time_utils:seconds().
+-spec get_timestamp() -> clock:seconds().
 get_timestamp() ->
-    time_utils:timestamp_seconds().
+    clock:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------

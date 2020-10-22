@@ -28,8 +28,8 @@
 -export([get_domain/1]).
 -export([create_registration_token/1, create_registration_token/2]).
 -export([
-    mock_system_time/1, unmock_system_time/1,
-    simulate_system_time_passing/2, get_mocked_system_time/1
+    freeze_time/1, unfreeze_time/1,
+    simulate_time_passing/2
 ]).
 
 -type config() :: proplists:proplist().
@@ -295,38 +295,22 @@ create_registration_token(OnezoneDomain, AdminId) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Mocks system time - stops the clock at one value and allows to manually
-%% simulate time passing.
+%% Stops the clock at one value and allows to manually simulate time passing.
 %% @end
 %%--------------------------------------------------------------------
--spec mock_system_time([node()]) -> ok.
-mock_system_time(Nodes) ->
-    ok = test_utils:mock_new(Nodes, time_utils, [passthrough]),
-    ok = test_utils:mock_expect(Nodes, time_utils, timestamp_seconds, fun() ->
-        onepanel_env:get(mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP)
-    end).
+-spec freeze_time([node()]) -> ok.
+freeze_time(Nodes) ->
+    clock_freezer_mock:setup(Nodes).
 
 
--spec unmock_system_time([node()]) -> ok.
-unmock_system_time(Nodes) ->
-    ok = test_utils:mock_unload(Nodes, time_utils).
+-spec unfreeze_time([node()]) -> ok.
+unfreeze_time(Nodes) ->
+    clock_freezer_mock:teardown(Nodes).
 
 
--spec simulate_system_time_passing(node(), time_utils:seconds()) -> ok.
-simulate_system_time_passing(Nodes, Seconds) ->
-    lists:foreach(fun(Node) ->
-        rpc:call(Node, onepanel_env, set, [
-            mocked_time, get_mocked_system_time(Node) + Seconds
-        ])
-    end, Nodes).
-
-
--spec get_mocked_system_time(node()) -> time_utils:seconds().
-get_mocked_system_time(Node) ->
-    rpc:call(Node, onepanel_env, get, [
-        mocked_time, ?APP_NAME, ?TIME_MOCK_STARTING_TIMESTAMP
-    ]).
-
+-spec simulate_time_passing(node(), clock:seconds()) -> ok.
+simulate_time_passing(Nodes, Seconds) ->
+    clock_freezer_mock:simulate_time_passing(Nodes, Seconds * 1000).
 
 %%%===================================================================
 %%% Internal functions

@@ -6,8 +6,12 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc This module handles periodic invocation of registered jobs.
-%%% A job may be guarded by a Condition, which must evalute to 'true'
+%%% A job may be guarded by a Condition, which must evaluate to 'true'
 %%% for the job's action to be executed.
+%%%
+%%% @TODO VFS-6879 this module should persist the cron jobs in mnesia - now, if
+%%% the the gen_server crashes, it is restarted by a supervisor and its state
+%%% is wiped... Also, it should allow to register cluster-wide jobs.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_cron).
@@ -33,7 +37,7 @@
 %% Frequency of checks
 -define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
--define(NOW(), time_utils:timestamp_millis()).
+-define(NOW(), clock:timestamp_millis()).
 
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).

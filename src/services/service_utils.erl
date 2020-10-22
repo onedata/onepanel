@@ -295,21 +295,20 @@ log(#step_begin{module = Module, function = Function}) ->
 log(#step_end{module = Module, function = Function, good_bad_results = {_, []}}) ->
     ?debug("Step ~p:~p completed successfully", [Module, Function]);
 log(#step_end{module = Module, function = Function, good_bad_results = {_, Errors}}) ->
-    ?error("Step ~p:~p failed~n~ts", [Module, Function, format_errors(Errors, "")]).
+    ?error("Step ~p:~p failed~n~ts", [Module, Function, format_errors(Errors)]).
 
 
 %%--------------------------------------------------------------------
 %% @private @doc Formats the service errors into a human-readable format.
 %% @end
 %%--------------------------------------------------------------------
--spec format_errors(Errors :: [{node(), {error, _}}], Acc :: string()) ->
+-spec format_errors(Errors :: [{node(), {error, _}}]) ->
     Log :: string().
-format_errors([], Log) ->
-    Log;
-
-format_errors([{Node, {error, _} = Error} | Errors], Log) ->
-    ErrorStr = str_utils:format("Node: ~tp~nError: ~tp~n", [Node, Error]),
-    format_errors(Errors, Log ++ ErrorStr).
+format_errors(Errors) ->
+    ErrorLogs = lists:map(fun({Node, {error, _} = Error}) ->
+        str_utils:format("Node: ~tp~nError: ~tp", [Node, Error])
+    end, Errors),
+    string:join(ErrorLogs, str_utils:format("~n", [])).
 
 
 %% @private
