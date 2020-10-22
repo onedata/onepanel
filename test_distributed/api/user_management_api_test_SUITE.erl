@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file provides tests concerning provider space API (REST).
+%%% This file provides tests concerning onezone user management API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
 -module(user_management_api_test_SUITE).
@@ -28,77 +28,25 @@
 ]).
 
 -export([
-%%    get_user_ids_test/1
-    create_user_test/1
-%%    get_user_details_test/1
+    create_user_test/1,
+    get_user_details_test/1,
+    set_user_password_test/1
 ]).
 
 all() -> [
-%%    get_user_ids_test
-    create_user_test
-%%    get_user_details_test
+    create_user_test,
+    get_user_details_test,
+    set_user_password_test
 ].
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-get_user_ids_test(Config) ->
-%%    delete_all_oz_users(Config),
-    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
-    InitialUsers = {ok, Users} = rpc:call(hd(OzWorkerNodes), user_logic, list, [aai:root_auth()]),
-    ct:pal("Users: ~p", [InitialUsers]),
-    get_user_ids_test_base(Config, [InitialUsers]).
-
-delete_all_oz_users(Config)->
-    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
-    {ok, Users} = rpc:call(hd(OzWorkerNodes), user_logic, list, [aai:root_auth()]),
-    [rpc:call(hd(OzWorkerNodes), user_logic, delete, [aai:root_auth(), User])||User <- Users].
-
-
-get_user_ids_test_base(Config, ExpectedIds) ->
-    delete_all_oz_users(Config),
-    [P1] = test_config:get_providers(Config),
-    OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
-    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
-
-    ?assert(api_test_runner:run_tests(Config, [
-        #scenario_spec{
-            name = <<"Get Onezone users using /zone/users endpoint">>,
-            type = rest,
-            target_nodes = OzPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_VIEW]}
-                ],
-                unauthorized = [
-                    guest
-%%                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-%%                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer
-                ]
-            },
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = get,
-                    path = <<"zone/users">>
-                }
-            end,
-            validate_result_fun = fun(_, {ok, RespCode, Headers, Body}) ->
-                ct:pal("Code: ~p \nHeaders: ~p \nBody: ~p", [RespCode, Headers, Body]),
-                ?assertEqual(#{<<"ids">> => ExpectedIds}, Body),
-                ?assertEqual(?HTTP_200_OK, RespCode)
-            end
-        }
-    ])).
 
 
 create_user_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
     OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -113,7 +61,8 @@ create_user_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_UNAUTHORIZED(?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>)))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [
                     peer
@@ -121,11 +70,11 @@ create_user_test(Config) ->
             },
             prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
             data_spec = build_create_user_data_spec(),
+
             validate_result_fun = api_test_validate:http_201_created(fun(Body) ->
                 NewUserId = lists:last(binary:split(maps:get(<<"location">>, Body), <<"/">>, [global])),
                 Users = oz_worker_test_rpc:get_user_ids(Config),
                 ?assert(lists:member(NewUserId, Users)),
-                ok
             end)
         }
     ])).
@@ -161,52 +110,198 @@ build_create_user_prepare_args_fun(MemRef) ->
 
 
 get_user_details_test(Config) ->
+    MemRef = api_test_memory:init(),
     OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
     OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
 
-    {ok, Users} = rpc:call(hd(OzWorkerNodes), user_logic, list, [aai:root_auth()]),
+    ?assert(api_test_runner:run_tests(Config, [
+        #scenario_spec{
+            name = <<"Get Onezone user details using /zone/users rest endpoint">>,
+            type = rest,
+            target_nodes = OzPanelNodes,
 
-    Id = lists_utils:random_element(Users),
+            client_spec = #client_spec{
+                correct = [
+                    root,
+                    {member, []}
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [
+                    peer
+                ]
+            },
 
-    ct:pal("Users: ~p \n Selected Id: ~p", [Users, Id]),
+            data_spec = build_get_user_details_data_spec(OzWorkerNodes),
+            setup_fun = build_get_user_details_setup_fun(Config, MemRef),
+            prepare_args_fun = build_get_user_details_prepare_rest_args_fun(MemRef),
+
+            validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
+                UserId = api_test_memory:get(MemRef, user_id),
+                Username = api_test_memory:get(MemRef, username),
+                Fullname = api_test_memory:get(MemRef, full_name),
+
+                ?assertEqual(UserId, maps:get(<<"userId">>, Body)),
+                ?assertEqual(Username, maps:get(<<"username">>, Body)),
+                ?assertEqual(Fullname, maps:get(<<"fullName">>, Body))
+            end)
+        }
+    ])).
+
+
+%% @private
+build_get_user_details_setup_fun(Config, MemRef) ->
+    fun() ->
+        Fullname = str_utils:rand_hex(5),
+        Username = str_utils:rand_hex(5),
+        Password = str_utils:rand_hex(10),
+        UserId = create_user(Config, Username, Fullname, Password),
+
+        api_test_memory:set(MemRef, full_name, Fullname),
+        api_test_memory:set(MemRef, username, Username),
+        api_test_memory:set(MemRef, user_id, UserId)
+    end.
+
+%% @private
+build_get_user_details_data_spec(OzWorkerNodes) ->
+    HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
+    #data_spec{
+        bad_values = [{bad_id, <<"NonExistentUserId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
+    }.
+
+
+%% @private
+build_get_user_details_prepare_rest_args_fun(Memref) ->
+    fun(#api_test_ctx{data = Data}) ->
+        UserId = api_test_memory:get(Memref, user_id),
+        {Id, _} = api_test_utils:maybe_substitute_bad_id(UserId, Data),
+
+        #rest_args{
+            method = get,
+            path = <<"zone/users/", Id/binary>>
+        }
+    end.
+
+
+set_user_password_test(Config) ->
+    MemRef = api_test_memory:init(),
+    OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
+    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
-            name = <<"Get Onezone users ids using /zone/users rest endpoint">>,
+            name = <<"Set Onezone user password using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
+
             client_spec = #client_spec{
                 correct = [
-                    root
-%%                    {member, []}
+                    root,
+                    {member, [?CLUSTER_UPDATE]}
                 ],
                 unauthorized = [
-%%                    guest,
-%%                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
-%%                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                    guest,
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [
-%%                    peer
+                    peer
                 ]
             },
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = get,
-                    path = <<"zone/users/", Id/binary>>
-                }
-            end,
-            validate_result_fun = fun(_, {ok, RespCode, Headres, Body}) ->
 
-                ct:pal("Code: ~p \nHeaders: ~p \nBody: ~p", [RespCode, Headres, Body]),
-                ?assertEqual(?HTTP_200_OK, RespCode)
-            end
+            data_spec = build_set_user_password_data_spec(OzWorkerNodes),
+            setup_fun = build_set_user_password_setup_fun(Config, MemRef),
+            prepare_args_fun = build_set_user_password_prepare_rest_args_fun(MemRef),
+            verify_fun = build_set_user_password_verify_fun(MemRef, Config),
+            validate_result_fun = api_test_validate:http_204_no_content()
         }
     ])).
+
+
+%% @private
+build_set_user_password_data_spec(OzWorkerNodes) ->
+    HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
+    #data_spec{
+        required = [<<"newPassword">>],
+        correct_values = #{
+            <<"newPassword">> => [password_placeholder]
+        },
+        bad_values = [
+            {bad_id, <<"NonExistentUserId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
+        ]
+    }.
+
+
+%% @private
+build_set_user_password_setup_fun(Config, MemRef) ->
+    fun() ->
+        Fullname = str_utils:rand_hex(5),
+        Username = str_utils:rand_hex(5),
+        Password = str_utils:rand_hex(10),
+        UserId = create_user(Config, Fullname, Username, Password),
+
+        api_test_memory:set(MemRef, password, Password),
+        api_test_memory:set(MemRef, user_id, UserId)
+    end.
+
+
+%% @private
+build_set_user_password_prepare_rest_args_fun(MemRef) ->
+    fun(#api_test_ctx{data = Data}) ->
+        UserId = api_test_memory:get(MemRef, user_id),
+        NewPassword = str_utils:rand_hex(10),
+        api_test_memory:set(MemRef, new_password, NewPassword),
+
+        {Id, DataWithoutId} = api_test_utils:maybe_substitute_bad_id(UserId, Data),
+        RequestMap = case maps:get(<<"newPassword">>, DataWithoutId, undefined) of
+            password_placeholder -> maps:put(<<"newPassword">>, NewPassword, DataWithoutId);
+            _ -> DataWithoutId
+        end,
+
+        #rest_args{
+            method = patch,
+            path = <<"zone/users/", Id/binary>>,
+            headers = #{<<"content-type">> => <<"application/json">>},
+            body = json_utils:encode(RequestMap)
+        }
+    end.
+
+
+%% @private
+build_set_user_password_verify_fun(MemRef, Config) ->
+    fun(ExpectedResult, _) ->
+        UserId = api_test_memory:get(MemRef, user_id),
+        OldPassword = api_test_memory:get(MemRef, password),
+        UpdatedPassword = api_test_memory:get(MemRef, new_password),
+
+        case ExpectedResult of
+            expected_success ->
+                ?assertEqual(fail, oz_worker_test_rpc:change_user_password(Config, UserId, OldPassword, <<"somePassword">>)),
+                ?assertEqual(ok, oz_worker_test_rpc:change_user_password(Config, UserId, UpdatedPassword, <<"somePassword">>));
+            expected_failure ->
+                ?assertEqual(fail, oz_worker_test_rpc:change_user_password(Config, UserId, UpdatedPassword, <<"somePassword">>))
+        end,
+        true
+    end.
 
 
 %%%===================================================================
 %%% Helper functions
 %%%===================================================================
+
+
+%% @private
+-spec create_user(test_config:config(), binary(), binary(), basic_auth:password()) -> od_user:id().
+create_user(Config, Username, Fullname, Password) ->
+    UserData = #{
+        <<"username">> => Username,
+        <<"fullName">> => Fullname,
+        <<"password">> => Password
+    },
+    oz_worker_test_rpc:create_user(Config, UserData).
 
 
 %%%===================================================================
@@ -226,4 +321,3 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     hackney:stop(),
     application:stop(ssl).
-

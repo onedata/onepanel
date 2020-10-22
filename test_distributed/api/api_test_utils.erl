@@ -19,7 +19,7 @@
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
 -export([get_storage_id_by_name/2]).
-
+-export([to_hostnames/1]).
 
 %%%===================================================================
 %%% API
@@ -76,6 +76,10 @@ get_storage_id_by_name(Config, StorageName) ->
 
     [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
     StorageId.
+
+
+to_hostnames(Nodes) ->
+    [list_to_binary(utils:get_host(X)) || X <- Nodes].
 
 
 %%%===================================================================

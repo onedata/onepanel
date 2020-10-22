@@ -149,7 +149,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
 
 %% @private
 build_get_space_details_data_spec(OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
@@ -220,7 +220,7 @@ build_support_space_setup_fun(MemRef, Config, SpaceName) ->
 
 %% @private
 build_support_space_data_spec(StorageId, OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         required = [<<"size">>, <<"storageId">>, <<"token">>],
         correct_values = #{
@@ -334,7 +334,7 @@ build_modify_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, Sto
 
 %% @private
 build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         optional = [<<"size">>],
         correct_values = #{
@@ -435,7 +435,7 @@ revoke_space_support_test(Config) ->
 
 %% @private
 build_revoke_space_support_data_spec(OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
@@ -544,12 +544,6 @@ create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
     {_, SerializedToken} = create_space_and_support_token(Config, SpaceName),
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
     op_worker_test_rpc:support_space(Config, StorageId, SerializedToken, SupportSize).
-
-
-%% @private
--spec to_hostnames([node()]) -> [list()].
-to_hostnames(Nodes) ->
-    [list_to_binary(utils:get_host(X)) || X <- Nodes].
 
 
 %% @private
