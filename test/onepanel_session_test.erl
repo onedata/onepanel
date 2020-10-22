@@ -26,15 +26,17 @@
 %%%===================================================================
 
 onepanel_session_test_() ->
-    {foreach,
-        fun start/0,
-        fun stop/1,
-        [{timeout, 30, Testcase} || Testcase <- [
-            fun expired_token_is_invalid/0,
-            fun token_is_reused/0,
-            fun token_is_renewed/0,
-            fun expired_tokens_are_cleaned/0
-        ]]
+    {setup, fun node_cache:init/0, fun(_) -> ets:delete(node_cache) end, 
+        {foreach,
+            fun start/0,
+            fun stop/1,
+            [{timeout, 30, Testcase} || Testcase <- [
+                fun expired_token_is_invalid/0,
+                fun token_is_reused/0,
+                fun token_is_renewed/0,
+                fun expired_tokens_are_cleaned/0
+            ]]
+        }
     }.
 
 %%%===================================================================

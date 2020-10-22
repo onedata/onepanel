@@ -22,9 +22,9 @@
 -define(SINCE, 1518104419). % Feb  8 15:40:19 2018 GMT
 -define(UNTIL, 1833464419). % Feb  6 15:40:19 2028 GMT
 
+-include_lib("eunit/include/eunit.hrl").
 -include("modules/errors.hrl").
 -include_lib("public_key/include/OTP-PUB-KEY.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 %%%===================================================================
 %%% Test functions
@@ -53,10 +53,13 @@ read_dates_as_epoch_test() ->
     ?assertEqual({?SINCE, ?UNTIL}, onepanel_cert:get_times(Cert)).
 
 
-get_seconds_till_expiration_test() ->
-    {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-    ?assertEqual(?UNTIL - time_utils:timestamp_seconds(),
-        onepanel_cert:get_seconds_till_expiration(Cert)).
+get_seconds_till_expiration_test_() ->
+    {setup, fun node_cache:init/0, fun(_) -> ets:delete(node_cache) end, fun() ->
+        {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
+        ?assertEqual(?UNTIL - time_utils:timestamp_seconds(),
+            onepanel_cert:get_seconds_till_expiration(Cert))
+        end
+    }.
 
 
 verify_accepts_domain_test() ->

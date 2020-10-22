@@ -103,7 +103,7 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
         end
     end,
 
-    case simple_cache:get(
+    case node_cache:get(
         ?USER_DETAILS_CACHE_KEY(SerializedToken, PeerIp),
         FetchDetailsFun
     ) of

@@ -59,7 +59,7 @@
 %%--------------------------------------------------------------------
 -spec get(name()) -> spec() | {error, _}.
 get(Name) ->
-    case simple_cache:get(?DETAILS_CACHE_KEY(Name), fun() ->
+    case node_cache:get(?DETAILS_CACHE_KEY(Name), fun() ->
         Params = get_params(Name, [
             {copiesNumber, <<"size">>},
             {minCopiesNumber, <<"min_size">>}
@@ -95,7 +95,7 @@ get_all() ->
 %%--------------------------------------------------------------------
 -spec list() -> [name()].
 list() ->
-    {ok, Names} = simple_cache:get(?LIST_CACHE_KEY, fun() ->
+    {ok, Names} = node_cache:get(?LIST_CACHE_KEY, fun() ->
         {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
         PoolsList = rpc:call(Node, ceph_cli, list_pools, []),
         Names = [Name || #{name := Name} <- PoolsList],
@@ -266,6 +266,6 @@ get_params(PoolName, Params) ->
 -spec clear_cache(name()) -> ok.
 clear_cache(Name) ->
     Nodes = nodes:all(?SERVICE_PANEL),
-    rpc:multicall(Nodes, simple_cache, clear, [?DETAILS_CACHE_KEY(Name)]),
-    rpc:multicall(Nodes, simple_cache, clear, [?LIST_CACHE_KEY]),
+    rpc:multicall(Nodes, node_cache, clear, [?DETAILS_CACHE_KEY(Name)]),
+    rpc:multicall(Nodes, node_cache, clear, [?LIST_CACHE_KEY]),
     ok.

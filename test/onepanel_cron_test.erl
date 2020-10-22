@@ -32,15 +32,17 @@
 %%%===================================================================
 
 onepanel_cron_test_() ->
-    {foreach, fun prepare/0, fun stop/1, [
-        fun job_is_executed/0,
-        fun condition_prevents_execution/0,
-        fun multiple_jobs_are_executed/0,
-        fun job_is_repeated/0,
-        fun job_is_removed/0,
-        {timeout, 30, fun running_job_is_skipped/0},
-        {timeout, 30, fun long_job_is_aborted/0}
-    ]}.
+    {setup, fun node_cache:init/0, fun(_) -> ets:delete(node_cache) end, 
+        {foreach, fun prepare/0, fun stop/1, [
+            fun job_is_executed/0,
+            fun condition_prevents_execution/0,
+            fun multiple_jobs_are_executed/0,
+            fun job_is_repeated/0,
+            fun job_is_removed/0,
+            {timeout, 30, fun running_job_is_skipped/0},
+            {timeout, 30, fun long_job_is_aborted/0}
+        ]}
+    }.
 
 
 job_is_executed() ->
