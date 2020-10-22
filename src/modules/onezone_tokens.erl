@@ -47,7 +47,7 @@ authenticate_user(Token, PeerIp) ->
     ClusterType = onepanel_env:get_cluster_type(),
     case authenticate_user(ClusterType, Token, PeerIp) of
         #client{} = Client -> Client;
-        {error, _} = Error -> ?ERROR_UNAUTHORIZED(Error)
+        {error, _} = Error -> Error
     end.
 
 
@@ -75,14 +75,16 @@ read_domain(RegistrationToken) ->
 %%--------------------------------------------------------------------
 -spec authenticate_user(
     onedata:cluster_type(), tokens:serialized(), PeerIp :: ip_utils:ip()
-) -> #client{} | {error, _}.
+) -> #client{} | errors:unauthorized_error().
 authenticate_user(onezone, Token, PeerIp) ->
     case service_oz_worker:get_auth_by_token(Token, PeerIp) of
         {ok, ?USER(_) = Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
             user_details_to_client(Details, Auth, {rpc, Auth});
-        {ok, _} -> ?ERROR_TOKEN_SUBJECT_INVALID;
-        {error, _} = Error -> Error
+        {ok, _} ->
+            ?ERROR_UNAUTHORIZED(?ERROR_TOKEN_SUBJECT_INVALID);
+        {error, _} = Error ->
+            Error
     end;
 
 authenticate_user(oneprovider, SerializedToken, PeerIp) ->
@@ -99,7 +101,7 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
             {ok, Details} = fetch_details(OzPluginAuth),
             {true, {Details, AaiAuth, OzPluginAuth}, TTL}
         catch
-            error:{badmatch, {error, _} = Error} -> Error
+            error:{badmatch, {error, _} = Error} -> ?ERROR_UNAUTHORIZED(Error)
         end
     end,
 

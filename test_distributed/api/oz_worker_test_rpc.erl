@@ -16,11 +16,19 @@
 
 %% API
 -export([
+    get_user_ids/1,
     create_user/1,
     create_space/3,
     create_space_support_token/3,
     delete_space/2
 ]).
+
+
+-spec get_user_ids(test_config:config()) -> [binary()].
+get_user_ids(Config) ->
+    {ok, Users} = ?assertMatch({ok, _}, call_zone_node(Config, user_logic, list, [aai:root_auth()])),
+    Users.
+
 
 -spec create_user(test_config:config()) -> binary().
 create_user(Config) ->
