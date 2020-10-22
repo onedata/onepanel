@@ -56,28 +56,36 @@ start() ->
     ChainFile = onepanel_env:get(web_cert_chain_file),
     GuiStaticRoot = onepanel_env:get(gui_static_root),
 
-    CommonRoutes = cluster_rest_routes:routes()
-        ++ security_rest_routes:routes()
-        ++ dns_rest_routes:routes()
-        ++ current_user_rest_routes:routes()
-        ++ internal_rest_routes:routes(),
+    CommonRoutes = lists:flatten([
+        cluster_rest_routes:routes(),
+        security_rest_routes:routes(),
+        dns_rest_routes:routes(),
+        current_user_rest_routes:routes(),
+        internal_rest_routes:routes()
+    ]),
+
     SpecificRoutes = case onepanel_env:get_cluster_type() of
         oneprovider ->
-            oneprovider_cluster_rest_routes:routes()
-            ++ oneprovider_identity_rest_routes:routes()
-            ++ storages_rest_routes:routes()
-            ++ space_support_rest_routes:routes()
-            ++ luma_db_rest_routes:routes()
-            ++ luma_db_local_feed_rest_routes:routes()
-            ++ file_popularity_rest_routes:routes()
-            ++ auto_cleaning_rest_routes:routes()
-            ++ ceph_rest_routes:routes()
-            ++ debug_rest_routes:routes();
+            lists:flatten([
+                oneprovider_cluster_rest_routes:routes(),
+                oneprovider_identity_rest_routes:routes(),
+                storages_rest_routes:routes(),
+                space_support_rest_routes:routes(),
+                luma_db_rest_routes:routes(),
+                luma_db_local_feed_rest_routes:routes(),
+                file_popularity_rest_routes:routes(),
+                auto_cleaning_rest_routes:routes(),
+                ceph_rest_routes:routes(),
+                debug_rest_routes:routes()
+            ]);
         onezone ->
-            onezone_cluster_rest_routes:routes()
-                 ++ service_configuration_rest_routes:routes()
-                 ++ user_management_rest_routes:routes()
+            lists:flatten([
+                onezone_cluster_rest_routes:routes(),
+                service_configuration_rest_routes:routes(),
+                user_management_rest_routes:routes()
+            ])
     end,
+
     Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
     DynamicPages = [
         {?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration},
