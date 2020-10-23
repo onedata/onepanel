@@ -70,6 +70,7 @@ start() ->
                 oneprovider_cluster_rest_routes:routes(),
                 oneprovider_identity_rest_routes:routes(),
                 storages_rest_routes:routes(),
+                storage_import_rest_routes:routes(),
                 space_support_rest_routes:routes(),
                 luma_db_rest_routes:routes(),
                 luma_db_local_feed_rest_routes:routes(),
