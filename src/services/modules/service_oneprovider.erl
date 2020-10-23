@@ -941,8 +941,7 @@ configure_auto_cleaning(#{space_id := SpaceId} = Ctx) ->
 
 -spec connect_and_set_up_in_onezone(no_fallback | fallback_to_async) -> ok | no_return().
 connect_and_set_up_in_onezone(FallbackPolicy) ->
-    OnezoneDomain = get_oz_domain(),
-    ?notice("Trying to connect to Onezone (~ts)...", [OnezoneDomain]),
+    ?notice("Trying to connect to Onezone (~ts)...", [get_oz_domain()]),
     case {try_to_establish_onezone_connection(), FallbackPolicy} of
         {true, _} ->
             set_up_in_onezone();
@@ -950,26 +949,7 @@ connect_and_set_up_in_onezone(FallbackPolicy) ->
             ?error("Failed to establish Onezone connection"),
             error(failed_to_establish_onezone_connection);
         {false, fallback_to_async} ->
-            PeriodicCheck = fun() ->
-                case try_to_establish_onezone_connection() of
-                    true ->
-                        set_up_in_onezone(),
-                        onepanel_cron:remove_job(?FUNCTION_NAME);
-                    false ->
-                        {_, Time} = time_format:seconds_to_datetime(clock:timestamp_seconds()),
-                        case Time of
-                            {_, Min, Sec} when Min rem 5 == 0 andalso Sec < ?OZ_CONNECTION_CHECK_INTERVAL_SECONDS ->
-                                % log every 5 minutes (at the first check within the minute)
-                                ?warning(
-                                    "Onezone connection cannot be established, is the service online (~ts)? "
-                                    "Retrying as long as it takes...", [OnezoneDomain]
-                                );
-                            _ ->
-                                ok
-                        end
-                end
-            end,
-            onepanel_cron:add_job(?FUNCTION_NAME, PeriodicCheck, timer:seconds(?OZ_CONNECTION_CHECK_INTERVAL_SECONDS))
+            schedule_periodic_onezone_connection_check()
     end.
 
 
@@ -1058,6 +1038,38 @@ on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
 
 
 %% @private
+-spec schedule_periodic_onezone_connection_check() -> ok.
+schedule_periodic_onezone_connection_check() ->
+    PeriodicCheck = fun() ->
+        case try_to_establish_onezone_connection() of
+            true ->
+                set_up_in_onezone(),
+                onepanel_cron:remove_job(?FUNCTION_NAME);
+            false ->
+                {_, Time} = time_format:seconds_to_datetime(clock:timestamp_seconds()),
+                case Time of
+                    {_, Min, Sec} when Min rem 5 == 0 andalso Sec < ?OZ_CONNECTION_CHECK_INTERVAL_SECONDS ->
+                        % log every 5 minutes (at the first check within the minute)
+                        ?warning(
+                            "Onezone connection cannot be established, is the service online (~ts)? "
+                            "Retrying as long as it takes...", [get_oz_domain()]
+                        );
+                    _ ->
+                        ok
+                end
+        end
+    end,
+    onepanel_cron:add_job(?FUNCTION_NAME, PeriodicCheck, timer:seconds(?OZ_CONNECTION_CHECK_INTERVAL_SECONDS)).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% @TODO VFS-5837 - currently this function merely checks if any successful
+%% request can be made to Onezone, which means it is online and reachable.
+%% Rework when Onepanel uses GraphSync for persistent connection to Onezone.
+%% @end
+%%--------------------------------------------------------------------
 -spec try_to_establish_onezone_connection() -> boolean().
 try_to_establish_onezone_connection() ->
     {ok, #service{ctx = Ctx}} = service:get(name()),

@@ -72,7 +72,8 @@ restart_periodic_sync(Name, ResolveNodesToSync) ->
                     WasSuccessful
             end
         end,
-        % run the first sync action - this must finish with success
+        % run the first sync action - this must finish with success, otherwise it
+        % is better if the whole calling process crashes and fails to deploy / setup cluster
         true = PeriodicAction(),
         % remove any previous periodic sync jobs across the cluster
         rpc:multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?MODULE]),
@@ -136,4 +137,5 @@ run_for_other_nodes(Callback, Nodes) ->
 %% @private
 -spec get_master_node() -> node().
 get_master_node() ->
+    % @TODO VFS-6085 rework the master choice when onepanel cluster is resizeable
     hd(lists:sort(service_onepanel:get_nodes())).

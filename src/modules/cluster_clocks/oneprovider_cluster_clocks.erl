@@ -48,26 +48,26 @@ restart_periodic_sync() ->
 %%% Internal functions
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Clocks sync is done only when the master node is synchronized with Onezone's
-%% global time, which is done after Onezone connection is established.
-%% @end
-%%--------------------------------------------------------------------
 -spec resolve_nodes_to_sync() -> {ok, [node()]} | skip.
 resolve_nodes_to_sync() ->
-    case ensure_master_synced_with_onezone() of
+    case revise_master_sync_with_onezone() of
         true -> {ok, service_nodes_to_sync()};
         false -> skip
     end.
 
 
+%%--------------------------------------------------------------------
 %% @private
--spec ensure_master_synced_with_onezone() -> boolean().
-ensure_master_synced_with_onezone() ->
-    % Although the periodic sync for Oneprovider is started only after connection
-    % to Onezone is established, in come cases the sync attempt itself may fail
+%% @doc
+%% Clocks sync is done only when the master node is synchronized with Onezone's
+%% global time, which is done after Onezone connection is established. The
+%% master's clock is synchronized with Onezone periodically, but it may fail -
+%% in such case the previous synchronization is reused, given that it has
+%% succeeded at least once.
+%% @end
+%%--------------------------------------------------------------------
+-spec revise_master_sync_with_onezone() -> boolean().
+revise_master_sync_with_onezone() ->
     case clock:synchronize_local_with_remote_server(fun fetch_zone_time/0) of
         ok ->
             ?info("Successfully synchronized clock on the master node with Onezone"),
