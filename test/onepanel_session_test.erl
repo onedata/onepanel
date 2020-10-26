@@ -26,17 +26,15 @@
 %%%===================================================================
 
 onepanel_session_test_() ->
-    {setup, fun node_cache:init/0, fun(_) -> ets:delete(node_cache) end, 
-        {foreach,
-            fun start/0,
-            fun stop/1,
-            [{timeout, 30, Testcase} || Testcase <- [
-                fun expired_token_is_invalid/0,
-                fun token_is_reused/0,
-                fun token_is_renewed/0,
-                fun expired_tokens_are_cleaned/0
-            ]]
-        }
+    {foreach,
+        fun start/0,
+        fun stop/1,
+        [{timeout, 30, Testcase} || Testcase <- [
+            fun expired_token_is_invalid/0,
+            fun token_is_reused/0,
+            fun token_is_renewed/0,
+            fun expired_tokens_are_cleaned/0
+        ]]
     }.
 
 %%%===================================================================
@@ -74,6 +72,7 @@ expired_tokens_are_cleaned() ->
 %%%===================================================================
 
 start() ->
+    node_cache:init(),
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(create_tables_timeout, 10000),
@@ -82,6 +81,7 @@ start() ->
     ok.
 
 stop(_) ->
+    node_cache:destroy(),
     ?assertEqual(ok, service_onepanel:reset_node(#{})),
     meck:unload().
 

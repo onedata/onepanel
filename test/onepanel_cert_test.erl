@@ -54,7 +54,7 @@ read_dates_as_epoch_test() ->
 
 
 get_seconds_till_expiration_test_() ->
-    {setup, fun node_cache:init/0, fun(_) -> ets:delete(node_cache) end, fun() ->
+    {setup, fun node_cache:init/0, fun(_) -> node_cache:destroy() end, fun() ->
         {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
         ?assertEqual(?UNTIL - time_utils:timestamp_seconds(),
             onepanel_cert:get_seconds_till_expiration(Cert))
