@@ -59,14 +59,14 @@
 %%--------------------------------------------------------------------
 -spec get(name()) -> spec() | {error, _}.
 get(Name) ->
-    case node_cache:get(?DETAILS_CACHE_KEY(Name), fun() ->
+    case node_cache:acquire(?DETAILS_CACHE_KEY(Name), fun() ->
         Params = get_params(Name, [
             {copiesNumber, <<"size">>},
             {minCopiesNumber, <<"min_size">>}
         ]),
         case Params of
             Map when is_map(Map) ->
-                {true, Params#{name => Name}, ?CACHE_TIMEOUT};
+                {ok, Params#{name => Name}, ?CACHE_TIMEOUT};
             {error, _} = Error ->
                 Error
         end
@@ -95,11 +95,11 @@ get_all() ->
 %%--------------------------------------------------------------------
 -spec list() -> [name()].
 list() ->
-    {ok, Names} = node_cache:get(?LIST_CACHE_KEY, fun() ->
+    {ok, Names} = node_cache:acquire(?LIST_CACHE_KEY, fun() ->
         {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
         PoolsList = rpc:call(Node, ceph_cli, list_pools, []),
         Names = [Name || #{name := Name} <- PoolsList],
-        {true, Names, ?CACHE_TIMEOUT}
+        {ok, Names, ?CACHE_TIMEOUT}
     end),
     Names.
 

@@ -97,13 +97,13 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
             TTL = min(TokenTTL, ?USER_DETAILS_CACHE_TTL),
             OzPluginAuth = {token, SerializedToken},
             {ok, Details} = fetch_details(OzPluginAuth),
-            {true, {Details, AaiAuth, OzPluginAuth}, TTL}
+            {ok, {Details, AaiAuth, OzPluginAuth}, TTL}
         catch
             error:{badmatch, {error, _} = Error} -> Error
         end
     end,
 
-    case node_cache:get(
+    case node_cache:acquire(
         ?USER_DETAILS_CACHE_KEY(SerializedToken, PeerIp),
         FetchDetailsFun
     ) of
