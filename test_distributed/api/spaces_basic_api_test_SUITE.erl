@@ -401,10 +401,6 @@ revoke_space_support_test(Config) ->
     OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
-    StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
-    SupportSize = ?SUPPORT_SIZE,
-    SpaceName = str_utils:rand_hex(12),
-
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
@@ -423,7 +419,7 @@ revoke_space_support_test(Config) ->
                 forbidden = [peer]
             },
 
-            setup_fun = build_revoke_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, StorageId),
+            setup_fun = build_revoke_space_support_setup_fun(MemRef, Config),
             prepare_args_fun = build_revoke_space_support_prepare_rest_args_fun(MemRef),
             verify_fun = build_revoke_space_support_verify_fun(MemRef, Config),
             data_spec = build_revoke_space_support_data_spec(OpWorkerNodes),
@@ -442,10 +438,9 @@ build_revoke_space_support_data_spec(OpWorkerNodes) ->
 
 
 %% @private
-build_revoke_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, StorageId) ->
+build_revoke_space_support_setup_fun(MemRef, Config) ->
     fun() ->
-        {SpaceId, Token} = create_space_and_support_token(Config, SpaceName),
-        op_worker_test_rpc:support_space(Config, StorageId, Token, SupportSize),
+        SpaceId = create_and_support_space(Config),
         api_test_memory:set(MemRef, space_id, SpaceId)
     end.
 
@@ -543,7 +538,9 @@ create_and_support_space(Config) ->
 create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
     {_, SerializedToken} = create_space_and_support_token(Config, SpaceName),
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
-    op_worker_test_rpc:support_space(Config, StorageId, SerializedToken, SupportSize).
+    SpaceId = op_worker_test_rpc:support_space(Config, StorageId, SerializedToken, SupportSize),
+    ?assertEqual(true, lists:member(SpaceId, op_worker_test_rpc:get_space_ids(Config)), ?ATTEMPTS),
+    SpaceId.
 
 
 %% @private
@@ -562,7 +559,7 @@ unsupport_all_spaces(Config) ->
 %% @private
 -spec delete_all_spaces(test_config:config()) -> ok.
 delete_all_spaces(Config) ->
-    SpacesId = op_worker_test_rpc:get_space_ids(Config),
+    SpacesId = oz_worker_test_rpc:get_spaces_ids(Config),
     [oz_worker_test_rpc:delete_space(Config, X) || X <- SpacesId].
 
 
@@ -589,6 +586,7 @@ end_per_suite(_Config) ->
 init_per_testcase(get_space_ids_test, Config) ->
     unsupport_all_spaces(Config),
     delete_all_spaces(Config),
+    ?assertEqual([], op_worker_test_rpc:get_space_ids(Config), ?ATTEMPTS),
     Config;
 
 init_per_testcase(_, Config) ->
