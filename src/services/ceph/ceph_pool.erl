@@ -21,7 +21,7 @@
 
 -define(LIST_CACHE_KEY, ceph_pools).
 -define(DETAILS_CACHE_KEY(PoolName), {ceph_pool, PoolName}).
--define(CACHE_TIMEOUT, 60 * 60 * 1000). % 1 hour
+-define(CACHE_TIMEOUT, 60 * 60). % 1 hour
 
 % @formatter:off
 -type name() :: binary().

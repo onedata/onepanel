@@ -61,7 +61,7 @@
 -export([get_details/1, get_details/0]).
 
 -define(DETAILS_CACHE_KEY, onezone_details).
--define(DETAILS_CACHE_TTL, timer:minutes(1)).
+-define(DETAILS_CACHE_TTL, 60). % 1 minute
 
 %%%===================================================================
 %%% Service behaviour callbacks

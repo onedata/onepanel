@@ -215,7 +215,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 -spec acquire_provider_identity_token() -> {ok, tokens:serialized()} | errors:error().
 acquire_provider_identity_token() ->
     node_cache:acquire(?IDENTITY_TOKEN_CACHE_KEY, fun() ->
-        ValidUntil = time_utils:timestamp_seconds() + ?ONEZONE_AUTH_CACHE_CACHE_TTL div 1000,
+        ValidUntil = time_utils:timestamp_seconds() + ?ONEZONE_AUTH_CACHE_CACHE_TTL,
         Body = json_utils:encode(#{
             <<"type">> => token_type:to_json(?IDENTITY_TOKEN),
             <<"caveats">> => [caveats:to_json(#cv_time{valid_until = ValidUntil})]
