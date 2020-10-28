@@ -51,7 +51,7 @@ change_user_password(Config, UserId, OldPassword, NewPassword) ->
     Response = call_zone_node(Config, user_logic, change_password, [aai:user_auth(UserId), UserId, OldPassword, NewPassword]),
     case Response of
         ok -> ok;
-        _ -> fail
+        _ -> error
     end.
 
 

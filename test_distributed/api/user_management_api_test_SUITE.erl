@@ -48,6 +48,7 @@ all() -> [
 create_user_test(Config) ->
     MemRef = api_test_memory:init(),
     OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
+    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -69,29 +70,38 @@ create_user_test(Config) ->
                 ]
             },
             prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
-            data_spec = build_create_user_data_spec(),
+            data_spec = build_create_user_data_spec(OzWorkerNodes),
 
-            validate_result_fun = api_test_validate:http_201_created(fun(Body) ->
-                NewUserId = lists:last(binary:split(maps:get(<<"location">>, Body), <<"/">>, [global])),
+            validate_result_fun = api_test_validate:http_201_created(fun(Headers) ->
+                Url = <<"/api/v3/onepanel/zone/users/">>,
+                <<Url:28/binary, NewUserId/binary>> = ?assertMatch(<<Url:28/binary, _/binary>>, maps:get(<<"location">>, Headers)),
                 Users = oz_worker_test_rpc:get_user_ids(Config),
-                ?assert(lists:member(NewUserId, Users)),
+                ?assert(lists:member(NewUserId, Users))
             end)
         }
     ])).
 
 
 %% @private
-build_create_user_data_spec() ->
+-spec build_create_user_data_spec([node()]) -> api_test_runner:data_spec().
+build_create_user_data_spec(OzWorkerNodes) ->
+    HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
+    TooShortPassword = <<"abcdefg">>,
     #data_spec{
         required = [<<"username">>, <<"password">>],
         correct_values = #{
             <<"username">> => [username_placeholder],
             <<"password">> => [<<"somePassword">>]
-        }
+        },
+        bad_values = [
+            {<<"password">>, <<"">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)}
+        ]
     }.
 
 
 %% @private
+-spec build_create_user_prepare_args_fun(api_test_expect:env_ref()) -> api_test_runner:prepare_ergs_fun().
 build_create_user_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         Username = str_utils:rand_hex(10),
@@ -140,32 +150,34 @@ get_user_details_test(Config) ->
             prepare_args_fun = build_get_user_details_prepare_rest_args_fun(MemRef),
 
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
-                UserId = api_test_memory:get(MemRef, user_id),
-                Username = api_test_memory:get(MemRef, username),
-                Fullname = api_test_memory:get(MemRef, full_name),
-
-                ?assertEqual(UserId, maps:get(<<"userId">>, Body)),
-                ?assertEqual(Username, maps:get(<<"username">>, Body)),
-                ?assertEqual(Fullname, maps:get(<<"fullName">>, Body))
+                ExpUserDetails = api_test_memory:get(MemRef, user_details),
+                ?assertEqual(ExpUserDetails, Body)
             end)
         }
     ])).
 
 
 %% @private
+-spec build_get_user_details_setup_fun(test_config:config(), api_test_expect:env_ref()) -> api_test_runner:setup_fun().
 build_get_user_details_setup_fun(Config, MemRef) ->
     fun() ->
         Fullname = str_utils:rand_hex(5),
         Username = str_utils:rand_hex(5),
         Password = str_utils:rand_hex(10),
         UserId = create_user(Config, Username, Fullname, Password),
+        UserDetails = #{
+            <<"userId">> => UserId,
+            <<"username">> => Username,
+            <<"fullName">> => Fullname
+        },
 
-        api_test_memory:set(MemRef, full_name, Fullname),
-        api_test_memory:set(MemRef, username, Username),
+        api_test_memory:set(MemRef, user_details, UserDetails),
         api_test_memory:set(MemRef, user_id, UserId)
     end.
 
+
 %% @private
+-spec build_get_user_details_data_spec([node()]) -> api_test_runner:data_spec().
 build_get_user_details_data_spec(OzWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     #data_spec{
@@ -174,9 +186,10 @@ build_get_user_details_data_spec(OzWorkerNodes) ->
 
 
 %% @private
-build_get_user_details_prepare_rest_args_fun(Memref) ->
+-spec build_get_user_details_prepare_rest_args_fun(api_test_expect:env_ref()) -> api_test_runner:prepare_args_fun().
+build_get_user_details_prepare_rest_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
-        UserId = api_test_memory:get(Memref, user_id),
+        UserId = api_test_memory:get(MemRef, user_id),
         {Id, _} = api_test_utils:maybe_substitute_bad_id(UserId, Data),
 
         #rest_args{
@@ -190,6 +203,14 @@ set_user_password_test(Config) ->
     MemRef = api_test_memory:init(),
     OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
     OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
+
+    Fullname = str_utils:rand_hex(5),
+    Username = str_utils:rand_hex(5),
+    Password = str_utils:rand_hex(10),
+    UserId = create_user(Config, Fullname, Username, Password),
+
+    api_test_memory:set(MemRef, old_password, Password),
+    api_test_memory:set(MemRef, user_id, UserId),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -213,7 +234,6 @@ set_user_password_test(Config) ->
             },
 
             data_spec = build_set_user_password_data_spec(OzWorkerNodes),
-            setup_fun = build_set_user_password_setup_fun(Config, MemRef),
             prepare_args_fun = build_set_user_password_prepare_rest_args_fun(MemRef),
             verify_fun = build_set_user_password_verify_fun(MemRef, Config),
             validate_result_fun = api_test_validate:http_204_no_content()
@@ -222,12 +242,13 @@ set_user_password_test(Config) ->
 
 
 %% @private
+-spec build_set_user_password_data_spec([node()]) -> api_test_runner:data_spec().
 build_set_user_password_data_spec(OzWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     #data_spec{
         required = [<<"newPassword">>],
         correct_values = #{
-            <<"newPassword">> => [password_placeholder]
+            <<"newPassword">> => [new_password_placeholder, old_password_placeholder]
         },
         bad_values = [
             {bad_id, <<"NonExistentUserId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
@@ -236,28 +257,23 @@ build_set_user_password_data_spec(OzWorkerNodes) ->
 
 
 %% @private
-build_set_user_password_setup_fun(Config, MemRef) ->
-    fun() ->
-        Fullname = str_utils:rand_hex(5),
-        Username = str_utils:rand_hex(5),
-        Password = str_utils:rand_hex(10),
-        UserId = create_user(Config, Fullname, Username, Password),
-
-        api_test_memory:set(MemRef, password, Password),
-        api_test_memory:set(MemRef, user_id, UserId)
-    end.
-
-
-%% @private
+-spec build_set_user_password_prepare_rest_args_fun(api_test_expect:env_ref()) -> api_test_runner:prepare_args_fun().
 build_set_user_password_prepare_rest_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         UserId = api_test_memory:get(MemRef, user_id),
+        OldPassword = api_test_memory:get(MemRef, old_password),
         NewPassword = str_utils:rand_hex(10),
-        api_test_memory:set(MemRef, new_password, NewPassword),
 
         {Id, DataWithoutId} = api_test_utils:maybe_substitute_bad_id(UserId, Data),
+
         RequestMap = case maps:get(<<"newPassword">>, DataWithoutId, undefined) of
-            password_placeholder -> maps:put(<<"newPassword">>, NewPassword, DataWithoutId);
+            new_password_placeholder ->
+                api_test_memory:set(MemRef, old_password, OldPassword),
+                api_test_memory:set(MemRef, new_password, NewPassword),
+                maps:put(<<"newPassword">>, NewPassword, DataWithoutId);
+            old_password_placeholder ->
+                api_test_memory:set(MemRef, new_password, OldPassword),
+                maps:put(<<"newPassword">>, OldPassword, DataWithoutId);
             _ -> DataWithoutId
         end,
 
@@ -271,20 +287,38 @@ build_set_user_password_prepare_rest_args_fun(MemRef) ->
 
 
 %% @private
+-spec build_set_user_password_verify_fun(api_test_expect:env_ref(), test_config:config()) -> api_test_runner:verify_fun().
 build_set_user_password_verify_fun(MemRef, Config) ->
-    fun(ExpectedResult, _) ->
-        UserId = api_test_memory:get(MemRef, user_id),
-        OldPassword = api_test_memory:get(MemRef, password),
-        UpdatedPassword = api_test_memory:get(MemRef, new_password),
+    fun
+        (expected_success, _) ->
+            UserId = api_test_memory:get(MemRef, user_id),
+            OldPassword = api_test_memory:get(MemRef, old_password),
+            UpdatedPassword = api_test_memory:get(MemRef, new_password),
 
-        case ExpectedResult of
-            expected_success ->
-                ?assertEqual(fail, oz_worker_test_rpc:change_user_password(Config, UserId, OldPassword, <<"somePassword">>)),
-                ?assertEqual(ok, oz_worker_test_rpc:change_user_password(Config, UserId, UpdatedPassword, <<"somePassword">>));
-            expected_failure ->
-                ?assertEqual(fail, oz_worker_test_rpc:change_user_password(Config, UserId, UpdatedPassword, <<"somePassword">>))
-        end,
-        true
+            case OldPassword =:= UpdatedPassword of
+                true ->
+                    ?assert(check_user_password(Config, UserId, OldPassword)),
+                    ?assert(check_user_password(Config, UserId, UpdatedPassword));
+                false ->
+                    ?assertNot(check_user_password(Config, UserId, OldPassword)),
+                    ?assert(check_user_password(Config, UserId, UpdatedPassword))
+            end,
+            true;
+
+        (expected_failure, _) ->
+            UserId = api_test_memory:get(MemRef, user_id),
+            OldPassword = api_test_memory:get(MemRef, old_password),
+            UpdatedPassword = api_test_memory:get(MemRef, new_password),
+
+            case OldPassword =:= UpdatedPassword of
+                true ->
+                    ?assert(check_user_password(Config, UserId, OldPassword)),
+                    ?assert(check_user_password(Config, UserId, UpdatedPassword));
+                false ->
+                    ?assert(check_user_password(Config, UserId, OldPassword)),
+                    ?assertNot(check_user_password(Config, UserId, UpdatedPassword))
+            end,
+            true
     end.
 
 
@@ -302,6 +336,21 @@ create_user(Config, Username, Fullname, Password) ->
         <<"password">> => Password
     },
     oz_worker_test_rpc:create_user(Config, UserData).
+
+
+%% @private
+-spec check_user_password(test_config:config(), binary(), binary()) -> boolean().
+check_user_password(Config, UserId, Password) ->
+    HelperPassword = str_utils:rand_hex(10),
+    Changed = oz_worker_test_rpc:change_user_password(Config, UserId, Password, HelperPassword),
+    case Changed of
+        ok ->
+            % rollback password change
+            ?assertEqual(ok, oz_worker_test_rpc:change_user_password(Config, UserId, HelperPassword, Password)),
+            true;
+        error ->
+            false
+    end.
 
 
 %%%===================================================================

@@ -61,6 +61,9 @@ ensure_defined(undefined, DefaultValue) -> DefaultValue;
 ensure_defined(Value, _DefaultValue) -> Value.
 
 
+-spec maybe_substitute_bad_id
+    (ValidId :: binary(), undefined) -> {ValidId :: binary(), undefined};
+    (ValidId :: binary(), Data :: json_utils:json_map()) -> {Id :: binary(), maps_utils:json_map()}.
 maybe_substitute_bad_id(ValidId, undefined) ->
     {ValidId, undefined};
 maybe_substitute_bad_id(ValidId, Data) ->
@@ -70,6 +73,7 @@ maybe_substitute_bad_id(ValidId, Data) ->
     end.
 
 
+-spec get_storage_id_by_name(test_config:config(), binary()) -> binary().
 get_storage_id_by_name(Config, StorageName) ->
     StorageIds = op_worker_test_rpc:get_storage_ids(Config),
     Storages = [op_worker_test_rpc:describe_storage(Config, X) || X <- StorageIds],
@@ -78,6 +82,7 @@ get_storage_id_by_name(Config, StorageName) ->
     StorageId.
 
 
+-spec to_hostnames([node()]) -> [binary()].
 to_hostnames(Nodes) ->
     [list_to_binary(utils:get_host(X)) || X <- Nodes].
 
