@@ -21,7 +21,7 @@
 
 -define(LIST_CACHE_KEY, ceph_pools).
 -define(DETAILS_CACHE_KEY(PoolName), {ceph_pool, PoolName}).
--define(CACHE_TIMEOUT, 60 * 60). % 1 hour
+-define(CACHE_TIMEOUT_SECONDS, 3600). % 1 hour
 
 % @formatter:off
 -type name() :: binary().
@@ -66,7 +66,7 @@ get(Name) ->
         ]),
         case Params of
             Map when is_map(Map) ->
-                {ok, Params#{name => Name}, ?CACHE_TIMEOUT};
+                {ok, Params#{name => Name}, ?CACHE_TIMEOUT_SECONDS};
             {error, _} = Error ->
                 Error
         end
@@ -99,7 +99,7 @@ list() ->
         {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
         PoolsList = rpc:call(Node, ceph_cli, list_pools, []),
         Names = [Name || #{name := Name} <- PoolsList],
-        {ok, Names, ?CACHE_TIMEOUT}
+        {ok, Names, ?CACHE_TIMEOUT_SECONDS}
     end),
     Names.
 

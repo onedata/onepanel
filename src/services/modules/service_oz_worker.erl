@@ -61,7 +61,7 @@
 -export([get_details/1, get_details/0]).
 
 -define(DETAILS_CACHE_KEY, onezone_details).
--define(DETAILS_CACHE_TTL, 60). % 1 minute
+-define(DETAILS_CACHE_TTL_SECONDS, 60). % 1 minute
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -425,7 +425,7 @@ get_details(_Ctx) ->
     {ok, Cached} = node_cache:acquire(?DETAILS_CACHE_KEY, fun() ->
         {_, Node} = nodes:onepanel_with(name()),
         case rpc:call(Node, ?MODULE, get_details, []) of
-            Map when is_map(Map) -> {ok, Map, ?DETAILS_CACHE_TTL};
+            Map when is_map(Map) -> {ok, Map, ?DETAILS_CACHE_TTL_SECONDS};
             Error -> {false, Error}
         end
     end),

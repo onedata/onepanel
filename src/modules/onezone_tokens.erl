@@ -27,7 +27,7 @@
 -export([read_domain/1]).
 
 -define(USER_DETAILS_CACHE_KEY(Token, PeerIp), {user_details, {Token, PeerIp}}).
--define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
+-define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl_seconds, ?APP_NAME, 0)).
 
 %%%===================================================================
 %%% API functions

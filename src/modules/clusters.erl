@@ -35,7 +35,7 @@
 
 -define(IDENTITY_TOKEN_CACHE_KEY, identity_token_cache).
 -define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
--define(ONEZONE_AUTH_CACHE_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
+-define(ONEZONE_AUTH_CACHE_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl_seconds, ?APP_NAME, 0)).
 
 
 %%%===================================================================
