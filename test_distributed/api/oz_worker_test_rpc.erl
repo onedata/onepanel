@@ -19,6 +19,7 @@
     create_user/1,
     create_space/3,
     create_space_support_token/3,
+    get_spaces_ids/1,
     delete_space/2
 ]).
 
@@ -38,6 +39,12 @@ create_space(Config, UserId, SpaceName) ->
 create_space_support_token(Config, UserId, SpaceId) ->
     {ok, Token} = ?assertMatch({ok, _}, call_zone_node(Config, space_logic, create_space_support_token, [aai:user_auth(UserId), SpaceId])),
     Token.
+
+
+-spec get_spaces_ids(test_config:config()) -> [binary()].
+get_spaces_ids(Config) ->
+    {ok, Spaces} = ?assertMatch({ok, _}, call_zone_node(Config, space_logic, list, [aai:root_auth()])),
+    Spaces.
 
 
 -spec delete_space(test_config:config(), binary()) -> ok.
