@@ -62,8 +62,6 @@ init([]) ->
         % This is because of node_package/.../runner configuration, which
         % uses onepanel_sup presence as a healthcheck for the Onepanel.
 
-        clock:try_to_restore_previous_synchronization(),
-
         ?info("Waiting for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
         % in a new deployment this will complete immediately since the node list is empty
         ok = onepanel_db:global_wait_for_tables(),

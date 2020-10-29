@@ -37,21 +37,22 @@
 %% Frequency of checks
 -define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
--define(NOW(), clock:timestamp_millis()).
+-define(NOW(), erlang:system_time(millisecond)).  % @TODO VFS-6841 use the clock module
 
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).
+-type period() :: clock:millis().
 
 -record(job, {
     condition :: condition(),
     action :: action(),
 
-    %% Period in milliseconds to pass between job runs
-    period :: non_neg_integer(),
+    %% Period to pass between job runs
+    period :: period(),
 
-    %% Millisecond timestamp of the last attempt to run the job,
+    %% Timestamp of the last attempt to run the job,
     %% including times when the 'condition' was not met.
-    last_run = 0 :: non_neg_integer(),
+    last_run = 0 :: clock:millis(),
 
     % pid of the last invocation
     pid :: pid() | undefined
@@ -84,7 +85,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_job(JobName :: job_name(), Action :: action(),
-    Period :: non_neg_integer()) -> ok.
+    Period :: period()) -> ok.
 add_job(JobName, Action, Period) ->
     add_job(JobName, Action, Period, fun() -> true end).
 
@@ -96,7 +97,7 @@ add_job(JobName, Action, Period) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_job(JobName :: job_name(), Action :: action(),
-    Period :: non_neg_integer(), Condition :: condition()) -> ok.
+    Period :: period(), Condition :: condition()) -> ok.
 add_job(JobName, Action, Period, Condition) ->
     Job = #job{
         action = Action, period = Period, condition = Condition,
@@ -250,7 +251,7 @@ job_finished(#job{pid = Pid}) -> not erlang:is_process_alive(Pid).
 %% exceeds its configured period.
 %% @end
 %%--------------------------------------------------------------------
--spec period_passed(#job{}, NowMillis :: non_neg_integer()) -> boolean().
+-spec period_passed(#job{}, clock:millis()) -> boolean().
 period_passed(#job{period = Period, last_run = LastRun}, Now) ->
     Now - LastRun > Period.
 

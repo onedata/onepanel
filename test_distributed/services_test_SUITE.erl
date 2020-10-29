@@ -43,7 +43,6 @@
 ]).
 
 -define(TIMEOUT, timer:seconds(5)).
--define(ATTEMPTS, 30).
 
 -define(run(Config, Function, HostsType), begin
     lists:foreach(fun(_Type_) ->
@@ -52,6 +51,7 @@
 end).
 
 -define(AWAIT_OZ_CONNECTIVITY_ATTEMPTS, 30).
+-define(AWAIT_CLOCK_SYNC_ATTEMPTS, 30).
 
 -define(OZ_USERNAME, <<"joe">>).
 -define(OZ_PASSWORD, <<"password">>).
@@ -494,21 +494,21 @@ cluster_clocks_sync_test(Config) ->
         OppNodes, OpCmNodes, OpwNodes
     ]) -- [OzpMasterNode],
 
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?ATTEMPTS),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
 
     % simulate a situation when the time changes on the master node by 50 hours
     % and see if (after some time) the clocks are unified again
     rpc:call(OzpMasterNode, clock, store_bias_millis, [local_clock, timer:hours(50)]),
     ?assertEqual(false, lists:all(IsSyncedWithMaster, AllNonMasterNodes)),
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?ATTEMPTS),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
 
     % simulate a situation when the time changes on another, non-master node by
     % 50 hours and see if (after some time) it catches up with the master again
     RandomNonMasterNode = lists_utils:random_element(AllNonMasterNodes),
     image_test_utils:proxy_rpc(RandomNonMasterNode, clock, store_bias_millis, [local_clock, timer:hours(-50)]),
     ?assertEqual(false, IsSyncedWithMaster(RandomNonMasterNode)),
-    ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?ATTEMPTS),
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?ATTEMPTS).
+    ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
 
 
 services_stop_start_test(Config) ->

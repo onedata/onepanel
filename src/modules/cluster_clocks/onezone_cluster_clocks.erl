@@ -40,15 +40,20 @@ restart_periodic_sync() ->
         clock:reset_to_system_time(),
         true
     end),
-    cluster_clocks:restart_periodic_sync(?MODULE, fun resolve_nodes_to_sync/0).
+    cluster_clocks:restart_periodic_sync(?MODULE, fun prepare_cluster_clock_sync/0).
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
 %% @private
--spec resolve_nodes_to_sync() -> {ok, [node()]}.
-resolve_nodes_to_sync() ->
+%% @doc
+%% No specific preparation is required - this simply returns all cluster nodes to be synced.
+%% @end
+%%--------------------------------------------------------------------
+-spec prepare_cluster_clock_sync() -> {ok, [node()]}.
+prepare_cluster_clock_sync() ->
     {ok, lists:flatten([
         service_onepanel:get_nodes(),
         service_cluster_manager:get_nodes(),

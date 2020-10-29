@@ -33,7 +33,9 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
 
--type resolve_nodes_to_sync() :: fun(() -> {ok, [node()]} | skip).
+% cluster-specific callback run before every periodic clock sync, must return the list
+% of nodes to be synced or the 'skip' atom that causes the current attempt to be skipped
+-type prepare_cluster_clock_sync() :: fun(() -> {ok, [node()]} | skip).
 
 -export([synchronize_node_upon_start/1]).
 -export([restart_periodic_sync/2]).
@@ -52,34 +54,22 @@ synchronize_node_upon_start(Node) ->
     true = run_on_master(fun() ->
         synchronize_node_with_self(Node)
     end),
-    ?info("Successfully synchronized clock on node ~p with master node", [Node]).
+    ?info("Synchronized clock on node ~p with master node upon startup", [Node]).
 
 
--spec restart_periodic_sync(onepanel_cron:job_name(), resolve_nodes_to_sync()) -> ok | no_return().
-restart_periodic_sync(Name, ResolveNodesToSync) ->
+-spec restart_periodic_sync(onepanel_cron:job_name(), prepare_cluster_clock_sync()) -> ok | no_return().
+restart_periodic_sync(Name, PrepareClusterClockSync) ->
     true = run_on_master(fun() ->
-        PeriodicAction = fun() ->
-            case ResolveNodesToSync() of
-                skip ->
-                    ?debug("Skipping periodic clock sync"),
-                    true;
-                {ok, Nodes} ->
-                    WasSuccessful = sync_nodes_with_self(Nodes),
-                    case WasSuccessful of
-                        true -> ?info("Successfully synchronized all clocks in the cluster with master node");
-                        false -> ?warning("Failed to synchronize clocks of some nodes with master node")
-                    end,
-                    WasSuccessful
-            end
-        end,
+        PeriodicSyncAction = periodic_sync_action(PrepareClusterClockSync),
+        ?info("Restarting cluster-wide periodic clock synchronization"),
         % run the first sync action - this must finish with success, otherwise it
         % is better if the whole calling process crashes and fails to deploy / setup cluster
-        true = PeriodicAction(),
+        true = PeriodicSyncAction(),
         % remove any previous periodic sync jobs across the cluster
         rpc:multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?MODULE]),
         % schedule further periodic sync actions - they are best effort and
         % may fail, but the first run guarantees that at least one sync has succeeded
-        onepanel_cron:add_job(Name, PeriodicAction, ?PERIODIC_SYNC_INTERVAL),
+        ok = onepanel_cron:add_job(Name, PeriodicSyncAction, ?PERIODIC_SYNC_INTERVAL),
         true
     end),
     ok.
@@ -108,14 +98,36 @@ run_on_master(Fun) ->
 %%%===================================================================
 
 %% @private
--spec sync_nodes_with_self([node()]) -> boolean().
-sync_nodes_with_self(Nodes) ->
-    try
-        run_for_other_nodes(fun synchronize_node_with_self/1, Nodes)
-    catch Class:Reason ->
-        ?error_stacktrace("Error while running periodic clock sync: ~w:~p", [Class, Reason]),
-        false
+-spec periodic_sync_action(prepare_cluster_clock_sync()) -> onepanel_cron:action().
+periodic_sync_action(PrepareClusterClockSync) ->
+    fun() ->
+        try
+            ?debug("Preparing periodic clock sync..."),
+            case PrepareClusterClockSync() of
+                skip ->
+                    ?debug("Skipping periodic clock sync"),
+                    true;
+                {ok, Nodes} ->
+                    ?debug("Running periodic clock sync for nodes: ~p", [Nodes]),
+                    WasSuccessful = synchronize_all_nodes_with_self(Nodes),
+                    case WasSuccessful of
+                        true -> ?info("Synchronized all clocks in the cluster with master node");
+                        false -> ?warning("Failed to synchronize clocks of some nodes with master node")
+                    end,
+                    WasSuccessful
+            end
+        catch Class:Reason ->
+            ?error_stacktrace("Error while running periodic clock sync: ~w:~p", [Class, Reason]),
+            false
+        end
     end.
+
+
+%% @private
+-spec synchronize_all_nodes_with_self([node()]) -> boolean().
+synchronize_all_nodes_with_self(Nodes) ->
+    OtherNodes = Nodes -- [node()],
+    lists:all(fun synchronize_node_with_self/1, OtherNodes).
 
 
 %% @private
@@ -125,13 +137,6 @@ synchronize_node_with_self(Node) ->
         ok -> true;
         error -> false
     end.
-
-
-%% @private
--spec run_for_other_nodes(fun((node()) -> boolean()), [node()]) -> boolean().
-run_for_other_nodes(Callback, Nodes) ->
-    OtherNodes = Nodes -- [node()],
-    lists:all(Callback, OtherNodes).
 
 
 %% @private

@@ -42,14 +42,22 @@ synchronize_node_upon_start(Node) ->
 
 -spec restart_periodic_sync() -> ok | no_return().
 restart_periodic_sync() ->
-    cluster_clocks:restart_periodic_sync(?MODULE, fun resolve_nodes_to_sync/0).
+    cluster_clocks:restart_periodic_sync(?MODULE, fun prepare_cluster_clock_sync/0).
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
--spec resolve_nodes_to_sync() -> {ok, [node()]} | skip.
-resolve_nodes_to_sync() ->
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns the cluster nodes to be synced, but only if the master node is
+%% synchronized with Onezone's global time. Otherwise, cluster clock sync is
+%% skipped for until the next periodic attempt.
+%% @end
+%%--------------------------------------------------------------------
+-spec prepare_cluster_clock_sync() -> {ok, [node()]} | skip.
+prepare_cluster_clock_sync() ->
     case revise_master_sync_with_onezone() of
         true -> {ok, service_nodes_to_sync()};
         false -> skip
@@ -59,18 +67,17 @@ resolve_nodes_to_sync() ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Clocks sync is done only when the master node is synchronized with Onezone's
-%% global time, which is done after Onezone connection is established. The
-%% master's clock is synchronized with Onezone periodically, but it may fail -
-%% in such case the previous synchronization is reused, given that it has
-%% succeeded at least once.
+%% Attempts clock synchronization with Onezone. In case of failure, tries to
+%% reuse the previous synchronization (given that it has succeeded at least
+%% once). Returns true if the master node's clock can be perceived as
+%% synchronized with Onezone after the process.
 %% @end
 %%--------------------------------------------------------------------
 -spec revise_master_sync_with_onezone() -> boolean().
 revise_master_sync_with_onezone() ->
     case clock:synchronize_local_with_remote_server(fun fetch_zone_time/0) of
         ok ->
-            ?info("Successfully synchronized clock on the master node with Onezone"),
+            ?info("Synchronized clock on the master node with Onezone"),
             true;
         error ->
             case is_master_synchronized_with_onezone() of
@@ -91,10 +98,17 @@ revise_master_sync_with_onezone() ->
 
 
 %% @private
--spec fetch_zone_time() -> clock:millis().
+-spec fetch_zone_time() -> {ok, clock:millis()} | {error, term()}.
 fetch_zone_time() ->
-    {ok, Timestamp} = oz_providers:get_zone_time(none),
-    Timestamp.
+    case oz_endpoint:request(none, "/provider/public/get_current_time", get) of
+        {ok, 200, _, ResponseBody} ->
+            #{<<"timeMillis">> := Timestamp} = json_utils:decode(ResponseBody),
+            {ok, Timestamp};
+        {ok, Code, _, ResponseBody} ->
+            {error, {bad_http_response, Code, ResponseBody}};
+        {error, _} = Error ->
+            Error
+    end.
 
 
 %%--------------------------------------------------------------------

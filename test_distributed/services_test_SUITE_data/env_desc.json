@@ -68,7 +68,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:VFS-6840-cluster-wide-time-synchronization", "fixme": "revert prior to merge",
+      "image": "docker.onedata.org/onezone-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -96,7 +96,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:VFS-6840-cluster-wide-time-synchronization", "fixme": "revert prior to merge",
+      "image": "docker.onedata.org/oneprovider-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {

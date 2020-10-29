@@ -39,7 +39,7 @@
 
 % @formatter:off
 -type result() :: #{
-    timestamp := non_neg_integer(),
+    timestamp := clock:seconds(),
     check() => #dns_check{}
 }.
 % @formatter:on

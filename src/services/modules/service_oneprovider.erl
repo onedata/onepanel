@@ -1043,8 +1043,15 @@ schedule_periodic_onezone_connection_check() ->
     PeriodicCheck = fun() ->
         case try_to_establish_onezone_connection() of
             true ->
-                set_up_in_onezone(),
-                onepanel_cron:remove_job(?FUNCTION_NAME);
+                try
+                    set_up_in_onezone(),
+                    onepanel_cron:remove_job(?FUNCTION_NAME)
+                catch Class:Reason ->
+                    ?error_stacktrace(
+                        "Unexpected error when running procedures upon Onezone connection - ~w:~p",
+                        [Class, Reason]
+                    )
+                end;
             false ->
                 {_, Time} = time_format:seconds_to_datetime(clock:timestamp_seconds()),
                 case Time of
@@ -1059,7 +1066,7 @@ schedule_periodic_onezone_connection_check() ->
                 end
         end
     end,
-    onepanel_cron:add_job(?FUNCTION_NAME, PeriodicCheck, timer:seconds(?OZ_CONNECTION_CHECK_INTERVAL_SECONDS)).
+    ok = onepanel_cron:add_job(?FUNCTION_NAME, PeriodicCheck, timer:seconds(?OZ_CONNECTION_CHECK_INTERVAL_SECONDS)).
 
 
 %%--------------------------------------------------------------------

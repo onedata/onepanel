@@ -41,6 +41,7 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
+        clock:try_to_restore_previous_synchronization(),
         case onepanel_env:legacy_config_exists(onepanel) of
             true ->
                 onepanel_env:upgrade_app_config(onepanel, [
