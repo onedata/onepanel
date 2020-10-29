@@ -690,7 +690,7 @@ get_op_worker_version(Node) ->
 -spec provider_logic_update(Data :: #{binary() => term()}) ->
     ok | {error, term()}.
 provider_logic_update(Data) ->
-   ?CALL([Data]).
+    ?CALL([Data]).
 
 -spec provider_logic_update(node(), Data :: #{binary() => term()}) ->
     ok | {error, term()}.
@@ -886,7 +886,6 @@ force_oz_connection_start(Node) ->
     ?CALL(Node, []).
 
 
-
 -spec provider_auth_save(service_oneprovider:id(), tokens:serialized()) -> ok.
 provider_auth_save(ProviderId, RootToken) ->
     ?CALL([ProviderId, RootToken]).
@@ -937,7 +936,7 @@ storage_import_configure_auto_import(Node, SpaceId, AutoStorageImportConfig) ->
     ?CALL(Node, [SpaceId, AutoStorageImportConfig]).
 
 
--spec storage_import_start_scan(od_space_id()) ->  ok | {error, term()}.
+-spec storage_import_start_scan(od_space_id()) -> ok | {error, term()}.
 storage_import_start_scan(SpaceId) ->
     ?CALL([SpaceId]).
 
@@ -946,11 +945,11 @@ storage_import_start_scan(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec storage_import_stop_scan(od_space_id()) ->  ok | {error, term()}.
+-spec storage_import_stop_scan(od_space_id()) -> ok | {error, term()}.
 storage_import_stop_scan(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec storage_import_stop_scan(node(), od_space_id()) ->  ok | {error, term()}.
+-spec storage_import_stop_scan(node(), od_space_id()) -> ok | {error, term()}.
 storage_import_stop_scan(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
@@ -1000,12 +999,12 @@ restart_rtransfer_link(Node) ->
 
 
 -spec set_txt_record(Name :: binary(), Content :: binary(),
-    TTL :: non_neg_integer() | undefined) -> ok | no_return().
+    TTL :: clock:seconds() | undefined) -> ok | no_return().
 set_txt_record(Name, Content, TTL) ->
     ?CALL([Name, Content, TTL]).
 
 -spec set_txt_record(node(), Name :: binary(), Content :: binary(),
-    TTL :: non_neg_integer() | undefined) -> ok | no_return().
+    TTL :: clock:seconds() | undefined) -> ok | no_return().
 set_txt_record(Node, Name, Content, TTL) ->
     ?CALL(Node, [Name, Content, TTL]).
 

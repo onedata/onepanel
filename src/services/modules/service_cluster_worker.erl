@@ -78,6 +78,7 @@ get_steps(deploy, #{hosts := Hosts, name := ServiceName} = Ctx) ->
         #step{hosts = AllHosts, function = configure},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = [hd(AllHosts)], function = wait_for_init},
+        #step{hosts = AllHosts, function = synchronize_clock_upon_start},
         % refresh status cache
         #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
@@ -88,6 +89,7 @@ get_steps(resume, #{name := ServiceName}) ->
             condition = fun(_) -> onepanel_env:legacy_config_exists(ServiceName) end},
         #steps{action = start},
         #step{function = wait_for_init, selection = first},
+        #step{hosts = [hosts:self()], function = synchronize_clock_upon_start},
         % refresh status cache
         #steps{action = status}
     ];
@@ -303,7 +305,7 @@ get_nagios_status(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Writes node IP to app.config on the current node's worker.
-%% If IP is not given explicitely in cluster_ips map
+%% If IP is not given explicitly in cluster_ips map
 %% and worker has none in its app config onepanel tries to determine it.
 %% @end
 %%--------------------------------------------------------------------

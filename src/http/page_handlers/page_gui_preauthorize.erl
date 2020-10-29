@@ -44,7 +44,7 @@ handle(<<"POST">>, Req) ->
 
             BodyJson = json_utils:encode(#{
                 token => Token,
-                ttl => Expires - time_utils:timestamp_seconds()
+                ttl => Expires - clock:timestamp_seconds()
             }),
             Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             cowboy_req:reply(?HTTP_200_OK, Headers, BodyJson, NewReq);

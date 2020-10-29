@@ -53,8 +53,8 @@
 
 %% Step functions
 -export([configure/1, configure_additional_node/1, import_provider_auth_file/1,
-    start/1, stop/1, status/1, health/1, wait_for_init/1,
-    get_nagios_response/1, get_nagios_status/1, add_storage/1, get_storages/1,
+    start/1, stop/1, status/1, health/1, wait_for_init/1, get_nagios_response/1,
+    get_nagios_status/1, synchronize_clock_upon_start/1, add_storage/1, get_storages/1,
     update_storage/1, remove_storage/1, reload_webcert/1,
     set_transfers_mock/1]).
 
@@ -424,6 +424,12 @@ get_nagios_status(Ctx) ->
         nagios_protocol => onepanel_env:get(op_worker_nagios_protocol),
         nagios_port => onepanel_env:get(op_worker_nagios_port)
     }).
+
+
+-spec synchronize_clock_upon_start(Ctx :: service:step_ctx()) -> ok | no_return().
+synchronize_clock_upon_start(_) ->
+    OpNode = nodes:local(name()),
+    oneprovider_cluster_clocks:synchronize_node_upon_start(OpNode).
 
 
 %%--------------------------------------------------------------------
