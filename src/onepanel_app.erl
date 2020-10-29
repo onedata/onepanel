@@ -40,7 +40,6 @@
     {error, Reason :: term()}.
 start(_StartType, _StartArgs) ->
     try
-        node_cache:init(),
         test_node_starter:maybe_start_cover(),
         case onepanel_env:legacy_config_exists(onepanel) of
             true ->

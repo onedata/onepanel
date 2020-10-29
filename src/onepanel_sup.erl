@@ -55,6 +55,7 @@ start_link() ->
     {ok, {SupFlags :: supervisor:sup_flags(),
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
+    node_cache:init(),
     try
         % Initialization done here rather than in onepanel_app:start
         % because too long wait before spawning supervisor causes timeout
