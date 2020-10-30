@@ -19,6 +19,7 @@
         public_key,
         inets,
         crypto,
+        ctool,
         gui
     ]},
     {mod, {onepanel_app, []}},

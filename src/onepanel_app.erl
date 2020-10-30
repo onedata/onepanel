@@ -41,6 +41,7 @@
 start(_StartType, _StartArgs) ->
     try
         test_node_starter:maybe_start_cover(),
+        clock:try_to_restore_previous_synchronization(),
         case onepanel_env:legacy_config_exists(onepanel) of
             true ->
                 onepanel_env:upgrade_app_config(onepanel, [
@@ -55,7 +56,8 @@ start(_StartType, _StartArgs) ->
             {ok, Supervisor} ->
                 resume_service(),
                 {ok, Supervisor};
-            Error -> Error
+            Error ->
+                Error
         end
     catch
         _:Reason ->
@@ -101,6 +103,5 @@ resume_service() ->
             Task = service:apply_async(ClusterType, manage_restart, #{}),
             ?info("Resuming ~s (task id ~s)", [ClusterType, Task]);
         false -> ok % new deployment, managed by REST
-    end,
-    ok.
+    end.
 

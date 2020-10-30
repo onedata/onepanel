@@ -14,6 +14,10 @@
 
 -ifdef(TEST).
 
+-include_lib("eunit/include/eunit.hrl").
+-include("modules/errors.hrl").
+-include_lib("public_key/include/OTP-PUB-KEY.hrl").
+
 -define(DATA_DIR, "./test/" ++ ?MODULE_STRING ++ "_data/").
 -define(LOCALHOST_CERT, filename:join(?DATA_DIR, "localhost_cert.pem")).
 -define(MULTIDOMAIN_CERT, filename:join(?DATA_DIR, "multidomain_cert.pem")).
@@ -21,10 +25,6 @@
 % validity dates of the localhost_cert stored in test data
 -define(SINCE, 1518104419). % Feb  8 15:40:19 2018 GMT
 -define(UNTIL, 1833464419). % Feb  6 15:40:19 2028 GMT
-
--include("modules/errors.hrl").
--include_lib("public_key/include/OTP-PUB-KEY.hrl").
--include_lib("eunit/include/eunit.hrl").
 
 %%%===================================================================
 %%% Test functions
@@ -55,7 +55,7 @@ read_dates_as_epoch_test() ->
 
 get_seconds_till_expiration_test() ->
     {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-    ?assertEqual(?UNTIL - time_utils:timestamp_seconds(),
+    ?assertEqual(?UNTIL - clock:timestamp_seconds(),
         onepanel_cert:get_seconds_till_expiration(Cert)).
 
 

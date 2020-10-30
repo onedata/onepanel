@@ -18,6 +18,7 @@
 -include("service.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
+-include_lib("ctool/include/global_definitions.hrl").
 
 % @formatter:off
 -type model_ctx() :: #{
@@ -39,8 +40,8 @@
 -export([get_main_host/0]).
 
 %% Step functions
--export([configure/1, start/1, stop/1, status/1, migrate_generated_config/1,
-    update_workers_number/1]).
+-export([configure/1, start/1, stop/1, status/1, wait_for_init/1, health/1,
+    synchronize_clock_upon_start/1, migrate_generated_config/1, update_workers_number/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -88,6 +89,7 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
         {ok, #service{hosts = CHosts}} ->
             {CHosts, maps:get(main_host, Ctx, hd(Hosts))}
     end,
+    AllHosts = lists_utils:union(Hosts, ClusterHosts),
     [
         #step{module = service, function = save, args = [#service{name = name(),
             ctx = #{main_host => MainHost}}], selection = first},
@@ -100,9 +102,11 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
                 main_host => MainHost, wait_for_process => "kernel_sup"
             }
         },
-        #steps{action = restart, ctx = Ctx#{
-            hosts => lists_utils:union(ClusterHosts, Hosts)
-        }}
+        #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
+        #step{hosts = AllHosts, function = wait_for_init},
+        #step{hosts = AllHosts, function = synchronize_clock_upon_start},
+        % refresh status cache
+        #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
 
 get_steps(deploy, _Ctx) ->
@@ -112,6 +116,9 @@ get_steps(resume, _Ctx) -> [
     #step{function = migrate_generated_config,
         condition = fun(_) -> onepanel_env:legacy_config_exists(name()) end},
     #steps{action = start},
+    #step{hosts = [hosts:self()], function = wait_for_init},
+    #step{hosts = [hosts:self()], function = synchronize_clock_upon_start},
+    % refresh status cache
     #steps{action = status}
 ];
 
@@ -246,13 +253,47 @@ stop(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:step_ctx()) -> service:status().
-status(_Ctx) ->
+status(Ctx) ->
     service:update_status(name(),
         case service_cli:status(name(), ping) of
-            running -> healthy;
+            running -> health(Ctx);
             stopped -> stopped;
             missing -> missing
         end).
+
+
+-spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
+wait_for_init(Ctx) ->
+    ServiceName = name(),
+    Attempts = onepanel_env:get(cluster_manager_wait_for_init_attempts),
+    Delay = onepanel_env:get(cluster_manager_wait_for_init_delay),
+    Module = service:get_module(ServiceName),
+    onepanel_utils:wait_until(Module, health, [Ctx], {equal, healthy}, Attempts, Delay),
+    service:update_status(ServiceName, healthy),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc Checks if a running service is in a fully functional state.
+%% @end
+%%--------------------------------------------------------------------
+-spec health(service:step_ctx()) -> service:status().
+health(_) ->
+    CmNode = nodes:local(name()),
+    case rpc:call(CmNode, global, whereis_name, [?CLUSTER_MANAGER]) of
+        Pid when is_pid(Pid) -> healthy;
+        undefined -> unhealthy;
+        {badrpc, _} -> stopped
+    end.
+
+
+-spec synchronize_clock_upon_start(Ctx :: service:step_ctx()) -> ok | no_return().
+synchronize_clock_upon_start(_) ->
+    CmNode = nodes:local(name()),
+    case onepanel_env:get_cluster_type() of
+        ?ONEZONE -> onezone_cluster_clocks:synchronize_node_upon_start(CmNode);
+        ?ONEPROVIDER -> oneprovider_cluster_clocks:synchronize_node_upon_start(CmNode)
+    end.
 
 
 %%--------------------------------------------------------------------
