@@ -14,12 +14,16 @@
 
 -include("api_test_runner.hrl").
 
+-include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("ctool/include/test/assertions.hrl").
+
 -export([load_module_from_test_distributed_dir/2]).
 
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
 -export([get_storage_id_by_name/2]).
 -export([to_hostnames/1]).
+-export([match_location_header/2]).
 
 %%%===================================================================
 %%% API
@@ -63,7 +67,7 @@ ensure_defined(Value, _DefaultValue) -> Value.
 
 -spec maybe_substitute_bad_id
     (ValidId :: binary(), undefined) -> {ValidId :: binary(), undefined};
-    (ValidId :: binary(), Data :: json_utils:json_map()) -> {Id :: binary(), maps_utils:json_map()}.
+    (ValidId :: binary(), Data :: map()) -> {Id :: binary(), map()}.
 maybe_substitute_bad_id(ValidId, undefined) ->
     {ValidId, undefined};
 maybe_substitute_bad_id(ValidId, Data) ->
@@ -85,6 +89,13 @@ get_storage_id_by_name(Config, StorageName) ->
 -spec to_hostnames([node()]) -> [binary()].
 to_hostnames(Nodes) ->
     [list_to_binary(utils:get_host(X)) || X <- Nodes].
+
+
+-spec match_location_header(map(), binary()) -> binary().
+match_location_header(Headers, Path) ->
+    Location = maps:get(<<"location">>, Headers),
+    <<Path, Item/binary>> = ?assertMatch(<<Path,  _Item/binary>>, Location),
+    Item.
 
 
 %%%===================================================================
