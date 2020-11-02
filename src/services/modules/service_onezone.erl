@@ -144,24 +144,11 @@ get_steps(deploy, Ctx) ->
             condition = fun(FunCtx) -> not maps:get(interactive_deployment, FunCtx, true) end}
     ];
 
-get_steps(start, _Ctx) ->
-    [
-        #steps{service = ?SERVICE_CB, action = start},
-        #steps{service = ?SERVICE_CM, action = start},
-        #steps{service = ?SERVICE_OZW, action = start}
-    ];
-
 get_steps(stop, _Ctx) ->
     [
         #steps{service = ?SERVICE_OZW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
-    ];
-
-get_steps(restart, _Ctx) ->
-    [
-        #steps{action = stop},
-        #steps{action = start}
     ];
 
 % returns any steps only on the master node
@@ -184,7 +171,9 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
-            #steps{service = ?SERVICE_OZW, action = resume},
+            #steps{service = ?SERVICE_OZW, action = init_resume},
+            % no intermediate steps required during resumption
+            #steps{service = ?SERVICE_OZW, action = finalize_resume},
             #step{function = init_periodic_clock_sync, selection = any, args = []},
             #steps{action = migrate_users,
                 condition = fun(_) -> onepanel_user:any_user_exists() end},

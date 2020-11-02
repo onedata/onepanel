@@ -626,29 +626,29 @@ autocleaning_get_configuration(Node, SpaceId) ->
 
 -spec get_provider_id() -> {ok, service_oneprovider:id()} | {error, term()}.
 get_provider_id() ->
-    ?CALL([]).
+    ?NO_EXCEPTION_CALL([]).
 
 -spec get_provider_id(node()) -> {ok, service_oneprovider:id()} | {error, term()}.
 get_provider_id(Node) ->
-    ?CALL(Node, []).
+    ?NO_EXCEPTION_CALL(Node, []).
 
 
 -spec get_access_token() -> {ok, tokens:serialized()} | {error, term()}.
 get_access_token() ->
-    ?CALL([]).
+    ?NO_EXCEPTION_CALL([]).
 
 -spec get_access_token(node()) -> {ok, tokens:serialized()} | {error, term()}.
 get_access_token(Node) ->
-    ?CALL(Node, []).
+    ?NO_EXCEPTION_CALL(Node, []).
 
 
 -spec get_identity_token() -> {ok, tokens:serialized()} | {error, term()}.
 get_identity_token() ->
-    ?CALL([]).
+    ?NO_EXCEPTION_CALL([]).
 
 -spec get_identity_token(node()) -> {ok, tokens:serialized()} | {error, term()}.
 get_identity_token(Node) ->
-    ?CALL(Node, []).
+    ?NO_EXCEPTION_CALL(Node, []).
 
 
 -spec is_connected_to_oz() -> boolean().

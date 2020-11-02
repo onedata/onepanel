@@ -52,7 +52,8 @@
 -export([get_user_details/1]).
 
 %% Step functions
--export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
+-export([configure/1, start/1, stop/1, status/1, health/1,
+    wait_for_node_manager/1, wait_for_init/1,
     configure_additional_node/1,
     get_nagios_response/1, get_nagios_status/1]).
 -export([synchronize_clock_upon_start/1]).
@@ -127,10 +128,10 @@ get_steps(configure_dns_check, Ctx) ->
         | service_cluster_worker:get_steps(configure_dns_check, Ctx)
     ];
 
-get_steps(resume, Ctx) ->
+get_steps(init_resume, Ctx) ->
     [
         #step{function = rename_variables, selection = all, args = []}
-        | service_cluster_worker:get_steps(resume, Ctx#{name => name()})
+        | service_cluster_worker:get_steps(init_resume, Ctx#{name => name()})
     ];
 
 get_steps(Action, Ctx) ->
@@ -295,6 +296,19 @@ health(Ctx) ->
         ok -> healthy;
         _ -> unhealthy
     end.
+
+
+%%--------------------------------------------------------------------
+%% @doc {@link service_cluster_worker:wait_for_node_manager/1}
+%% @end
+%%--------------------------------------------------------------------
+-spec wait_for_node_manager(Ctx :: service:step_ctx()) -> ok | no_return().
+wait_for_node_manager(Ctx) ->
+    service_cluster_worker:wait_for_node_manager(Ctx#{
+        name => name(),
+        wait_for_init_attempts => onepanel_env:get(oz_worker_wait_for_init_attempts),
+        wait_for_init_delay => onepanel_env:get(oz_worker_wait_for_init_delay)
+    }).
 
 
 %%--------------------------------------------------------------------

@@ -204,26 +204,11 @@ get_steps(deploy, Ctx) ->
             end}
     ];
 
-get_steps(start, _Ctx) ->
-    [
-        #steps{service = ?SERVICE_CB, action = start},
-        #steps{service = ?SERVICE_CM, action = start},
-        #steps{service = ?SERVICE_OPW, action = start}
-    ];
-
 get_steps(stop, _Ctx) ->
     [
         #steps{service = ?SERVICE_OPW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
-    ];
-
-get_steps(restart, _Ctx) ->
-    [
-        #steps{action = stop},
-        #steps{service = ?SERVICE_CB, action = resume},
-        #steps{service = ?SERVICE_CM, action = resume},
-        #steps{service = ?SERVICE_OPW, action = resume}
     ];
 
 % returns any steps only on the master node
@@ -247,8 +232,14 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
-            #steps{service = ?SERVICE_OPW, action = resume},
+            #steps{service = ?SERVICE_OPW, action = init_resume},
+            % Run the setup in Onezone after the op-worker service has started,
+            % which will start periodic clock sync and enable op-worker's GS channel.
+            % The op-worker service might require a working connection to Onezone
+            % to successfully init (e.g. in case of a cluster upgrade), and only then
+            % the step finalize_resume (which waits for complete cluster init) can succeed.
             #step{function = connect_and_set_up_in_onezone, args = [fallback_to_async], selection = any},
+            #steps{service = ?SERVICE_OPW, action = finalize_resume},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}},
@@ -346,13 +337,12 @@ get_steps(Action, Ctx) when
 %%--------------------------------------------------------------------
 -spec get_id() -> id().
 get_id() ->
-    service_oneprovider:is_registered()
-        orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            throw(Error);
+        ?ERROR_UNREGISTERED_ONEPROVIDER ->
+            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
         _ ->
             FileContents = read_auth_file(),
             maps:get(provider_id, FileContents)
@@ -365,8 +355,7 @@ get_id() ->
 %%--------------------------------------------------------------------
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
-    is_registered()
-        orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case service:get_ctx(name()) of
         #{onezone_domain := OnezoneDomain} ->
             unicode:characters_to_list(OnezoneDomain);
@@ -413,9 +402,12 @@ is_registered(Ctx) ->
 -spec get_access_token() -> tokens:serialized().
 get_access_token() ->
     case op_worker_rpc:get_access_token() of
-        {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> throw(Error);
-        _ -> root_token_from_file()
+        {ok, <<Token/binary>>} ->
+            Token;
+        ?ERROR_UNREGISTERED_ONEPROVIDER ->
+            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
+        _ ->
+            root_token_from_file()
     end.
 
 
@@ -424,8 +416,8 @@ get_identity_token() ->
     case op_worker_rpc:get_identity_token() of
         {ok, <<Token/binary>>} ->
             Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Err1 ->
-            throw(Err1);
+        ?ERROR_UNREGISTERED_ONEPROVIDER = ?ERROR_UNREGISTERED_ONEPROVIDER ->
+            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
         _ ->
             case clusters:acquire_provider_identity_token() of
                 {ok, T} -> T;
@@ -1096,7 +1088,8 @@ set_up_in_onezone() ->
     oneprovider_cluster_clocks:restart_periodic_sync(),
     % connection can be started only after clocks are synchronized
     {ok, OpwNode} = nodes:any(service_op_worker:name()),
-    op_worker_rpc:force_oz_connection_start(OpwNode),
+    % best-effort, upon failure op-worker will attempt reconnection itself
+    catch op_worker_rpc:force_oz_connection_start(OpwNode),
     ok.
 
 
