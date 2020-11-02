@@ -29,7 +29,7 @@
 ]).
 
 -type nonce() :: binary().
--type timestamp() :: time_utils:seconds().
+-type timestamp() :: clock:seconds().
 -type record() :: #authorization_nonce{}.
 
 -export_type([nonce/0, timestamp/0, record/0]).
@@ -37,7 +37,7 @@
 -define(NONCE_TTL, onepanel_env:get(
     panel_authorization_nonce_ttl_sec, ?APP_NAME, 3600
 )).
--define(NOW(), time_utils:timestamp_seconds()).
+-define(NOW(), clock:timestamp_seconds()).
 
 
 %%%===================================================================

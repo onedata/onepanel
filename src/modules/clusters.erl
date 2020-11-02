@@ -215,7 +215,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 -spec acquire_provider_identity_token() -> {ok, tokens:serialized()} | errors:error().
 acquire_provider_identity_token() ->
     simple_cache:get(?IDENTITY_TOKEN_CACHE_KEY, fun() ->
-        ValidUntil = time_utils:timestamp_seconds() + ?ONEZONE_AUTH_CACHE_CACHE_TTL div 1000,
+        ValidUntil = clock:timestamp_seconds() + ?ONEZONE_AUTH_CACHE_CACHE_TTL div 1000,
         Body = json_utils:encode(#{
             <<"type">> => token_type:to_json(?IDENTITY_TOKEN),
             <<"caveats">> => [caveats:to_json(#cv_time{valid_until = ValidUntil})]
@@ -349,7 +349,7 @@ create_invite_token_for_admin({rpc, Auth}) ->
 create_invite_token_for_admin({rest, Auth}) ->
     TokenName = <<
         "admin invite to cluster ",
-        (binary:part(time_utils:seconds_to_iso8601(time_utils:timestamp_seconds()), 0, 10))/binary, " ",
+        (binary:part(time_format:seconds_to_iso8601(clock:timestamp_seconds()), 0, 10))/binary, " ",
         (str_utils:rand_hex(3))/binary
     >>,
     Body = json_utils:encode(#{

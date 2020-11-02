@@ -38,7 +38,7 @@ gui_setup_test_() ->
 %%%===================================================================
 
 missing_gui_is_uploaded() ->
-    service_oneprovider:set_up_service_in_onezone(),
+    service_oneprovider:set_up_onepanel_in_onezone(),
 
     ?assertMatch({provider, "/clusters/" ++ _Id, patch, _, _Body, _}, pop_request()),
     ?assertMatch({provider, "/onp/" ++ ?CLUSTER_ID ++ "/gui-upload", post, _, _Body, _},
@@ -47,7 +47,7 @@ missing_gui_is_uploaded() ->
 
 existing_gui_is_not_uploaded() ->
     self() ! gui_uploaded,
-    service_oneprovider:set_up_service_in_onezone(),
+    service_oneprovider:set_up_onepanel_in_onezone(),
     ?assertMatch({provider, "/clusters/" ++ _Id, patch, _, _Body, _}, pop_request()),
     ?assertMatch(timeout, pop_request()).
 
