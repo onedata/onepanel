@@ -53,7 +53,7 @@ all() -> [
 
 get_storages_ids(Config) ->
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
 
     StoragesIds = op_worker_test_rpc:get_storage_ids(Config),
 
@@ -91,7 +91,7 @@ get_storages_ids(Config) ->
 add_s3_storage(Config) ->
     % todo: VFS-6717 delete s3 storage after test
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
 
     StorageIdsBeforeAdd = op_worker_test_rpc:get_storage_ids(Config),
 
@@ -154,7 +154,7 @@ add_request_match_response(RequestBody, StorageDetails) ->
 get_s3_storage(Config) ->
     % todo: VFS-6717 add s3 storage before, and delete after test
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
 
     [StorageName | _] = maps:keys(?S3_STORAGE_SPEC),
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
@@ -194,7 +194,7 @@ get_s3_storage(Config) ->
 delete_s3_storage(Config) ->
     % todo: VFS-6717 add s3 storage before test
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?S3_STORAGE_NAME),
 

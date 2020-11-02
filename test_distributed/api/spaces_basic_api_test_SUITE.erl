@@ -75,7 +75,7 @@ get_space_ids_test(Config) ->
 %% @private
 get_space_ids_test_base(Config, ExpSpaceIds) ->
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -113,7 +113,7 @@ get_space_details_test(Config) ->
 %% @private
 get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
@@ -169,7 +169,7 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
 support_space_test(Config) ->
     MemRef = api_test_memory:init(),
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     SpaceName = str_utils:rand_hex(12),
@@ -282,7 +282,7 @@ build_support_space_verify_fun(MemRef, Config) ->
 modify_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
@@ -398,7 +398,7 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
 revoke_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     ?assert(api_test_runner:run_tests(Config, [

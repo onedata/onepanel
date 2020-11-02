@@ -20,6 +20,7 @@
 -export([
     http_200_ok/1,
     http_201_created/1,
+    http_201_created/2,
     http_204_no_content/0
 ]).
 
@@ -41,6 +42,15 @@ http_201_created(VerifyHeadersFun) ->
         ?assertEqual(?HTTP_201_CREATED, RespCode),
         VerifyHeadersFun(Headers)
     end.
+
+
+http_201_created(VerifyHeadersFun, VerifyBodyFun) ->
+    fun(_, {ok, RespCode, Headers, Body}) ->
+        ?assertEqual(?HTTP_201_CREATED, RespCode),
+        VerifyHeadersFun(Headers),
+        VerifyBodyFun(Body)
+    end.
+
 
 
 http_204_no_content() ->

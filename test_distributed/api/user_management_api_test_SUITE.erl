@@ -19,6 +19,8 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
+-define(PATH, "/api/v3/onepanel/zone/users/").
+
 %% API
 -export([all/0]).
 
@@ -47,7 +49,7 @@ all() -> [
 
 create_user_test(Config) ->
 
-    OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
+    OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
     OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -72,15 +74,18 @@ create_user_test(Config) ->
             prepare_args_fun = build_create_user_prepare_args_fun(),
             data_spec = build_create_user_data_spec(OzWorkerNodes),
 
-            validate_result_fun = api_test_validate:http_201_created(fun(Headers) ->
-                Url = <<"/api/v3/onepanel/zone/users/">>,
-
-                <<Url:28/binary, NewUserId/binary>> = ?assertMatch(<<Url:28/binary, _/binary>>, maps:get(<<"location">>, Headers)),
-
-%%                NewUserId = api_test_utils:match_location_header(Headers, Url),
-                Users = oz_worker_test_rpc:get_user_ids(Config),
-                ?assert(lists:member(NewUserId, Users))
-            end)
+            validate_result_fun = api_test_validate:http_201_created(
+                fun(Headers) ->
+                    NewUserId = api_test_utils:match_location_header(Headers, ?PATH),
+                    Users = oz_worker_test_rpc:get_user_ids(Config),
+                    ?assert(lists:member(NewUserId, Users))
+                end,
+                fun(Body) ->
+                    NewUserId = maps:get(<<"id">>, Body),
+                    Users = oz_worker_test_rpc:get_user_ids(Config),
+                    ?assert(lists:member(NewUserId, Users))
+                end
+            )
         }
     ])).
 
@@ -203,7 +208,7 @@ build_get_user_details_prepare_rest_args_fun(MemRef) ->
 
 set_user_password_test(Config) ->
     MemRef = api_test_memory:init(),
-    OzPanelNodes = test_config:get_custom(Config, [oz_panel_nodes]),
+    OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
     OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
 
     Fullname = str_utils:rand_hex(5),

@@ -45,7 +45,7 @@ create_user(Config, Data) ->
     UserId.
 
 
--spec authenticate(test_config:config(), binary(), binary()) -> {true, aai:auth()} | errors:unauthorized_error().
+-spec authenticate(test_config:config(), binary(), binary()) -> {true, aai:auth()} | {error, errors:unauthorized_error()}.
 authenticate(Config, UserName, Password) ->
     call_zone_node(Config, basic_auth, authenticate, [UserName, Password]).
 
