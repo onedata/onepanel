@@ -786,7 +786,7 @@ decode_body(Body) ->
     try
         json_utils:decode(Body)
     catch
-        throw:invalid_json -> {raw, Body}
+        _:invalid_json -> {raw, Body}
     end.
 
 

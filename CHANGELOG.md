@@ -4,6 +4,22 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.2
+
+-   **VFS-6853** Matching session cookie is now required to verify a GUI
+    access tokens (they are used behind the scenes by the Onedata web
+    applications), which increases security.
+-   **VFS-6732** New JSON and RDF metadata editor based on Ace Editor.
+-   **VFS-6338** Enhanced API of the mechanism for importing existing
+    data into Onedata spaces without need for copying the data. The
+    mechanism is now called "storage import". Introduced modes of
+    storage import: "manual" which allows for manual registration of
+    files and "auto" which enables automatic detection and import of
+    files from the storage. Introduced possibility to forcefully
+    start/stop scans of auto storage import. Redesigned GUI related to
+    storage import, adjusted to the new features.
+
+
 ### 20.02.1
 
 -   **VFS-6568** Introduced concept of readonly storage. If enabled,

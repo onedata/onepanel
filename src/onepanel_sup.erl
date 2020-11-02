@@ -85,7 +85,7 @@ init([]) ->
                 end, Nodes -- [Self]);
             false ->
                 ?info("Waiting for node ~p to perform database upgrades (~p seconds)",
-                    [First, ?UPGRADE_TIMEOUT / 1000]),
+                    [First, ?UPGRADE_TIMEOUT div 1000]),
                 receive
                     db_upgrade_finished -> ok
                 after ?UPGRADE_TIMEOUT ->
