@@ -20,7 +20,8 @@
         inets,
         crypto,
         ctool,
-        gui
+        gui,
+        onenv_ct
     ]},
     {mod, {onepanel_app, []}},
     {env, []}
