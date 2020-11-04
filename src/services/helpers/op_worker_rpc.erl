@@ -41,6 +41,7 @@
 -opaque helper() :: tuple().
 -opaque luma_config() :: tuple().
 -opaque storage_data() :: tuple().
+-type storage_params() :: op_worker_storage:storage_params().
 -type autocleaning_run_id() :: binary().
 -type autocleaning_run_links_list_limit() :: integer() | all.
 -type autocleaning_run_links_offset() :: integer().
@@ -69,7 +70,7 @@
 -type storage_import_monitoring_plot_counter_type() :: op_worker_storage_import:metric_type().
 -type storage_import_monitoring_window() :: day | hour | minute.
 
--export_type([storage_data/0, luma_config/0, helper/0, helper_name/0,
+-export_type([storage_data/0, luma_config/0, helper/0, helper_name/0, storage_params/0,
     helper_args/0, helper_user_ctx/0, od_space_id/0, luma_feed/0, luma_details/0]).
 
 -export([storage_create/6, storage_create/7]).
@@ -87,7 +88,7 @@
 -export([storage_describe/1, storage_describe/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([storage_get_luma_feed/1, storage_get_luma_feed/2]).
--export([storage_verify_configuration/4, storage_verify_configuration/5]).
+-export([storage_verify_configuration/3, storage_verify_configuration/4]).
 -export([luma_clear_db/1, luma_clear_db/2]).
 -export([luma_storage_users_get_and_describe/2, luma_storage_users_get_and_describe/3]).
 -export([luma_storage_users_store/3, luma_storage_users_store/4]).
@@ -319,15 +320,15 @@ storage_get_luma_feed(Node, Storage) ->
     ?CALL(Node, [Storage]).
 
 
--spec storage_verify_configuration(storage_id() | storage_name(), helper_name(),
-    boolean(), boolean()) -> ok | {error, term()}.
-storage_verify_configuration(NameOrId, HelperName, Imported, Readonly) ->
-    ?CALL([NameOrId, HelperName, Imported, Readonly]).
+-spec storage_verify_configuration(storage_id() | storage_name(), helper(),
+    storage_params()) -> ok | {error, term()}.
+storage_verify_configuration(NameOrId, StorageParams, Helper) ->
+    ?CALL([NameOrId, StorageParams, Helper]).
 
--spec storage_verify_configuration(node(), storage_id() | storage_name(), helper_name(),
-    boolean(), boolean()) -> ok.
-storage_verify_configuration(Node, NameOrId, HelperName, Imported, Readonly) ->
-    ?CALL(Node, [NameOrId, HelperName, Imported, Readonly]).
+-spec storage_verify_configuration(node(), storage_id() | storage_name(), helper(),
+    storage_params()) -> ok.
+storage_verify_configuration(Node, NameOrId, StorageParams, Helper) ->
+    ?CALL(Node, [NameOrId, StorageParams, Helper]).
 
 
 -spec luma_clear_db(storage_id()) -> ok.
