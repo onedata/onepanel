@@ -342,7 +342,7 @@ add(OpNode, Name, Params) ->
     LumaConfig = make_luma_config(OpNode, StorageParams2),
     LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
 
-    not SkipStorageDetection andalso verify_write_access(Helper, LumaFeed),
+    SkipStorageDetection orelse verify_write_access(Helper, LumaFeed),
 
     ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
     case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
