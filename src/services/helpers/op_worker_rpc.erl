@@ -320,13 +320,13 @@ storage_get_luma_feed(Node, Storage) ->
     ?CALL(Node, [Storage]).
 
 
--spec storage_verify_configuration(storage_id() | storage_name(), helper(),
-    storage_params()) -> ok | {error, term()}.
+-spec storage_verify_configuration(storage_id() | storage_name(), storage_params(), helper()) ->
+    ok | {error, term()}.
 storage_verify_configuration(NameOrId, StorageParams, Helper) ->
     ?CALL([NameOrId, StorageParams, Helper]).
 
--spec storage_verify_configuration(node(), storage_id() | storage_name(), helper(),
-    storage_params()) -> ok.
+-spec storage_verify_configuration(node(), storage_id() | storage_name(), storage_params(), helper()) ->
+    ok | {error, term()}.
 storage_verify_configuration(Node, NameOrId, StorageParams, Helper) ->
     ?CALL(Node, [NameOrId, StorageParams, Helper]).
 
