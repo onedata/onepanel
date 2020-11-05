@@ -115,6 +115,8 @@
 -export([verify_storage_on_all_nodes/2, verify_storage_on_all_nodes/3]).
 -export([prepare_helper_args/2, prepare_helper_args/3]).
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
+-export([get_helper_args/1, get_helper_args/2]).
+-export([get_helper_admin_ctx/1, get_helper_admin_ctx/2]).
 -export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1, file_popularity_api_get_configuration/2]).
@@ -573,6 +575,26 @@ prepare_user_ctx_params(HelperName, Params) ->
 -spec prepare_user_ctx_params(node(), helper_name(), helper_user_ctx()) -> helper_user_ctx().
 prepare_user_ctx_params(Node, HelperName, Params) ->
     ?CALL(Node, [HelperName, Params]).
+
+
+-spec get_helper_args(helper()) -> helper_args().
+get_helper_args(Helper) ->
+    ?CALL([Helper]).
+
+-spec get_helper_args(node(), helper()) -> helper_args().
+get_helper_args(Node, Helper) ->
+    ?CALL(Node, [Helper]).
+
+
+-spec get_helper_admin_ctx(helper()) -> helper_user_ctx().
+get_helper_admin_ctx(Helper) ->
+    ?CALL([Helper]).
+
+-spec get_helper_admin_ctx(node(), helper()) -> helper_user_ctx().
+get_helper_admin_ctx(Node, Helper) ->
+    ?CALL(Node, [Helper]).
+
+
 
 -spec space_logic_get_storage_ids(od_space_id()) -> {ok, [op_worker_storage:id()]}.
 space_logic_get_storage_ids(SpaceId) ->

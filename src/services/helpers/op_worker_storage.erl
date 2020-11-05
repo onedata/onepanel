@@ -44,7 +44,6 @@
     atom() := binary()
 }.
 
--type storage_type() :: op_worker_rpc:helper_name().
 -type helper_args() :: op_worker_rpc:helper_args().
 -type user_ctx() :: op_worker_rpc:helper_user_ctx().
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
@@ -72,6 +71,7 @@
 %% Before each addition verifies that given storage is accessible for all
 %% op_worker service nodes and aborts upon error.
 %% This verification is skipped for readonly storages.
+% TODO VFS-6951 refactor storage configuration API
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Ctx :: #{name := name(), params := storage_params()}) ->
@@ -98,37 +98,53 @@ add(#{name := Name, params := Params}) ->
 %%--------------------------------------------------------------------
 -spec update(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
     storage_details().
-update(OpNode, Id, Params) ->
+update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
     Id = maps:get(id, Storage),
+    CurrentName = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
     CurrentReadonly = maps:get(readonly, Storage),
     CurrentImported = maps:get(importedStorage, Storage),
     % remove qosParameters as they are a map and will cause errors
     % when preprocessing arg by conversion to binary
-    PlainValues = maps:remove(qosParameters, Params),
+    PlainValueNewParams = maps:remove(qosParameters, NewParams),
 
-    Readonly = maps:get(readonly, Params, CurrentReadonly),
-    Imported = maps:get(importedStorage, Params, CurrentImported),
+    Readonly = maps:get(readonly, NewParams, CurrentReadonly),
+    Imported = maps:get(importedStorage, NewParams, CurrentImported),
+    Name = maps:get(name, NewParams, CurrentName),
+
+    VerificationParams = case maps:get(type, PlainValueNewParams) of
+        ?LOCAL_CEPH_STORAGE_TYPE ->
+            maps:merge(PlainValueNewParams, service_ceph:make_storage_params(Name));
+        _ ->
+            PlainValueNewParams
+    end,
 
     % fill params with current configuration for the verification function
-    VerificationParams = maps:merge(maps:remove(qosParameters, Storage), PlainValues),
+    VerificationParams2 = maps:merge(maps:remove(qosParameters, Storage), VerificationParams),
 
-    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams),
+    % TODO VFS-6951 refactor storage configuration API
+    {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
+    CurrentArgs = op_worker_rpc:get_helper_args(OpNode, CurrentHelper),
+    CurrentAdminCtx = op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper),
+    VerificationParams3 = maps:merge(CurrentArgs, VerificationParams2),
+    VerificationParams4 = maps:merge(CurrentAdminCtx, VerificationParams3),
 
-    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams),
-    verify_configuration(OpNode, Id, VerificationParams, Helper),
+    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams4),
+    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams4),
+    verify_configuration(OpNode, Id, VerificationParams4, Helper),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
+    % TODO VFS-6951 refactor storage configuration API
     lists:foreach(fun({Fun, Args}) ->
         ?EXEC_AND_THROW_ON_ERROR(Fun, Args)
     end,
         [
-            {fun maybe_update_qos_parameters/3, [OpNode, Id, Params]},
-            {fun maybe_update_name/3, [OpNode, Id, PlainValues]},
-            {fun maybe_update_admin_ctx/4, [OpNode, Id, StorageType, PlainValues]},
-            {fun maybe_update_args/4, [OpNode, Id, StorageType, PlainValues]},
-            {fun maybe_update_luma_config/3, [OpNode, Id, Params]},
+            {fun maybe_update_qos_parameters/3, [OpNode, Id, NewParams]},
+            {fun maybe_update_name/3, [OpNode, Id, PlainValueNewParams]},
+            {fun maybe_update_admin_ctx/4, [OpNode, Id, StorageType, PlainValueNewParams]},
+            {fun maybe_update_args/4, [OpNode, Id, StorageType, PlainValueNewParams]},
+            {fun maybe_update_luma_config/3, [OpNode, Id, NewParams]},
             {fun update_readonly_and_imported/4, [OpNode, Id, Readonly, Imported]}
         ]
     ),
