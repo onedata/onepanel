@@ -56,6 +56,7 @@ start_link() ->
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
     node_cache:init(),
+    clock:try_to_restore_previous_synchronization(),
     try
         % Initialization done here rather than in onepanel_app:start
         % because too long wait before spawning supervisor causes timeout
