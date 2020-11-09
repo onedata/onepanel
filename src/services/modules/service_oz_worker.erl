@@ -52,9 +52,11 @@
 -export([get_user_details/1]).
 
 %% Step functions
--export([configure/1, start/1, stop/1, status/1, health/1, wait_for_init/1,
+-export([configure/1, start/1, stop/1, status/1, health/1,
+    wait_for_node_manager/1, wait_for_init/1,
     configure_additional_node/1,
     get_nagios_response/1, get_nagios_status/1]).
+-export([synchronize_clock_upon_start/1]).
 -export([reconcile_dns/1, get_ns_hosts/0]).
 -export([migrate_generated_config/1, rename_variables/0]).
 -export([get_policies/0, set_policies/1]).
@@ -126,10 +128,10 @@ get_steps(configure_dns_check, Ctx) ->
         | service_cluster_worker:get_steps(configure_dns_check, Ctx)
     ];
 
-get_steps(resume, Ctx) ->
+get_steps(init_resume, Ctx) ->
     [
         #step{function = rename_variables, selection = all, args = []}
-        | service_cluster_worker:get_steps(resume, Ctx#{name => name()})
+        | service_cluster_worker:get_steps(init_resume, Ctx#{name => name()})
     ];
 
 get_steps(Action, Ctx) ->
@@ -297,6 +299,19 @@ health(Ctx) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc {@link service_cluster_worker:wait_for_node_manager/1}
+%% @end
+%%--------------------------------------------------------------------
+-spec wait_for_node_manager(Ctx :: service:step_ctx()) -> ok | no_return().
+wait_for_node_manager(Ctx) ->
+    service_cluster_worker:wait_for_node_manager(Ctx#{
+        name => name(),
+        wait_for_init_attempts => onepanel_env:get(oz_worker_wait_for_init_attempts),
+        wait_for_init_delay => onepanel_env:get(oz_worker_wait_for_init_delay)
+    }).
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link service_cluster_worker:wait_for_init/1}
 %% @end
 %%--------------------------------------------------------------------
@@ -332,6 +347,12 @@ get_nagios_status(Ctx) ->
         nagios_protocol => onepanel_env:get(oz_worker_nagios_protocol),
         nagios_port => onepanel_env:get(oz_worker_nagios_port)
     }).
+
+
+-spec synchronize_clock_upon_start(Ctx :: service:step_ctx()) -> ok | no_return().
+synchronize_clock_upon_start(_) ->
+    OzNode = nodes:local(name()),
+    onezone_cluster_clocks:synchronize_node_upon_start(OzNode).
 
 
 %%--------------------------------------------------------------------

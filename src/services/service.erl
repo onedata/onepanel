@@ -475,7 +475,7 @@ register_healthcheck(Service, Ctx) ->
         end
     end,
 
-    onepanel_cron:add_job(Name, Action, Period, Condition).
+    ok = onepanel_cron:add_job(Name, Action, Period, Condition).
 
 
 -spec deregister_healthcheck(service:name(), #{id => ceph:id(), _ => _}) -> ok.

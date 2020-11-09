@@ -14,6 +14,8 @@
 
 -include_lib("ctool/include/test/test_utils.hrl").
 
+-define(ATTEMPTS, 120).
+
 %% API
 -export([
     get_storage_ids/1,
@@ -55,7 +57,9 @@ get_space_ids(Config) ->
 
 -spec get_space_document(test_config:config(), binary()) -> json_utils:json_map().
 get_space_document(Config, SpaceId) ->
-    {ok, SpaceDocument} = ?assertMatch({ok, _}, call_provider_node(Config, rpc_api, get_space_details, [SpaceId])),
+    % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+    % (effective relation) and for some time the provider may no be allowed to fetch the space details.
+    {ok, SpaceDocument} = ?assertMatch({ok, _}, call_provider_node(Config, rpc_api, get_space_details, [SpaceId]), ?ATTEMPTS),
     SpaceDocument.
 
 

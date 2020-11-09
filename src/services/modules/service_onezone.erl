@@ -35,7 +35,7 @@
     % service status cache
     status => #{service:host() => service:status()},
     % 'dns_check' module cache
-    ?DNS_CHECK_TIMESTAMP_KEY => time_utils:seconds(),
+    ?DNS_CHECK_TIMESTAMP_KEY => clock:seconds(),
     ?DNS_CHECK_CACHE_KEY => dns_check:result(),
     % 'clusters' module cache
     cluster => #{atom() := term()}
@@ -48,7 +48,8 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% Steps
--export([set_up_service_in_onezone/0]).
+-export([init_periodic_clock_sync/0]).
+-export([set_up_onepanel_in_onezone/0]).
 -export([mark_configured/1, format_cluster_ips/1]).
 -export([get_gui_message/1, update_gui_message/1]).
 
@@ -123,7 +124,8 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
-        Ss#steps{action = set_up_service_in_onezone, ctx = OzwCtx},
+        S#step{function = init_periodic_clock_sync, selection = any, args = []},
+        Ss#steps{action = set_up_onepanel_in_onezone, ctx = OzwCtx},
         Ss#steps{action = add_users, ctx = OzwCtx},
         Ss#steps{action = migrate_users, ctx = OzwCtx},
         Ss#steps{action = create_default_admin, ctx = OzwCtx},
@@ -142,24 +144,11 @@ get_steps(deploy, Ctx) ->
             condition = fun(FunCtx) -> not maps:get(interactive_deployment, FunCtx, true) end}
     ];
 
-get_steps(start, _Ctx) ->
-    [
-        #steps{service = ?SERVICE_CB, action = start},
-        #steps{service = ?SERVICE_CM, action = start},
-        #steps{service = ?SERVICE_OZW, action = start}
-    ];
-
 get_steps(stop, _Ctx) ->
     [
         #steps{service = ?SERVICE_OZW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
-    ];
-
-get_steps(restart, _Ctx) ->
-    [
-        #steps{action = stop},
-        #steps{action = start}
     ];
 
 % returns any steps only on the master node
@@ -182,12 +171,15 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
-            #steps{service = ?SERVICE_OZW, action = resume},
+            #steps{service = ?SERVICE_OZW, action = init_resume},
+            % no intermediate steps required during resumption
+            #steps{service = ?SERVICE_OZW, action = finalize_resume},
+            #step{function = init_periodic_clock_sync, selection = any, args = []},
             #steps{action = migrate_users,
                 condition = fun(_) -> onepanel_user:any_user_exists() end},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OZW}},
-            #steps{action = set_up_service_in_onezone}
+            #steps{action = set_up_onepanel_in_onezone}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start the Onezone", [MasterHost]),
@@ -241,8 +233,8 @@ get_steps(Function, _Ctx) when
 ->
     [#step{function = Function, selection = any}];
 
-get_steps(set_up_service_in_onezone, _Ctx) ->
-    [#step{function = set_up_service_in_onezone, args = [], selection = any}].
+get_steps(set_up_onepanel_in_onezone, _Ctx) ->
+    [#step{function = set_up_onepanel_in_onezone, args = [], selection = any}].
 
 
 %%%===================================================================
@@ -273,14 +265,19 @@ mark_configured(_Ctx) ->
     ]).
 
 
+-spec init_periodic_clock_sync() -> ok.
+init_periodic_clock_sync() ->
+    onezone_cluster_clocks:restart_periodic_sync().
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Sets up Onezone panel service in Onezone - deploys static GUI files and
 %% updates version info (release, build and GUI versions).
 %% @end
 %%--------------------------------------------------------------------
--spec set_up_service_in_onezone() -> ok.
-set_up_service_in_onezone() ->
+-spec set_up_onepanel_in_onezone() -> ok.
+set_up_onepanel_in_onezone() ->
     ?info("Setting up Onezone panel service in Onezone"),
 
     GuiPackagePath = https_listener:gui_package_path(),

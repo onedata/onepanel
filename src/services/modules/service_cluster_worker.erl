@@ -20,6 +20,7 @@
 -include("modules/onepanel_dns.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
+-include_lib("ctool/include/global_definitions.hrl").
 
 -include_lib("ctool/include/logging.hrl").
 
@@ -27,9 +28,14 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([add_nodes_steps/1, configure/1, wait_for_init/1, start/1, stop/1, status/1,
-    register_host/1, get_nagios_response/1, get_nagios_status/1, set_node_ip/1,
-    get_cluster_ips/1, get_hosts_ips/1, reload_webcert/1, migrate_generated_config/1]).
+-export([
+    add_nodes_steps/1, configure/1,
+    start/1, stop/1, status/1,
+    wait_for_node_manager/1, is_node_manager_running/1, wait_for_init/1,
+    register_host/1, get_nagios_response/1, get_nagios_status/1,
+    set_node_ip/1, get_cluster_ips/1, get_hosts_ips/1,
+    reload_webcert/1, migrate_generated_config/1
+]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -78,16 +84,25 @@ get_steps(deploy, #{hosts := Hosts, name := ServiceName} = Ctx) ->
         #step{hosts = AllHosts, function = configure},
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = [hd(AllHosts)], function = wait_for_init},
+        #step{hosts = AllHosts, function = synchronize_clock_upon_start},
         % refresh status cache
         #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
 
-get_steps(resume, #{name := ServiceName}) ->
+get_steps(init_resume, #{name := ServiceName}) ->
     [
         #step{function = migrate_generated_config,
             condition = fun(_) -> onepanel_env:legacy_config_exists(ServiceName) end},
         #steps{action = start},
+        % ensure that node manager has started, as steps between 'init_resume' and
+        % 'finalize_resume' might require that the application is up
+        #step{function = wait_for_node_manager}
+    ];
+
+get_steps(finalize_resume, _Ctx) ->
+    [
         #step{function = wait_for_init, selection = first},
+        #step{hosts = [hosts:self()], function = synchronize_clock_upon_start},
         % refresh status cache
         #steps{action = status}
     ];
@@ -139,8 +154,6 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
 %%% API functions
 %%%===================================================================
 
-
-
 %%--------------------------------------------------------------------
 %% @doc Defines part of the steps, which complete list is generated
 %% in service_oz/op_worker.
@@ -160,7 +173,8 @@ add_nodes_steps(#{reference_host := _, name := WorkerName, new_hosts := NewHosts
         #steps{service = WorkerName, action = stop, ctx = Ctx},
         #steps{service = ?SERVICE_CM, action = stop, ctx = Ctx},
         #steps{service = ?SERVICE_CM, action = resume, ctx = Ctx},
-        #steps{service = WorkerName, action = resume, ctx = Ctx}
+        #steps{service = WorkerName, action = init_resume, ctx = Ctx},
+        #steps{service = WorkerName, action = finalize_resume, ctx = Ctx}
     ].
 
 
@@ -240,6 +254,22 @@ status(#{name := ServiceName} = Ctx) ->
         end).
 
 
+-spec wait_for_node_manager(service:step_ctx()) -> ok | no_return().
+wait_for_node_manager(#{wait_for_init_attempts := Attempts, wait_for_init_delay := Delay} = Ctx) ->
+    onepanel_utils:wait_until(?MODULE, is_node_manager_running, [Ctx], {equal, true},
+        Attempts, Delay),
+    ok.
+
+
+-spec is_node_manager_running(service:step_ctx()) -> boolean().
+is_node_manager_running(#{name := ServiceName}) ->
+    Node = nodes:local(ServiceName),
+    case rpc:call(Node, erlang, whereis, [?NODE_MANAGER_NAME]) of
+        Pid when is_pid(Pid) -> true;
+        _ -> false
+    end.
+
+
 %%--------------------------------------------------------------------
 %% @doc Waits for initialization of the service.
 %% @end
@@ -303,7 +333,7 @@ get_nagios_status(Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc Writes node IP to app.config on the current node's worker.
-%% If IP is not given explicitely in cluster_ips map
+%% If IP is not given explicitly in cluster_ips map
 %% and worker has none in its app config onepanel tries to determine it.
 %% @end
 %%--------------------------------------------------------------------

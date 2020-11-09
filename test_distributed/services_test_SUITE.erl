@@ -38,6 +38,7 @@
     service_op_worker_add_node_test/1,
     service_oz_worker_add_node_test/1,
     services_status_test/1,
+    cluster_clocks_sync_test/1,
     services_stop_start_test/1
 ]).
 
@@ -50,6 +51,7 @@
 end).
 
 -define(AWAIT_OZ_CONNECTIVITY_ATTEMPTS, 30).
+-define(AWAIT_CLOCK_SYNC_ATTEMPTS, 30).
 
 -define(OZ_USERNAME, <<"joe">>).
 -define(OZ_PASSWORD, <<"password">>).
@@ -69,7 +71,8 @@ all() ->
         service_op_worker_update_storage_test,
         service_op_worker_add_node_test,
         service_oz_worker_add_node_test,
-        services_status_test
+        services_status_test,
+        cluster_clocks_sync_test
         %% TODO VFS-4056
         %% services_stop_start_test
     ]).
@@ -105,7 +108,7 @@ batch_config_creates_users(Config) ->
     OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
     {true, #auth{subject = #subject{id = UserId}}} =
         ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
-        basic_auth, authenticate, [?OZ_USERNAME, ?OZ_PASSWORD])),
+            basic_auth, authenticate, [?OZ_USERNAME, ?OZ_PASSWORD])),
 
     ?assert(image_test_utils:proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
         [<<"admins">>, UserId])).
@@ -334,10 +337,14 @@ service_op_worker_update_storage_test(Config) ->
             type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
         },
         <<"someCeph">> => #{
-            monitorHostname => <<"newHostName">>, username => <<"changedCephAdmin">>
+            type => <<"ceph">>,
+            monitorHostname => <<"newHostName">>,
+            username => <<"changedCephAdmin">>
         },
         <<"someCephRados">> => #{
-            monitorHostname => <<"newHostName">>, username => <<"changedCephAdmin">>
+            type => <<"cephrados">>,
+            monitorHostname => <<"newHostName">>,
+            username => <<"changedCephAdmin">>
         },
         <<"someS3">> => #{
             type => <<"s3">>,
@@ -464,6 +471,50 @@ services_status_test(Config) ->
     ]).
 
 
+cluster_clocks_sync_test(Config) ->
+    % the clock_synchronization_interval_seconds env is set in the env.json to
+    % 5 seconds for the sake of this test
+
+    OzpNodes = ?config(onezone_nodes, Config),
+    % master node is selected as the first from sorted list
+    OzpMasterNode = hd(lists:sort(OzpNodes)),
+    OzCmNodes = rpc:call(OzpMasterNode, service_cluster_manager, get_nodes, []),
+    OzwNodes = rpc:call(OzpMasterNode, service_oz_worker, get_nodes, []),
+
+    OppNodes = ?config(oneprovider_nodes, Config),
+    OpCmNodes = rpc:call(hd(OppNodes), service_cluster_manager, get_nodes, []),
+    OpwNodes = rpc:call(hd(OppNodes), service_op_worker, get_nodes, []),
+
+    IsSyncedWithMaster = fun(Node) ->
+        MasterTimestamp = rpc:call(OzpMasterNode, clock, timestamp_millis, []),
+        NodeTimestamp = image_test_utils:proxy_rpc(Node, clock, timestamp_millis, []),
+        are_timestamps_in_sync(MasterTimestamp, NodeTimestamp)
+    end,
+
+    % after the environment is deployed and periodic sync has run at least once,
+    % all nodes in Onezone and Oneprovider clusters should be synced with the master Onezone node
+    AllNonMasterNodes = lists:flatten([
+        OzpNodes, OzCmNodes, OzwNodes,
+        OppNodes, OpCmNodes, OpwNodes
+    ]) -- [OzpMasterNode],
+
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+
+    % simulate a situation when the time changes on the master node by 50 hours
+    % and see if (after some time) the clocks are unified again
+    rpc:call(OzpMasterNode, clock, store_bias_millis, [local_clock, timer:hours(50)]),
+    ?assertEqual(false, lists:all(IsSyncedWithMaster, AllNonMasterNodes)),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+
+    % simulate a situation when the time changes on another, non-master node by
+    % 50 hours and see if (after some time) it catches up with the master again
+    RandomNonMasterNode = lists_utils:random_element(AllNonMasterNodes),
+    image_test_utils:proxy_rpc(RandomNonMasterNode, clock, store_bias_millis, [local_clock, timer:hours(-50)]),
+    ?assertEqual(false, IsSyncedWithMaster(RandomNonMasterNode)),
+    ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
+
+
 services_stop_start_test(Config) ->
     ActionsWithResults = [
         {stop, ok}, {status, stopped}, {start, ok}, {status, unhealthy}
@@ -563,7 +614,7 @@ assert_step_present(Module, Function, Results) ->
     case lists:filtermap(fun
         (#step_end{module = M, function = F, good_bad_results = {GoodResults, []}})
             when M == Module, F == Function
-        ->
+            ->
             {true, GoodResults};
         (_) ->
             false
@@ -631,3 +682,15 @@ get_storages(Config) ->
         [{_, Details}] = ?assertMatch([{Node, _}], NodeToResult2),
         Details
     end, Ids).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Compares two timestamps and returns true if they are at most 5 seconds apart
+%% (bigger clock differences should be tested to make this a reliable check).
+%% @end
+%%--------------------------------------------------------------------
+-spec are_timestamps_in_sync(clock:millis(), clock:millis()) -> boolean().
+are_timestamps_in_sync(TimestampA, TimestampB) ->
+    TimestampA - TimestampB > -5000 andalso TimestampA - TimestampB < 5000.

@@ -34,6 +34,8 @@
 
 -define(DETAILS_PERSISTENCE, provider_details).
 
+-define(OZ_CONNECTION_CHECK_INTERVAL_SECONDS, 5).
+
 % @formatter:off
 -type id() :: binary().
 
@@ -50,7 +52,7 @@
     % service status
     status => #{service:host() => service:status()},
     % 'dns_check' module cache
-    ?DNS_CHECK_TIMESTAMP_KEY => time_utils:seconds(),
+    ?DNS_CHECK_TIMESTAMP_KEY => clock:seconds(),
     ?DNS_CHECK_CACHE_KEY => dns_check:result(),
     % 'clusters' module cache
     cluster => #{atom() := term()},
@@ -88,12 +90,15 @@
     check_oz_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
--export([set_up_service_in_onezone/0, store_absolute_auth_file_path/0]).
+-export([connect_and_set_up_in_onezone/1]).
+-export([store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
 -export([get_id/0, get_access_token/0, get_identity_token/0]).
 
 % Internal RPC
 -export([root_token_from_file/0]).
+% Export for eunit tests
+-export([set_up_onepanel_in_onezone/0]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -199,26 +204,11 @@ get_steps(deploy, Ctx) ->
             end}
     ];
 
-get_steps(start, _Ctx) ->
-    [
-        #steps{service = ?SERVICE_CB, action = start},
-        #steps{service = ?SERVICE_CM, action = start},
-        #steps{service = ?SERVICE_OPW, action = start}
-    ];
-
 get_steps(stop, _Ctx) ->
     [
         #steps{service = ?SERVICE_OPW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
-    ];
-
-get_steps(restart, _Ctx) ->
-    [
-        #steps{action = stop},
-        #steps{service = ?SERVICE_CB, action = resume},
-        #steps{service = ?SERVICE_CM, action = resume},
-        #steps{service = ?SERVICE_OPW, action = resume}
     ];
 
 % returns any steps only on the master node
@@ -242,8 +232,14 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = stop},
             #steps{service = ?SERVICE_CB, action = resume},
             #steps{service = ?SERVICE_CM, action = resume},
-            #steps{service = ?SERVICE_OPW, action = resume},
-            #steps{action = set_up_service_in_onezone},
+            #steps{service = ?SERVICE_OPW, action = init_resume},
+            % Run the setup in Onezone after the op-worker service has started,
+            % which will start periodic clock sync and enable op-worker's GS channel.
+            % The op-worker service might require a working connection to Onezone
+            % to successfully init (e.g. in case of a cluster upgrade), and only then
+            % the step finalize_resume (which waits for complete cluster init) can succeed.
+            #step{function = connect_and_set_up_in_onezone, args = [fallback_to_async], selection = any},
+            #steps{service = ?SERVICE_OPW, action = finalize_resume},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}},
@@ -263,13 +259,12 @@ get_steps(status, _Ctx) ->
 
 get_steps(register, #{hosts := _Hosts}) ->
     [
-        #step{function = check_oz_availability,
-            attempts = onepanel_env:get(connect_to_onezone_attempts)},
+        #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{function = register, selection = any},
+        #step{function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
         % explicitly fail on connection problems before executing further steps
         #step{function = check_oz_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #steps{action = set_up_service_in_onezone},
         #steps{action = set_cluster_ips}
     ];
 get_steps(register, Ctx) ->
@@ -277,9 +272,6 @@ get_steps(register, Ctx) ->
 
 get_steps(unregister, _Ctx) ->
     [#step{function = unregister, selection = any, args = []}];
-
-get_steps(set_up_service_in_onezone, _Ctx) ->
-    [#step{function = set_up_service_in_onezone, args = [], selection = any}];
 
 get_steps(modify_details, #{hosts := Hosts}) ->
     [
@@ -345,13 +337,12 @@ get_steps(Action, Ctx) when
 %%--------------------------------------------------------------------
 -spec get_id() -> id().
 get_id() ->
-    service_oneprovider:is_registered()
-        orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            throw(Error);
+        ?ERROR_UNREGISTERED_ONEPROVIDER ->
+            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
         _ ->
             FileContents = read_auth_file(),
             maps:get(provider_id, FileContents)
@@ -364,8 +355,7 @@ get_id() ->
 %%--------------------------------------------------------------------
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
-    is_registered()
-        orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
     case service:get_ctx(name()) of
         #{onezone_domain := OnezoneDomain} ->
             unicode:characters_to_list(OnezoneDomain);
@@ -412,9 +402,12 @@ is_registered(Ctx) ->
 -spec get_access_token() -> tokens:serialized().
 get_access_token() ->
     case op_worker_rpc:get_access_token() of
-        {ok, <<Token/binary>>} -> Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Error -> throw(Error);
-        _ -> root_token_from_file()
+        {ok, <<Token/binary>>} ->
+            Token;
+        ?ERROR_UNREGISTERED_ONEPROVIDER ->
+            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
+        _ ->
+            root_token_from_file()
     end.
 
 
@@ -423,8 +416,8 @@ get_identity_token() ->
     case op_worker_rpc:get_identity_token() of
         {ok, <<Token/binary>>} ->
             Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = Err1 ->
-            throw(Err1);
+        ?ERROR_UNREGISTERED_ONEPROVIDER = ?ERROR_UNREGISTERED_ONEPROVIDER ->
+            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
         _ ->
             case clusters:acquire_provider_identity_token() of
                 {ok, T} -> T;
@@ -461,10 +454,14 @@ check_oz_availability(Ctx) ->
             [Status] = [X#xmlAttribute.value || X <- Xml#xmlElement.attributes,
                 X#xmlAttribute.name == status],
             case Status of
-                "ok" -> ok;
-                _ -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+                "ok" ->
+                    ok;
+                _ ->
+                    ?debug("Onezone availability check failed - nagios status was ~p", [Status]),
+                    throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
             end;
-        _ ->
+        Other ->
+            ?debug("Onezone availability check failed - ~p", [Other]),
             throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
@@ -705,13 +702,13 @@ get_auto_storage_import_stats(#{space_id := SpaceId} = Ctx) ->
 
 
 -spec get_auto_storage_import_info(Ctx :: service:step_ctx()) -> json_utils:json_term().
-get_auto_storage_import_info(#{space_id := SpaceId})->
+get_auto_storage_import_info(#{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     op_worker_storage_import:get_info(Node, SpaceId).
 
 
 -spec get_manual_storage_import_example(Ctx :: service:step_ctx()) -> json_utils:json_term().
-get_manual_storage_import_example(#{space_id := SpaceId})->
+get_manual_storage_import_example(#{space_id := SpaceId}) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     op_worker_storage_import:get_manual_example(Node, SpaceId).
 
@@ -934,37 +931,17 @@ configure_auto_cleaning(#{space_id := SpaceId} = Ctx) ->
     [{id, SpaceId}].
 
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Sets up Oneprovider panel service in Onezone - updates version info
-%% (release, build and GUI versions). If given GUI version is not present in
-%% Onezone, the GUI package is uploaded first.
-%% @end
-%%--------------------------------------------------------------------
--spec set_up_service_in_onezone() -> ok.
-set_up_service_in_onezone() ->
-    ?info("Setting up Oneprovider panel service in Onezone"),
-    {ok, GuiHash} = gui:package_hash(https_listener:gui_package_path()),
-
-    % Try to update version info in Onezone
-    case update_version_info(GuiHash) of
-        ok ->
-            ?info("Skipping GUI upload as it is already present in Onezone"),
-            ?info("Oneprovider panel service successfully set up in Onezone");
-        {error, inexistent_gui_version} ->
-            ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
-            case upload_onepanel_gui() of
-                ok ->
-                    ?info("GUI uploaded succesfully"),
-                    ok = update_version_info(GuiHash),
-                    ?info("Oneprovider panel service successfully set up in Onezone");
-                {error, _} = Error ->
-                    ?alert(
-                        "Oneprovider panel service could not be successfully set "
-                        "up in Onezone due to an error during GUI upload: ~p",
-                        [Error]
-                    )
-            end
+-spec connect_and_set_up_in_onezone(no_fallback | fallback_to_async) -> ok | no_return().
+connect_and_set_up_in_onezone(FallbackPolicy) ->
+    ?notice("Trying to connect to Onezone (~ts)...", [get_oz_domain()]),
+    case {try_to_establish_onezone_connection(), FallbackPolicy} of
+        {true, _} ->
+            set_up_in_onezone();
+        {false, no_fallback} ->
+            ?error("Failed to establish Onezone connection"),
+            error(failed_to_establish_onezone_connection);
+        {false, fallback_to_async} ->
+            schedule_periodic_onezone_connection_check()
     end.
 
 
@@ -1010,7 +987,7 @@ root_token_from_file() ->
             RootTokenBin = maps:get(root_token, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
-            Now = time_utils:timestamp_seconds(),
+            Now = clock:timestamp_seconds(),
             tokens:confine(RootTokenBin, #cv_time{valid_until = Now + TTL});
         {ok, Other} ->
             <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])
@@ -1020,25 +997,6 @@ root_token_from_file() ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc Reads provider Id and root token from a file where they are stored.
-%% @end
-%%--------------------------------------------------------------------
--spec read_auth_file() -> #{provider_id := id(), root_token := binary()}.
-read_auth_file() ->
-    {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
-    Path = onepanel_env:get(op_worker_root_token_path),
-    case rpc:call(Node, file, read_file, [Path]) of
-        {ok, Json} ->
-            kv_utils:copy_all([
-                {<<"provider_id">>, provider_id},
-                {<<"root_token">>, root_token}
-            ], json_utils:decode(Json), #{});
-        {error, Error} -> throw(?ERROR_FILE_ACCESS(Path, Error))
-    end.
-
 
 %%--------------------------------------------------------------------
 %% @private
@@ -1065,14 +1023,127 @@ on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
     }),
     store_absolute_auth_file_path(),
 
-    % Force connection healthcheck
-    % (reconnect attempt is performed automatically if there is no connection)
-    op_worker_rpc:force_oz_connection_start(OpwNode),
-
     % preload cache
     (catch clusters:get_current_cluster()),
     (catch get_details()),
     ok.
+
+
+%% @private
+-spec schedule_periodic_onezone_connection_check() -> ok.
+schedule_periodic_onezone_connection_check() ->
+    PeriodicCheck = fun() ->
+        case try_to_establish_onezone_connection() of
+            true ->
+                try
+                    set_up_in_onezone(),
+                    onepanel_cron:remove_job(?FUNCTION_NAME)
+                catch Class:Reason ->
+                    ?error_stacktrace(
+                        "Unexpected error when running procedures upon Onezone connection - ~w:~p",
+                        [Class, Reason]
+                    )
+                end;
+            false ->
+                {_, Time} = time_format:seconds_to_datetime(clock:timestamp_seconds()),
+                case Time of
+                    {_, Min, Sec} when Min rem 5 == 0 andalso Sec < ?OZ_CONNECTION_CHECK_INTERVAL_SECONDS ->
+                        % log every 5 minutes (at the first check within the minute)
+                        ?warning(
+                            "Onezone connection cannot be established, is the service online (~ts)? "
+                            "Retrying as long as it takes...", [get_oz_domain()]
+                        );
+                    _ ->
+                        ok
+                end
+        end
+    end,
+    ok = onepanel_cron:add_job(?FUNCTION_NAME, PeriodicCheck, timer:seconds(?OZ_CONNECTION_CHECK_INTERVAL_SECONDS)).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% @TODO VFS-5837 - currently this function merely checks if any successful
+%% request can be made to Onezone, which means it is online and reachable.
+%% Rework when Onepanel uses GraphSync for persistent connection to Onezone.
+%% @end
+%%--------------------------------------------------------------------
+-spec try_to_establish_onezone_connection() -> boolean().
+try_to_establish_onezone_connection() ->
+    {ok, #service{ctx = Ctx}} = service:get(name()),
+    case (catch check_oz_availability(Ctx)) of
+        ok ->
+            ?notice("Onezone connection established"),
+            true;
+        _ ->
+            false
+    end.
+
+
+%% @private
+-spec set_up_in_onezone() -> ok.
+set_up_in_onezone() ->
+    set_up_onepanel_in_onezone(),
+    oneprovider_cluster_clocks:restart_periodic_sync(),
+    % connection can be started only after clocks are synchronized
+    {ok, OpwNode} = nodes:any(service_op_worker:name()),
+    % best-effort, upon failure op-worker will attempt reconnection itself
+    catch op_worker_rpc:force_oz_connection_start(OpwNode),
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Sets up Oneprovider panel service in Onezone - updates version info
+%% (release, build and GUI versions). If given GUI version is not present in
+%% Onezone, the GUI package is uploaded first.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_up_onepanel_in_onezone() -> ok.
+set_up_onepanel_in_onezone() ->
+    ?info("Setting up Oneprovider panel service in Onezone"),
+    {ok, GuiHash} = gui:package_hash(https_listener:gui_package_path()),
+
+    case update_version_info(GuiHash) of
+        ok ->
+            ?info("Skipping GUI upload as it is already present in Onezone"),
+            ?info("Oneprovider panel service successfully set up in Onezone");
+        {error, inexistent_gui_version} ->
+            ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
+            case upload_onepanel_gui() of
+                ok ->
+                    ?info("GUI uploaded succesfully"),
+                    ok = update_version_info(GuiHash),
+                    ?info("Oneprovider panel service successfully set up in Onezone");
+                {error, _} = Error ->
+                    ?alert(
+                        "Oneprovider panel service could not be successfully set "
+                        "up in Onezone due to an error during GUI upload: ~p",
+                        [Error]
+                    )
+            end
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Reads provider Id and root token from a file where they are stored.
+%% @end
+%%--------------------------------------------------------------------
+-spec read_auth_file() -> #{provider_id := id(), root_token := binary()}.
+read_auth_file() ->
+    {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
+    Path = onepanel_env:get(op_worker_root_token_path),
+    case rpc:call(Node, file, read_file, [Path]) of
+        {ok, Json} ->
+            kv_utils:copy_all([
+                {<<"provider_id">>, provider_id},
+                {<<"root_token">>, root_token}
+            ], json_utils:decode(Json), #{});
+        {error, Error} -> throw(?ERROR_FILE_ACCESS(Path, Error))
+    end.
 
 
 %% @private
