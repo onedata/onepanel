@@ -337,10 +337,14 @@ service_op_worker_update_storage_test(Config) ->
             type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
         },
         <<"someCeph">> => #{
-            monitorHostname => <<"newHostName">>, username => <<"changedCephAdmin">>
+            type => <<"ceph">>,
+            monitorHostname => <<"newHostName">>,
+            username => <<"changedCephAdmin">>
         },
         <<"someCephRados">> => #{
-            monitorHostname => <<"newHostName">>, username => <<"changedCephAdmin">>
+            type => <<"cephrados">>,
+            monitorHostname => <<"newHostName">>,
+            username => <<"changedCephAdmin">>
         },
         <<"someS3">> => #{
             type => <<"s3">>,
