@@ -16,9 +16,10 @@
 
 %% API
 -export([
-    get_user_ids/1,
+    list_users/1,
     create_user/1,
     create_user/2,
+    get_user_details/2,
     authenticate/3,
     create_space/3,
     create_space_support_token/3,
@@ -27,8 +28,8 @@
 ]).
 
 
--spec get_user_ids(test_config:config()) -> [binary()].
-get_user_ids(Config) ->
+-spec list_users(test_config:config()) -> [binary()].
+list_users(Config) ->
     {ok, Users} = ?assertMatch({ok, _}, call_zone_node(Config, user_logic, list, [aai:root_auth()])),
     Users.
 
@@ -39,10 +40,16 @@ create_user(Config) ->
     UserId.
 
 
--spec create_user(test_config:config(), json_utils:json_map()) -> binary().
+-spec create_user(test_config:config(), map()) -> binary().
 create_user(Config, Data) ->
     {ok, UserId} = ?assertMatch({ok, _}, call_zone_node(Config, user_logic, create, [aai:root_auth(), Data])),
     UserId.
+
+
+-spec get_user_details(test_config:config(), binary()) -> map().
+get_user_details(Config, UserId) ->
+    {ok, UserDetails} = ?assertMatch({ok, _}, call_zone_node(Config, user_logic, get_protected_data, [aai:root_auth(), UserId])),
+    UserDetails.
 
 
 -spec authenticate(test_config:config(), binary(), binary()) -> {true, aai:auth()} | {error, errors:unauthorized_error()}.

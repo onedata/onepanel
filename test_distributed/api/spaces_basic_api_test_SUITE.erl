@@ -196,11 +196,10 @@ support_space_test(Config) ->
             setup_fun = build_support_space_setup_fun(MemRef, Config, SpaceName),
             verify_fun = build_support_space_verify_fun(MemRef, Config),
 
-            prepare_args_fun = build_support_space_prepare_args_fun(MemRef),
-            validate_result_fun = api_test_validate:http_201_created(fun(Headers) ->
-                SupportedSpaceId = lists:last(binary:split(maps:get(<<"location">>, Headers), <<"/">>, [global])),
-                ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
-            end),
+            validate_result_fun = api_test_validate:http_201_created("provider/spaces/", <<"id">>,
+                fun(SupportedSpaceId) ->
+                    ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
+                end),
 
             data_spec = build_support_space_data_spec(StorageId, OpWorkerNodes)
         }
@@ -478,7 +477,7 @@ build_revoke_space_support_verify_fun(MemRef, Config) ->
 
 
 %% @private
--spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> json_utils:json_map().
+-spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> map().
 get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) ->
     [ProviderId] = op_worker_test_rpc:get_space_providers(Config, SpaceId),
     SupportingProviders = #{
@@ -497,7 +496,7 @@ get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) -
 
 
 %% @private
--spec get_space_details_with_rpc(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_space_details_with_rpc(test_config:config(), binary()) -> map().
 get_space_details_with_rpc(Config, SpaceId) ->
     SpaceDoc = op_worker_test_rpc:get_space_document(Config, SpaceId),
     StorageId = op_worker_test_rpc:get_local_storage_id(Config, SpaceId),

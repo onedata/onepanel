@@ -19,8 +19,6 @@
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
--define(PATH, "/api/v3/onepanel/zone/users/").
-
 %% API
 -export([all/0]).
 
@@ -48,6 +46,7 @@ all() -> [
 
 
 create_user_test(Config) ->
+    MemRef = api_test_memory:init(),
 
     OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
     OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
@@ -71,18 +70,14 @@ create_user_test(Config) ->
                     peer
                 ]
             },
-            prepare_args_fun = build_create_user_prepare_args_fun(),
+            prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
             data_spec = build_create_user_data_spec(OzWorkerNodes),
+            verify_fun = build_create_user_verify_fun(MemRef, Config),
 
-            validate_result_fun = api_test_validate:http_201_created(
-                fun(Headers) ->
-                    NewUserId = api_test_utils:match_location_header(Headers, ?PATH),
-                    Users = oz_worker_test_rpc:get_user_ids(Config),
-                    ?assert(lists:member(NewUserId, Users))
-                end,
-                fun(Body) ->
-                    NewUserId = maps:get(<<"id">>, Body),
-                    Users = oz_worker_test_rpc:get_user_ids(Config),
+            validate_result_fun = api_test_validate:http_201_created("zone/users/", <<"id">>,
+                fun(NewUserId) ->
+                    api_test_memory:set(MemRef, user_id, NewUserId),
+                    Users = oz_worker_test_rpc:list_users(Config),
                     ?assert(lists:member(NewUserId, Users))
                 end
             )
@@ -102,6 +97,7 @@ build_create_user_data_spec(OzWorkerNodes) ->
             <<"password">> => [<<"somePassword">>]
         },
         bad_values = [
+            {<<"password">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"password">>, <<"">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)}
         ]
@@ -109,20 +105,43 @@ build_create_user_data_spec(OzWorkerNodes) ->
 
 
 %% @private
--spec build_create_user_prepare_args_fun() -> api_test_runner:prepare_ergs_fun().
-build_create_user_prepare_args_fun() ->
+-spec build_create_user_prepare_args_fun(integer()) -> api_test_runner:prepare_ergs_fun().
+build_create_user_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         Username = str_utils:rand_hex(10),
         RequestMap = case maps:get(<<"username">>, Data, undefined) of
-            username_placeholder -> maps:put(<<"username">>, Username, Data);
-            _ -> Data
+            username_placeholder ->
+                maps:put(<<"username">>, Username, Data);
+            _ ->
+                Data
         end,
+        api_test_memory:set(MemRef, user_details, RequestMap),
 
         #rest_args{
             method = post,
             path = <<"zone/users">>,
             headers = #{<<"content-type">> => <<"application/json">>},
             body = json_utils:encode(RequestMap)}
+    end.
+
+
+%% @private
+-spec build_create_user_verify_fun(api_test_memory:env_ref(), test_config:config()) -> api_test_runner:verify_fun().
+build_create_user_verify_fun(MemRef, Config) ->
+    fun
+        (expected_success, _) ->
+            UserId = api_test_memory:get(MemRef, user_id),
+            UserDetails = oz_worker_test_rpc:get_user_details(Config, UserId),
+            ExpUserDetails = api_test_memory:get(MemRef, user_details),
+            ExpectedUsername = maps:get(<<"username">>, ExpUserDetails),
+            ExpectedPassword = maps:get(<<"password">>, ExpUserDetails),
+
+            ?assertEqual(<<"Unnamed User">>, maps:get(<<"fullName">>, UserDetails)),
+            ?assertEqual(ExpectedUsername, maps:get(<<"username">>, UserDetails)),
+            ?assert(try_to_authenticate(Config, ExpectedUsername, ExpectedPassword)),
+            true;
+        (expected_failure, _) ->
+            true
     end.
 
 
@@ -298,16 +317,15 @@ build_set_user_password_verify_fun(MemRef, Config) ->
     fun(ExpectedResult, _) ->
         UserName = api_test_memory:get(MemRef, user_name),
         OldPassword = api_test_memory:get(MemRef, old_password),
-        UpdatedPassword = api_test_memory:get(MemRef, new_password),
-        PasswordsEqual = (OldPassword =:= UpdatedPassword),
+        NewPassword = api_test_memory:get(MemRef, new_password),
 
         case ExpectedResult of
             expected_success ->
-                ?assert(try_to_authenticate(Config, UserName, UpdatedPassword)),
-                ?assertEqual(PasswordsEqual, try_to_authenticate(Config, UserName, OldPassword));
+                ?assert(try_to_authenticate(Config, UserName, NewPassword)),
+                NewPassword /= OldPassword andalso ?assertNot(try_to_authenticate(Config, UserName, OldPassword));
             expected_failure ->
                 ?assert(try_to_authenticate(Config, UserName, OldPassword)),
-                ?assertEqual(PasswordsEqual, try_to_authenticate(Config, UserName, UpdatedPassword))
+                NewPassword /= OldPassword andalso ?assertNot(try_to_authenticate(Config, UserName, NewPassword))
         end,
         true
     end.
@@ -330,8 +348,7 @@ create_user(Config, Username, Fullname, Password) ->
 
 
 try_to_authenticate(Config, UserName, Password) ->
-    AuthResult = oz_worker_test_rpc:authenticate(Config, UserName, Password),
-    case AuthResult of
+    case oz_worker_test_rpc:authenticate(Config, UserName, Password) of
         {true, _} -> true;
         {error, _} -> false
     end.

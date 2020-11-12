@@ -94,7 +94,7 @@ to_hostnames(Nodes) ->
 -spec match_location_header(map(), binary()) -> binary().
 match_location_header(Headers, Path) ->
     Location = maps:get(<<"location">>, Headers),
-    {match, [Item]} = ?assertMatch({match, _Items}, re:run(Location, Path ++ "(.+)", [{capture, all_but_first, binary}])),
+    {match, [Item]} = ?assertMatch({match, [_]}, re:run(Location, Path ++ "(.+)", [{capture, all_but_first, binary}])),
     Item.
 
 
