@@ -37,7 +37,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% Public API
--export([get_main_host/0]).
+-export([get_main_host/0, get_current_primary_node/0]).
 
 %% Step functions
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1, health/1,
@@ -72,6 +72,22 @@ get_hosts() ->
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
     nodes:all(name()).
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns current primary Cluster Manager node 
+%% (i.e. node that is currently running cluster_manager application).
+%% @end
+%%--------------------------------------------------------------------
+get_current_primary_node() ->
+    AllNodes = get_nodes(),
+    [PrimaryNode | _] = lists:filter(fun(Node) ->
+        case rpc:call(Node, erlang, whereis, [cluster_manager_sup]) of
+            Pid when is_pid(Pid) -> true;
+            _ -> false
+        end
+    end, AllNodes),
+    PrimaryNode.
 
 
 %%--------------------------------------------------------------------
@@ -143,7 +159,7 @@ get_steps(update_workers_number, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Returns the primary Cluster Manager host
+%% @doc Returns the primary Cluster Manager host set in configuration
 %% (as opposed to backup instances).
 %% @end
 %%--------------------------------------------------------------------
