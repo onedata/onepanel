@@ -196,6 +196,7 @@ support_space_test(Config) ->
             setup_fun = build_support_space_setup_fun(MemRef, Config, SpaceName),
             verify_fun = build_support_space_verify_fun(MemRef, Config),
 
+            prepare_args_fun = build_support_space_prepare_args_fun(MemRef),
             validate_result_fun = api_test_validate:http_201_created("provider/spaces/", <<"id">>,
                 fun(SupportedSpaceId) ->
                     ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
