@@ -478,11 +478,11 @@ cluster_clocks_sync_test(Config) ->
     OzpNodes = ?config(onezone_nodes, Config),
     % master node is selected as the first from sorted list
     OzpMasterNode = hd(lists:sort(OzpNodes)),
-    OzCmNodes = rpc:call(OzpMasterNode, service_cluster_manager, get_nodes, []),
+    OzCmNodes = rpc:call(OzpMasterNode, service_cluster_manager, get_current_primary_node, []),
     OzwNodes = rpc:call(OzpMasterNode, service_oz_worker, get_nodes, []),
 
     OppNodes = ?config(oneprovider_nodes, Config),
-    OpCmNodes = rpc:call(hd(OppNodes), service_cluster_manager, get_nodes, []),
+    OpCmNodes = rpc:call(hd(OppNodes), service_cluster_manager, get_current_primary_node, []),
     OpwNodes = rpc:call(hd(OppNodes), service_op_worker, get_nodes, []),
 
     IsSyncedWithMaster = fun(Node) ->

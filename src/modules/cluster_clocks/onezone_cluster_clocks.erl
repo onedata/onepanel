@@ -56,6 +56,6 @@ restart_periodic_sync() ->
 prepare_cluster_clock_sync() ->
     {ok, lists:flatten([
         service_onepanel:get_nodes(),
-        service_cluster_manager:get_nodes(),
+        service_cluster_manager:get_current_primary_node(),
         service_oz_worker:get_nodes()
     ])}.

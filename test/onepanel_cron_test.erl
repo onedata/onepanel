@@ -128,6 +128,7 @@ long_job_is_aborted() ->
 %%%===================================================================
 
 prepare() ->
+    node_cache:init(),
     onepanel_env:set(cron_period, ?CRON_PERIOD),
     onepanel_env:set(cron_job_timeout, ?JOB_TIMEOUT),
 
@@ -142,6 +143,7 @@ prepare() ->
     #{pid => Pid}.
 
 stop(#{pid := Pid}) ->
+    node_cache:destroy(),
     meck:unload(),
     exit(Pid, kill),
     % ensure process dies before next test run
