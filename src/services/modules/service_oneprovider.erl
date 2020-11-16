@@ -36,6 +36,9 @@
 
 -define(OZ_CONNECTION_CHECK_INTERVAL_SECONDS, 5).
 
+% used in versions 19.02.*, the file name changed in line 20.02.*
+-define(LEGACY_AUTH_FILE_NAME, "provider_root_macaroon.txt").
+
 % @formatter:off
 -type id() :: binary().
 
@@ -950,7 +953,7 @@ connect_and_set_up_in_onezone(FallbackPolicy) ->
 %% Stores absolute path to oneprovider token file in Onepanel config.
 %% This operation requires op-worker to be up.
 %% This function should be executed after cluster deployment, and after
-%% upgrading to version 19.10 when the path variable name and contents
+%% upgrading to version 20.02 when the path variable name and contents
 %% have changed.
 %%
 %% The absolute path is mostly relevant to one-env source deployments,
@@ -1129,20 +1132,53 @@ set_up_onepanel_in_onezone() ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Reads provider Id and root token from a file where they are stored.
+%% @doc
+%% Reads provider Id and root token from a file where they are stored.
+%% First tries to read it from the legacy file, as it is possible that the
+%% system has just been upgraded from the line 19.02.*. In such case the
+%% op-worker service may migrate the token to the new file at any time - and we
+%% cannot assume that it is already migrated. Also, checking the new path first
+%% would still give a slim chance of a race condition (op-worker may upgrade the
+%% file between us checking the new and old one).
 %% @end
 %%--------------------------------------------------------------------
 -spec read_auth_file() -> #{provider_id := id(), root_token := binary()}.
 read_auth_file() ->
     {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
-    Path = onepanel_env:get(op_worker_root_token_path),
-    case rpc:call(Node, file, read_file, [Path]) of
+    AuthFilePath = onepanel_env:get(op_worker_root_token_path),
+    case read_auth_file(Node, AuthFilePath, legacy) of
+        {ok, ResultFromLegacy} ->
+            ResultFromLegacy;
+        _ ->
+            case read_auth_file(Node, AuthFilePath, current) of
+                {ok, ResultFromCurrent} -> ResultFromCurrent;
+                {error, _} = Error -> throw(Error)
+            end
+    end.
+
+%% @private
+-spec read_auth_file(node(), file:filename_all(), current | legacy) ->
+    {ok, #{provider_id := id(), root_token := binary()}} | errors:error().
+read_auth_file(Node, AuthFilePath, current) ->
+    case rpc:call(Node, file, read_file, [AuthFilePath]) of
         {ok, Json} ->
-            kv_utils:copy_all([
+            {ok, kv_utils:copy_all([
                 {<<"provider_id">>, provider_id},
                 {<<"root_token">>, root_token}
-            ], json_utils:decode(Json), #{});
-        {error, Error} -> throw(?ERROR_FILE_ACCESS(Path, Error))
+            ], json_utils:decode(Json), #{})};
+        {error, Error} ->
+            ?ERROR_FILE_ACCESS(AuthFilePath, Error)
+    end;
+read_auth_file(Node, AuthFilePath, legacy) ->
+    LegacyAuthFilePath = filename:join(filename:dirname(AuthFilePath), ?LEGACY_AUTH_FILE_NAME),
+    case rpc:call(Node, file, consult, [LegacyAuthFilePath]) of
+        {ok, [Map]} ->
+            {ok, kv_utils:copy_all([
+                {provider_id, provider_id},
+                {root_macaroon, root_token}
+            ], Map, #{})};
+        {error, Error} ->
+            ?ERROR_FILE_ACCESS(LegacyAuthFilePath, Error)
     end.
 
 
