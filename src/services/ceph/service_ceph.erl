@@ -284,7 +284,6 @@ make_storage_params(PoolName) ->
             {Username, Key} = ceph:get_pool_user(),
             #{
                 type => ?CEPH_STORAGE_HELPER_NAME,
-                insecure => true,
                 clusterName => Cluster,
                 poolName => PoolName,
                 username => Username,
