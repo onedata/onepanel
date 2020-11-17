@@ -120,7 +120,7 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec verify_access_token(tokens:serialized(), IP :: ip_utils:ip()) ->
-    {ok, aai:auth(), TTL :: clock:seconds() | undefined} | errors:error().
+    {ok, aai:auth(), TTL :: time:seconds() | undefined} | errors:error().
 verify_access_token(SerializedToken, PeerIp) ->
     {ok, Token} = tokens:deserialize(SerializedToken),
     {ok, BinaryIp} = ip_utils:to_binary(PeerIp),

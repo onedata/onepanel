@@ -154,8 +154,6 @@ sequential_join_should_create_cluster(Config) ->
         ?SERVICE_PANEL, deploy, #{hosts => [Host1]}
     ),
 
-    onepanel_test_utils:freeze_time(Nodes),
-
     {ok, InviteToken1} = rpc:call(Node1, invite_tokens, create, []),
     {ok, InviteToken2} = rpc:call(Node1, invite_tokens, create, []),
     ?assertNotEqual(InviteToken1, InviteToken2),
@@ -172,12 +170,12 @@ sequential_join_should_create_cluster(Config) ->
     ),
 
     % Assert that invite tokens expires after predefined period of time
-    onepanel_test_utils:simulate_time_passing(Nodes, 100000),
+    clock_freezer_mock:simulate_seconds_passing(Nodes, 100000),
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(Node5,
         ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     )),
     % Returning back in time to when token was still valid should make it usable
-    onepanel_test_utils:simulate_time_passing(Nodes, -100000),
+    clock_freezer_mock:simulate_seconds_passing(Nodes, -100000),
     onepanel_test_utils:service_action(Node5,
         ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     ),
@@ -185,9 +183,7 @@ sequential_join_should_create_cluster(Config) ->
     lists:foreach(fun(Node) ->
         ?assertEqual(Hosts,
             lists:sort(rpc:call(Node, service_onepanel, get_hosts, [])))
-    end, Nodes),
-
-    onepanel_test_utils:unfreeze_time(Nodes).
+    end, Nodes).
 
 
 % ensure presence of deployed services does not prevent adding more nodes
@@ -365,6 +361,12 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 
     [{cluster1, Cluster1}, {cluster2, Cluster2} | Config2];
 
+init_per_testcase(sequential_join_should_create_cluster, Config) ->
+    Config2 = init_per_testcase(default, Config),
+    Nodes = ?config(onepanel_nodes, Config2),
+    clock_freezer_mock:setup(Nodes),
+    Config2;
+
 init_per_testcase(extend_should_work_in_deployed_cluster, Config) ->
     Config2 = init_per_testcase(default, Config),
 
@@ -436,6 +438,11 @@ init_per_testcase(_Case, Config) ->
     end, Nodes),
     kv_utils:put(onepanel_nodes, lists:sort(Nodes), Config2).
 
+
+end_per_testcase(sequential_join_should_create_cluster, Config) ->
+    Nodes = ?config(onepanel_nodes, Config),
+    clock_freezer_mock:teardown(Nodes),
+    end_per_testcase(default, Config);
 
 end_per_testcase(_Case, Config) ->
     test_node_starter:clean_environment(Config).

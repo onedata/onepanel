@@ -691,6 +691,6 @@ get_storages(Config) ->
 %% (bigger clock differences should be tested to make this a reliable check).
 %% @end
 %%--------------------------------------------------------------------
--spec are_timestamps_in_sync(clock:millis(), clock:millis()) -> boolean().
+-spec are_timestamps_in_sync(time:millis(), time:millis()) -> boolean().
 are_timestamps_in_sync(TimestampA, TimestampB) ->
     TimestampA - TimestampB > -5000 andalso TimestampA - TimestampB < 5000.

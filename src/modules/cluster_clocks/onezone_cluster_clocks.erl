@@ -37,7 +37,7 @@ restart_periodic_sync() ->
     % make sure the master node is using the system time - it will be the
     % reference clock for all nodes on Onezone and all subject Oneproviders
     cluster_clocks:run_on_master(fun() ->
-        clock:reset_to_system_time(),
+        global_clock:reset_to_system_time(),
         true
     end),
     cluster_clocks:restart_periodic_sync(?MODULE, fun prepare_cluster_clock_sync/0).

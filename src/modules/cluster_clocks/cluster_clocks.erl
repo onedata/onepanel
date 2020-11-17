@@ -133,7 +133,7 @@ synchronize_all_nodes_with_self(Nodes) ->
 %% @private
 -spec synchronize_node_with_self(node()) -> boolean().
 synchronize_node_with_self(Node) ->
-    case clock:synchronize_remote_with_local(Node) of
+    case global_clock:synchronize_remote_with_local(Node) of
         ok -> true;
         error -> false
     end.

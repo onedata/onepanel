@@ -35,6 +35,8 @@
 -define(DETAILS_PERSISTENCE, provider_details).
 
 -define(OZ_CONNECTION_CHECK_INTERVAL_SECONDS, 5).
+% how often logs appear when waiting for Onezone connection
+-define(OZ_CONNECTION_AWAIT_LOG_INTERVAL, 300). % 5 minutes
 
 % used in versions 19.02.*, the file name changed in line 20.02.*
 -define(LEGACY_AUTH_FILE_NAME, "provider_root_macaroon.txt").
@@ -55,7 +57,7 @@
     % service status
     status => #{service:host() => service:status()},
     % 'dns_check' module cache
-    ?DNS_CHECK_TIMESTAMP_KEY => clock:seconds(),
+    ?DNS_CHECK_TIMESTAMP_KEY => time:seconds(),
     ?DNS_CHECK_CACHE_KEY => dns_check:result(),
     % 'clusters' module cache
     cluster => #{atom() := term()},
@@ -990,7 +992,7 @@ root_token_from_file() ->
             RootTokenBin = maps:get(root_token, read_auth_file()),
             {ok, TTL} = onepanel_env:read_effective(
                 [?SERVICE_OPW, provider_token_ttl_sec], ?SERVICE_OPW),
-            Now = clock:timestamp_seconds(),
+            Now = global_clock:timestamp_seconds(),
             tokens:confine(RootTokenBin, #cv_time{valid_until = Now + TTL});
         {ok, Other} ->
             <<_/binary>> = rpc:call(Other, ?MODULE, ?FUNCTION_NAME, [])
@@ -1048,17 +1050,12 @@ schedule_periodic_onezone_connection_check() ->
                     )
                 end;
             false ->
-                {_, Time} = time_format:seconds_to_datetime(clock:timestamp_seconds()),
-                case Time of
-                    {_, Min, Sec} when Min rem 5 == 0 andalso Sec < ?OZ_CONNECTION_CHECK_INTERVAL_SECONDS ->
-                        % log every 5 minutes (at the first check within the minute)
-                        ?warning(
-                            "Onezone connection cannot be established, is the service online (~ts)? "
-                            "Retrying as long as it takes...", [get_oz_domain()]
-                        );
-                    _ ->
-                        ok
-                end
+                utils:throttle(?OZ_CONNECTION_AWAIT_LOG_INTERVAL, fun() ->
+                    ?warning(
+                        "Onezone connection cannot be established, is the service online (~ts)? "
+                        "Retrying as long as it takes...", [get_oz_domain()]
+                    )
+                end)
         end
     end,
     ok = onepanel_cron:add_job(?FUNCTION_NAME, PeriodicCheck, timer:seconds(?OZ_CONNECTION_CHECK_INTERVAL_SECONDS)).

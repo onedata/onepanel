@@ -59,7 +59,7 @@ get_seconds_till_expiration_test_() ->
         fun(_) -> node_cache:destroy() end, 
         fun() ->
             {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-            ?assertEqual(?UNTIL - clock:timestamp_seconds(),
+            ?assertEqual(?UNTIL - global_clock:timestamp_seconds(),
                 onepanel_cert:get_seconds_till_expiration(Cert))
         end
     }.
