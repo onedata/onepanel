@@ -53,10 +53,16 @@ read_dates_as_epoch_test() ->
     ?assertEqual({?SINCE, ?UNTIL}, onepanel_cert:get_times(Cert)).
 
 
-get_seconds_till_expiration_test() ->
-    {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-    ?assertEqual(?UNTIL - clock:timestamp_seconds(),
-        onepanel_cert:get_seconds_till_expiration(Cert)).
+get_seconds_till_expiration_test_() ->
+    {setup, 
+        fun node_cache:init/0, 
+        fun(_) -> node_cache:destroy() end, 
+        fun() ->
+            {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
+            ?assertEqual(?UNTIL - clock:timestamp_seconds(),
+                onepanel_cert:get_seconds_till_expiration(Cert))
+        end
+    }.
 
 
 verify_accepts_domain_test() ->

@@ -35,7 +35,7 @@
 
 -define(IDENTITY_TOKEN_CACHE_KEY, identity_token_cache).
 -define(PRIVILEGES_CACHE_KEY(OnezoneUserId), {privileges, OnezoneUserId}).
--define(ONEZONE_AUTH_CACHE_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
+-define(ONEZONE_AUTH_CACHE_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl_seconds, ?APP_NAME, 0)).
 
 
 %%%===================================================================
@@ -116,12 +116,12 @@ get_user_privileges(OnezoneUserId) ->
 -spec get_user_privileges(rest_handler:zone_credentials(), OnezoneUserId :: binary()) ->
     {ok, [privileges:cluster_privilege()]} | {error, _} | no_return().
 get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
-    simple_cache:get(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
+    node_cache:acquire(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
         case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
             [get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
-                {true, ListOfAtoms, ?ONEZONE_AUTH_CACHE_CACHE_TTL};
+                {ok, ListOfAtoms, ?ONEZONE_AUTH_CACHE_CACHE_TTL};
             ?ERROR_NOT_FOUND -> ?ERROR_USER_NOT_IN_CLUSTER;
             {error, _} = Error -> Error
         end
@@ -214,14 +214,14 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
 %%--------------------------------------------------------------------
 -spec acquire_provider_identity_token() -> {ok, tokens:serialized()} | errors:error().
 acquire_provider_identity_token() ->
-    simple_cache:get(?IDENTITY_TOKEN_CACHE_KEY, fun() ->
-        ValidUntil = clock:timestamp_seconds() + ?ONEZONE_AUTH_CACHE_CACHE_TTL div 1000,
+    node_cache:acquire(?IDENTITY_TOKEN_CACHE_KEY, fun() ->
+        ValidUntil = clock:timestamp_seconds() + ?ONEZONE_AUTH_CACHE_CACHE_TTL,
         Body = json_utils:encode(#{
             <<"type">> => token_type:to_json(?IDENTITY_TOKEN),
             <<"caveats">> => [caveats:to_json(#cv_time{valid_until = ValidUntil})]
         }),
         case zone_rest(post, provider, "/provider/tokens/temporary", [], Body) of
-            {ok, #{token := Token}} -> {true, Token, ?ONEZONE_AUTH_CACHE_CACHE_TTL};
+            {ok, #{token := Token}} -> {ok, Token, ?ONEZONE_AUTH_CACHE_CACHE_TTL};
             Error -> Error
         end
     end).

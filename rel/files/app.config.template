@@ -184,8 +184,8 @@
         {wait_for_cluster_attempts, 120},
         {wait_for_cluster_delay, 5000},
 
-        %% Time in milliseconds during which user tokens are cached in op_panel
-        {onezone_auth_cache_ttl, 60000},
+        %% Time in seconds during which user tokens are cached in op_panel
+        {onezone_auth_cache_ttl_seconds, 60},
 
         %% Time (in seconds) during which invite tokens will be valid after creation
         {panel_authorization_nonce_ttl_sec, 3600},

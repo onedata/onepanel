@@ -128,6 +128,6 @@ is_master_synchronized_with_onezone() ->
 service_nodes_to_sync() ->
     lists:flatten([
         service_onepanel:get_nodes(),
-        service_cluster_manager:get_nodes(),
+        service_cluster_manager:get_current_primary_node(),
         service_op_worker:get_nodes()
     ]).

@@ -27,7 +27,7 @@
 -export([read_domain/1]).
 
 -define(USER_DETAILS_CACHE_KEY(Token, PeerIp), {user_details, {Token, PeerIp}}).
--define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl, ?APP_NAME, 0)).
+-define(USER_DETAILS_CACHE_TTL, onepanel_env:get(onezone_auth_cache_ttl_seconds, ?APP_NAME, 0)).
 
 %%%===================================================================
 %%% API functions
@@ -97,13 +97,13 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
             TTL = min(TokenTTL, ?USER_DETAILS_CACHE_TTL),
             OzPluginAuth = {token, SerializedToken},
             {ok, Details} = fetch_details(OzPluginAuth),
-            {true, {Details, AaiAuth, OzPluginAuth}, TTL}
+            {ok, {Details, AaiAuth, OzPluginAuth}, TTL}
         catch
             error:{badmatch, {error, _} = Error} -> Error
         end
     end,
 
-    case simple_cache:get(
+    case node_cache:acquire(
         ?USER_DETAILS_CACHE_KEY(SerializedToken, PeerIp),
         FetchDetailsFun
     ) of

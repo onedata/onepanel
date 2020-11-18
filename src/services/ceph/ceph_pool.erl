@@ -21,7 +21,7 @@
 
 -define(LIST_CACHE_KEY, ceph_pools).
 -define(DETAILS_CACHE_KEY(PoolName), {ceph_pool, PoolName}).
--define(CACHE_TIMEOUT, 60 * 60 * 1000). % 1 hour
+-define(CACHE_TIMEOUT_SECONDS, 3600). % 1 hour
 
 % @formatter:off
 -type name() :: binary().
@@ -59,14 +59,14 @@
 %%--------------------------------------------------------------------
 -spec get(name()) -> spec() | {error, _}.
 get(Name) ->
-    case simple_cache:get(?DETAILS_CACHE_KEY(Name), fun() ->
+    case node_cache:acquire(?DETAILS_CACHE_KEY(Name), fun() ->
         Params = get_params(Name, [
             {copiesNumber, <<"size">>},
             {minCopiesNumber, <<"min_size">>}
         ]),
         case Params of
             Map when is_map(Map) ->
-                {true, Params#{name => Name}, ?CACHE_TIMEOUT};
+                {ok, Params#{name => Name}, ?CACHE_TIMEOUT_SECONDS};
             {error, _} = Error ->
                 Error
         end
@@ -95,11 +95,11 @@ get_all() ->
 %%--------------------------------------------------------------------
 -spec list() -> [name()].
 list() ->
-    {ok, Names} = simple_cache:get(?LIST_CACHE_KEY, fun() ->
+    {ok, Names} = node_cache:acquire(?LIST_CACHE_KEY, fun() ->
         {ok, Node} = nodes:onepanel_with(?SERVICE_CEPH),
         PoolsList = rpc:call(Node, ceph_cli, list_pools, []),
         Names = [Name || #{name := Name} <- PoolsList],
-        {true, Names, ?CACHE_TIMEOUT}
+        {ok, Names, ?CACHE_TIMEOUT_SECONDS}
     end),
     Names.
 
@@ -266,6 +266,6 @@ get_params(PoolName, Params) ->
 -spec clear_cache(name()) -> ok.
 clear_cache(Name) ->
     Nodes = nodes:all(?SERVICE_PANEL),
-    rpc:multicall(Nodes, simple_cache, clear, [?DETAILS_CACHE_KEY(Name)]),
-    rpc:multicall(Nodes, simple_cache, clear, [?LIST_CACHE_KEY]),
+    rpc:multicall(Nodes, node_cache, clear, [?DETAILS_CACHE_KEY(Name)]),
+    rpc:multicall(Nodes, node_cache, clear, [?LIST_CACHE_KEY]),
     ok.

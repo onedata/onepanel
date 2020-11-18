@@ -63,7 +63,7 @@
 -export([get_details/1, get_details/0]).
 
 -define(DETAILS_CACHE_KEY, onezone_details).
--define(DETAILS_CACHE_TTL, timer:minutes(1)).
+-define(DETAILS_CACHE_TTL_SECONDS, 60). % 1 minute
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -209,7 +209,7 @@ configure(Ctx) ->
     }),
     set_policies(maps:get(policies, Ctx, #{})),
 
-    simple_cache:clear(?DETAILS_CACHE_KEY),
+    node_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
         name => name(),
         app_config => AppConfig,
@@ -443,10 +443,10 @@ get_domain() ->
 -spec get_details(service:step_ctx()) ->
     #{name := binary() | undefined, domain := binary()}.
 get_details(_Ctx) ->
-    {ok, Cached} = simple_cache:get(?DETAILS_CACHE_KEY, fun() ->
+    {ok, Cached} = node_cache:acquire(?DETAILS_CACHE_KEY, fun() ->
         {_, Node} = nodes:onepanel_with(name()),
         case rpc:call(Node, ?MODULE, get_details, []) of
-            Map when is_map(Map) -> {true, Map, ?DETAILS_CACHE_TTL};
+            Map when is_map(Map) -> {ok, Map, ?DETAILS_CACHE_TTL_SECONDS};
             Error -> {false, Error}
         end
     end),
