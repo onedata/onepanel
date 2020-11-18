@@ -74,15 +74,15 @@ get_space_ids_test(Config) ->
 
 %% @private
 get_space_ids_test_base(Config, ExpSpaceIds) ->
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get space ids using /provider/spaces rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -90,7 +90,7 @@ get_space_ids_test_base(Config, ExpSpaceIds) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -112,9 +112,9 @@ get_space_details_test(Config) ->
 
 %% @private
 get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
+    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
     SpaceId = create_and_support_space(Config, SpaceName, StorageName, SupportSize),
@@ -124,7 +124,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
         #scenario_spec{
             name = <<"Get space details using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -132,7 +132,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -142,7 +142,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
                 ?assertEqual(ExpResult, RespBody)
             end),
 
-            data_spec = build_get_space_details_data_spec(OpWorkerNodes)
+            data_spec = build_get_space_details_data_spec(ProviderWorkerNodes)
         }
     ])).
 
@@ -168,9 +168,9 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
 
 support_space_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
+    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
 
     SpaceName = str_utils:rand_hex(12),
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
@@ -179,7 +179,7 @@ support_space_test(Config) ->
         #scenario_spec{
             name = <<"Support space using /provider/spaces rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -187,7 +187,7 @@ support_space_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -202,7 +202,7 @@ support_space_test(Config) ->
                 ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
             end),
 
-            data_spec = build_support_space_data_spec(StorageId, OpWorkerNodes)
+            data_spec = build_support_space_data_spec(StorageId, ProviderWorkerNodes)
         }
     ])).
 
@@ -281,9 +281,9 @@ build_support_space_verify_fun(MemRef, Config) ->
 
 modify_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
+    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
     SpaceName = str_utils:rand_hex(12),
@@ -293,7 +293,7 @@ modify_space_support_test(Config) ->
         #scenario_spec{
             name = <<"Modify space support using /provider/spaces rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -301,7 +301,7 @@ modify_space_support_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -313,7 +313,7 @@ modify_space_support_test(Config) ->
             verify_fun = build_modify_space_support_verify_fun(MemRef, Config),
             validate_result_fun = api_test_validate:http_204_no_content(),
 
-            data_spec = build_modify_space_support_data_spec(SupportSize, OpWorkerNodes)
+            data_spec = build_modify_space_support_data_spec(SupportSize, ProviderWorkerNodes)
         }
     ])).
 
@@ -397,15 +397,15 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
 
 revoke_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
+    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -413,7 +413,7 @@ revoke_space_support_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -422,7 +422,7 @@ revoke_space_support_test(Config) ->
             setup_fun = build_revoke_space_support_setup_fun(MemRef, Config),
             prepare_args_fun = build_revoke_space_support_prepare_rest_args_fun(MemRef),
             verify_fun = build_revoke_space_support_verify_fun(MemRef, Config),
-            data_spec = build_revoke_space_support_data_spec(OpWorkerNodes),
+            data_spec = build_revoke_space_support_data_spec(ProviderWorkerNodes),
 
             validate_result_fun = api_test_validate:http_204_no_content()
         }
@@ -574,7 +574,7 @@ init_per_suite(Config) ->
     test_config:set_many(Config, [
         {add_envs, [oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]]},
         {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, fun onenv_test_utils:prepare_base_test_config/1}
+        {set_posthook, fun oct_background:prepare_base_test_config/1}
     ]).
 
 

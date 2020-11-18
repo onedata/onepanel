@@ -52,8 +52,8 @@ all() -> [
 
 
 get_storages_ids(Config) ->
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
 
     StoragesIds = op_worker_test_rpc:get_storage_ids(Config),
 
@@ -65,7 +65,7 @@ get_storages_ids(Config) ->
         #scenario_spec{
             name = <<"Get storage ids using /provider/storages rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -73,7 +73,7 @@ get_storages_ids(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -90,8 +90,8 @@ get_storages_ids(Config) ->
 
 add_s3_storage(Config) ->
     % todo: VFS-6717 delete s3 storage after test
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
 
     StorageIdsBeforeAdd = op_worker_test_rpc:get_storage_ids(Config),
 
@@ -101,7 +101,7 @@ add_s3_storage(Config) ->
         #scenario_spec{
             name = <<"Add s3 storage using /provider/storages rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root
@@ -110,7 +110,7 @@ add_s3_storage(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -153,8 +153,8 @@ add_request_match_response(RequestBody, StorageDetails) ->
 
 get_s3_storage(Config) ->
     % todo: VFS-6717 add s3 storage before, and delete after test
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
 
     [StorageName | _] = maps:keys(?S3_STORAGE_SPEC),
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
@@ -163,7 +163,7 @@ get_s3_storage(Config) ->
         #scenario_spec{
             name = <<"Get s3 storage details using /provider/storages/{storage_id} rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -171,7 +171,7 @@ get_s3_storage(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -193,8 +193,8 @@ get_s3_storage(Config) ->
 
 delete_s3_storage(Config) ->
     % todo: VFS-6717 add s3 storage before test
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    ProviderId = oct_background:get_provider_id(Config, p1),
+    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?S3_STORAGE_NAME),
 
@@ -202,7 +202,7 @@ delete_s3_storage(Config) ->
         #scenario_spec{
             name = <<"Delete s3 storage using /provider/storages/{storage_id} rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root
@@ -211,7 +211,7 @@ delete_s3_storage(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -250,7 +250,7 @@ init_per_suite(Config) ->
     hackney:start(),
     test_config:set_many(Config, [
         {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, fun onenv_test_utils:prepare_base_test_config/1}
+        {set_posthook, fun oct_background:prepare_base_test_config/1}
     ]).
 
 
