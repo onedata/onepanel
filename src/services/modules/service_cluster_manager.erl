@@ -120,7 +120,7 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
         },
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = AllHosts, function = wait_for_init},
-        #step{hosts = AllHosts, function = synchronize_clock_upon_start},
+        #step{hosts = [MainHost], function = synchronize_clock_upon_start},
         % refresh status cache
         #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
@@ -306,9 +306,15 @@ health(_) ->
 -spec synchronize_clock_upon_start(Ctx :: service:step_ctx()) -> ok | no_return().
 synchronize_clock_upon_start(_) ->
     CmNode = nodes:local(name()),
-    case onepanel_env:get_cluster_type() of
-        ?ONEZONE -> onezone_cluster_clocks:synchronize_node_upon_start(CmNode);
-        ?ONEPROVIDER -> oneprovider_cluster_clocks:synchronize_node_upon_start(CmNode)
+    case get_current_primary_node() of
+        CmNode ->
+            case onepanel_env:get_cluster_type() of
+                ?ONEZONE -> onezone_cluster_clocks:synchronize_node_upon_start(CmNode);
+                ?ONEPROVIDER -> oneprovider_cluster_clocks:synchronize_node_upon_start(CmNode)
+            end;
+        _ ->
+            % backup CM nodes are in standby mode and clock sync is not possible
+            ok
     end.
 
 

@@ -40,6 +40,7 @@
 
 % used in versions 19.02.*, the file name changed in line 20.02.*
 -define(LEGACY_AUTH_FILE_NAME, "provider_root_macaroon.txt").
+-define(AUTH_FILE_CACHE_TTL_SECONDS, 5).
 
 % @formatter:off
 -type id() :: binary().
@@ -1141,16 +1142,22 @@ set_up_onepanel_in_onezone() ->
 %%--------------------------------------------------------------------
 -spec read_auth_file() -> #{provider_id := id(), root_token := binary()}.
 read_auth_file() ->
-    {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
-    AuthFilePath = onepanel_env:get(op_worker_root_token_path),
-    case read_auth_file(Node, AuthFilePath, legacy) of
-        {ok, ResultFromLegacy} ->
-            ResultFromLegacy;
-        _ ->
-            case read_auth_file(Node, AuthFilePath, current) of
-                {ok, ResultFromCurrent} -> ResultFromCurrent;
-                {error, _} = Error -> throw(Error)
-            end
+    Result = node_cache:acquire(service_oneprovider_auth_file_cache, fun() ->
+        {_, Node} = nodes:onepanel_with(?SERVICE_OPW),
+        AuthFilePath = onepanel_env:get(op_worker_root_token_path),
+        case read_auth_file(Node, AuthFilePath, legacy) of
+            {ok, ResultFromLegacy} ->
+                {ok, ResultFromLegacy, ?AUTH_FILE_CACHE_TTL_SECONDS};
+            _ ->
+                case read_auth_file(Node, AuthFilePath, current) of
+                    {ok, ResultFromCurrent} -> {ok, ResultFromCurrent, ?AUTH_FILE_CACHE_TTL_SECONDS};
+                    {error, _} = ErrorFromCurrent -> ErrorFromCurrent
+                end
+        end
+    end),
+    case Result of
+        {ok, Map} -> Map;
+        {error, _} = Error -> throw(Error)
     end.
 
 %% @private
