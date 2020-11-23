@@ -39,7 +39,7 @@ http_200_ok(VerifyBodyFun) ->
 
 http_201_created(Path, BodyKey, VerifyFun) ->
     fun(_, {ok, RespCode, Headers, Body}) ->
-        HeadersItemId = api_test_utils:match_location_header(Headers, ?PATH_PREFIX ++ Path),
+        HeadersItemId = api_test_utils:match_location_header(Headers, ?REST_PATH_PREFIX ++ Path),
         BodyItemId = maps:get(BodyKey, Body),
         ?assertEqual(HeadersItemId, BodyItemId),
         ?assertEqual(?HTTP_201_CREATED, RespCode),

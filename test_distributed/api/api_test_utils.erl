@@ -13,6 +13,7 @@
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
+-include("api_test_utils.hrl").
 
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -21,6 +22,8 @@
 
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
+-export([maybe_substitute_placeholders/2]).
+-export([maybe_substitute_placeholder/2]).
 -export([get_storage_id_by_name/2]).
 -export([to_hostnames/1]).
 -export([match_location_header/2]).
@@ -74,6 +77,24 @@ maybe_substitute_bad_id(ValidId, Data) ->
     case maps:take(bad_id, Data) of
         {BadId, LeftoverData} -> {BadId, LeftoverData};
         error -> {ValidId, Data}
+    end.
+
+
+-spec maybe_substitute_placeholders(map(), list()) -> map().
+maybe_substitute_placeholders(Data, PlaceholderReplacements) ->
+    lists:foldl(fun(SubstitionRecord = #placeholder_substitute{}, ConfigAcc) ->
+        maybe_substitute_placeholder(ConfigAcc, SubstitionRecord)
+    end, Data, PlaceholderReplacements).
+
+
+-spec maybe_substitute_placeholder(map(), api_test_utils:placeholder_substitute()) -> map().
+maybe_substitute_placeholder(Data, #placeholder_substitute{key = Key, placeholder = Placeholder, value = Value, additional_fun = AddFun}) ->
+    case maps:get(Key, Data, undefined) of
+        Placeholder ->
+            AddFun(),
+            maps:put(Key, Value, Data);
+        _ ->
+            Data
     end.
 
 

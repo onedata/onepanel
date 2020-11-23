@@ -16,6 +16,8 @@
 
 %% API
 -export([
+    create_group/2,
+    get_group_users/2,
     list_users/1,
     create_user/1,
     create_user/2,
@@ -27,6 +29,16 @@
     delete_space/2
 ]).
 
+
+-spec create_group(test_config:config(), binary()) -> binary().
+create_group(Config, GroupName) ->
+    {ok, GroupId} = ?assertMatch({ok, _}, call_zone_node(Config, group_logic, create, [aai:root_auth(), GroupName])),
+    GroupId.
+
+-spec get_group_users(test_config:config(), binary()) -> [binary()].
+get_group_users(Config, GroupId) ->
+    {ok, Users} = ?assertMatch({ok, _}, call_zone_node(Config, group_logic, get_users, [aai:root_auth(), GroupId])),
+    Users.
 
 -spec list_users(test_config:config()) -> [binary()].
 list_users(Config) ->

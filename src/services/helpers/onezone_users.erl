@@ -159,7 +159,7 @@ migrate_users(_Ctx) ->
 -spec set_user_password(#{user_id := binary(), new_password := binary()}) -> ok.
 set_user_password(#{user_id := UserId, new_password := NewPassword}) ->
     {OzNode, Client} = get_node_and_client(),
-    ok = oz_worker_rpc:set_user_password(OzNode, Client, UserId, NewPassword).
+    oz_worker_rpc:set_user_password(OzNode, Client, UserId, NewPassword).
 
 
 %%%===================================================================
