@@ -97,6 +97,7 @@ build_create_user_setup_fun(Config, MemRef) ->
         ok
     end.
 
+
 %% @private
 -spec build_create_user_data_spec([node()]) -> api_test_runner:data_spec().
 build_create_user_data_spec(OzWorkerNodes) ->
@@ -114,8 +115,8 @@ build_create_user_data_spec(OzWorkerNodes) ->
             {<<"password">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"password">>, <<"">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
-            {<<"groups">>, [<<>>], ?ERROR_ON_NODES(?ERROR_INTERNAL_SERVER_ERROR, HostNames)},
-            {<<"groups">>, [<<"inexistentGroupId">>], ?ERROR_ON_NODES(?ERROR_INTERNAL_SERVER_ERROR, HostNames)}
+            {<<"groups">>, [<<>>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
+            {<<"groups">>, [<<"inexistentGroupId">>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]
     }.
 

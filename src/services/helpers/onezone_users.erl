@@ -90,8 +90,10 @@ add_user(User) ->
     UserId :: binary(), Groups :: [binary()]) -> ok.
 add_user_to_groups(OzNode, Auth, UserId, Groups) ->
     lists:foreach(fun(GroupId) ->
-        {ok, _} = oz_worker_rpc:add_user_to_group(
-            OzNode, Auth, GroupId, UserId)
+        case oz_worker_rpc:add_user_to_group(OzNode, Auth, GroupId, UserId) of
+            {ok, _} -> ok;
+            {error, _} = Error -> throw(Error)
+        end
     end, Groups).
 
 

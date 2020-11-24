@@ -88,10 +88,10 @@ maybe_substitute_placeholders(Data, PlaceholderReplacements) ->
 
 
 -spec maybe_substitute_placeholder(map(), api_test_utils:placeholder_substitute()) -> map().
-maybe_substitute_placeholder(Data, #placeholder_substitute{key = Key, placeholder = Placeholder, value = Value, additional_fun = AddFun}) ->
+maybe_substitute_placeholder(Data, #placeholder_substitute{key = Key, placeholder = Placeholder, value = Value, additional_fun = AdditionalFun}) ->
     case maps:get(Key, Data, undefined) of
         Placeholder ->
-            AddFun(),
+            AdditionalFun(),
             maps:put(Key, Value, Data);
         _ ->
             Data
