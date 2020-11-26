@@ -170,12 +170,12 @@ sequential_join_should_create_cluster(Config) ->
     ),
 
     % Assert that invite tokens expires after predefined period of time
-    clock_freezer_mock:simulate_seconds_passing(Nodes, 100000),
+    clock_freezer_mock:simulate_seconds_passing(100000),
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(Node5,
         ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     )),
     % Returning back in time to when token was still valid should make it usable
-    clock_freezer_mock:simulate_seconds_passing(Nodes, -100000),
+    clock_freezer_mock:simulate_seconds_passing(-100000),
     onepanel_test_utils:service_action(Node5,
         ?SERVICE_PANEL, join_cluster, #{invite_token => InviteToken1, cluster_host => Host4}
     ),
@@ -364,7 +364,7 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 init_per_testcase(sequential_join_should_create_cluster, Config) ->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(onepanel_nodes, Config2),
-    clock_freezer_mock:setup(Nodes),
+    clock_freezer_mock:setup_on_nodes(Nodes, [global_clock]),
     Config2;
 
 init_per_testcase(extend_should_work_in_deployed_cluster, Config) ->
@@ -441,7 +441,7 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(sequential_join_should_create_cluster, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    clock_freezer_mock:teardown(Nodes),
+    clock_freezer_mock:teardown_on_nodes(Nodes),
     end_per_testcase(default, Config);
 
 end_per_testcase(_Case, Config) ->
