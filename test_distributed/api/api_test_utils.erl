@@ -18,12 +18,15 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 
+-type placeholder_substitute() :: #placeholder_substitute{}.
+
+-export_type([placeholder_substitute/0]).
+
 -export([load_module_from_test_distributed_dir/2]).
 
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
--export([maybe_substitute_placeholders/2]).
--export([maybe_substitute_placeholder/2]).
+-export([substitute_placeholders/2]).
 -export([get_storage_id_by_name/2]).
 -export([to_hostnames/1]).
 -export([match_location_header/2]).
@@ -80,22 +83,25 @@ maybe_substitute_bad_id(ValidId, Data) ->
     end.
 
 
--spec maybe_substitute_placeholders(map(), list()) -> map().
-maybe_substitute_placeholders(Data, PlaceholderReplacements) ->
-    lists:foldl(fun(SubstitionRecord = #placeholder_substitute{}, ConfigAcc) ->
-        maybe_substitute_placeholder(ConfigAcc, SubstitionRecord)
-    end, Data, PlaceholderReplacements).
-
-
--spec maybe_substitute_placeholder(map(), api_test_utils:placeholder_substitute()) -> map().
-maybe_substitute_placeholder(Data, #placeholder_substitute{key = Key, placeholder = Placeholder, value = Value, additional_fun = AdditionalFun}) ->
-    case maps:get(Key, Data, undefined) of
-        Placeholder ->
-            AdditionalFun(),
-            maps:put(Key, Value, Data);
-        _ ->
-            Data
-    end.
+-spec substitute_placeholders(map(), map()) -> map().
+substitute_placeholders(Data, ReplacementsMap) ->
+    ReplacedData = lists:foldl(fun(Key, AccMap) ->
+        Placeholder = maps:get(Key, Data, undefined),
+        case Placeholder of
+            undefined ->
+                AccMap;
+            _ ->
+                case is_atom(Placeholder) of
+                    true ->
+                        #placeholder_substitute{value = Value, posthook = Posthook} = maps:get(Placeholder, maps:get(Key, ReplacementsMap)),
+                        Posthook(),
+                        maps:put(Key, Value, AccMap);
+                    false ->
+                        AccMap
+                end
+        end
+    end, maps:new(), maps:keys(ReplacementsMap)),
+    maps:merge(Data, ReplacedData).
 
 
 -spec get_storage_id_by_name(test_config:config(), binary()) -> binary().

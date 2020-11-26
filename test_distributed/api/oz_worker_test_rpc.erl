@@ -35,10 +35,12 @@ create_group(Config, GroupName) ->
     {ok, GroupId} = ?assertMatch({ok, _}, call_zone_node(Config, group_logic, create, [aai:root_auth(), GroupName])),
     GroupId.
 
+
 -spec get_group_users(test_config:config(), binary()) -> [binary()].
 get_group_users(Config, GroupId) ->
     {ok, Users} = ?assertMatch({ok, _}, call_zone_node(Config, group_logic, get_users, [aai:root_auth(), GroupId])),
     Users.
+
 
 -spec list_users(test_config:config()) -> [binary()].
 list_users(Config) ->

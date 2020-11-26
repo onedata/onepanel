@@ -52,6 +52,8 @@ create_user_test(Config) ->
     OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
     OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
 
+    GroupIds = [oz_worker_test_rpc:create_group(Config, str_utils:rand_hex(6)) || _ <- lists:seq(1, 3)],
+
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Add zone user using /zone/users endpoint">>,
@@ -71,18 +73,18 @@ create_user_test(Config) ->
                     peer
                 ]
             },
-            setup_fun = build_create_user_setup_fun(Config, MemRef),
-            prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
-            data_spec = build_create_user_data_spec(OzWorkerNodes),
-            verify_fun = build_create_user_verify_fun(MemRef, Config),
 
+            setup_fun = build_create_user_setup_fun(Config, MemRef),
+            data_spec = build_create_user_data_spec(OzWorkerNodes, GroupIds),
+            prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
             validate_result_fun = api_test_validate:http_201_created("zone/users/", <<"id">>,
                 fun(NewUserId) ->
                     api_test_memory:set(MemRef, user_id, NewUserId),
                     Users = oz_worker_test_rpc:list_users(Config),
                     ?assert(lists:member(NewUserId, Users))
                 end
-            )
+            ),
+            verify_fun = build_create_user_verify_fun(MemRef, Config, GroupIds)
         }
     ])).
 
@@ -99,8 +101,8 @@ build_create_user_setup_fun(Config, MemRef) ->
 
 
 %% @private
--spec build_create_user_data_spec([node()]) -> api_test_runner:data_spec().
-build_create_user_data_spec(OzWorkerNodes) ->
+-spec build_create_user_data_spec([node()], [binary()]) -> api_test_runner:data_spec().
+build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     TooShortPassword = <<"abcdefg">>,
     #data_spec{
@@ -109,7 +111,7 @@ build_create_user_data_spec(OzWorkerNodes) ->
         correct_values = #{
             <<"username">> => [username_placeholder],
             <<"password">> => [<<"somePassword">>],
-            <<"groups">> => [groups_placeholder]
+            <<"groups">> => [GroupIds]
         },
         bad_values = [
             {<<"password">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
@@ -126,20 +128,13 @@ build_create_user_data_spec(OzWorkerNodes) ->
 build_create_user_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         Username = str_utils:rand_hex(10),
-        GroupId = api_test_memory:get(MemRef, group_id),
-
-        RequestData = api_test_utils:maybe_substitute_placeholders(Data, [
-            #placeholder_substitute{
-                placeholder = username_placeholder,
-                value = Username,
-                key = <<"username">>
-            },
-            #placeholder_substitute{
-                placeholder = groups_placeholder,
-                value = [GroupId],
-                key = <<"groups">>
+        RequestData = api_test_utils:substitute_placeholders(Data, #{
+            <<"username">> => #{
+                username_placeholder => #placeholder_substitute{
+                    value = Username
+                }
             }
-        ]),
+        }),
         api_test_memory:set(MemRef, request_data, RequestData),
 
         #rest_args{
@@ -151,19 +146,17 @@ build_create_user_prepare_args_fun(MemRef) ->
 
 
 %% @private
--spec build_create_user_verify_fun(api_test_memory:env_ref(), test_config:config()) -> api_test_runner:verify_fun().
-build_create_user_verify_fun(MemRef, Config) ->
+-spec build_create_user_verify_fun(api_test_memory:env_ref(), test_config:config(), [binary()]) -> api_test_runner:verify_fun().
+build_create_user_verify_fun(MemRef, Config, Groups) ->
     fun
         (expected_success, _) ->
             UserId = api_test_memory:get(MemRef, user_id),
-            GroupId = api_test_memory:get(MemRef, group_id),
-            GroupMembers = oz_worker_test_rpc:get_group_users(Config, GroupId),
             UserDetails = oz_worker_test_rpc:get_user_details(Config, UserId),
             RequestData = api_test_memory:get(MemRef, request_data),
             ExpectedUsername = maps:get(<<"username">>, RequestData),
             ExpectedPassword = maps:get(<<"password">>, RequestData),
 
-            ?assertEqual(maps:is_key(<<"groups">>, RequestData), lists:member(UserId, GroupMembers)),
+            ?assertEqual(maps:is_key(<<"groups">>, RequestData), is_user_member_of_groups(Config, UserId, Groups)),
             ?assertEqual(<<"Unnamed User">>, maps:get(<<"fullName">>, UserDetails)),
             ?assertEqual(ExpectedUsername, maps:get(<<"username">>, UserDetails)),
             ?assert(authentication_succeeds(Config, ExpectedUsername, ExpectedPassword)),
@@ -171,6 +164,14 @@ build_create_user_verify_fun(MemRef, Config) ->
         (expected_failure, _) ->
             true
     end.
+
+
+%% @private
+-spec is_user_member_of_groups(test_config:config(), binary(), [binary()]) -> boolean().
+is_user_member_of_groups(Config, UserId, GroupIds) ->
+    lists:foldl(fun(GroupId, Acc) ->
+        Acc and lists:member(UserId, oz_worker_test_rpc:get_group_users(Config, GroupId))
+    end, true, GroupIds).
 
 
 get_user_details_test(Config) ->
@@ -183,7 +184,6 @@ get_user_details_test(Config) ->
             name = <<"Get Onezone user details using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -199,10 +199,9 @@ get_user_details_test(Config) ->
                 ]
             },
 
-            data_spec = build_get_user_details_data_spec(OzWorkerNodes),
             setup_fun = build_get_user_details_setup_fun(Config, MemRef),
+            data_spec = build_get_user_details_data_spec(OzWorkerNodes),
             prepare_args_fun = build_get_user_details_prepare_rest_args_fun(MemRef),
-
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
                 ExpUserDetails = api_test_memory:get(MemRef, user_details),
                 ?assertEqual(ExpUserDetails, Body)
@@ -272,7 +271,6 @@ set_user_password_test(Config) ->
             name = <<"Set Onezone user password using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -290,8 +288,8 @@ set_user_password_test(Config) ->
 
             data_spec = build_set_user_password_data_spec(OzWorkerNodes),
             prepare_args_fun = build_set_user_password_prepare_rest_args_fun(MemRef),
-            verify_fun = build_set_user_password_verify_fun(MemRef, Config),
-            validate_result_fun = api_test_validate:http_204_no_content()
+            validate_result_fun = api_test_validate:http_204_no_content(),
+            verify_fun = build_set_user_password_verify_fun(MemRef, Config)
         }
     ])).
 
@@ -325,30 +323,29 @@ build_set_user_password_prepare_rest_args_fun(MemRef) ->
         NewPassword = str_utils:rand_hex(10),
         OldPassword = api_test_memory:get(MemRef, old_password),
 
-        RequestMap = api_test_utils:maybe_substitute_placeholders(DataWithoutId, [
-            #placeholder_substitute{
-                placeholder = new_password_placeholder,
-                key = <<"newPassword">>,
-                value = NewPassword,
-                additional_fun = fun() ->
-                    api_test_memory:set(MemRef, new_password, NewPassword)
-                end
-            },
-            #placeholder_substitute{
-                placeholder = old_password_placeholder,
-                key = <<"newPassword">>,
-                value = OldPassword,
-                additional_fun = fun() ->
-                    api_test_memory:set(MemRef, new_password, OldPassword)
-                end
+        RequestData = api_test_utils:substitute_placeholders(DataWithoutId, #{
+            <<"newPassword">> => #{
+                new_password_placeholder => #placeholder_substitute{
+                    value = NewPassword,
+                    posthook = fun() ->
+                        api_test_memory:set(MemRef, new_password, NewPassword)
+                    end
+                },
+                old_password_placeholder => #placeholder_substitute{
+                    value = OldPassword,
+                    posthook = fun() ->
+                        api_test_memory:set(MemRef, new_password, OldPassword)
+                    end
+
+                }
             }
-        ]),
+        }),
 
         #rest_args{
             method = patch,
             path = <<"zone/users/", Id/binary>>,
             headers = #{<<"content-type">> => <<"application/json">>},
-            body = json_utils:encode(RequestMap)
+            body = json_utils:encode(RequestData)
         }
     end.
 

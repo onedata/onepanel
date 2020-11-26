@@ -11,14 +11,6 @@
 %%%-------------------------------------------------------------------
 
 -record(placeholder_substitute, {
-    key = undefined :: undefined | binary(),
-    placeholder = undefined :: undefined | atom(),
     value = undefined :: undefined | atom() | list() | map(),
-    additional_fun = fun() -> ok end
+    posthook = fun() -> ok end
 }).
-
--type placeholder_substitute() :: #placeholder_substitute{}.
-
--export_type([
-    placeholder_substitute/0
-]).
