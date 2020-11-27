@@ -60,7 +60,7 @@ get_response(#gri{aspect = dns_check}, Result) ->
                 <<"recommended">> => Records
             }};
         (timestamp, Seconds, Acc) ->
-            Acc#{<<"timestamp">> => time_format:seconds_to_iso8601(Seconds)};
+            Acc#{<<"timestamp">> => time:seconds_to_iso8601(Seconds)};
         (Key, LiteralValue, Acc) ->
             Acc#{str_utils:to_binary(Key) => LiteralValue}
     end, #{}, Result),

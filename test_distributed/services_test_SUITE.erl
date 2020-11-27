@@ -478,38 +478,38 @@ cluster_clocks_sync_test(Config) ->
     OzpNodes = ?config(onezone_nodes, Config),
     % master node is selected as the first from sorted list
     OzpMasterNode = hd(lists:sort(OzpNodes)),
-    OzCmNodes = rpc:call(OzpMasterNode, service_cluster_manager, get_current_primary_node, []),
+    OzCmNode = rpc:call(OzpMasterNode, service_cluster_manager, get_current_primary_node, []),
     OzwNodes = rpc:call(OzpMasterNode, service_oz_worker, get_nodes, []),
 
     OppNodes = ?config(oneprovider_nodes, Config),
-    OpCmNodes = rpc:call(hd(OppNodes), service_cluster_manager, get_current_primary_node, []),
+    OpCmNode = rpc:call(hd(OppNodes), service_cluster_manager, get_current_primary_node, []),
     OpwNodes = rpc:call(hd(OppNodes), service_op_worker, get_nodes, []),
 
     IsSyncedWithMaster = fun(Node) ->
-        MasterTimestamp = rpc:call(OzpMasterNode, clock, timestamp_millis, []),
-        NodeTimestamp = image_test_utils:proxy_rpc(Node, clock, timestamp_millis, []),
+        MasterTimestamp = rpc:call(OzpMasterNode, global_clock, timestamp_millis, []),
+        NodeTimestamp = image_test_utils:proxy_rpc(Node, global_clock, timestamp_millis, []),
         are_timestamps_in_sync(MasterTimestamp, NodeTimestamp)
     end,
 
     % after the environment is deployed and periodic sync has run at least once,
     % all nodes in Onezone and Oneprovider clusters should be synced with the master Onezone node
     AllNonMasterNodes = lists:flatten([
-        OzpNodes, OzCmNodes, OzwNodes,
-        OppNodes, OpCmNodes, OpwNodes
+        OzpNodes, OzCmNode, OzwNodes,
+        OppNodes, OpCmNode, OpwNodes
     ]) -- [OzpMasterNode],
 
     ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
 
     % simulate a situation when the time changes on the master node by 50 hours
     % and see if (after some time) the clocks are unified again
-    rpc:call(OzpMasterNode, clock, store_bias_millis, [local_clock, timer:hours(50)]),
+    ok = rpc:call(OzpMasterNode, global_clock, store_bias, [local_clock, timer:hours(50)]),
     ?assertEqual(false, lists:all(IsSyncedWithMaster, AllNonMasterNodes)),
     ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
 
     % simulate a situation when the time changes on another, non-master node by
     % 50 hours and see if (after some time) it catches up with the master again
     RandomNonMasterNode = lists_utils:random_element(AllNonMasterNodes),
-    image_test_utils:proxy_rpc(RandomNonMasterNode, clock, store_bias_millis, [local_clock, timer:hours(-50)]),
+    image_test_utils:proxy_rpc(RandomNonMasterNode, global_clock, store_bias, [local_clock, timer:hours(-50)]),
     ?assertEqual(false, IsSyncedWithMaster(RandomNonMasterNode)),
     ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
     ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
@@ -691,6 +691,6 @@ get_storages(Config) ->
 %% (bigger clock differences should be tested to make this a reliable check).
 %% @end
 %%--------------------------------------------------------------------
--spec are_timestamps_in_sync(clock:millis(), clock:millis()) -> boolean().
+-spec are_timestamps_in_sync(time:millis(), time:millis()) -> boolean().
 are_timestamps_in_sync(TimestampA, TimestampB) ->
     TimestampA - TimestampB > -5000 andalso TimestampA - TimestampB < 5000.
