@@ -227,10 +227,10 @@ auto_storage_import_info_model() ->
         deletedFiles => integer,
         %% Counter of unmodified files (both directories and regular files) that
         %% has been detected during current (or last finished) scan.
-        unmodifiedFiles => {integer, optional},
+        unmodifiedFiles => integer,
         %% Counter of files (both directories and regular files) for which the
         %% processing has failed during current (or last finished) scan.
-        failedFiles => {integer, optional},
+        failedFiles => integer,
         %% Estimated time at which next scan will be enqueued.
         nextScan => {integer, optional},
         %% Total number of performed scans.
@@ -951,6 +951,7 @@ onezone_user_create_request_model() ->
     #{
         username => string,
         password => string,
+        fullName => {string, optional},
         %% Ids of Onezone groups to which the user should be added. The groups
         %% must already exist.
         groups => {[string], {optional, []}}
