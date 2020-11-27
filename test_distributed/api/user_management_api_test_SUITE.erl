@@ -105,18 +105,24 @@ build_create_user_setup_fun(Config, MemRef) ->
 build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     TooShortPassword = <<"abcdefg">>,
+    TooLongFullname = str_utils:rand_hex(52),
+    TooShortFullname = <<"a">>,
     #data_spec{
         required = [<<"username">>, <<"password">>],
-        optional = [<<"groups">>],
+        optional = [<<"fullName">>, <<"groups">>],
         correct_values = #{
             <<"username">> => [username_placeholder],
             <<"password">> => [<<"somePassword">>],
+            <<"fullName">> => [fullname_placeholder],
             <<"groups">> => [GroupIds]
         },
         bad_values = [
             {<<"password">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"password">>, <<"">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"fullName">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"fullName">>, TooShortFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"fullName">>, TooLongFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"groups">>, [<<>>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
             {<<"groups">>, [<<"inexistentGroupId">>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]
@@ -128,10 +134,16 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
 build_create_user_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         Username = str_utils:rand_hex(10),
+        FullName = str_utils:rand_hex(10),
         RequestData = api_test_utils:substitute_placeholders(Data, #{
             <<"username">> => #{
                 username_placeholder => #placeholder_substitute{
                     value = Username
+                }
+            },
+            <<"fullName">> => #{
+                fullname_placeholder => #placeholder_substitute{
+                    value = FullName
                 }
             }
         }),
@@ -157,7 +169,7 @@ build_create_user_verify_fun(MemRef, Config, Groups) ->
             ExpectedPassword = maps:get(<<"password">>, RequestData),
 
             ?assertEqual(maps:is_key(<<"groups">>, RequestData), is_user_member_of_groups(Config, UserId, Groups)),
-            ?assertEqual(<<"Unnamed User">>, maps:get(<<"fullName">>, UserDetails)),
+            ?assertEqual(maps:get(<<"fullName">>, RequestData, <<"Unnamed User">>), maps:get(<<"fullName">>, UserDetails)),
             ?assertEqual(ExpectedUsername, maps:get(<<"username">>, UserDetails)),
             ?assert(authentication_succeeds(Config, ExpectedUsername, ExpectedPassword)),
             true;

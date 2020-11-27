@@ -68,12 +68,13 @@ add_users(#{onezone_users := Users}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_user(User) -> {ok, UserId :: binary()} | errors:error() when
-    User :: #{username := binary(), password := binary(), groups := [binary()]}.
+    User :: #{username := binary(), password := binary(), fullName := binary(), groups := [binary()]}.
 add_user(User) ->
     {OzNode, Client} = get_node_and_client(),
     Data = kv_utils:copy_found([
         {username, <<"username">>},
-        {password, <<"password">>}
+        {password, <<"password">>},
+        {fullName, <<"fullName">>}
     ], User),
     case oz_worker_rpc:create_user(OzNode, Client, Data) of
         {ok, UserId} ->
