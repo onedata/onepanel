@@ -650,7 +650,7 @@ normalize_numeric_qos_parameters(QosParameters) ->
             %% JSON decoding parses any number (integer or float) expressed as string
             json_utils:decode(Value)
         catch
-            throw:invalid_json -> Value
+            _:invalid_json -> Value
         end 
     end, QosParameters).
 

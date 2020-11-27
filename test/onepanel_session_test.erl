@@ -72,6 +72,7 @@ expired_tokens_are_cleaned() ->
 %%%===================================================================
 
 start() ->
+    node_cache:init(),
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(create_tables_timeout, 10000),
@@ -80,6 +81,7 @@ start() ->
     ok.
 
 stop(_) ->
+    node_cache:destroy(),
     ?assertEqual(ok, service_onepanel:reset_node(#{})),
     meck:unload().
 

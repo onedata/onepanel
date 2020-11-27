@@ -486,7 +486,7 @@ build_url(Host, Suffix) ->
 %% Returns connection opts for clustering requests.
 %% @end
 %%--------------------------------------------------------------------
--spec https_opts(Timeout :: clock:millis()) -> http_client:opts().
+-spec https_opts(Timeout :: time:millis()) -> http_client:opts().
 https_opts(Timeout) ->
     CaCerts = https_listener:get_cert_chain_pems(),
     [

@@ -39,7 +39,7 @@
 
 % @formatter:off
 -type result() :: #{
-    timestamp := clock:seconds(),
+    timestamp := time:seconds(),
     check() => #dns_check{}
 }.
 % @formatter:on
@@ -269,9 +269,9 @@ compute_results(Service, Checks) ->
 %% @doc Returns current time as unix epoch.
 %% @end
 %%--------------------------------------------------------------------
--spec get_timestamp() -> clock:seconds().
+-spec get_timestamp() -> time:seconds().
 get_timestamp() ->
-    clock:timestamp_seconds().
+    global_clock:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------

@@ -37,11 +37,9 @@
 %% Frequency of checks
 -define(TICK_PERIOD, onepanel_env:get(cron_period)).
 
--define(NOW(), erlang:system_time(millisecond)).  % @TODO VFS-6841 use the clock module
-
 -type condition() :: fun(() -> boolean()).
 -type action() :: fun(() -> term()).
--type period() :: clock:millis().
+-type period() :: time:millis().
 
 -record(job, {
     condition :: condition(),
@@ -50,9 +48,9 @@
     %% Period to pass between job runs
     period :: period(),
 
-    %% Timestamp of the last attempt to run the job,
-    %% including times when the 'condition' was not met.
-    last_run = 0 :: clock:millis(),
+    %% Timer counting down to the next attempt to run the job,
+    %% it is reset even when the 'condition' was not met.
+    next_run_timer :: countdown_timer:instance(),
 
     % pid of the last invocation
     pid :: pid() | undefined
@@ -93,7 +91,8 @@ add_job(JobName, Action, Period) ->
 %%--------------------------------------------------------------------
 %% @doc Adds a job. If job with given name already exists,
 %% the new one overrides it, inheriting time and pid of the last run.
-%% The Action will be executed only when Condition returns 'true'.
+%% The Action will be executed only when Condition returns 'true'. The first run
+%% of the job is attempted after given Period (rather than immediately).
 %% @end
 %%--------------------------------------------------------------------
 -spec add_job(JobName :: job_name(), Action :: action(),
@@ -101,8 +100,7 @@ add_job(JobName, Action, Period) ->
 add_job(JobName, Action, Period, Condition) ->
     Job = #job{
         action = Action, period = Period, condition = Condition,
-        % start with the current timestamp to delay first run of the job
-        last_run = ?NOW()
+        next_run_timer = countdown_timer:start_millis(Period)
     },
     gen_server:call(?ONEPANEL_CRON_NAME, {add_job, JobName, Job}, ?TIMEOUT).
 
@@ -147,8 +145,8 @@ init([]) ->
     {stop, Reason :: term(), NewState :: state()}.
 handle_call({add_job, Name, #job{} = Job}, _From, State) ->
     NewState = case State of
-        #{Name := #job{last_run = LastRun, pid = Pid}} ->
-            State#{Name => Job#job{last_run = LastRun, pid = Pid}};
+        #{Name := #job{next_run_timer = NextRunTimer, pid = Pid}} ->
+            State#{Name => Job#job{next_run_timer = NextRunTimer, pid = Pid}};
         _ -> State#{Name => Job}
     end,
     {reply, ok, NewState};
@@ -223,18 +221,19 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 -spec run_jobs(State :: state()) -> NewState :: state().
 run_jobs(State) ->
-    Now = ?NOW(),
-    maps:map(fun(_JobName, Job) ->
-        case period_passed(Job, Now) andalso job_finished(Job) of
+    maps:map(fun(_JobName, Job = #job{next_run_timer = NextRunTimer, period = Period}) ->
+        case countdown_timer:is_expired(NextRunTimer) andalso job_finished(Job) of
             true ->
                 Pid = spawn(execute_job_fun(Job)),
                 timer:kill_after(?JOB_TIMEOUT, Pid),
-                Job#job{pid = Pid, last_run = Now};
+                Job#job{
+                    pid = Pid,
+                    next_run_timer = countdown_timer:start_millis(Period)
+                };
             false ->
                 Job
         end
     end, State).
-
 
 %%--------------------------------------------------------------------
 %% @private @doc Checks if previous execution of the job has finished
@@ -244,17 +243,6 @@ run_jobs(State) ->
 -spec job_finished(#job{}) -> boolean().
 job_finished(#job{pid = undefined}) -> true;
 job_finished(#job{pid = Pid}) -> not erlang:is_process_alive(Pid).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Checks if time passed since last execution of a job
-%% exceeds its configured period.
-%% @end
-%%--------------------------------------------------------------------
--spec period_passed(#job{}, clock:millis()) -> boolean().
-period_passed(#job{period = Period, last_run = LastRun}, Now) ->
-    Now - LastRun > Period.
-
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns fun for executing job's action

@@ -35,7 +35,7 @@
     % service status cache
     status => #{service:host() => service:status()},
     % 'dns_check' module cache
-    ?DNS_CHECK_TIMESTAMP_KEY => clock:seconds(),
+    ?DNS_CHECK_TIMESTAMP_KEY => time:seconds(),
     ?DNS_CHECK_CACHE_KEY => dns_check:result(),
     % 'clusters' module cache
     cluster => #{atom() := term()}

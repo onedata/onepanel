@@ -37,7 +37,7 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% Public API
--export([get_main_host/0]).
+-export([get_main_host/0, get_current_primary_node/0]).
 
 %% Step functions
 -export([configure/1, start/1, stop/1, status/1, wait_for_init/1, health/1,
@@ -75,6 +75,22 @@ get_nodes() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Returns current primary Cluster Manager node 
+%% (i.e. node that is currently running cluster_manager application).
+%% @end
+%%--------------------------------------------------------------------
+get_current_primary_node() ->
+    AllNodes = get_nodes(),
+    [PrimaryNode | _] = lists:filter(fun(Node) ->
+        case rpc:call(Node, erlang, whereis, [cluster_manager_sup]) of
+            Pid when is_pid(Pid) -> true;
+            _ -> false
+        end
+    end, AllNodes),
+    PrimaryNode.
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link service_behaviour:get_steps/2}
 %% @end
 %%--------------------------------------------------------------------
@@ -104,7 +120,7 @@ get_steps(deploy, #{hosts := [_ | _] = Hosts} = Ctx) ->
         },
         #steps{action = restart, ctx = Ctx#{hosts => AllHosts}},
         #step{hosts = AllHosts, function = wait_for_init},
-        #step{hosts = AllHosts, function = synchronize_clock_upon_start},
+        #step{hosts = [MainHost], function = synchronize_clock_upon_start},
         % refresh status cache
         #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
@@ -143,7 +159,7 @@ get_steps(update_workers_number, _Ctx) ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Returns the primary Cluster Manager host
+%% @doc Returns the primary Cluster Manager host set in configuration
 %% (as opposed to backup instances).
 %% @end
 %%--------------------------------------------------------------------
@@ -290,9 +306,15 @@ health(_) ->
 -spec synchronize_clock_upon_start(Ctx :: service:step_ctx()) -> ok | no_return().
 synchronize_clock_upon_start(_) ->
     CmNode = nodes:local(name()),
-    case onepanel_env:get_cluster_type() of
-        ?ONEZONE -> onezone_cluster_clocks:synchronize_node_upon_start(CmNode);
-        ?ONEPROVIDER -> oneprovider_cluster_clocks:synchronize_node_upon_start(CmNode)
+    case get_current_primary_node() of
+        CmNode ->
+            case onepanel_env:get_cluster_type() of
+                ?ONEZONE -> onezone_cluster_clocks:synchronize_node_upon_start(CmNode);
+                ?ONEPROVIDER -> oneprovider_cluster_clocks:synchronize_node_upon_start(CmNode)
+            end;
+        _ ->
+            % backup CM nodes are in standby mode and clock sync is not possible
+            ok
     end.
 
 

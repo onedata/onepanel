@@ -35,7 +35,7 @@
 
 -export_type([id/0, record/0, auth_token/0]).
 
--define(NOW(), clock:timestamp_seconds()).
+-define(NOW(), global_clock:timestamp_seconds()).
 -define(TOKEN_TTL, onepanel_env:get(auth_token_ttl)).
 
 %%%===================================================================
@@ -269,7 +269,7 @@ ensure_fresh_token(Session) ->
 %%%===================================================================
 
 %% @private
--spec generate_api_token(SessionId :: id()) -> {auth_token(), Expires :: clock:seconds()}.
+-spec generate_api_token(SessionId :: id()) -> {auth_token(), Expires :: time:seconds()}.
 generate_api_token(SessionId) ->
     UUID = onepanel_utils:gen_uuid(),
     Expires = ?NOW() + ?TOKEN_TTL,
@@ -289,7 +289,7 @@ token_to_session_id(Token) ->
 %% @private
 -spec is_token_still_valid({Token :: auth_token(), Expires} | Expires) ->
     boolean()
-    when Expires :: clock:millis().
+    when Expires :: time:millis().
 is_token_still_valid(Expires) when is_integer(Expires) ->
     ?NOW() =< Expires;
 
@@ -302,6 +302,6 @@ is_token_still_valid({_Token, Expires}) ->
 %% @doc Decides if a token expires to soon to be reused.
 %% @end
 %%--------------------------------------------------------------------
--spec is_token_near_expiration(Expires :: clock:millis()) -> boolean().
+-spec is_token_near_expiration(Expires :: time:millis()) -> boolean().
 is_token_near_expiration(Expires) ->
     Expires - ?NOW() < (?TOKEN_TTL div 2).

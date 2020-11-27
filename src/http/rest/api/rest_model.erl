@@ -227,10 +227,10 @@ auto_storage_import_info_model() ->
         deletedFiles => integer,
         %% Counter of unmodified files (both directories and regular files) that
         %% has been detected during current (or last finished) scan.
-        unmodifiedFiles => integer,
+        unmodifiedFiles => {integer, optional},
         %% Counter of files (both directories and regular files) for which the
         %% processing has failed during current (or last finished) scan.
-        failedFiles => integer,
+        failedFiles => {integer, optional},
         %% Estimated time at which next scan will be enqueued.
         nextScan => {integer, optional},
         %% Total number of performed scans.
@@ -951,7 +951,6 @@ onezone_user_create_request_model() ->
     #{
         username => string,
         password => string,
-        fullName => {string, optional},
         %% Ids of Onezone groups to which the user should be added. The groups
         %% must already exist.
         groups => {[string], {optional, []}}
@@ -1571,8 +1570,8 @@ storage_import_model() ->
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
         %% supported. For more info please read:
-        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
-        %% registration
+        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
+        %% /File-registration
         mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
