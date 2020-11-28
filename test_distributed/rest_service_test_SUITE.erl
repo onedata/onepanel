@@ -122,7 +122,7 @@
 
 -define(DNS_CHECK_TIMESTAMP, 1500000000).
 -define(DNS_CHECK_JSON_OP, #{
-    <<"timestamp">> => time_format:seconds_to_iso8601(?DNS_CHECK_TIMESTAMP),
+    <<"timestamp">> => time:seconds_to_iso8601(?DNS_CHECK_TIMESTAMP),
     <<"domain">> => #{
         <<"summary">> => <<"ok">>,
         <<"expected">> => [<<?SOME_IP_STR1>>],
@@ -132,7 +132,7 @@
 }).
 
 -define(DNS_CHECK_JSON_OZ, #{
-    <<"timestamp">> => time_format:seconds_to_iso8601(?DNS_CHECK_TIMESTAMP),
+    <<"timestamp">> => time:seconds_to_iso8601(?DNS_CHECK_TIMESTAMP),
     <<"domain">> => #{
         <<"summary">> => <<"ok">>,
         <<"expected">> => [<<?SOME_IP_STR1>>],
