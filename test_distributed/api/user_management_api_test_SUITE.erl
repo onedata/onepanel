@@ -74,7 +74,6 @@ create_user_test(Config) ->
                 ]
             },
 
-            setup_fun = build_create_user_setup_fun(Config, MemRef),
             data_spec = build_create_user_data_spec(OzWorkerNodes, GroupIds),
             prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
             validate_result_fun = api_test_validate:http_201_created("zone/users/", <<"id">>,
@@ -90,17 +89,6 @@ create_user_test(Config) ->
 
 
 %% @private
--spec build_create_user_setup_fun(test_config:config(), api_test_memory:env_ref()) -> api_test_runner:setup_fun().
-build_create_user_setup_fun(Config, MemRef) ->
-    fun() ->
-        GroupName = str_utils:rand_hex(10),
-        GroupId = oz_worker_test_rpc:create_group(Config, GroupName),
-        api_test_memory:set(MemRef, group_id, GroupId),
-        ok
-    end.
-
-
-%% @private
 -spec build_create_user_data_spec([node()], [binary()]) -> api_test_runner:data_spec().
 build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
@@ -113,7 +101,7 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
         correct_values = #{
             <<"username">> => [username_placeholder],
             <<"password">> => [<<"somePassword">>],
-            <<"fullName">> => [fullname_placeholder],
+            <<"fullName">> => [str_utils:rand_hex(10)],
             <<"groups">> => [GroupIds]
         },
         bad_values = [
@@ -134,16 +122,10 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
 build_create_user_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         Username = str_utils:rand_hex(10),
-        FullName = str_utils:rand_hex(10),
         RequestData = api_test_utils:substitute_placeholders(Data, #{
             <<"username">> => #{
                 username_placeholder => #placeholder_substitute{
                     value = Username
-                }
-            },
-            <<"fullName">> => #{
-                fullname_placeholder => #placeholder_substitute{
-                    value = FullName
                 }
             }
         }),
@@ -167,9 +149,10 @@ build_create_user_verify_fun(MemRef, Config, Groups) ->
             RequestData = api_test_memory:get(MemRef, request_data),
             ExpectedUsername = maps:get(<<"username">>, RequestData),
             ExpectedPassword = maps:get(<<"password">>, RequestData),
+            ExpectedFullName = maps:get(<<"fullName">>, RequestData, <<"Unnamed User">>),
 
             ?assertEqual(maps:is_key(<<"groups">>, RequestData), is_user_member_of_groups(Config, UserId, Groups)),
-            ?assertEqual(maps:get(<<"fullName">>, RequestData, <<"Unnamed User">>), maps:get(<<"fullName">>, UserDetails)),
+            ?assertEqual(ExpectedFullName, maps:get(<<"fullName">>, UserDetails)),
             ?assertEqual(ExpectedUsername, maps:get(<<"username">>, UserDetails)),
             ?assert(authentication_succeeds(Config, ExpectedUsername, ExpectedPassword)),
             true;
@@ -181,9 +164,9 @@ build_create_user_verify_fun(MemRef, Config, Groups) ->
 %% @private
 -spec is_user_member_of_groups(test_config:config(), binary(), [binary()]) -> boolean().
 is_user_member_of_groups(Config, UserId, GroupIds) ->
-    lists:foldl(fun(GroupId, Acc) ->
-        Acc and lists:member(UserId, oz_worker_test_rpc:get_group_users(Config, GroupId))
-    end, true, GroupIds).
+    lists:all(fun(GroupId) ->
+        lists:member(UserId, oz_worker_test_rpc:get_group_users(Config, GroupId))
+    end, GroupIds).
 
 
 get_user_details_test(Config) ->

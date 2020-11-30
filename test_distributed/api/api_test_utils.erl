@@ -85,23 +85,15 @@ maybe_substitute_bad_id(ValidId, Data) ->
 
 -spec substitute_placeholders(map(), map()) -> map().
 substitute_placeholders(Data, ReplacementsMap) ->
-    ReplacedData = lists:foldl(fun(Key, AccMap) ->
-        Placeholder = maps:get(Key, Data, undefined),
-        case Placeholder of
-            undefined ->
-                AccMap;
-            _ ->
-                case is_atom(Placeholder) of
-                    true ->
-                        #placeholder_substitute{value = Value, posthook = Posthook} = maps:get(Placeholder, maps:get(Key, ReplacementsMap)),
-                        Posthook(),
-                        maps:put(Key, Value, AccMap);
-                    false ->
-                        AccMap
-                end
+    maps:map(fun(Key, ValueOrPlaceholder) ->
+        case kv_utils:find([Key, ValueOrPlaceholder], ReplacementsMap) of
+            error ->
+                ValueOrPlaceholder;
+            {ok, #placeholder_substitute{value = Value, posthook = Posthook}} ->
+                Posthook(),
+                Value
         end
-    end, maps:new(), maps:keys(ReplacementsMap)),
-    maps:merge(Data, ReplacedData).
+    end, Data).
 
 
 -spec get_storage_id_by_name(test_config:config(), binary()) -> binary().

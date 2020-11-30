@@ -11,6 +11,6 @@
 %%%-------------------------------------------------------------------
 
 -record(placeholder_substitute, {
-    value = undefined :: undefined | atom() | list() | map(),
+    value = undefined :: undefined | term(),
     posthook = fun() -> ok end
 }).
