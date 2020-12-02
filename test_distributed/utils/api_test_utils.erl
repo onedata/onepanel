@@ -56,7 +56,7 @@ maybe_substitute_bad_id(ValidId, Data) ->
     end.
 
 
--spec substitute_placeholders(data(), map()) -> data().
+-spec substitute_placeholders(data(), kv_utils:nested(#{Key :: binary() => #{Placeholder :: atom() => #placeholder_substitute{}}})) -> data().
 substitute_placeholders(Data, ReplacementsMap) ->
     maps:map(fun(Key, ValueOrPlaceholder) ->
         case kv_utils:find([Key, ValueOrPlaceholder], ReplacementsMap) of
