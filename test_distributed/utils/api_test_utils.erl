@@ -18,11 +18,12 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 
+% an object containing API request data, serializable to json
+-type data() :: map()| undefined.
+
 -type placeholder_substitute() :: #placeholder_substitute{}.
 
 -export_type([placeholder_substitute/0]).
-
--export([load_module_from_test_distributed_dir/2]).
 
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
@@ -34,34 +35,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-
-%%% TODO VFS-6385 Reorganize and fix includes and loading modules from other dirs in tests
--spec load_module_from_test_distributed_dir(proplists:proplist(), module()) ->
-    ok.
-load_module_from_test_distributed_dir(Config, ModuleName) ->
-    DataDir = ?config(data_dir, Config),
-    ProjectRoot = filename:join(lists:takewhile(fun(Token) ->
-        Token /= "test_distributed"
-    end, filename:split(DataDir))),
-    TestsRootDir = filename:join([ProjectRoot, "test_distributed"]),
-
-    code:add_pathz(TestsRootDir),
-
-    CompileOpts = [
-        verbose, report_errors, report_warnings,
-        {i, TestsRootDir},
-        {i, filename:join([TestsRootDir, "..", "include"])},
-        {i, filename:join([TestsRootDir, "..", "_build", "default", "lib"])}
-    ],
-    case compile:file(filename:join(TestsRootDir, ModuleName), CompileOpts) of
-        {ok, ModuleName} ->
-            code:purge(ModuleName),
-            code:load_file(ModuleName),
-            ok;
-        _ ->
-            ct:fail("Couldn't load module: ~p", [ModuleName])
-    end.
 
 
 -spec ensure_defined
@@ -83,7 +56,7 @@ maybe_substitute_bad_id(ValidId, Data) ->
     end.
 
 
--spec substitute_placeholders(map(), map()) -> map().
+-spec substitute_placeholders(data(), map()) -> data().
 substitute_placeholders(Data, ReplacementsMap) ->
     maps:map(fun(Key, ValueOrPlaceholder) ->
         case kv_utils:find([Key, ValueOrPlaceholder], ReplacementsMap) of

@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider storages API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(storages_api_test_SUITE).
+-module(api_oneprovider_storages_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").

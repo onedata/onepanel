@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider space API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(spaces_basic_api_test_SUITE).
+-module(api_oneprovider_spaces_basic_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").

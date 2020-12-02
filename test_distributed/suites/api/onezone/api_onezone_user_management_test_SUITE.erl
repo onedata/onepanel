@@ -9,7 +9,7 @@
 %%% This file provides tests concerning onezone user management API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(user_management_api_test_SUITE).
+-module(api_onezone_user_management_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").

@@ -949,8 +949,13 @@ onezone_user_model() ->
 -spec onezone_user_create_request_model() -> onepanel_parser:object_spec().
 onezone_user_create_request_model() ->
     #{
+        %% User's human-readable identifier, unique across the system. Makes
+        %% it easier to identify the user and can be used for signing in with
+        %% password.
         username => string,
+        %% User's password (in plaintext).
         password => string,
+        %% User's full name (given names + surname).
         fullName => {string, optional},
         %% Ids of Onezone groups to which the user should be added. The groups
         %% must already exist.
