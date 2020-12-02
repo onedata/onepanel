@@ -1444,7 +1444,7 @@ space_auto_cleaning_rules_model() ->
 -spec space_auto_cleaning_status_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_status_model() ->
     #{
-        %% Status of an auto-cleaning run.
+        %% Status of the last auto-cleaning run.
         lastRunStatus => {enum, string, [<<"active">>, <<"cancelling">>, <<"completed">>, <<"failed">>, <<"cancelled">>]},
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
