@@ -43,7 +43,7 @@ get_storage_ids(Config) ->
     StorageIds.
 
 
--spec describe_storage(test_config:config(), binary()) -> json_utils:json_map().
+-spec describe_storage(test_config:config(), binary()) -> map().
 describe_storage(Config, StorageId) ->
     {ok, StorageDetails} = ?assertMatch({ok, _}, call_provider_node(Config, storage, describe, [StorageId])),
     StorageDetails.
@@ -57,7 +57,7 @@ get_space_ids(Config) ->
     SpacesIds.
 
 
--spec get_space_document(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_space_document(test_config:config(), binary()) -> map().
 get_space_document(Config, SpaceId) ->
     % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
     % (effective relation) and for some time the provider may no be allowed to fetch the space details.
@@ -88,7 +88,7 @@ is_storage_imported(Config, StorageId) ->
     IsImported.
 
 
--spec get_autocleaning_status(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_autocleaning_status(test_config:config(), binary()) -> map().
 get_autocleaning_status(Config, SpaceId) ->
     AutocleaningStatus = call_provider_node(Config, autocleaning_api, status, [SpaceId]),
     ?assert(is_map(AutocleaningStatus)),

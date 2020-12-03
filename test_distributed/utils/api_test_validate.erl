@@ -12,6 +12,7 @@
 -module(api_test_validate).
 -author("Piotr Duleba").
 
+-include("api_test_runner.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 
@@ -19,7 +20,7 @@
 %% API
 -export([
     http_200_ok/1,
-    http_201_created/1,
+    http_201_created/3,
     http_204_no_content/0
 ]).
 
@@ -36,10 +37,13 @@ http_200_ok(VerifyBodyFun) ->
     end.
 
 
-http_201_created(VerifyHeadersFun) ->
-    fun(_, {ok, RespCode, Headers, _}) ->
+http_201_created(Path, BodyKey, VerifyFun) ->
+    fun(_, {ok, RespCode, Headers, Body}) ->
+        HeadersItemId = api_test_utils:match_location_header(Headers, ?REST_PATH_PREFIX ++ Path),
+        BodyItemId = maps:get(BodyKey, Body),
+        ?assertEqual(HeadersItemId, BodyItemId),
         ?assertEqual(?HTTP_201_CREATED, RespCode),
-        VerifyHeadersFun(Headers)
+        VerifyFun(HeadersItemId)
     end.
 
 
