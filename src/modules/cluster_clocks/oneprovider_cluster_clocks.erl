@@ -75,7 +75,7 @@ prepare_cluster_clock_sync() ->
 %%--------------------------------------------------------------------
 -spec revise_master_sync_with_onezone() -> boolean().
 revise_master_sync_with_onezone() ->
-    case clock:synchronize_local_with_remote_server(fun fetch_zone_time/0) of
+    case global_clock:synchronize_local_with_remote_server(fun fetch_zone_time/0) of
         ok ->
             ?info("Synchronized clock on the master node with Onezone"),
             true;
@@ -98,7 +98,7 @@ revise_master_sync_with_onezone() ->
 
 
 %% @private
--spec fetch_zone_time() -> {ok, clock:millis()} | {error, term()}.
+-spec fetch_zone_time() -> {ok, time:millis()} | {error, term()}.
 fetch_zone_time() ->
     case oz_endpoint:request(none, "/provider/public/get_current_time", get) of
         {ok, 200, _, ResponseBody} ->
@@ -120,7 +120,7 @@ fetch_zone_time() ->
 %%--------------------------------------------------------------------
 -spec is_master_synchronized_with_onezone() -> boolean().
 is_master_synchronized_with_onezone() ->
-    cluster_clocks:run_on_master(fun clock:is_synchronized/0).
+    cluster_clocks:run_on_master(fun global_clock:is_synchronized/0).
 
 
 %% @private

@@ -216,15 +216,21 @@ auto_storage_import_info_model() ->
         start => integer,
         %% Time at which current (or last finished) scan has been stopped.
         stop => integer,
-        %% Counter of created files that has been detected during current (or
-        %% last finished) scan.
+        %% Counter of created files (both directories and regular files) that
+        %% has been detected during current (or last finished) scan.
         createdFiles => integer,
-        %% Counter of modified files that has been detected during current (or
-        %% last finished) scan.
+        %% Counter of modified files (both directories and regular files) that
+        %% has been detected during current (or last finished) scan.
         modifiedFiles => integer,
-        %% Counter of deleted files that has been detected during current (or
-        %% last finished) scan.
+        %% Counter of deleted files (both directories and regular files) that
+        %% has been detected during current (or last finished) scan.
         deletedFiles => integer,
+        %% Counter of unmodified files (both directories and regular files) that
+        %% has been detected during current (or last finished) scan.
+        unmodifiedFiles => integer,
+        %% Counter of files (both directories and regular files) for which the
+        %% processing has failed during current (or last finished) scan.
+        failedFiles => integer,
         %% Estimated time at which next scan will be enqueued.
         nextScan => {integer, optional},
         %% Total number of performed scans.
@@ -241,12 +247,14 @@ auto_storage_import_stats_model() ->
     #{
         %% Statistics of auto storage import jobs queue length.
         queueLength => {time_stats_model(), optional},
-        %% Statistics of count of created files detected by auto storage import.
+        %% Statistics of count of created files (both directories and regular
+        %% files) detected by auto storage import.
         createdFiles => {time_stats_model(), optional},
-        %% Statistics of count of modified files detected by auto storage
-        %% import.
+        %% Statistics of count of modified files (both directories and regular
+        %% files) detected by auto storage import.
         modifiedFiles => {time_stats_model(), optional},
-        %% Statistics of count of deleted files detected by auto storage import.
+        %% Statistics of count of deleted files (both directories and regular
+        %% files) detected by auto storage import.
         deletedFiles => {time_stats_model(), optional}
     }.
 
@@ -941,8 +949,14 @@ onezone_user_model() ->
 -spec onezone_user_create_request_model() -> onepanel_parser:object_spec().
 onezone_user_create_request_model() ->
     #{
+        %% User's human-readable identifier, unique across the system. Makes
+        %% it easier to identify the user and can be used for signing in with
+        %% password.
         username => string,
+        %% User's password (in plaintext).
         password => string,
+        %% User's full name (given names + surname).
+        fullName => {string, optional},
         %% Ids of Onezone groups to which the user should be added. The groups
         %% must already exist.
         groups => {[string], {optional, []}}

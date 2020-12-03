@@ -43,7 +43,7 @@ get_storage_ids(Config) ->
     StorageIds.
 
 
--spec describe_storage(test_config:config(), binary()) -> json_utils:json_map().
+-spec describe_storage(test_config:config(), binary()) -> map().
 describe_storage(Config, StorageId) ->
     {ok, StorageDetails} = ?assertMatch({ok, _}, call_provider_node(Config, storage, describe, [StorageId])),
     StorageDetails.
@@ -51,11 +51,13 @@ describe_storage(Config, StorageId) ->
 
 -spec get_space_ids(test_config:config()) -> list().
 get_space_ids(Config) ->
-    {ok, SpacesIds} = ?assertMatch({ok, _}, call_provider_node(Config, provider_logic, get_spaces, [])),
+    % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+    % (effective relation) and for some time the provider may no be allowed to fetch the space details.
+    {ok, SpacesIds} = ?assertMatch({ok, _}, call_provider_node(Config, provider_logic, get_spaces, []), ?ATTEMPTS),
     SpacesIds.
 
 
--spec get_space_document(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_space_document(test_config:config(), binary()) -> map().
 get_space_document(Config, SpaceId) ->
     % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
     % (effective relation) and for some time the provider may no be allowed to fetch the space details.
@@ -65,13 +67,17 @@ get_space_document(Config, SpaceId) ->
 
 -spec get_local_storage_id(test_config:config(), binary()) -> binary().
 get_local_storage_id(Config, SpaceId) ->
-    {ok, StorageId} = ?assertMatch({ok, StorageId}, call_provider_node(Config, space_logic, get_local_storage_id, [SpaceId])),
+    % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+    % (effective relation) and for some time the provider may no be allowed to fetch the space details.
+    {ok, StorageId} = ?assertMatch({ok, _}, call_provider_node(Config, space_logic, get_local_storage_id, [SpaceId]), ?ATTEMPTS),
     StorageId.
 
 
 -spec get_local_storage_ids(test_config:config(), binary()) -> list().
 get_local_storage_ids(Config, SpaceId) ->
-    {ok, StoragesIds} = ?assertMatch({ok, StoragesIds}, call_provider_node(Config, space_logic, get_local_storage_ids, [SpaceId])),
+    % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+    % (effective relation) and for some time the provider may no be allowed to fetch the space details.
+    {ok, StoragesIds} = ?assertMatch({ok, _}, call_provider_node(Config, space_logic, get_local_storage_ids, [SpaceId]), ?ATTEMPTS),
     StoragesIds.
 
 
@@ -82,7 +88,7 @@ is_storage_imported(Config, StorageId) ->
     IsImported.
 
 
--spec get_autocleaning_status(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_autocleaning_status(test_config:config(), binary()) -> map().
 get_autocleaning_status(Config, SpaceId) ->
     AutocleaningStatus = call_provider_node(Config, autocleaning_api, status, [SpaceId]),
     ?assert(is_map(AutocleaningStatus)),
@@ -102,13 +108,17 @@ revoke_space_support(Config, SpaceId) ->
 
 -spec get_space_support_size(test_config:config(), binary()) -> binary().
 get_space_support_size(Config, SpaceId) ->
-    {ok, SupportSize} = ?assertMatch({ok, _}, call_provider_node(Config, provider_logic, get_support_size, [SpaceId])),
+    % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+    % (effective relation) and for some time the provider may no be allowed to fetch the space details.
+    {ok, SupportSize} = ?assertMatch({ok, _}, call_provider_node(Config, provider_logic, get_support_size, [SpaceId]), ?ATTEMPTS),
     SupportSize.
 
 
 -spec get_space_providers(test_config:config(), binary()) -> list().
 get_space_providers(Config, SpaceId) ->
-    {ok, ProvidersId} = ?assertMatch({ok, _}, call_provider_node(Config, space_logic, get_provider_ids, [SpaceId])),
+    % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
+    % (effective relation) and for some time the provider may no be allowed to fetch the space details.
+    {ok, ProvidersId} = ?assertMatch({ok, _}, call_provider_node(Config, space_logic, get_provider_ids, [SpaceId]), ?ATTEMPTS),
     ProvidersId.
 
 

@@ -27,10 +27,6 @@
 ]).
 -export([get_domain/1]).
 -export([create_registration_token/1, create_registration_token/2]).
--export([
-    freeze_time/1, unfreeze_time/1,
-    simulate_time_passing/2
-]).
 
 -type config() :: proplists:proplist().
 
@@ -291,26 +287,6 @@ create_registration_token(OnezoneDomain, AdminId) ->
         persistence = {temporary, 1}
     }, tokens:generate_secret(), [])),
     Token.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Stops the clock at one value and allows to manually simulate time passing.
-%% @end
-%%--------------------------------------------------------------------
--spec freeze_time([node()]) -> ok.
-freeze_time(Nodes) ->
-    clock_freezer_mock:setup(Nodes).
-
-
--spec unfreeze_time([node()]) -> ok.
-unfreeze_time(Nodes) ->
-    clock_freezer_mock:teardown(Nodes).
-
-
--spec simulate_time_passing(node(), clock:seconds()) -> ok.
-simulate_time_passing(Nodes, Seconds) ->
-    clock_freezer_mock:simulate_time_passing(Nodes, Seconds * 1000).
 
 %%%===================================================================
 %%% Internal functions

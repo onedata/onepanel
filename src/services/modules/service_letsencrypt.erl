@@ -190,14 +190,14 @@ check_webcert(Ctx) ->
             catch Type:Error ->
                 update_ctx(#{
                     regenerating => false,
-                    last_failure => clock:timestamp_seconds()
+                    last_failure => global_clock:timestamp_seconds()
                 }),
                 erlang:raise(Type, Error, erlang:get_stacktrace())
             end,
 
             update_ctx(#{
                 regenerating => false,
-                last_success => clock:timestamp_seconds()
+                last_success => global_clock:timestamp_seconds()
             });
         false -> ok
     end.
@@ -225,8 +225,8 @@ get_details() ->
 
     Optional#{
         letsEncrypt => is_enabled(#{}),
-        creationTime => time_format:seconds_to_iso8601(Since),
-        expirationTime => time_format:seconds_to_iso8601(Until),
+        creationTime => time:seconds_to_iso8601(Since),
+        expirationTime => time:seconds_to_iso8601(Until),
         paths => #{
             cert => filename:absname(onepanel_utils:convert(?CERT_PATH, binary)),
             key => filename:absname(onepanel_utils:convert(?KEY_PATH, binary)),
@@ -453,7 +453,7 @@ expiration_status(Cert) ->
 -spec date_or_null(Key :: term(), Map :: map()) -> binary() | null.
 date_or_null(Key, Map) ->
     case maps:find(Key, Map) of
-        {ok, Seconds} when is_integer(Seconds) -> time_format:seconds_to_iso8601(Seconds);
+        {ok, Seconds} when is_integer(Seconds) -> time:seconds_to_iso8601(Seconds);
         _ -> null
     end.
 

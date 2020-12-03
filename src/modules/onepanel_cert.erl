@@ -139,7 +139,7 @@ verify_hostname(Cert, Hostname) ->
 -spec get_seconds_till_expiration(cert()) -> integer().
 get_seconds_till_expiration(#'Certificate'{} = Cert) ->
     {_, ExpirationTime} = get_times(Cert),
-    ExpirationTime - clock:timestamp_seconds().
+    ExpirationTime - global_clock:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------
@@ -174,7 +174,7 @@ backup_exisiting_certs() ->
             false -> ok;
             true ->
                 BackupPath = str_utils:format("~s.~B.bak", [
-                    Path, clock:timestamp_seconds()
+                    Path, global_clock:timestamp_seconds()
                 ]),
                 file:copy(Path, BackupPath)
         end
@@ -259,4 +259,4 @@ time_str_to_seconds({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
     Hour  = list_to_integer([H1, H2]),
     Min   = list_to_integer([M3, M4]),
     Sec   = list_to_integer([S1, S2]),
-    time_format:datetime_to_seconds({{Year, Month, Day}, {Hour, Min, Sec}}).
+    time:datetime_to_seconds({{Year, Month, Day}, {Hour, Min, Sec}}).

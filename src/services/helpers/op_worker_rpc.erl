@@ -1022,12 +1022,12 @@ restart_rtransfer_link(Node) ->
 
 
 -spec set_txt_record(Name :: binary(), Content :: binary(),
-    TTL :: clock:seconds() | undefined) -> ok | no_return().
+    TTL :: time:seconds() | undefined) -> ok | no_return().
 set_txt_record(Name, Content, TTL) ->
     ?CALL([Name, Content, TTL]).
 
 -spec set_txt_record(node(), Name :: binary(), Content :: binary(),
-    TTL :: clock:seconds() | undefined) -> ok | no_return().
+    TTL :: time:seconds() | undefined) -> ok | no_return().
 set_txt_record(Node, Name, Content, TTL) ->
     ?CALL(Node, [Name, Content, TTL]).
 

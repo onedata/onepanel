@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider space API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(spaces_basic_api_test_SUITE).
+-module(api_oneprovider_spaces_basic_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -74,15 +74,15 @@ get_space_ids_test(Config) ->
 
 %% @private
 get_space_ids_test_base(Config, ExpSpaceIds) ->
-    ProviderId = oct_background:get_provider_id(Config, p1),
-    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
+    [P1] = test_config:get_providers(Config),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get space ids using /provider/spaces rest endpoint">>,
             type = rest,
-            target_nodes = ProviderPanelNodes,
+            target_nodes = OpPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -90,7 +90,7 @@ get_space_ids_test_base(Config, ExpSpaceIds) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -112,9 +112,9 @@ get_space_details_test(Config) ->
 
 %% @private
 get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
-    ProviderId = oct_background:get_provider_id(Config, p1),
-    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
-    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
+    [P1] = test_config:get_providers(Config),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
+    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
     SpaceId = create_and_support_space(Config, SpaceName, StorageName, SupportSize),
@@ -124,7 +124,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
         #scenario_spec{
             name = <<"Get space details using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
-            target_nodes = ProviderPanelNodes,
+            target_nodes = OpPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -132,7 +132,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -142,14 +142,14 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
                 ?assertEqual(ExpResult, RespBody)
             end),
 
-            data_spec = build_get_space_details_data_spec(ProviderWorkerNodes)
+            data_spec = build_get_space_details_data_spec(OpWorkerNodes)
         }
     ])).
 
 
 %% @private
 build_get_space_details_data_spec(OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
@@ -168,9 +168,9 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
 
 support_space_test(Config) ->
     MemRef = api_test_memory:init(),
-    ProviderId = oct_background:get_provider_id(Config, p1),
-    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
-    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
+    [P1] = test_config:get_providers(Config),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
+    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     SpaceName = str_utils:rand_hex(12),
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
@@ -179,7 +179,7 @@ support_space_test(Config) ->
         #scenario_spec{
             name = <<"Support space using /provider/spaces rest endpoint">>,
             type = rest,
-            target_nodes = ProviderPanelNodes,
+            target_nodes = OpPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -187,7 +187,7 @@ support_space_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -197,12 +197,12 @@ support_space_test(Config) ->
             verify_fun = build_support_space_verify_fun(MemRef, Config),
 
             prepare_args_fun = build_support_space_prepare_args_fun(MemRef),
-            validate_result_fun = api_test_validate:http_201_created(fun(Headers) ->
-                SupportedSpaceId = lists:last(binary:split(maps:get(<<"location">>, Headers), <<"/">>, [global])),
-                ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
-            end),
+            validate_result_fun = api_test_validate:http_201_created("provider/spaces/", <<"id">>,
+                fun(SupportedSpaceId) ->
+                    ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
+                end),
 
-            data_spec = build_support_space_data_spec(StorageId, ProviderWorkerNodes)
+            data_spec = build_support_space_data_spec(StorageId, OpWorkerNodes)
         }
     ])).
 
@@ -220,7 +220,7 @@ build_support_space_setup_fun(MemRef, Config, SpaceName) ->
 
 %% @private
 build_support_space_data_spec(StorageId, OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         required = [<<"size">>, <<"storageId">>, <<"token">>],
         correct_values = #{
@@ -281,9 +281,9 @@ build_support_space_verify_fun(MemRef, Config) ->
 
 modify_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
-    ProviderId = oct_background:get_provider_id(Config, p1),
-    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
-    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
+    [P1] = test_config:get_providers(Config),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
+    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
     SpaceName = str_utils:rand_hex(12),
@@ -293,7 +293,7 @@ modify_space_support_test(Config) ->
         #scenario_spec{
             name = <<"Modify space support using /provider/spaces rest endpoint">>,
             type = rest,
-            target_nodes = ProviderPanelNodes,
+            target_nodes = OpPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -301,7 +301,7 @@ modify_space_support_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -313,7 +313,7 @@ modify_space_support_test(Config) ->
             verify_fun = build_modify_space_support_verify_fun(MemRef, Config),
             validate_result_fun = api_test_validate:http_204_no_content(),
 
-            data_spec = build_modify_space_support_data_spec(SupportSize, ProviderWorkerNodes)
+            data_spec = build_modify_space_support_data_spec(SupportSize, OpWorkerNodes)
         }
     ])).
 
@@ -334,7 +334,7 @@ build_modify_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, Sto
 
 %% @private
 build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         optional = [<<"size">>],
         correct_values = #{
@@ -397,15 +397,15 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
 
 revoke_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
-    ProviderId = oct_background:get_provider_id(Config, p1),
-    ProviderPanelNodes = oct_background:get_provider_panels(Config, p1),
-    ProviderWorkerNodes = oct_background:get_provider_nodes(Config, p1),
+    [P1] = test_config:get_providers(Config),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
+    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
-            target_nodes = ProviderPanelNodes,
+            target_nodes = OpPanelNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -413,7 +413,7 @@ revoke_space_support_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -422,7 +422,7 @@ revoke_space_support_test(Config) ->
             setup_fun = build_revoke_space_support_setup_fun(MemRef, Config),
             prepare_args_fun = build_revoke_space_support_prepare_rest_args_fun(MemRef),
             verify_fun = build_revoke_space_support_verify_fun(MemRef, Config),
-            data_spec = build_revoke_space_support_data_spec(ProviderWorkerNodes),
+            data_spec = build_revoke_space_support_data_spec(OpWorkerNodes),
 
             validate_result_fun = api_test_validate:http_204_no_content()
         }
@@ -431,7 +431,7 @@ revoke_space_support_test(Config) ->
 
 %% @private
 build_revoke_space_support_data_spec(OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
@@ -478,7 +478,7 @@ build_revoke_space_support_verify_fun(MemRef, Config) ->
 
 
 %% @private
--spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> json_utils:json_map().
+-spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> map().
 get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) ->
     [ProviderId] = op_worker_test_rpc:get_space_providers(Config, SpaceId),
     SupportingProviders = #{
@@ -497,7 +497,7 @@ get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) -
 
 
 %% @private
--spec get_space_details_with_rpc(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_space_details_with_rpc(test_config:config(), binary()) -> map().
 get_space_details_with_rpc(Config, SpaceId) ->
     SpaceDoc = op_worker_test_rpc:get_space_document(Config, SpaceId),
     StorageId = op_worker_test_rpc:get_local_storage_id(Config, SpaceId),
@@ -544,12 +544,6 @@ create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
 
 
 %% @private
--spec to_hostnames([node()]) -> [list()].
-to_hostnames(Nodes) ->
-    [list_to_binary(utils:get_host(X)) || X <- Nodes].
-
-
-%% @private
 -spec unsupport_all_spaces(test_config:config()) -> ok.
 unsupport_all_spaces(Config) ->
     SpacesId = op_worker_test_rpc:get_space_ids(Config),
@@ -574,7 +568,7 @@ init_per_suite(Config) ->
     test_config:set_many(Config, [
         {add_envs, [oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]]},
         {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, fun oct_background:prepare_base_test_config/1}
+        {set_posthook, fun onenv_test_utils:prepare_base_test_config/1}
     ]).
 
 

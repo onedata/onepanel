@@ -22,6 +22,10 @@
 -export([fetch_zone_info/1, register_provider/2]).
 -export([root_auth/0]).
 
+-define(OPTS, [{ssl_options, [
+    {cacerts, cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir())}
+]}]).
+
 %%%===================================================================
 %%% Public API
 %%%===================================================================
@@ -33,9 +37,7 @@
 -spec fetch_zone_info(Domain :: binary()) -> #{binary() := atom() | binary()}.
 fetch_zone_info(Domain) ->
     Url = configuration_url(Domain),
-    CaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
-    Opts = [{ssl_options, [{cacerts, CaCerts}]}],
-    case http_client:get(Url, #{}, <<>>, Opts) of
+    case http_client:get(Url, #{}, <<>>, ?OPTS) of
         {ok, ?HTTP_200_OK, _, Response} ->
             #{
                 <<"version">> := OzVersion,
@@ -68,7 +70,7 @@ register_provider(OnezoneDomain, Payload) ->
     ]),
     Headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
     Body = json_utils:encode(Payload),
-    case http_client:post(URL, Headers, Body) of
+    case http_client:post(URL, Headers, Body, ?OPTS) of
         {ok, _Code, _ResponseHeaders, ResponseBody} ->
             case json_utils:decode(ResponseBody) of
                 #{<<"error">> := Error} ->

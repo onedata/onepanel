@@ -695,7 +695,7 @@ get_correct_value(Key, #data_spec{correct_values = CorrectValues}) ->
 -spec create_oz_temp_token(node(), UserId :: binary()) -> tokens:serialized().
 create_oz_temp_token(OzNode, UserId) ->
     Auth = ?USER(UserId),
-    Now = rpc:call(OzNode, clock, timestamp_seconds, []),
+    Now = rpc:call(OzNode, global_clock, timestamp_seconds, []),
 
     {ok, Token} = ?assertMatch(
         {ok, _},
@@ -862,7 +862,7 @@ get_onepanel_rest_endpoint(Node, ResourcePath) ->
     end,
 
     str_utils:join_as_binaries(
-        ["https://", Domain, Port, "/api/v3/onepanel/", ResourcePath],
+        ["https://", Domain, Port, ?REST_PATH_PREFIX, ResourcePath],
         <<>>
     ).
 

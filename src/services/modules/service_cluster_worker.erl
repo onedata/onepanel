@@ -89,6 +89,15 @@ get_steps(deploy, #{hosts := Hosts, name := ServiceName} = Ctx) ->
         #steps{action = status, ctx = #{hosts => AllHosts}}
     ];
 
+% Used only to resume a worker service that has been detected to be down. Will
+% skip the intermediate steps between init_resume and finalize_resume, normally
+% applied during deployment or complete Oneprovider/Onezone restart.
+get_steps(resume, #{name := WorkerName}) ->
+    [
+        #steps{service = WorkerName, action = init_resume},
+        #steps{service = WorkerName, action = finalize_resume}
+    ];
+
 get_steps(init_resume, #{name := ServiceName}) ->
     [
         #step{function = migrate_generated_config,

@@ -156,4 +156,6 @@
     __CONFIG, hd(test_config:get_providers(__CONFIG))
 ))).
 
+-define(REST_PATH_PREFIX, "/api/v3/onepanel/").
+
 -endif.
