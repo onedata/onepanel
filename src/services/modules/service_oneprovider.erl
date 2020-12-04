@@ -267,7 +267,7 @@ get_steps(status, _Ctx) ->
 get_steps(register, #{hosts := _Hosts}) ->
     [
         #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{function = register, selection = any},
+        #step{function = register, hosts = [hosts:self()]},
         #step{function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
         % explicitly fail on connection problems before executing further steps
         #step{function = check_oz_connection, args = [],
