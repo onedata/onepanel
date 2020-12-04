@@ -141,8 +141,9 @@ start(_) ->
     Limits = #{
         open_files => onepanel_env:get(couchbase_open_files_limit)
     },
+    service:maybe_update_status(name(), starting),
     service_cli:start(name(), Limits),
-    service:update_status(name(), unhealthy),
+    service:maybe_update_status(name(), unhealthy),
     service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
@@ -154,6 +155,7 @@ start(_) ->
 -spec stop(Ctx :: service:step_ctx()) -> ok | no_return().
 stop(Ctx) ->
     service:deregister_healthcheck(name(), Ctx),
+    service:maybe_update_status(name(), stopping),
     service_cli:stop(name()),
     % update status cache
     status(Ctx),
@@ -166,7 +168,7 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
-    service:update_status(name(),
+    service:maybe_update_status(name(),
         case service_cli:status(name(), status) of
             running -> health(Ctx);
             stopped -> stopped;

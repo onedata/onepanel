@@ -237,8 +237,9 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
 
 -spec start(service:step_ctx()) -> ok | no_return().
 start(#{name := ServiceName} = Ctx) ->
+    service:maybe_update_status(ServiceName, starting),
     service_cli:start(ServiceName, Ctx),
-    service:update_status(ServiceName, unhealthy),
+    service:maybe_update_status(ServiceName, unhealthy),
     service:register_healthcheck(ServiceName, Ctx),
     ok.
 
@@ -246,6 +247,7 @@ start(#{name := ServiceName} = Ctx) ->
 -spec stop(service:step_ctx()) -> ok.
 stop(#{name := ServiceName} = Ctx) ->
     service:deregister_healthcheck(ServiceName, Ctx),
+    service:maybe_update_status(ServiceName, stopping),
     service_cli:stop(ServiceName),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),
@@ -255,7 +257,7 @@ stop(#{name := ServiceName} = Ctx) ->
 -spec status(service:step_ctx()) -> service:status().
 status(#{name := ServiceName} = Ctx) ->
     Module = service:get_module(ServiceName),
-    service:update_status(ServiceName,
+    service:maybe_update_status(ServiceName,
         case service_cli:status(ServiceName, ping) of
             running -> Module:health(Ctx);
             stopped -> stopped;
@@ -289,7 +291,7 @@ wait_for_init(#{name := ServiceName, wait_for_init_attempts := Attempts,
     Module = service:get_module(ServiceName),
     onepanel_utils:wait_until(Module, health, [Ctx], {equal, healthy},
         Attempts, Delay),
-    service:update_status(ServiceName, healthy),
+    service:maybe_update_status(ServiceName, healthy),
     ok.
 
 

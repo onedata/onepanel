@@ -245,8 +245,9 @@ start(_Ctx) ->
     Limits = #{
         open_files => onepanel_env:get(cluster_manager_open_files_limit)
     },
+    service:maybe_update_status(name(), starting),
     service_cli:start(name(), Limits),
-    service:update_status(name(), healthy),
+    service:maybe_update_status(name(), healthy),
     service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
     ok.
 
@@ -258,6 +259,7 @@ start(_Ctx) ->
 -spec stop(Ctx :: service:step_ctx()) -> ok.
 stop(Ctx) ->
     service:deregister_healthcheck(name(), Ctx),
+    service:maybe_update_status(name(), stopping),
     service_cli:stop(name()),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),
@@ -270,7 +272,7 @@ stop(Ctx) ->
 %%--------------------------------------------------------------------
 -spec status(Ctx :: service:step_ctx()) -> service:status().
 status(Ctx) ->
-    service:update_status(name(),
+    service:maybe_update_status(name(),
         case service_cli:status(name(), ping) of
             running -> health(Ctx);
             stopped -> stopped;
@@ -285,7 +287,7 @@ wait_for_init(Ctx) ->
     Delay = onepanel_env:get(cluster_manager_wait_for_init_delay),
     Module = service:get_module(ServiceName),
     onepanel_utils:wait_until(Module, health, [Ctx], {equal, healthy}, Attempts, Delay),
-    service:update_status(ServiceName, healthy),
+    service:maybe_update_status(ServiceName, healthy),
     ok.
 
 

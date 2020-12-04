@@ -34,7 +34,7 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2, deregister_healthcheck/2]).
--export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
+-export([maybe_update_status/2, maybe_update_status/3, all_healthy/0, is_healthy/1]).
 -export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
@@ -51,7 +51,7 @@
 -type condition() :: boolean() | fun((step_ctx()) -> boolean()).
 -type event() :: action_begin | action_steps_count | action_end |
                  step_begin | step_end.
--type status() :: healthy | unhealthy | stopped | missing.
+-type status() :: starting | healthy | unhealthy | stopping | stopped | missing.
 
 
 %% record field used for arbitrary information about the service
@@ -200,24 +200,40 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @equiv update_status(Service, hosts:self(), Status)
+%% @doc @equiv maybe_update_status(Service, hosts:self(), Status)
 %% @end
 %%--------------------------------------------------------------------
--spec update_status(name(), status()) -> status().
-update_status(Service, Status) ->
-    update_status(Service, hosts:self(), Status).
+-spec maybe_update_status(name(), status()) -> status().
+maybe_update_status(Service, Status) ->
+    maybe_update_status(Service, hosts:self(), Status).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Updates service status cache value for given service and host.
+%% Updates service status cache value for given service and host
+%% if service isn't stopping.
 %% @end
 %%--------------------------------------------------------------------
--spec update_status(name(), host(), status()) -> status().
-update_status(Service, Host, Status) ->
-    update_ctx(Service, fun(Ctx) ->
-        kv_utils:put([status, Host], Status, Ctx)
-    end),
-    Status.
+-spec maybe_update_status(name(), host(), status()) -> status() | no_return().
+maybe_update_status(Service, Host, Status) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{ctx = OldCtx}} ->
+            case kv_utils:get([status, Host], OldCtx, undefined) of
+                stopping when Status /= stopped andalso Status /= missing ->
+                    stopping;
+                Status ->
+                    Status;
+                _ ->
+                    update_ctx(Service, fun(Ctx) ->
+                        kv_utils:put([status, Host], Status, Ctx)
+                    end),
+                    ?info("Service ~s on host ~s changed status to: ~p", [
+                        Service, Host, Status
+                    ]),
+                    Status
+            end;
+        {error, _} = Error ->
+            throw(Error)
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -458,8 +474,11 @@ register_healthcheck(Service, Ctx) ->
 
     Condition = fun() ->
         case (catch Module:status(Ctx)) of
+            starting -> false;
             healthy -> false;
             unhealthy -> false;
+            stopping -> false;
+            stopped -> false;
             _ -> true
         end
     end,
