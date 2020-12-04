@@ -184,7 +184,9 @@ validate(#onp_req{operation = delete, gri = #gri{aspect = instance}}, _) ->
 create(#onp_req{gri = #gri{aspect = instance}, data = Data}) ->
     ZoneDomain = onezone_tokens:read_domain(maps:get(token, Data)),
     Ctx = kv_utils:copy_found([
+        {tokenProvisionMethod, oneprovider_token_provision_method},
         {token, oneprovider_token},
+        {tokenFile, oneprovider_token_file},
         {name, oneprovider_name},
         {subdomainDelegation, oneprovider_subdomain_delegation},
         {domain, oneprovider_domain},
@@ -253,7 +255,9 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
     end,
 
     OpwCtx = kv_utils:copy_found([
+        {[oneprovider, tokenProvisionMethod], oneprovider_token_provision_method},
         {[oneprovider, token], oneprovider_token},
+        {[oneprovider, tokenFile], oneprovider_token_file},
         {[oneprovider, register], oneprovider_register},
         {[oneprovider, name], oneprovider_name},
         {[oneprovider, subdomainDelegation], oneprovider_subdomain_delegation},

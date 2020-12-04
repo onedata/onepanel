@@ -28,7 +28,12 @@
 -type primitive_type() :: atom | binary | float | integer | list | boolean.
 -type collection_modifier() :: seq | keys | values | map.
 -type type() :: primitive_type() | {collection_modifier(), type()}.
--type expectation(Result) :: {equal, Result} |
+% end condition for the wait_until function:
+%   * successful_result  - the first value returned without a crash is accepted
+%   * {equal, Result}    - the wait succeeds when the returned value is exactly as Expected
+%   * {validator, fun/1} - returned value is fed to the validator, which must not crash to succeed
+%                          (the wait returns whatever the Validator returned)
+-type expectation(Result) :: successful_result | {equal, Result} |
     {validator, fun((term()) -> Result | no_return())}.
 -type uuid() :: binary().
 % @formatter:on
@@ -82,6 +87,10 @@ wait_until(_Module, _Function, _Args, _Expectation, Attempts, _Delay) when
 wait_until(Module, Function, Args, {equal, Expected}, Attempts, Delay) ->
     wait_until(Module, Function, Args,
         {validator, fun(Result) -> Expected = Result end}, Attempts, Delay);
+
+wait_until(Module, Function, Args, successful_result, Attempts, Delay) ->
+    wait_until(Module, Function, Args,
+        {validator, fun(Result) -> Result end}, Attempts, Delay);
 
 wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
     try
