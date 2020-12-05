@@ -104,9 +104,9 @@ save(Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
-    ok | no_return().
+    {ok, UpdatedRecord :: record()} | no_return().
 update(Key, Diff) ->
-    ok = model:update(?MODULE, Key, Diff).
+    {ok, _} = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -158,11 +158,12 @@ list() ->
 -spec set_marker(ProgressMarks :: marker() | [marker()]) -> ok.
 set_marker([]) -> ok;
 set_marker([_|_] = ProgressMarks) ->
-    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
+    {ok, _} = ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
         Record#onepanel_deployment{
             completed = lists:foldl(fun gb_sets:add_element/2, C, ProgressMarks)
         }
-    end);
+    end),
+    ok;
 set_marker(ProgressMark) -> set_marker([ProgressMark]).
 
 
@@ -173,11 +174,12 @@ set_marker(ProgressMark) -> set_marker([ProgressMark]).
 -spec unset_marker(ProgressMarks :: marker() | [marker()]) -> ok.
 unset_marker([]) -> ok;
 unset_marker([_|_] = ProgressMarks) ->
-    ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
+    {ok, _} = ?MODULE:update(?ID, fun(#onepanel_deployment{completed = C} = Record) ->
         Record#onepanel_deployment{
             completed = lists:foldl(fun gb_sets:del_element/2, C, ProgressMarks)
         }
-    end);
+    end),
+    ok;
 unset_marker(ProgressMark) -> unset_marker([ProgressMark]).
 
 

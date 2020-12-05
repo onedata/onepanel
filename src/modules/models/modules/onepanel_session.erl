@@ -116,9 +116,9 @@ save(Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
-    ok | no_return().
+    {ok, UpdatedRecord :: record()} | no_return().
 update(Key, Diff) ->
-    ok = model:update(?MODULE, Key, Diff).
+    {ok, _} = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------

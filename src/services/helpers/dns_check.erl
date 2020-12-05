@@ -135,10 +135,11 @@ should_update_cache(Service) ->
 %%--------------------------------------------------------------------
 -spec invalidate_cache(worker_service()) -> ok | no_return().
 invalidate_cache(Service) ->
-    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+    {ok, _} = service:update(Service, fun(#service{ctx = Ctx} = S) ->
         Ctx2 = maps:without([?DNS_CHECK_CACHE_KEY, ?DNS_CHECK_TIMESTAMP_KEY], Ctx),
         S#service{ctx = Ctx2}
-    end).
+    end),
+    ok.
 
 
 %%--------------------------------------------------------------------

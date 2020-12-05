@@ -34,7 +34,7 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2, deregister_healthcheck/2]).
--export([maybe_update_status/2, maybe_update_status/3, all_healthy/0, is_healthy/1]).
+-export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
 -export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
@@ -153,9 +153,9 @@ save(Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
-    ok | no_return().
+    {ok, UpdatedRecord :: record()} | no_return().
 update(Key, Diff) ->
-    ok = model:update(?MODULE, Key, Diff).
+    {ok, _} = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -200,12 +200,12 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc @equiv maybe_update_status(Service, hosts:self(), Status)
+%% @doc @equiv update_status(Service, hosts:self(), Status)
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_update_status(name(), status()) -> status().
-maybe_update_status(Service, Status) ->
-    maybe_update_status(Service, hosts:self(), Status).
+-spec update_status(name(), status()) -> status().
+update_status(Service, Status) ->
+    update_status(Service, hosts:self(), Status).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -213,27 +213,25 @@ maybe_update_status(Service, Status) ->
 %% if service isn't stopping.
 %% @end
 %%--------------------------------------------------------------------
--spec maybe_update_status(name(), host(), status()) -> status() | no_return().
-maybe_update_status(Service, Host, Status) ->
-    case ?MODULE:get(Service) of
-        {ok, #service{ctx = OldCtx}} ->
-            case kv_utils:get([status, Host], OldCtx, undefined) of
-                stopping when Status /= stopped andalso Status /= missing ->
-                    stopping;
-                Status ->
-                    Status;
-                _ ->
-                    update_ctx(Service, fun(Ctx) ->
-                        kv_utils:put([status, Host], Status, Ctx)
-                    end),
-                    ?info("Service ~s on host ~s changed status to: ~p", [
-                        Service, Host, Status
-                    ]),
-                    Status
-            end;
-        {error, _} = Error ->
-            throw(Error)
-    end.
+-spec update_status(name(), host(), status()) -> status() | no_return().
+update_status(Service, Host, Status) ->
+    {ok, NewCtx} = update_ctx(Service, fun(OldCtx) ->
+        case kv_utils:get([status, Host], OldCtx, undefined) of
+            % Currently services can report 'healthy' status for some time
+            % while being stopped (some other process issued stop).
+            % Prevent overwriting status in such cases.
+            stopping when Status /= stopped andalso Status /= missing ->
+                OldCtx;
+            Status ->
+                OldCtx;
+            _ ->
+                ?info("Service ~s on host ~s changed status to: ~p", [
+                    Service, Host, Status
+                ]),
+                kv_utils:put([status, Host], Status, OldCtx)
+        end
+    end),
+    kv_utils:get([status, Host], NewCtx).
 
 
 %%--------------------------------------------------------------------
@@ -455,7 +453,7 @@ has_host(Service, Host) ->
 %%--------------------------------------------------------------------
 -spec add_host(Service :: name(), Host :: host()) -> ok.
 add_host(Service, Host) ->
-    ?MODULE:update(Service, fun(#service{hosts = Hosts, ctx = Ctx} = S) ->
+    {ok, _} = ?MODULE:update(Service, fun(#service{hosts = Hosts, ctx = Ctx} = S) ->
         OldStatus = maps:get(status, Ctx, #{}),
         NewStatus = OldStatus#{Host => maps:get(Host, OldStatus, ?DEFAULT_STATUS)},
         S#service{
@@ -463,7 +461,8 @@ add_host(Service, Host) ->
             % ensure statuses map contains all hosts
             ctx = Ctx#{status => NewStatus}
         }
-    end).
+    end),
+    ok.
 
 
 -spec register_healthcheck(Service :: name(), Ctx :: step_ctx()) -> ok.
@@ -541,7 +540,7 @@ get_ctx(Service) ->
 %% @doc Updates the "ctx" field of a service model.
 %% @end
 %%--------------------------------------------------------------------
--spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
+-spec update_ctx(Service :: service:name(), Diff) -> {ok, model_ctx()} | no_return()
     when Diff :: map() | fun((service:model_ctx()) -> service:model_ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
@@ -549,17 +548,19 @@ update_ctx(Service, Diff) when is_map(Diff) ->
     end);
 
 update_ctx(Service, Diff) when is_function(Diff, 1) ->
-    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+    {ok, #service{ctx = NewCtx}} = service:update(Service, fun(#service{ctx = Ctx} = S) ->
         S#service{ctx = Diff(Ctx)}
-    end).
+    end),
+    {ok, NewCtx}.
 
 
 -spec store_in_ctx(Service :: name(), Keys :: kv_utils:path(), Value :: term()) ->
     ok | no_return().
 store_in_ctx(Service, Keys, Value) ->
-    update_ctx(Service, fun(Ctx) ->
+    {ok, _} = update_ctx(Service, fun(Ctx) ->
         kv_utils:put(Keys, Value, Ctx)
-    end).
+    end),
+    ok.
 
 %%%===================================================================
 %%% Internal functions
