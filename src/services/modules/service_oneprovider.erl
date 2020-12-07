@@ -569,10 +569,11 @@ unregister() ->
 
     op_worker_rpc:on_deregister(),
     onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
-    service:update_ctx(name(), fun(ServiceCtx) ->
+    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
         maps:without([cluster, onezone_domain, ?DETAILS_PERSISTENCE],
             ServiceCtx#{registered => false})
-    end).
+    end),
+    ok.
 
 
 %%--------------------------------------------------------------------

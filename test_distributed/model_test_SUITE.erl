@@ -97,12 +97,12 @@ update_test(Config) ->
     ?assertEqual(ok, ?callAny(Config, model, save, [?MODEL, Record])),
 
     Record2 = Record#?MODEL{field2 = <<"field2_new">>},
-    ?assertEqual(ok, ?callAny(Config, model, update,
+    ?assertEqual({ok, Record2}, ?callAny(Config, model, update,
         [?MODEL, 1, #{field2 => <<"field2_new">>}])),
     ?assertEqual({ok, Record2}, ?callAny(Config, model, get, [?MODEL, 1])),
 
     Record3 = Record2#?MODEL{field3 = field3_new},
-    ?assertEqual(ok, ?callAny(Config, model, update,
+    ?assertEqual({ok, Record3}, ?callAny(Config, model, update,
         [?MODEL, 1, fun(R) -> R#?MODEL{field3 = field3_new} end])),
     ?assertEqual({ok, Record3}, ?callAny(Config, model, get, [?MODEL, 1])).
 

@@ -576,4 +576,5 @@ get_plugin_module() ->
 -spec update_ctx(Diff) -> ok | no_return()
     when Diff :: map() | fun((model_ctx()) -> model_ctx()).
 update_ctx(Diff) ->
-    service:update_ctx(name(), Diff).
+    {ok, _} = service:update_ctx(name(), Diff),
+    ok.
