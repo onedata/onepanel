@@ -77,7 +77,7 @@ prepare_cluster_clock_sync() ->
 revise_master_sync_with_onezone() ->
     case global_clock:synchronize_local_with_remote_server(fun fetch_zone_time/0) of
         ok ->
-            ?info("Synchronized clock on the master node with Onezone"),
+            ?debug("Synchronized clock on the master node with Onezone"),
             true;
         error ->
             case is_master_synchronized_with_onezone() of
