@@ -532,10 +532,13 @@ register(Ctx) ->
                         )
                     catch throw:attempts_limit_exceeded ->
                         ?error(
-                            "Registration failed - timeout waiting for a registration "
+                            "Registration failed - timeout waiting for a suitable registration "
                             "token to be present in file ~s", [FilePath]
                         ),
-                        throw(?ERROR_BAD_DATA(<<"tokenFile">>))
+                        throw(?ERROR_BAD_DATA(
+                            <<"tokenFile">>,
+                            <<"timeout waiting for a suitable registration token to be present in the file">>
+                        ))
                     end;
                 error ->
                     throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
