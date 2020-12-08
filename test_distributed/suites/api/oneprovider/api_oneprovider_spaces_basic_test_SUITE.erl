@@ -18,6 +18,7 @@
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("onenv_ct/include/oct_background.hrl").
 
 -define(ATTEMPTS, 60).
 
@@ -74,8 +75,8 @@ get_space_ids_test(Config) ->
 
 %% @private
 get_space_ids_test_base(Config, ExpSpaceIds) ->
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
+    ProviderId = oct_background:get_provider_id(krakow),
+    OpPanelNodes = oct_background:get_provider_panels(krakow),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -90,7 +91,7 @@ get_space_ids_test_base(Config, ExpSpaceIds) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -112,9 +113,9 @@ get_space_details_test(Config) ->
 
 %% @private
 get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(krakow),
+    OpWorkerNodes = oct_background:get_provider_nodes(krakow),
+    OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
     SpaceId = create_and_support_space(Config, SpaceName, StorageName, SupportSize),
@@ -132,7 +133,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -168,9 +169,9 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
 
 support_space_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(krakow),
+    OpWorkerNodes = oct_background:get_provider_nodes(krakow),
+    OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     SpaceName = str_utils:rand_hex(12),
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
@@ -187,7 +188,7 @@ support_space_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -281,9 +282,9 @@ build_support_space_verify_fun(MemRef, Config) ->
 
 modify_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(krakow),
+    OpWorkerNodes = oct_background:get_provider_nodes(krakow),
+    OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
     SpaceName = str_utils:rand_hex(12),
@@ -301,7 +302,7 @@ modify_space_support_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -397,9 +398,9 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
 
 revoke_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
-    OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
+    ProviderId = oct_background:get_provider_id(krakow),
+    OpWorkerNodes = oct_background:get_provider_nodes(krakow),
+    OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -413,7 +414,7 @@ revoke_space_support_test(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -565,11 +566,12 @@ delete_all_spaces(Config) ->
 init_per_suite(Config) ->
     application:start(ssl),
     hackney:start(),
-    test_config:set_many(Config, [
-        {add_envs, [oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]]},
-        {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, fun onenv_test_utils:prepare_base_test_config/1}
-    ]).
+    oct_background:init_per_suite(Config, #onenv_test_config{
+        envs = [
+            {oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]}
+        ],
+        onenv_scenario = "1op"
+    }).
 
 
 end_per_suite(_Config) ->

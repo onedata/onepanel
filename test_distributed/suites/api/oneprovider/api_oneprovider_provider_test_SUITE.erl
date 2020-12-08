@@ -15,6 +15,7 @@
 -include("api_test_runner.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
 -export([all/0]).
@@ -35,17 +36,18 @@ all() -> [
 
 
 get_provider_details(Config) ->
-    [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    ProviderId = oct_background:get_provider_id(krakow),
+    OpWorkerNodes = oct_background:get_provider_nodes(krakow),
+    OpPanelNodes = oct_background:get_provider_panels(krakow),
 
-    OpDomain = ?GET_DOMAIN_BIN(?OP_NODE(Config)),
+    OpDomain = ?GET_DOMAIN_BIN(hd(OpWorkerNodes)),
     OpName = hd(binary:split(OpDomain, <<".">>)),
 
     ExpDetails = #{
         <<"name">> => OpName,
         <<"domain">> => OpDomain,
         <<"onezoneDomainName">> => ?GET_DOMAIN_BIN(?OZ_NODE(Config)),
-        <<"id">> => P1,
+        <<"id">> => ProviderId,
         % Below values are defined in k8s charts
         <<"geoLatitude">> => 50.0647,
         <<"geoLongitude">> => 19.945,
@@ -65,7 +67,7 @@ get_provider_details(Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, P1))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -84,15 +86,13 @@ get_provider_details(Config) ->
 
 
 init_per_suite(Config) ->
-    Posthook = fun(NewConfig) ->
-        application:start(ssl),
-        hackney:start(),
-        onenv_test_utils:prepare_base_test_config(NewConfig)
-    end,
-    test_config:set_many(Config, [
-        {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, Posthook}
-    ]).
+    application:start(ssl),
+    hackney:start(),
+    oct_background:init_per_suite(Config, #onenv_test_config{
+        envs = [],
+        onenv_scenario = "1op"
+    }).
+
 
 
 end_per_suite(_Config) ->
