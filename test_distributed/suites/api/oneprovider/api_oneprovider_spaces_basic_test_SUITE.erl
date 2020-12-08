@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider space API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(spaces_basic_api_test_SUITE).
+-module(api_oneprovider_spaces_basic_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -75,7 +75,7 @@ get_space_ids_test(Config) ->
 %% @private
 get_space_ids_test_base(Config, ExpSpaceIds) ->
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -113,7 +113,7 @@ get_space_details_test(Config) ->
 %% @private
 get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
@@ -149,7 +149,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
 
 %% @private
 build_get_space_details_data_spec(OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
@@ -169,7 +169,7 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
 support_space_test(Config) ->
     MemRef = api_test_memory:init(),
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     SpaceName = str_utils:rand_hex(12),
@@ -197,10 +197,10 @@ support_space_test(Config) ->
             verify_fun = build_support_space_verify_fun(MemRef, Config),
 
             prepare_args_fun = build_support_space_prepare_args_fun(MemRef),
-            validate_result_fun = api_test_validate:http_201_created(fun(Headers) ->
-                SupportedSpaceId = lists:last(binary:split(maps:get(<<"location">>, Headers), <<"/">>, [global])),
-                ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
-            end),
+            validate_result_fun = api_test_validate:http_201_created("provider/spaces/", <<"id">>,
+                fun(SupportedSpaceId) ->
+                    ?assertEqual(api_test_memory:get(MemRef, space_id), SupportedSpaceId)
+                end),
 
             data_spec = build_support_space_data_spec(StorageId, OpWorkerNodes)
         }
@@ -220,7 +220,7 @@ build_support_space_setup_fun(MemRef, Config, SpaceName) ->
 
 %% @private
 build_support_space_data_spec(StorageId, OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         required = [<<"size">>, <<"storageId">>, <<"token">>],
         correct_values = #{
@@ -282,7 +282,7 @@ build_support_space_verify_fun(MemRef, Config) ->
 modify_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
@@ -334,7 +334,7 @@ build_modify_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, Sto
 
 %% @private
 build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         optional = [<<"size">>],
         correct_values = #{
@@ -398,7 +398,7 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
 revoke_space_support_test(Config) ->
     MemRef = api_test_memory:init(),
     [P1] = test_config:get_providers(Config),
-    OpPanelNodes = test_config:get_custom(Config, [provider_panels, P1]),
+    OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     OpWorkerNodes = test_config:get_all_op_worker_nodes(Config),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -431,7 +431,7 @@ revoke_space_support_test(Config) ->
 
 %% @private
 build_revoke_space_support_data_spec(OpWorkerNodes) ->
-    HostNames = to_hostnames(OpWorkerNodes),
+    HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
@@ -478,7 +478,7 @@ build_revoke_space_support_verify_fun(MemRef, Config) ->
 
 
 %% @private
--spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> json_utils:json_map().
+-spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> map().
 get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) ->
     [ProviderId] = op_worker_test_rpc:get_space_providers(Config, SpaceId),
     SupportingProviders = #{
@@ -497,7 +497,7 @@ get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) -
 
 
 %% @private
--spec get_space_details_with_rpc(test_config:config(), binary()) -> json_utils:json_map().
+-spec get_space_details_with_rpc(test_config:config(), binary()) -> map().
 get_space_details_with_rpc(Config, SpaceId) ->
     SpaceDoc = op_worker_test_rpc:get_space_document(Config, SpaceId),
     StorageId = op_worker_test_rpc:get_local_storage_id(Config, SpaceId),
@@ -541,12 +541,6 @@ create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
     SpaceId = op_worker_test_rpc:support_space(Config, StorageId, SerializedToken, SupportSize),
     ?assertEqual(true, lists:member(SpaceId, op_worker_test_rpc:get_space_ids(Config)), ?ATTEMPTS),
     SpaceId.
-
-
-%% @private
--spec to_hostnames([node()]) -> [list()].
-to_hostnames(Nodes) ->
-    [list_to_binary(utils:get_host(X)) || X <- Nodes].
 
 
 %% @private

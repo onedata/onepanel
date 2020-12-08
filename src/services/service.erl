@@ -51,7 +51,7 @@
 -type condition() :: boolean() | fun((step_ctx()) -> boolean()).
 -type event() :: action_begin | action_steps_count | action_end |
                  step_begin | step_end.
--type status() :: healthy | unhealthy | stopped | missing.
+-type status() :: starting | healthy | unhealthy | stopping | stopped | missing.
 
 
 %% record field used for arbitrary information about the service
@@ -153,9 +153,9 @@ save(Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
-    ok | no_return().
+    {ok, UpdatedRecord :: record()} | no_return().
 update(Key, Diff) ->
-    ok = model:update(?MODULE, Key, Diff).
+    {ok, _} = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -209,15 +209,29 @@ update_status(Service, Status) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Updates service status cache value for given service and host.
+%% Updates service status cache value for given service and host
+%% if service isn't stopping.
 %% @end
 %%--------------------------------------------------------------------
--spec update_status(name(), host(), status()) -> status().
+-spec update_status(name(), host(), status()) -> status() | no_return().
 update_status(Service, Host, Status) ->
-    update_ctx(Service, fun(Ctx) ->
-        kv_utils:put([status, Host], Status, Ctx)
+    {ok, NewCtx} = update_ctx(Service, fun(OldCtx) ->
+        case kv_utils:get([status, Host], OldCtx, undefined) of
+            % Currently services can report 'healthy' status for some time
+            % while being stopped (some other process issued stop).
+            % Prevent overwriting status in such cases.
+            stopping when Status /= stopped andalso Status /= missing ->
+                OldCtx;
+            Status ->
+                OldCtx;
+            _ ->
+                ?info("Service ~s on host ~s changed status to: ~p", [
+                    Service, Host, Status
+                ]),
+                kv_utils:put([status, Host], Status, OldCtx)
+        end
     end),
-    Status.
+    kv_utils:get([status, Host], NewCtx).
 
 
 %%--------------------------------------------------------------------
@@ -439,7 +453,7 @@ has_host(Service, Host) ->
 %%--------------------------------------------------------------------
 -spec add_host(Service :: name(), Host :: host()) -> ok.
 add_host(Service, Host) ->
-    ?MODULE:update(Service, fun(#service{hosts = Hosts, ctx = Ctx} = S) ->
+    {ok, _} = ?MODULE:update(Service, fun(#service{hosts = Hosts, ctx = Ctx} = S) ->
         OldStatus = maps:get(status, Ctx, #{}),
         NewStatus = OldStatus#{Host => maps:get(Host, OldStatus, ?DEFAULT_STATUS)},
         S#service{
@@ -447,7 +461,8 @@ add_host(Service, Host) ->
             % ensure statuses map contains all hosts
             ctx = Ctx#{status => NewStatus}
         }
-    end).
+    end),
+    ok.
 
 
 -spec register_healthcheck(Service :: name(), Ctx :: step_ctx()) -> ok.
@@ -458,8 +473,11 @@ register_healthcheck(Service, Ctx) ->
 
     Condition = fun() ->
         case (catch Module:status(Ctx)) of
+            starting -> false;
             healthy -> false;
             unhealthy -> false;
+            stopping -> false;
+            stopped -> false;
             _ -> true
         end
     end,
@@ -522,7 +540,7 @@ get_ctx(Service) ->
 %% @doc Updates the "ctx" field of a service model.
 %% @end
 %%--------------------------------------------------------------------
--spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
+-spec update_ctx(Service :: service:name(), Diff) -> {ok, model_ctx()} | no_return()
     when Diff :: map() | fun((service:model_ctx()) -> service:model_ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
@@ -530,17 +548,19 @@ update_ctx(Service, Diff) when is_map(Diff) ->
     end);
 
 update_ctx(Service, Diff) when is_function(Diff, 1) ->
-    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+    {ok, #service{ctx = NewCtx}} = service:update(Service, fun(#service{ctx = Ctx} = S) ->
         S#service{ctx = Diff(Ctx)}
-    end).
+    end),
+    {ok, NewCtx}.
 
 
 -spec store_in_ctx(Service :: name(), Keys :: kv_utils:path(), Value :: term()) ->
     ok | no_return().
 store_in_ctx(Service, Keys, Value) ->
-    update_ctx(Service, fun(Ctx) ->
+    {ok, _} = update_ctx(Service, fun(Ctx) ->
         kv_utils:put(Keys, Value, Ctx)
-    end).
+    end),
+    ok.
 
 %%%===================================================================
 %%% Internal functions

@@ -862,7 +862,7 @@ get_onepanel_rest_endpoint(Node, ResourcePath) ->
     end,
 
     str_utils:join_as_binaries(
-        ["https://", Domain, Port, "/api/v3/onepanel/", ResourcePath],
+        ["https://", Domain, Port, ?REST_PATH_PREFIX, ResourcePath],
         <<>>
     ).
 

@@ -103,6 +103,7 @@
 
 % Internal RPC
 -export([root_token_from_file/0]).
+-export([await_registration_token_from_file/1]).
 % Export for eunit tests
 -export([set_up_onepanel_in_onezone/0]).
 
@@ -266,7 +267,7 @@ get_steps(status, _Ctx) ->
 get_steps(register, #{hosts := _Hosts}) ->
     [
         #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{function = register, selection = any},
+        #step{function = register, hosts = [hosts:self()]},
         #step{function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
         % explicitly fail on connection problems before executing further steps
         #step{function = check_oz_connection, args = [],
@@ -511,8 +512,41 @@ register(Ctx) ->
 
     end,
 
+    RegistrationToken = case kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>) of
+        <<"inline">> ->
+            case kv_utils:find(oneprovider_token, Ctx) of
+                {ok, Token} ->
+                    sanitize_registration_token(Token);
+                error ->
+                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
+            end;
+        <<"fromFile">> ->
+            case kv_utils:find(oneprovider_token_file, Ctx) of
+                {ok, FilePath} ->
+                    Attempts = onepanel_env:get(op_worker_wait_for_registration_token_file_attempts),
+                    Delay = onepanel_env:get(op_worker_wait_for_registration_token_file_delay),
+                    try
+                        onepanel_utils:wait_until(
+                            ?MODULE, await_registration_token_from_file, [FilePath],
+                            successful_result, Attempts, Delay
+                        )
+                    catch throw:attempts_limit_exceeded ->
+                        ?error(
+                            "Registration failed - timeout waiting for a suitable registration "
+                            "token to be present in file ~s", [FilePath]
+                        ),
+                        throw(?ERROR_BAD_DATA(
+                            <<"tokenFile">>,
+                            <<"timeout waiting for a suitable registration token to be present in the file">>
+                        ))
+                    end;
+                error ->
+                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
+            end
+    end,
+
     Params = DomainParams#{
-        <<"token">> => onepanel_utils:get_converted(oneprovider_token, Ctx, binary),
+        <<"token">> => RegistrationToken,
         <<"name">> => onepanel_utils:get_converted(oneprovider_name, Ctx, binary),
         <<"adminEmail">> => onepanel_utils:get_converted(oneprovider_admin_email, Ctx, binary),
         <<"latitude">> => onepanel_utils:get_converted(oneprovider_geo_latitude, Ctx, float, 0.0),
@@ -538,10 +572,11 @@ unregister() ->
 
     op_worker_rpc:on_deregister(),
     onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
-    service:update_ctx(name(), fun(ServiceCtx) ->
+    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
         maps:without([cluster, onezone_domain, ?DETAILS_PERSISTENCE],
             ServiceCtx#{registered => false})
-    end).
+    end),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -996,9 +1031,43 @@ root_token_from_file() ->
     end.
 
 
+%% @private
+-spec await_registration_token_from_file(file:filename_all()) -> tokens:serialized() | no_return().
+await_registration_token_from_file(FilePath) ->
+    try
+        {ok, FileBody} = file:read_file(FilePath),
+        Token = sanitize_registration_token(FileBody),
+        ?info("Successfully retrieved registration token from file ~s", [FilePath]),
+        Token
+    catch Class:Reason ->
+        utils:throttle(60, fun() ->
+            ?notice(
+                "No suitable Oneprovider registration token found in file '~s', retrying...~n"
+                "Last error was: ~w:~w", [FilePath, Class, Reason])
+        end),
+        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", [Class, Reason]),
+        throw(attempt_failed)
+    end.
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% @private
+-spec sanitize_registration_token(binary()) -> tokens:serialized() | no_return().
+sanitize_registration_token(Token) ->
+    try
+        TrimmedToken = string:trim(Token),
+        true = is_binary(onezone_tokens:read_domain(TrimmedToken)),
+        TrimmedToken
+    catch
+        throw:{error, _} = Error ->
+            Error;
+        Class:Reason ->
+            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p", [Class, Reason]),
+            throw(?ERROR_BAD_DATA(<<"token">>))
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private

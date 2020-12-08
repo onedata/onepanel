@@ -68,12 +68,13 @@ add_users(#{onezone_users := Users}) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add_user(User) -> {ok, UserId :: binary()} | errors:error() when
-    User :: #{username := binary(), password := binary(), groups := [binary()]}.
+    User :: #{username := binary(), password := binary(), fullName := binary(), groups := [binary()]}.
 add_user(User) ->
     {OzNode, Client} = get_node_and_client(),
     Data = kv_utils:copy_found([
         {username, <<"username">>},
-        {password, <<"password">>}
+        {password, <<"password">>},
+        {fullName, <<"fullName">>}
     ], User),
     case oz_worker_rpc:create_user(OzNode, Client, Data) of
         {ok, UserId} ->
@@ -90,8 +91,10 @@ add_user(User) ->
     UserId :: binary(), Groups :: [binary()]) -> ok.
 add_user_to_groups(OzNode, Auth, UserId, Groups) ->
     lists:foreach(fun(GroupId) ->
-        {ok, _} = oz_worker_rpc:add_user_to_group(
-            OzNode, Auth, GroupId, UserId)
+        case oz_worker_rpc:add_user_to_group(OzNode, Auth, GroupId, UserId) of
+            {ok, _} -> ok;
+            {error, _} = Error -> throw(Error)
+        end
     end, Groups).
 
 
@@ -159,7 +162,7 @@ migrate_users(_Ctx) ->
 -spec set_user_password(#{user_id := binary(), new_password := binary()}) -> ok.
 set_user_password(#{user_id := UserId, new_password := NewPassword}) ->
     {OzNode, Client} = get_node_and_client(),
-    ok = oz_worker_rpc:set_user_password(OzNode, Client, UserId, NewPassword).
+    oz_worker_rpc:set_user_password(OzNode, Client, UserId, NewPassword).
 
 
 %%%===================================================================

@@ -283,7 +283,8 @@ zone_rest(Method, Auth, URNFormat, FormatArgs, Body) ->
 -spec store_in_cache(Key :: term(), Value :: term()) -> ok.
 store_in_cache(Key, Value) ->
     Service = onepanel_env:get_cluster_type(),
-    service:update_ctx(Service, #{Key => Value}).
+    {ok, _} = service:update_ctx(Service, #{Key => Value}),
+    ok.
 
 
 %%--------------------------------------------------------------------
