@@ -532,10 +532,13 @@ register(Ctx) ->
                         )
                     catch throw:attempts_limit_exceeded ->
                         ?error(
-                            "Registration failed - timeout waiting for a registration "
+                            "Registration failed - timeout waiting for a suitable registration "
                             "token to be present in file ~s", [FilePath]
                         ),
-                        throw(?ERROR_BAD_DATA(<<"tokenFile">>))
+                        throw(?ERROR_BAD_DATA(
+                            <<"tokenFile">>,
+                            <<"timeout waiting for a suitable registration token to be present in the file">>
+                        ))
                     end;
                 error ->
                     throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
@@ -815,11 +818,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_status(Ctx :: service:step_ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
-    Status = op_worker_rpc:autocleaning_status(SpaceId),
-    kv_utils:copy_found([
-        {in_progress, inProgress},
-        {space_occupancy, spaceOccupancy}
-    ], Status).
+    op_worker_rpc:autocleaning_status(SpaceId).
 
 
 %%-------------------------------------------------------------------
