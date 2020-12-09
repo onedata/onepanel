@@ -818,11 +818,7 @@ get_auto_cleaning_report(#{report_id := ReportId}) ->
 %%-------------------------------------------------------------------
 -spec get_auto_cleaning_status(Ctx :: service:step_ctx()) -> #{atom() => term()}.
 get_auto_cleaning_status(#{space_id := SpaceId}) ->
-    Status = op_worker_rpc:autocleaning_status(SpaceId),
-    kv_utils:copy_found([
-        {in_progress, inProgress},
-        {space_occupancy, spaceOccupancy}
-    ], Status).
+    op_worker_rpc:autocleaning_status(SpaceId).
 
 
 %%-------------------------------------------------------------------
