@@ -477,7 +477,6 @@ register_healthcheck(Service, Ctx) ->
             healthy -> false;
             unhealthy -> false;
             stopping -> false;
-            stopped -> false;
             _ -> true
         end
     end,
