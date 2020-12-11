@@ -90,7 +90,7 @@ is_storage_imported(Config, StorageId) ->
 
 -spec get_autocleaning_status(test_config:config(), binary()) -> map().
 get_autocleaning_status(Config, SpaceId) ->
-    AutocleaningStatus = call_provider_node(Config, autocleaning_api, status, [SpaceId]),
+    AutocleaningStatus = call_provider_node(Config, autocleaning_api, get_status, [SpaceId]),
     ?assert(is_map(AutocleaningStatus)),
     AutocleaningStatus.
 

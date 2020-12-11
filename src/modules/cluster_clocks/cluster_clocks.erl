@@ -111,7 +111,7 @@ periodic_sync_action(PrepareClusterClockSync) ->
                     ?debug("Running periodic clock sync for nodes: ~p", [Nodes]),
                     WasSuccessful = synchronize_all_nodes_with_self(Nodes),
                     case WasSuccessful of
-                        true -> ?info("Synchronized all clocks in the cluster with master node");
+                        true -> ?debug("Synchronized all clocks in the cluster with master node");
                         false -> ?warning("Failed to synchronize clocks of some nodes with master node")
                     end,
                     WasSuccessful

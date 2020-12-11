@@ -513,7 +513,7 @@ get_space_details_with_rpc(Config, SpaceId) ->
         <<"localStorages">> => LocalStorages,
         <<"supportingProviders">> => maps:get(providers, SpaceDoc),
         <<"importedStorage">> => IsImportedStorage,
-        <<"spaceOccupancy">> => maps:get(space_occupancy, AutocleaningStatus)
+        <<"spaceOccupancy">> => maps:get(spaceOccupancy, AutocleaningStatus)
     }.
 
 

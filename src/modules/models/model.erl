@@ -100,15 +100,19 @@ save(Model, Record) ->
 %% @doc {@link model_behaviour:update/2}
 %% @end
 %%--------------------------------------------------------------------
--spec update(Model :: model(), Key :: key(),
-    Diff :: model_behaviour:diff()) -> ok | ?ERR_DOC_NOT_FOUND.
+-spec update(Model :: model(), Key :: key(), Diff :: model_behaviour:diff()) ->
+    {ok, model_behaviour:record()} | ?ERR_DOC_NOT_FOUND.
 update(Model, Key, Diff) ->
     % @TODO VFS-5272 Handle key change by the diff function
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> ?ERR_DOC_NOT_FOUND;
-            [Doc] -> mnesia:write(Table, apply_diff(Doc, Diff), write)
+            [] ->
+                ?ERR_DOC_NOT_FOUND;
+            [Doc] ->
+                #document{value = NewRecord} = NewDoc = apply_diff(Doc, Diff),
+                ok = mnesia:write(Table, NewDoc, write),
+                {ok, NewRecord}
         end
     end).
 

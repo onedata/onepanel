@@ -1100,7 +1100,7 @@ provider_configuration_details_oneprovider_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The provider custom configuration.
+%% @doc The provider registration data.
 %% @end
 %%--------------------------------------------------------------------
 -spec provider_configuration_oneprovider_model() -> onepanel_parser:object_spec().
@@ -1108,9 +1108,26 @@ provider_configuration_oneprovider_model() ->
     #{
         %% Defines whether the provider should be registered in a zone.
         register => boolean,
-        %% Registration token obtained from Onezone. This token identifies
-        %% Onezone to be used and authorizes the registration request.
+        %% Indicates how the Oneprovider registration token will be provided: *
+        %% `\&quot;inline\&quot;` - the registration token must be
+        %% placed in the **token**   field (consult for more information). *
+        %% `\&quot;fromFile\&quot;` - the registration token will be
+        %% read from given file,   specified in the **tokenFile** field (consult
+        %% for more information).
+        tokenProvisionMethod => {{enum, string, [<<"inline">>, <<"fromFile">>]}, {optional, <<"inline">>}},
+        %% Registration token obtained from Onezone. This token identifies the
+        %% Onezone service where the Oneprovider will be registered and
+        %% authorizes the registration request. Required when the
+        %% `tokenProvisionMethod` is set to
+        %% `\&quot;inline\&quot;`.
         token => {string, optional},
+        %% Absolute path to the file containing the Oneprovider registration
+        %% token. The token (and nothing else) should be placed in the file as
+        %% plaintext. The file does not have to pre-exist - it may be created
+        %% after this request is made (Onepanel will wait for the file to appear
+        %% for some time). Required when the `tokenProvisionMethod` is
+        %% set to `\&quot;fromFile\&quot;`.
+        tokenFile => {string, optional},
         %% The name under which the provider will be registered in a zone.
         name => string,
         %% If enabled, the storage provider will be assigned a subdomain in
@@ -1210,9 +1227,26 @@ provider_register_request_model() ->
     #{
         %% The name under which the provider should be registered in a zone.
         name => string,
-        %% Registration token obtained from Onezone. This token identifies
-        %% Onezone to be used and authorizes the registration request.
-        token => string,
+        %% Indicates how the Oneprovider registration token will be provided: *
+        %% `\&quot;inline\&quot;` - the registration token must be
+        %% placed in the **token**   field (consult for more information). *
+        %% `\&quot;fromFile\&quot;` - the registration token will be
+        %% read from given file,   specified in the **tokenFile** field (consult
+        %% for more information).
+        tokenProvisionMethod => {{enum, string, [<<"inline">>, <<"fromFile">>]}, {optional, <<"inline">>}},
+        %% Registration token obtained from Onezone. This token identifies the
+        %% Onezone service where the Oneprovider will be registered and
+        %% authorizes the registration request. Required when the
+        %% `tokenProvisionMethod` is set to
+        %% `\&quot;inline\&quot;`.
+        token => {string, optional},
+        %% Absolute path to the file containing the Oneprovider registration
+        %% token. The token (and nothing else) should be placed in the file as
+        %% plaintext. The file does not have to pre-exist - it may be created
+        %% after this request is made (Onepanel will wait for the file to appear
+        %% for some time). Required when the `tokenProvisionMethod` is
+        %% set to `\&quot;fromFile\&quot;`.
+        tokenFile => {string, optional},
         %% If enabled, the storage provider will be assigned a subdomain in
         %% onezone's domain and 'subdomain' property must be
         %% provided. If disabled, 'domain' property should be provided.
@@ -1450,9 +1484,8 @@ space_auto_cleaning_rules_model() ->
 -spec space_auto_cleaning_status_model() -> onepanel_parser:object_spec().
 space_auto_cleaning_status_model() ->
     #{
-        %% Flag which indicates whether auto-cleaning process is currently in
-        %% progress
-        inProgress => boolean,
+        %% Status of the last auto-cleaning run.
+        lastRunStatus => {enum, string, [<<"active">>, <<"cancelling">>, <<"completed">>, <<"failed">>, <<"cancelled">>]},
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer
     }.

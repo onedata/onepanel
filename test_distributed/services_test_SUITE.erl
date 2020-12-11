@@ -192,13 +192,26 @@ service_oneprovider_unregister_register_test(Config) ->
     OpDomain = ?config(oneprovider_domain, Config),
     OzDomain = ?config(onezone_domain, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
+
+    % test the alternative way of providing the registration token
+    % (the default method is used during environment setup for this suite).
+    RegistrationTokenFile = <<"/tmp/provider-registration-token.txt">>,
+    RegistrationToken = image_test_utils:get_registration_token(OzNode),
+    spawn(fun() ->
+        % Onepanel should wait for the file to appear
+        timer:sleep(timer:minutes(1)),
+        ?assertEqual(ok, image_test_utils:proxy_rpc(OpNode, file, write_file, [
+            RegistrationTokenFile, RegistrationToken
+        ]))
+    end),
     onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
         oneprovider_geo_latitude => 20.0,
         oneprovider_geo_longitude => 20.0,
         oneprovider_name => <<"provider2">>,
         oneprovider_domain => OpDomain,
         oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token => image_test_utils:get_registration_token(OzNode),
+        oneprovider_token_provision_method => <<"fromFile">>,
+        oneprovider_token_file => RegistrationTokenFile,
         onezone_domain => str_utils:to_binary(OzDomain)
     }).
 

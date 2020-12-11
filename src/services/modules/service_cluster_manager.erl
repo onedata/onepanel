@@ -245,6 +245,7 @@ start(_Ctx) ->
     Limits = #{
         open_files => onepanel_env:get(cluster_manager_open_files_limit)
     },
+    service:update_status(name(), starting),
     service_cli:start(name(), Limits),
     service:update_status(name(), healthy),
     service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
@@ -258,6 +259,7 @@ start(_Ctx) ->
 -spec stop(Ctx :: service:step_ctx()) -> ok.
 stop(Ctx) ->
     service:deregister_healthcheck(name(), Ctx),
+    service:update_status(name(), stopping),
     service_cli:stop(name()),
     % check status before updating it as service_cli:stop/1 does not throw on failure
     status(Ctx),

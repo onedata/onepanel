@@ -345,6 +345,8 @@
         {op_worker_nagios_protocol, "https"},
         {op_worker_wait_for_init_attempts, 60},
         {op_worker_wait_for_init_delay, 5000},
+        {op_worker_wait_for_registration_token_file_attempts, 360},
+        {op_worker_wait_for_registration_token_file_delay, 5000},  % 360 * 5s = 30m
         % this variable is overridden after op-worker deployment with an absolute path.
         {op_worker_root_token_path, "{{platform_etc_dir}}/../op_worker/provider_root_token.json"},
 
