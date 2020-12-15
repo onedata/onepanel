@@ -50,8 +50,8 @@ all() -> [
 create_user_test(Config) ->
     MemRef = api_test_memory:init(),
 
-    OzPanelNodes = oct_background:get_zone_panels(zone),
-    OzWorkerNodes = oct_background:get_zone_nodes(zone),
+    OzPanelNodes = oct_background:get_zone_panels(),
+    OzWorkerNodes = oct_background:get_zone_nodes(),
 
     GroupIds = [oz_worker_test_rpc:create_group(Config, str_utils:rand_hex(6)) || _ <- lists:seq(1, 3)],
 
@@ -172,8 +172,8 @@ is_user_member_of_groups(Config, UserId, GroupIds) ->
 
 get_user_details_test(Config) ->
     MemRef = api_test_memory:init(),
-    OzPanelNodes = oct_background:get_zone_panels(zone),
-    OzWorkerNodes = oct_background:get_zone_nodes(zone),
+    OzPanelNodes = oct_background:get_zone_panels(),
+    OzWorkerNodes = oct_background:get_zone_nodes(),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -250,8 +250,8 @@ build_get_user_details_prepare_rest_args_fun(MemRef) ->
 
 set_user_password_test(Config) ->
     MemRef = api_test_memory:init(),
-    OzPanelNodes = oct_background:get_zone_panels(zone),
-    OzWorkerNodes = oct_background:get_zone_nodes(zone),
+    OzPanelNodes = oct_background:get_zone_panels(),
+    OzWorkerNodes = oct_background:get_zone_nodes(),
 
     Fullname = str_utils:rand_hex(5),
     Username = str_utils:rand_hex(10),
