@@ -4,6 +4,18 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.5
+
+-   **VFS-7124** Fixed adding user mapping to LUMA local feed on POSIX
+    incompatible storages.
+-   **VFS-6999** Improve error reporting in entrypoints of
+    oneprovider/onezone dockers, always dump application logs to stdout
+    in case of failures during batch deployment.
+-   **VFS-6858** Added support for cancelling storage auto-cleaning run
+    using GUI.
+-   **VFS-6745** Added new view with token templates in tokens creator
+    GUI.
+
 ### 20.02.4
 
 -   **VFS-7003** Added new counters presenting progress of current/last
