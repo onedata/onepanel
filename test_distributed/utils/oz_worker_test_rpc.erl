@@ -16,6 +16,9 @@
 
 %% API
 -export([
+    get_zone_configuration/1,
+    get_required_admin_priviliges/1,
+    get_env/2,
     create_group/2,
     get_group_users/2,
     list_users/1,
@@ -28,6 +31,22 @@
     get_spaces_ids/1,
     delete_space/2
 ]).
+
+
+-spec get_zone_configuration(test_config:config()) -> map().
+get_zone_configuration(Config) ->
+    {ok, ZoneConfiguration} = ?assertMatch({ok, _}, call_zone_node(Config, zone_logic, get_configuration, [])),
+    ZoneConfiguration.
+
+
+-spec get_required_admin_priviliges(test_config:config()) -> list().
+get_required_admin_priviliges(Config) ->
+    ?assertMatch(_, call_zone_node(Config, token_logic_plugin, required_admin_privileges, [ok])).
+
+
+-spec get_env(test_config:config(), atom()) -> term().
+get_env(Config, Env) ->
+    ?assertMatch(_, call_zone_node(Config, oz_worker, get_env, [Env])).
 
 
 -spec create_group(test_config:config(), binary()) -> binary().
