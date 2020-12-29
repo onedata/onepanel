@@ -30,12 +30,14 @@
 ]).
 
 -export([
-    get_onezone_policies_test/1
+    get_onezone_policies_test/1,
+    set_onezone_policies_test/1
 
 ]).
 
 all() -> [
-    get_onezone_policies_test
+    get_onezone_policies_test,
+    set_onezone_policies_test
 ].
 
 
@@ -62,9 +64,7 @@ get_onezone_policies_test(Config) ->
                     {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
-                forbidden = [
-                    peer
-                ]
+                forbidden = [peer]
             },
 
             prepare_args_fun = fun(_) ->
@@ -81,6 +81,83 @@ get_onezone_policies_test(Config) ->
         }
     ])).
 
+
+set_onezone_policies_test(Config) ->
+    OzPanelNodes = oct_background:get_zone_panels(),
+
+    ?assert(api_test_runner:run_tests(Config, [
+        #scenario_spec{
+            name = <<"Set Onezone policies using /zone/policies endpoint">>,
+            type = rest,
+            target_nodes = OzPanelNodes,
+            client_spec = #client_spec{
+                correct = [
+                    root,
+                    {member, [?CLUSTER_UPDATE, ?CLUSTER_SET_PRIVILEGES]}
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [peer]
+            },
+            data_spec = build_modify_onezone_policies_data_spec(),
+
+            prepare_args_fun = build_modify_onezone_policies_prepare_args_fun(),
+            validate_result_fun = api_test_validate:http_204_no_content(),
+            verify_fun = build_modify_onezone_policies_verify_fun(Config)
+
+        }
+    ])).
+
+
+%% @private
+build_modify_onezone_policies_data_spec() ->
+    #data_spec{
+        optional = [
+%%            <<"oneproviderRegistration">>,
+            <<"subdomainDelegation">>,
+            <<"guiPackageVerification">>,
+            <<"harvesterGuiPackageVerification">>
+        ],
+        correct_values = #{
+%%            <<"oneproviderRegistration">> => [<<"open">>, <<"restricted">>],
+            <<"subdomainDelegation">> => [true, false],
+            <<"guiPackageVerification">> => [true, false],
+            <<"harvesterGuiPackageVerification">> => [true, false]
+        },
+        bad_values = [
+            {<<"subdomainDelegation">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"subdomainDelegation">>)},
+            {<<"guiPackageVerification">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"guiPackageVerification">>)},
+            {<<"harvesterGuiPackageVerification">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"harvesterGuiPackageVerification">>)}
+        ]
+    }.
+
+
+%% @private
+build_modify_onezone_policies_prepare_args_fun() ->
+    fun(#api_test_ctx{data = Data}) ->
+        #rest_args{
+            method = patch,
+            path = <<"zone/policies">>,
+            headers = #{<<"content-type">> => <<"application/json">>},
+            body = json_utils:encode(Data)
+        }
+    end.
+
+
+%% @private
+build_modify_onezone_policies_verify_fun(Config) ->
+    fun
+        (expected_success, #api_test_ctx{data = Data}) ->
+            OnezonePolicies = get_onezone_policies_with_rpc(Config),
+
+            ?assert(maps_utils:is_submap(Data, OnezonePolicies)),
+            true;
+        (expected_failure, _) ->
+            true
+    end.
 
 %%%===================================================================
 %%% Helper functions
