@@ -117,7 +117,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
-    StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
+    StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
     SpaceId = create_and_support_space(Config, SpaceName, StorageName, SupportSize),
     ExpResult = get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize),
 
@@ -174,7 +174,7 @@ support_space_test(Config) ->
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     SpaceName = str_utils:rand_hex(12),
-    StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
+    StorageId = api_test_utils:get_storage_id_by_name(krakow, ?STORAGE_NAME),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -273,7 +273,7 @@ build_support_space_verify_fun(MemRef, Config) ->
             true;
         (expected_failure, _) ->
             SpaceId = api_test_memory:get(MemRef, space_id),
-            SpaceIds = op_worker_test_rpc:get_space_ids(Config),
+            SpaceIds = op_worker_test_rpc:get_space_ids(krakow),
 
             ?assertNot(lists:member(SpaceId, SpaceIds)),
             true
@@ -286,7 +286,7 @@ modify_space_support_test(Config) ->
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
-    StorageId = api_test_utils:get_storage_id_by_name(Config, ?STORAGE_NAME),
+    StorageId = api_test_utils:get_storage_id_by_name(krakow, ?STORAGE_NAME),
     SpaceName = str_utils:rand_hex(12),
     SupportSize = ?SUPPORT_SIZE,
 
@@ -323,7 +323,7 @@ modify_space_support_test(Config) ->
 build_modify_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, StorageId) ->
     fun() ->
         {SpaceId, Token} = create_space_and_support_token(Config, SpaceName),
-        op_worker_test_rpc:support_space(Config, StorageId, Token, SupportSize),
+        op_worker_test_rpc:support_space(krakow, StorageId, Token, SupportSize),
         SpaceDetails = get_space_details_with_rpc(Config, SpaceId),
         api_test_memory:set(MemRef, space_id, SpaceId),
         api_test_memory:set(MemRef, space_name, SpaceName),
@@ -463,7 +463,7 @@ build_revoke_space_support_prepare_rest_args_fun(MemRef) ->
 build_revoke_space_support_verify_fun(MemRef, Config) ->
     fun(ExpectedResult, _) ->
         SpaceId = api_test_memory:get(MemRef, space_id),
-        SupportedSpaces = op_worker_test_rpc:get_space_ids(Config),
+        SupportedSpaces = op_worker_test_rpc:get_space_ids(krakow),
 
         case ExpectedResult of
             expected_success -> ?assertNot(lists:member(SpaceId, SupportedSpaces));
@@ -481,7 +481,7 @@ build_revoke_space_support_verify_fun(MemRef, Config) ->
 %% @private
 -spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> map().
 get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) ->
-    [ProviderId] = op_worker_test_rpc:get_space_providers(Config, SpaceId),
+    [ProviderId] = op_worker_test_rpc:get_space_providers(krakow, SpaceId),
     SupportingProviders = #{
         ProviderId => SupportSize
     },
@@ -500,11 +500,11 @@ get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) -
 %% @private
 -spec get_space_details_with_rpc(test_config:config(), binary()) -> map().
 get_space_details_with_rpc(Config, SpaceId) ->
-    SpaceDoc = op_worker_test_rpc:get_space_document(Config, SpaceId),
-    StorageId = op_worker_test_rpc:get_local_storage_id(Config, SpaceId),
-    LocalStorages = op_worker_test_rpc:get_local_storage_ids(Config, SpaceId),
-    IsImportedStorage = op_worker_test_rpc:is_storage_imported(Config, StorageId),
-    AutocleaningStatus = op_worker_test_rpc:get_autocleaning_status(Config, SpaceId),
+    SpaceDoc = op_worker_test_rpc:get_space_document(krakow, SpaceId),
+    StorageId = op_worker_test_rpc:get_local_storage_id(krakow, SpaceId),
+    LocalStorages = op_worker_test_rpc:get_local_storage_ids(krakow, SpaceId),
+    IsImportedStorage = op_worker_test_rpc:is_storage_imported(krakow, StorageId),
+    AutocleaningStatus = op_worker_test_rpc:get_autocleaning_status(krakow, SpaceId),
 
     #{
         <<"id">> => SpaceId,
@@ -520,9 +520,9 @@ get_space_details_with_rpc(Config, SpaceId) ->
 %% @private
 -spec create_space_and_support_token(test_config:config(), binary()) -> {SpaceId :: binary(), SerializedToken :: binary()}.
 create_space_and_support_token(Config, SpaceName) ->
-    UserId = oz_worker_test_rpc:create_user(Config),
-    SpaceId = oz_worker_test_rpc:create_space(Config, UserId, SpaceName),
-    Token = oz_worker_test_rpc:create_space_support_token(Config, UserId, SpaceId),
+    UserId = oz_worker_test_rpc:create_user(),
+    SpaceId = oz_worker_test_rpc:create_space(UserId, SpaceName),
+    Token = oz_worker_test_rpc:create_space_support_token(UserId, SpaceId),
     {ok, SerializedToken} = tokens:serialize(Token),
     {SpaceId, SerializedToken}.
 
@@ -538,24 +538,24 @@ create_and_support_space(Config) ->
 -spec create_and_support_space(test_config:config(), binary(), binary(), binary()) -> SpaceId :: binary().
 create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
     {_, SerializedToken} = create_space_and_support_token(Config, SpaceName),
-    StorageId = api_test_utils:get_storage_id_by_name(Config, StorageName),
-    SpaceId = op_worker_test_rpc:support_space(Config, StorageId, SerializedToken, SupportSize),
-    ?assertEqual(true, lists:member(SpaceId, op_worker_test_rpc:get_space_ids(Config)), ?ATTEMPTS),
+    StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
+    SpaceId = op_worker_test_rpc:support_space(krakow, StorageId, SerializedToken, SupportSize),
+    ?assertEqual(true, lists:member(SpaceId, op_worker_test_rpc:get_space_ids(krakow)), ?ATTEMPTS),
     SpaceId.
 
 
 %% @private
 -spec unsupport_all_spaces(test_config:config()) -> ok.
 unsupport_all_spaces(Config) ->
-    SpacesId = op_worker_test_rpc:get_space_ids(Config),
-    [op_worker_test_rpc:revoke_space_support(Config, X) || X <- SpacesId].
+    SpacesId = op_worker_test_rpc:get_space_ids(krakow),
+    [op_worker_test_rpc:revoke_space_support(krakow, X) || X <- SpacesId].
 
 
 %% @private
 -spec delete_all_spaces(test_config:config()) -> ok.
 delete_all_spaces(Config) ->
-    SpacesId = oz_worker_test_rpc:get_spaces_ids(Config),
-    [oz_worker_test_rpc:delete_space(Config, X) || X <- SpacesId].
+    SpacesId = oz_worker_test_rpc:get_spaces_ids(),
+    [oz_worker_test_rpc:delete_space(X) || X <- SpacesId].
 
 
 %%%===================================================================
@@ -582,7 +582,7 @@ end_per_suite(_Config) ->
 init_per_testcase(get_space_ids_test, Config) ->
     unsupport_all_spaces(Config),
     delete_all_spaces(Config),
-    ?assertEqual([], op_worker_test_rpc:get_space_ids(Config), ?ATTEMPTS),
+    ?assertEqual([], op_worker_test_rpc:get_space_ids(krakow), ?ATTEMPTS),
     Config;
 
 init_per_testcase(_, Config) ->
