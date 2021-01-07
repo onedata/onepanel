@@ -152,10 +152,10 @@ build_create_user_verify_fun(MemRef, Config, Groups) ->
             ExpectedPassword = maps:get(<<"password">>, RequestData),
             ExpectedFullName = maps:get(<<"fullName">>, RequestData, <<"Unnamed User">>),
 
-            ?assertEqual(maps:is_key(<<"groups">>, RequestData), is_user_member_of_groups(Config, UserId, Groups)),
+            ?assertEqual(maps:is_key(<<"groups">>, RequestData), is_user_member_of_groups(UserId, Groups)),
             ?assertEqual(ExpectedFullName, maps:get(<<"fullName">>, UserDetails)),
             ?assertEqual(ExpectedUsername, maps:get(<<"username">>, UserDetails)),
-            ?assert(authentication_succeeds(Config, ExpectedUsername, ExpectedPassword)),
+            ?assert(authentication_succeeds(ExpectedUsername, ExpectedPassword)),
             true;
         (expected_failure, _) ->
             true
@@ -163,8 +163,8 @@ build_create_user_verify_fun(MemRef, Config, Groups) ->
 
 
 %% @private
--spec is_user_member_of_groups(test_config:config(), binary(), [binary()]) -> boolean().
-is_user_member_of_groups(Config, UserId, GroupIds) ->
+-spec is_user_member_of_groups(binary(), [binary()]) -> boolean().
+is_user_member_of_groups(UserId, GroupIds) ->
     lists:all(fun(GroupId) ->
         lists:member(UserId, oz_worker_test_rpc:get_group_users(GroupId))
     end, GroupIds).
@@ -195,7 +195,7 @@ get_user_details_test(Config) ->
                 ]
             },
 
-            setup_fun = build_get_user_details_setup_fun(Config, MemRef),
+            setup_fun = build_get_user_details_setup_fun(MemRef),
             data_spec = build_get_user_details_data_spec(OzWorkerNodes),
             prepare_args_fun = build_get_user_details_prepare_rest_args_fun(MemRef),
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
@@ -207,13 +207,13 @@ get_user_details_test(Config) ->
 
 
 %% @private
--spec build_get_user_details_setup_fun(test_config:config(), api_test_memory:env_ref()) -> api_test_runner:setup_fun().
-build_get_user_details_setup_fun(Config, MemRef) ->
+-spec build_get_user_details_setup_fun(api_test_memory:env_ref()) -> api_test_runner:setup_fun().
+build_get_user_details_setup_fun(MemRef) ->
     fun() ->
         Fullname = str_utils:rand_hex(5),
         Username = str_utils:rand_hex(5),
         Password = str_utils:rand_hex(10),
-        UserId = create_user(Config, Username, Fullname, Password),
+        UserId = create_user(Username, Fullname, Password),
         UserDetails = #{
             <<"userId">> => UserId,
             <<"username">> => Username,
@@ -256,7 +256,7 @@ set_user_password_test(Config) ->
     Fullname = str_utils:rand_hex(5),
     Username = str_utils:rand_hex(10),
     Password = str_utils:rand_hex(10),
-    UserId = create_user(Config, Username, Fullname, Password),
+    UserId = create_user(Username, Fullname, Password),
 
     api_test_memory:set(MemRef, user_id, UserId),
     api_test_memory:set(MemRef, old_password, Password),
@@ -285,7 +285,7 @@ set_user_password_test(Config) ->
             data_spec = build_set_user_password_data_spec(OzWorkerNodes),
             prepare_args_fun = build_set_user_password_prepare_rest_args_fun(MemRef),
             validate_result_fun = api_test_validate:http_204_no_content(),
-            verify_fun = build_set_user_password_verify_fun(MemRef, Config)
+            verify_fun = build_set_user_password_verify_fun(MemRef)
         }
     ])).
 
@@ -347,8 +347,8 @@ build_set_user_password_prepare_rest_args_fun(MemRef) ->
 
 
 %% @private
--spec build_set_user_password_verify_fun(api_test_memory:env_ref(), test_config:config()) -> api_test_runner:verify_fun().
-build_set_user_password_verify_fun(MemRef, Config) ->
+-spec build_set_user_password_verify_fun(api_test_memory:env_ref()) -> api_test_runner:verify_fun().
+build_set_user_password_verify_fun(MemRef) ->
     fun(ExpectedResult, _) ->
         UserName = api_test_memory:get(MemRef, user_name),
         OldPassword = api_test_memory:get(MemRef, old_password),
@@ -356,11 +356,11 @@ build_set_user_password_verify_fun(MemRef, Config) ->
 
         case ExpectedResult of
             expected_success ->
-                ?assert(authentication_succeeds(Config, UserName, NewPassword)),
-                NewPassword /= OldPassword andalso ?assertNot(authentication_succeeds(Config, UserName, OldPassword));
+                ?assert(authentication_succeeds(UserName, NewPassword)),
+                NewPassword /= OldPassword andalso ?assertNot(authentication_succeeds(UserName, OldPassword));
             expected_failure ->
-                ?assert(authentication_succeeds(Config, UserName, OldPassword)),
-                NewPassword /= OldPassword andalso ?assertNot(authentication_succeeds(Config, UserName, NewPassword))
+                ?assert(authentication_succeeds(UserName, OldPassword)),
+                NewPassword /= OldPassword andalso ?assertNot(authentication_succeeds(UserName, NewPassword))
         end,
         true
     end.
@@ -372,8 +372,8 @@ build_set_user_password_verify_fun(MemRef, Config) ->
 
 
 %% @private
--spec create_user(test_config:config(), binary(), binary(), basic_auth:password()) -> od_user:id().
-create_user(Config, Username, Fullname, Password) ->
+-spec create_user(binary(), binary(), basic_auth:password()) -> od_user:id().
+create_user(Username, Fullname, Password) ->
     UserData = #{
         <<"username">> => Username,
         <<"fullName">> => Fullname,
@@ -383,8 +383,8 @@ create_user(Config, Username, Fullname, Password) ->
 
 
 %% @private
--spec authentication_succeeds(test_config:config(), binary(), basic_auth:password()) -> boolean().
-authentication_succeeds(Config, UserName, Password) ->
+-spec authentication_succeeds(binary(), basic_auth:password()) -> boolean().
+authentication_succeeds(UserName, Password) ->
     case oz_worker_test_rpc:authenticate(UserName, Password) of
         {true, _} -> true;
         {error, _} -> false

@@ -121,14 +121,14 @@ add_s3_storage(Config) ->
                 headers = #{<<"content-type">> => <<"application/json">>},
                 body = json_utils:encode(RequestBody)}
             end,
-            verify_fun = build_add_s3_storage_verify_fun(Config, StorageIdsBeforeAdd, RequestBody),
+            verify_fun = build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody),
             validate_result_fun = api_test_validate:http_204_no_content()
         }
     ])).
 
 
 %% @private
-build_add_s3_storage_verify_fun(Config, StorageIdsBeforeAdd, RequestBody) ->
+build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody) ->
     fun
         (expected_success, _) ->
             StorageIdsAfterAdd = op_worker_test_rpc:get_storage_ids(krakow),
@@ -221,14 +221,14 @@ delete_s3_storage(Config) ->
                     method = delete,
                     path = <<"provider/storages/", StorageId/binary>>}
             end,
-            verify_fun = build_delete_s3_storage_verify_fun(Config, StorageId),
+            verify_fun = build_delete_s3_storage_verify_fun(StorageId),
             validate_result_fun = api_test_validate:http_204_no_content()
         }
     ])).
 
 
 %% @private
-build_delete_s3_storage_verify_fun(Config, StorageId) ->
+build_delete_s3_storage_verify_fun(StorageId) ->
     fun
         (ExpectedResult, _) ->
             StorageIdsAfterDelete = op_worker_test_rpc:get_storage_ids(krakow),

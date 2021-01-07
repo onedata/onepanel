@@ -66,10 +66,10 @@ all() -> [
 get_space_ids_test(Config) ->
     get_space_ids_test_base(Config, []),
 
-    FirstSpaceId = create_and_support_space(Config),
+    FirstSpaceId = create_and_support_space(),
     get_space_ids_test_base(Config, [FirstSpaceId]),
 
-    ManySpacesId = [create_and_support_space(Config) || _ <- lists:seq(1, 5)],
+    ManySpacesId = [create_and_support_space() || _ <- lists:seq(1, 5)],
     get_space_ids_test_base(Config, [FirstSpaceId | ManySpacesId]).
 
 
@@ -118,8 +118,8 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
-    SpaceId = create_and_support_space(Config, SpaceName, StorageName, SupportSize),
-    ExpResult = get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize),
+    SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize),
+    ExpResult = get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -194,8 +194,8 @@ support_space_test(Config) ->
                 forbidden = [peer]
             },
 
-            setup_fun = build_support_space_setup_fun(MemRef, Config, SpaceName),
-            verify_fun = build_support_space_verify_fun(MemRef, Config),
+            setup_fun = build_support_space_setup_fun(MemRef, SpaceName),
+            verify_fun = build_support_space_verify_fun(MemRef),
 
             prepare_args_fun = build_support_space_prepare_args_fun(MemRef),
             validate_result_fun = api_test_validate:http_201_created("provider/spaces/", <<"id">>,
@@ -209,9 +209,9 @@ support_space_test(Config) ->
 
 
 %% @private
-build_support_space_setup_fun(MemRef, Config, SpaceName) ->
+build_support_space_setup_fun(MemRef, SpaceName) ->
     fun() ->
-        {SpaceId, Token} = create_space_and_support_token(Config, SpaceName),
+        {SpaceId, Token} = create_space_and_support_token(SpaceName),
         api_test_memory:set(MemRef, support_token, Token),
         api_test_memory:set(MemRef, space_id, SpaceId),
         api_test_memory:set(MemRef, space_name, SpaceName),
@@ -258,7 +258,7 @@ build_support_space_prepare_args_fun(MemRef) ->
 
 
 %% @private
-build_support_space_verify_fun(MemRef, Config) ->
+build_support_space_verify_fun(MemRef) ->
     fun
         (expected_success, #api_test_ctx{data = Data}) ->
             SpaceId = api_test_memory:get(MemRef, space_id),
@@ -266,8 +266,8 @@ build_support_space_verify_fun(MemRef, Config) ->
             StorageId = maps:get(<<"storageId">>, Data),
             SupportSize = maps:get(<<"size">>, Data),
 
-            ExpectedSpaceDetails = get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize),
-            SpaceDetails = get_space_details_with_rpc(Config, SpaceId),
+            ExpectedSpaceDetails = get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize),
+            SpaceDetails = get_space_details_with_rpc(SpaceId),
 
             ?assertEqual(ExpectedSpaceDetails, SpaceDetails),
             true;
@@ -308,10 +308,10 @@ modify_space_support_test(Config) ->
                 forbidden = [peer]
             },
 
-            setup_fun = build_modify_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, StorageId),
+            setup_fun = build_modify_space_support_setup_fun(MemRef, SpaceName, SupportSize, StorageId),
             prepare_args_fun = build_modify_space_support_prepare_rest_args_fun(MemRef),
 
-            verify_fun = build_modify_space_support_verify_fun(MemRef, Config),
+            verify_fun = build_modify_space_support_verify_fun(MemRef),
             validate_result_fun = api_test_validate:http_204_no_content(),
 
             data_spec = build_modify_space_support_data_spec(SupportSize, OpWorkerNodes)
@@ -320,11 +320,11 @@ modify_space_support_test(Config) ->
 
 
 %% @private
-build_modify_space_support_setup_fun(MemRef, Config, SpaceName, SupportSize, StorageId) ->
+build_modify_space_support_setup_fun(MemRef, SpaceName, SupportSize, StorageId) ->
     fun() ->
-        {SpaceId, Token} = create_space_and_support_token(Config, SpaceName),
+        {SpaceId, Token} = create_space_and_support_token(SpaceName),
         op_worker_test_rpc:support_space(krakow, StorageId, Token, SupportSize),
-        SpaceDetails = get_space_details_with_rpc(Config, SpaceId),
+        SpaceDetails = get_space_details_with_rpc(SpaceId),
         api_test_memory:set(MemRef, space_id, SpaceId),
         api_test_memory:set(MemRef, space_name, SpaceName),
         api_test_memory:set(MemRef, storage_id, StorageId),
@@ -370,7 +370,7 @@ build_modify_space_support_prepare_rest_args_fun(MemRef) ->
 
 
 %% @private
-build_modify_space_support_verify_fun(MemRef, Config) ->
+build_modify_space_support_verify_fun(MemRef) ->
     fun
         (expected_success, #api_test_ctx{data = Data}) ->
             SpaceId = api_test_memory:get(MemRef, space_id),
@@ -379,11 +379,11 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
             SupportSize = api_test_memory:get(MemRef, support_size),
 
             ExpectedSpaceSupportSize = maps:get(<<"size">>, Data, SupportSize),
-            ExpectedSpaceDetails = get_expected_space_details(Config, SpaceId, SpaceName, StorageId, ExpectedSpaceSupportSize),
+            ExpectedSpaceDetails = get_expected_space_details(SpaceId, SpaceName, StorageId, ExpectedSpaceSupportSize),
 
             % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
             % (effective relation) and the information with updated support size might come with a delay.
-            ?assertEqual(ExpectedSpaceDetails, catch get_space_details_with_rpc(Config, SpaceId), ?ATTEMPTS),
+            ?assertEqual(ExpectedSpaceDetails, catch get_space_details_with_rpc(SpaceId), ?ATTEMPTS),
             true;
         (expected_failure, _) ->
             SpaceId = api_test_memory:get(MemRef, space_id),
@@ -391,7 +391,7 @@ build_modify_space_support_verify_fun(MemRef, Config) ->
 
             % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
             % (effective relation) and the information with updated support size might come with a delay.
-            ?assertEqual(SpaceDetailsBeforeTest, catch get_space_details_with_rpc(Config, SpaceId), ?ATTEMPTS),
+            ?assertEqual(SpaceDetailsBeforeTest, catch get_space_details_with_rpc(SpaceId), ?ATTEMPTS),
             true
     end.
 
@@ -420,9 +420,9 @@ revoke_space_support_test(Config) ->
                 forbidden = [peer]
             },
 
-            setup_fun = build_revoke_space_support_setup_fun(MemRef, Config),
+            setup_fun = build_revoke_space_support_setup_fun(MemRef),
             prepare_args_fun = build_revoke_space_support_prepare_rest_args_fun(MemRef),
-            verify_fun = build_revoke_space_support_verify_fun(MemRef, Config),
+            verify_fun = build_revoke_space_support_verify_fun(MemRef),
             data_spec = build_revoke_space_support_data_spec(OpWorkerNodes),
 
             validate_result_fun = api_test_validate:http_204_no_content()
@@ -439,9 +439,9 @@ build_revoke_space_support_data_spec(OpWorkerNodes) ->
 
 
 %% @private
-build_revoke_space_support_setup_fun(MemRef, Config) ->
+build_revoke_space_support_setup_fun(MemRef) ->
     fun() ->
-        SpaceId = create_and_support_space(Config),
+        SpaceId = create_and_support_space(),
         api_test_memory:set(MemRef, space_id, SpaceId)
     end.
 
@@ -460,7 +460,7 @@ build_revoke_space_support_prepare_rest_args_fun(MemRef) ->
 
 
 %% @private
-build_revoke_space_support_verify_fun(MemRef, Config) ->
+build_revoke_space_support_verify_fun(MemRef) ->
     fun(ExpectedResult, _) ->
         SpaceId = api_test_memory:get(MemRef, space_id),
         SupportedSpaces = op_worker_test_rpc:get_space_ids(krakow),
@@ -479,8 +479,8 @@ build_revoke_space_support_verify_fun(MemRef, Config) ->
 
 
 %% @private
--spec get_expected_space_details(test_config:config(), binary(), binary(), binary(), binary()) -> map().
-get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) ->
+-spec get_expected_space_details(binary(), binary(), binary(), binary()) -> map().
+get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize) ->
     [ProviderId] = op_worker_test_rpc:get_space_providers(krakow, SpaceId),
     SupportingProviders = #{
         ProviderId => SupportSize
@@ -498,8 +498,8 @@ get_expected_space_details(Config, SpaceId, SpaceName, StorageId, SupportSize) -
 
 
 %% @private
--spec get_space_details_with_rpc(test_config:config(), binary()) -> map().
-get_space_details_with_rpc(Config, SpaceId) ->
+-spec get_space_details_with_rpc(binary()) -> map().
+get_space_details_with_rpc(SpaceId) ->
     SpaceDoc = op_worker_test_rpc:get_space_document(krakow, SpaceId),
     StorageId = op_worker_test_rpc:get_local_storage_id(krakow, SpaceId),
     LocalStorages = op_worker_test_rpc:get_local_storage_ids(krakow, SpaceId),
@@ -518,8 +518,8 @@ get_space_details_with_rpc(Config, SpaceId) ->
 
 
 %% @private
--spec create_space_and_support_token(test_config:config(), binary()) -> {SpaceId :: binary(), SerializedToken :: binary()}.
-create_space_and_support_token(Config, SpaceName) ->
+-spec create_space_and_support_token(binary()) -> {SpaceId :: binary(), SerializedToken :: binary()}.
+create_space_and_support_token(SpaceName) ->
     UserId = oz_worker_test_rpc:create_user(),
     SpaceId = oz_worker_test_rpc:create_space(UserId, SpaceName),
     Token = oz_worker_test_rpc:create_space_support_token(UserId, SpaceId),
@@ -528,16 +528,16 @@ create_space_and_support_token(Config, SpaceName) ->
 
 
 %% @private
--spec create_and_support_space(test_config:config()) -> SpaceId :: binary().
-create_and_support_space(Config) ->
+-spec create_and_support_space() -> SpaceId :: binary().
+create_and_support_space() ->
     SpaceName = str_utils:rand_hex(12),
-    create_and_support_space(Config, SpaceName, ?STORAGE_NAME, ?SUPPORT_SIZE).
+    create_and_support_space(SpaceName, ?STORAGE_NAME, ?SUPPORT_SIZE).
 
 
 %% @private
--spec create_and_support_space(test_config:config(), binary(), binary(), binary()) -> SpaceId :: binary().
-create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
-    {_, SerializedToken} = create_space_and_support_token(Config, SpaceName),
+-spec create_and_support_space(binary(), binary(), binary()) -> SpaceId :: binary().
+create_and_support_space(SpaceName, StorageName, SupportSize) ->
+    {_, SerializedToken} = create_space_and_support_token( SpaceName),
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
     SpaceId = op_worker_test_rpc:support_space(krakow, StorageId, SerializedToken, SupportSize),
     ?assertEqual(true, lists:member(SpaceId, op_worker_test_rpc:get_space_ids(krakow)), ?ATTEMPTS),
@@ -545,15 +545,15 @@ create_and_support_space(Config, SpaceName, StorageName, SupportSize) ->
 
 
 %% @private
--spec unsupport_all_spaces(test_config:config()) -> ok.
-unsupport_all_spaces(Config) ->
+-spec unsupport_all_spaces() -> ok.
+unsupport_all_spaces() ->
     SpacesId = op_worker_test_rpc:get_space_ids(krakow),
     [op_worker_test_rpc:revoke_space_support(krakow, X) || X <- SpacesId].
 
 
 %% @private
--spec delete_all_spaces(test_config:config()) -> ok.
-delete_all_spaces(Config) ->
+-spec delete_all_spaces() -> ok.
+delete_all_spaces() ->
     SpacesId = oz_worker_test_rpc:get_spaces_ids(),
     [oz_worker_test_rpc:delete_space(X) || X <- SpacesId].
 
@@ -580,8 +580,8 @@ end_per_suite(_Config) ->
 
 
 init_per_testcase(get_space_ids_test, Config) ->
-    unsupport_all_spaces(Config),
-    delete_all_spaces(Config),
+    unsupport_all_spaces(),
+    delete_all_spaces(),
     ?assertEqual([], op_worker_test_rpc:get_space_ids(krakow), ?ATTEMPTS),
     Config;
 
