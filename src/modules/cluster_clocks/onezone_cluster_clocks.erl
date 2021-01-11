@@ -40,7 +40,7 @@ restart_periodic_sync() ->
         global_clock:reset_to_system_time(),
         true
     end),
-    cluster_clocks:restart_periodic_sync(?MODULE, fun prepare_cluster_clock_sync/0).
+    cluster_clocks:restart_periodic_sync(fun prepare_cluster_clock_sync/0).
 
 %%%===================================================================
 %%% Internal functions

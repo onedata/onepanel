@@ -525,7 +525,37 @@ cluster_clocks_sync_test(Config) ->
     image_test_utils:proxy_rpc(RandomNonMasterNode, global_clock, store_bias, [local_clock, timer:hours(-50)]),
     ?assertEqual(false, IsSyncedWithMaster(RandomNonMasterNode)),
     ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+
+    % simulate a situation when one of the nodes fails to synchronize its clock
+    % and check if the procedure that restarts clock sync correctly awaits and
+    % retries until the problem is resolved
+    OppMasterNode = hd(lists:sort(OppNodes)), % master node is selected as the first from sorted list
+    % below envs make it impossible for the node to successfully synchronize
+    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, -1]),
+    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, -1]),
+
+    % attempt the restart the clock sync in an async process (it should block until the sync is successful)
+    image_test_utils:proxy_rpc(OppMasterNode, global_clock, reset_to_system_time, []),
+    Master = self(),
+    AsyncProcess = spawn(fun() ->
+        Result = image_test_utils:proxy_rpc(OppMasterNode, oneprovider_cluster_clocks, restart_periodic_sync, []),
+        Master ! {restart_result, Result}
+    end),
+
+    ?assertEqual(false, IsSyncedWithMaster(OppMasterNode)),
+    timer:sleep(timer:seconds(10)),
+    ?assertEqual(false, IsSyncedWithMaster(OppMasterNode)),
+    % check that the async process is still waiting
+    ?assert(erlang:is_process_alive(AsyncProcess)),
+
+    % bring back the sane config and wait until the sync is successful
+    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, 2000]),
+    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, 10000]),
+    ?assertReceivedMatch({restart_result, ok}, timer:seconds(10)),
     ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
+
+
 
 
 services_stop_start_test(Config) ->

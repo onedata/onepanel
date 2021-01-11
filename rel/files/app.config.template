@@ -125,6 +125,12 @@
         %% General
         %% ===================================================================
 
+        %% Initial clock sync is required for the cluster to successfully
+        %% initialize (consecutive syncs are best effort). Below parameters can
+        %% be used to tune the number of attempts and the interval.
+        {initial_clock_synchronization_attempts, 40},
+        {initial_clock_synchronization_retry_delay, 15000},  % 40 * 15s = 10m
+
         %% How ofter the clocks of all nodes in the cluster are synchronized.
         %% In Onezone, the clocks are synchronized with the master oz-panel node.
         %% In Oneprovider, they are synchronized with Onezone's clock.
