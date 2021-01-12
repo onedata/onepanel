@@ -38,7 +38,7 @@
 -export([run_on_master/1]).
 -export([run_periodic_sync/1]).
 
-% cluster-specific callback run before every periodic clock sync, must return on of:
+% cluster-specific callback run before every periodic clock sync, must return one of:
 %   * the list of nodes to be synced
 %   * 'skip' atom that causes the current attempt to be skipped
 %   * 'abort' atom that causes the whole periodic sync to abort

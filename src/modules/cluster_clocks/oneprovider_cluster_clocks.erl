@@ -61,6 +61,7 @@ prepare_cluster_clock_sync() ->
     case service_oneprovider:is_registered() of
         false ->
             ?warning("Aborting periodic clock sync since the Oneprovider has been deregistered"),
+            % the periodic clock sync will be restarted upon the next registration
             abort;
         true ->
             case revise_master_sync_with_onezone() of

@@ -535,7 +535,7 @@ cluster_clocks_sync_test(Config) ->
     image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, -1]),
     image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, -1]),
 
-    % attempt the restart the clock sync in an async process (it should block until the sync is successful)
+    % try to restart the clock sync in an async process (it should block until the sync is successful)
     image_test_utils:proxy_rpc(OppMasterNode, global_clock, reset_to_system_time, []),
     Master = self(),
     AsyncProcess = spawn(fun() ->
@@ -554,8 +554,6 @@ cluster_clocks_sync_test(Config) ->
     image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, 10000]),
     ?assertReceivedMatch({restart_result, ok}, timer:seconds(10)),
     ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
-
-
 
 
 services_stop_start_test(Config) ->
