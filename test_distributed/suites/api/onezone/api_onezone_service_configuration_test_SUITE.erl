@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file provides tests concerning onezone user management API (REST).
+%%% This file provides tests concerning onezone service configuration API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_onezone_service_configuration_test_SUITE).
@@ -32,7 +32,6 @@
 -export([
     get_onezone_policies_test/1,
     set_onezone_policies_test/1
-
 ]).
 
 all() -> [
@@ -48,6 +47,7 @@ all() -> [
 
 get_onezone_policies_test(Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
+    ExpectedPolicies = get_onezone_policies_with_rpc(Config),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -57,7 +57,7 @@ get_onezone_policies_test(Config) ->
             client_spec = #client_spec{
                 correct = [
                     root,
-                    {member, [?CLUSTER_UPDATE]}
+                    member
                 ],
                 unauthorized = [
                     guest,
@@ -74,7 +74,6 @@ get_onezone_policies_test(Config) ->
                 }
             end,
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
-                ExpectedPolicies = get_onezone_policies_with_rpc(Config),
                 ?assertEqual(ExpectedPolicies, Body)
             end)
 
@@ -107,27 +106,29 @@ set_onezone_policies_test(Config) ->
             prepare_args_fun = build_modify_onezone_policies_prepare_args_fun(),
             validate_result_fun = api_test_validate:http_204_no_content(),
             verify_fun = build_modify_onezone_policies_verify_fun(Config)
-
         }
     ])).
 
 
 %% @private
+-spec build_modify_onezone_policies_data_spec() -> api_test_runner:data_spec().
 build_modify_onezone_policies_data_spec() ->
     #data_spec{
         optional = [
-%%            <<"oneproviderRegistration">>,
+            <<"oneproviderRegistration">>,
             <<"subdomainDelegation">>,
             <<"guiPackageVerification">>,
             <<"harvesterGuiPackageVerification">>
         ],
         correct_values = #{
-%%            <<"oneproviderRegistration">> => [<<"open">>, <<"restricted">>],
+            <<"oneproviderRegistration">> => [<<"open">>, <<"restricted">>],
             <<"subdomainDelegation">> => [true, false],
             <<"guiPackageVerification">> => [true, false],
             <<"harvesterGuiPackageVerification">> => [true, false]
         },
         bad_values = [
+            {<<"oneproviderRegistration">>, <<"valueNotAllowed">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(<<"oneproviderRegistration">>, [<<"open">>, <<"restricted">>])},
+            {<<"oneproviderRegistration">>, value_not_allowed, ?ERROR_BAD_VALUE_NOT_ALLOWED(<<"oneproviderRegistration">>, [<<"open">>, <<"restricted">>])},
             {<<"subdomainDelegation">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"subdomainDelegation">>)},
             {<<"guiPackageVerification">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"guiPackageVerification">>)},
             {<<"harvesterGuiPackageVerification">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"harvesterGuiPackageVerification">>)}
@@ -136,6 +137,7 @@ build_modify_onezone_policies_data_spec() ->
 
 
 %% @private
+-spec build_modify_onezone_policies_prepare_args_fun() -> api_test_runner:prepare_args_fun().
 build_modify_onezone_policies_prepare_args_fun() ->
     fun(#api_test_ctx{data = Data}) ->
         #rest_args{
@@ -148,6 +150,7 @@ build_modify_onezone_policies_prepare_args_fun() ->
 
 
 %% @private
+-spec build_modify_onezone_policies_verify_fun(test_config:config()) -> api_test_runner:verify_fun().
 build_modify_onezone_policies_verify_fun(Config) ->
     fun
         (expected_success, #api_test_ctx{data = Data}) ->
@@ -159,6 +162,7 @@ build_modify_onezone_policies_verify_fun(Config) ->
             true
     end.
 
+
 %%%===================================================================
 %%% Helper functions
 %%%===================================================================
@@ -168,18 +172,14 @@ build_modify_onezone_policies_verify_fun(Config) ->
 -spec get_onezone_policies_with_rpc(test_config:config()) -> map().
 get_onezone_policies_with_rpc(Config) ->
     ZoneConfiguration = oz_worker_test_rpc:get_zone_configuration(Config),
-    RequiredAdminPriviliges = oz_worker_test_rpc:get_required_admin_priviliges(Config),
-    OneproviderRegistration = case lists:member(oz_providers_invite, RequiredAdminPriviliges) of
-        true -> <<"restricted">>;
-        false -> <<"open">>
-    end,
+    OneproviderRegistration = oz_worker_test_rpc:get_env(Config, provider_registration_policy),
     GuiPackageVerification = oz_worker_test_rpc:get_env(Config, gui_package_verification),
-    HarversterGuiPackageVerification = oz_worker_test_rpc:get_env(Config, harvester_gui_package_verification),
+    HarvesterGuiPackageVerification = oz_worker_test_rpc:get_env(Config, harvester_gui_package_verification),
 
     #{
         <<"guiPackageVerification">> => GuiPackageVerification,
-        <<"harvesterGuiPackageVerification">> => HarversterGuiPackageVerification,
-        <<"oneproviderRegistration">> => OneproviderRegistration,
+        <<"harvesterGuiPackageVerification">> => HarvesterGuiPackageVerification,
+        <<"oneproviderRegistration">> => atom_to_binary(OneproviderRegistration, utf8),
         <<"subdomainDelegation">> => maps:get(subdomainDelegationSupported, ZoneConfiguration)
     }.
 
@@ -195,6 +195,7 @@ init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
         onenv_scenario = "1op"
     }).
+
 
 end_per_suite(_Config) ->
     hackney:stop(),
