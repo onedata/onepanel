@@ -42,7 +42,7 @@ synchronize_node_upon_start(Node) ->
 
 -spec restart_periodic_sync() -> ok | no_return().
 restart_periodic_sync() ->
-    cluster_clocks:restart_periodic_sync(?MODULE, fun prepare_cluster_clock_sync/0).
+    cluster_clocks:restart_periodic_sync(fun prepare_cluster_clock_sync/0).
 
 %%%===================================================================
 %%% Internal functions
@@ -58,9 +58,16 @@ restart_periodic_sync() ->
 %%--------------------------------------------------------------------
 -spec prepare_cluster_clock_sync() -> {ok, [node()]} | skip.
 prepare_cluster_clock_sync() ->
-    case revise_master_sync_with_onezone() of
-        true -> {ok, service_nodes_to_sync()};
-        false -> skip
+    case service_oneprovider:is_registered() of
+        false ->
+            ?warning("Aborting periodic clock sync since the Oneprovider has been deregistered"),
+            % the periodic clock sync will be restarted upon the next registration
+            abort;
+        true ->
+            case revise_master_sync_with_onezone() of
+                true -> {ok, service_nodes_to_sync()};
+                false -> skip
+            end
     end.
 
 
