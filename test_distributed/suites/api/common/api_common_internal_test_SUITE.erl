@@ -31,21 +31,22 @@
 
 -export([
     get_remote_op_details_test/1,
-    get_op_test_image_test/1
+    get_test_image_test/1
 
 ]).
 
 all() -> [
     get_remote_op_details_test,
-    get_op_test_image_test
+    get_test_image_test
 
 ].
 
--define(TEST_IMAGE, <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0, 37,
+-define(TEST_IMAGE, <<
+    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0, 37,
     219, 86, 202, 0, 0, 0, 6, 80, 76, 84, 69, 0, 0, 0, 255, 255, 255, 165, 217, 159, 221, 0, 0, 0, 9, 112,
     72, 89, 115, 0, 0, 14, 196, 0, 0, 14, 196, 1, 149, 43, 14, 27, 0, 0, 0, 10, 73, 68, 65, 84, 8, 153, 99,
-    96, 0, 0, 0, 2, 0, 1, 244, 113, 100, 166, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130>>
-).
+    96, 0, 0, 0, 2, 0, 1, 244, 113, 100, 166, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+>>).
 
 
 %%%===================================================================
@@ -53,44 +54,47 @@ all() -> [
 %%%===================================================================
 
 get_remote_op_details_test(Config) ->
-    get_remote_op_details_test_base(Config, krakow),
-    get_remote_op_details_test_base(Config, paris).
+    get_remote_op_details_test_base(Config, krakow, krakow),
+    get_remote_op_details_test_base(Config, paris, paris).
 
 
 %% @private
-get_remote_op_details_test_base(Config, Provider) ->
-    ProviderId = oct_background:get_provider_id(Provider),
-    OpPanelNodes = oct_background:get_provider_panels(Provider),
+get_remote_op_details_test_base(Config, Target,  RemoteProvider) ->
+    TargetNodes = oct_background:get_provider_panels(Target),
+    TargetId = oct_background:get_provider_id(Target),
+
+    RemoteProviderId = oct_background:get_provider_id(RemoteProvider),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get provider details using /providers rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = TargetNodes,
             client_spec = #client_spec{
                 correct = [
                     % Only member can fetch data, root is not a member of any provider, therefore he receives an error.
                     % root
-                    {member, []}
+                    {member, [?OZ_PROVIDERS_VIEW]}
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, TargetId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
             },
             prepare_args_fun = fun(_) -> #rest_args{
                 method = get,
-                path = <<"providers/", ProviderId/binary>>
+                path = <<"providers/", RemoteProviderId/binary>>
             } end,
 
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                ExpDetails = get_expected_provider_details(Provider),
+                ExpDetails = get_expected_provider_details(RemoteProvider),
                 ?assertEqual(ExpDetails, RespBody)
             end)
         }
     ])).
+
 
 
 %% @private
@@ -119,21 +123,20 @@ get_expected_provider_details(Provider) ->
     }).
 
 
-get_op_test_image_test(Config) ->
-    get_op_test_image_test_base(Config, krakow),
-    get_op_test_image_test_base(Config, paris).
+get_test_image_test(Config) ->
+    get_op_test_image_test_base(Config, ?OP_PANEL, oct_background:get_provider_id(krakow), oct_background:get_provider_panels(krakow)),
+    get_op_test_image_test_base(Config, ?OP_PANEL, oct_background:get_provider_id(paris), oct_background:get_provider_panels(paris)),
+    get_op_test_image_test_base(Config, ?OZ_PANEL, oct_background:to_entity_id(zone),oct_background:get_zone_panels()).
 
 
 %% @private
-get_op_test_image_test_base(Config, Provider) ->
-    ProviderId = oct_background:get_provider_id(Provider),
-    OpPanelNodes = oct_background:get_provider_panels(Provider),
+get_op_test_image_test_base(Config, TargetService, TargetId, TargetNodes) ->
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get provider details using /providers rest endpoint">>,
             type = rest,
-            target_nodes = OpPanelNodes,
+            target_nodes = TargetNodes,
             client_spec = #client_spec{
                 correct = [
                     root,
@@ -142,7 +145,7 @@ get_op_test_image_test_base(Config, Provider) ->
                     peer
                 ],
                 unauthorized = [
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetService, TargetId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ]
             },
