@@ -26,15 +26,16 @@
 {dialyzer, [
     {warnings, [error_handling, race_conditions, unknown]},
     {plt_extra_apps, [
-        mnesia, ssl, ctool, ranch, cowboy, yamerl, xmerl, jiffy,
+        mnesia, ssl, ctool, ranch, cowboy, onenv_ct, yamerl, xmerl, jiffy,
         base64url, ssl_verify_fun, macaroons
     ]}
 ]}.
 
 {deps, [
-    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "00914141857d"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "31450f03a3de"}}},
+    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "2290c91a390b"}}}},
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "70a4aa480efa"}}},
     {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "026537d41a88be"}}},
+    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "6c1d1f7984bbda6202e"}}},
     {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
 ]}.
 

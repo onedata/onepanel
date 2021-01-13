@@ -579,11 +579,19 @@ get_acl_group_to_onedata_group_mapping(Ctx = #{id := StorageId, aclGroup := AclU
     end, Ctx).
 
 -spec add_onedata_user_to_credentials_mapping(Ctx :: service:step_ctx()) -> ok.
-add_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, storageUser := StorageUser, onedataUser := OnedataUser}) ->
+add_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, storageUser := StorageUser0, onedataUser := OnedataUser}) ->
     op_worker_luma:execute(fun() ->
-        OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
-        StorageUser2 = onepanel_utils:convert_recursive(StorageUser, {keys, binary}),
-        op_worker_rpc:luma_storage_users_store(StorageId, OnedataUser2, StorageUser2)
+        Storage = op_worker_storage:get(StorageId),
+        StorageType = maps:get(type, Storage),
+        case kv_utils:get([storageCredentials, type], StorageUser0) of
+            StorageType ->
+                OnedataUser2 = onepanel_utils:convert(OnedataUser, {keys, binary}),
+                StorageUser1 = kv_utils:remove([storageCredentials, type], StorageUser0),
+                StorageUser2 = onepanel_utils:convert_recursive(StorageUser1, {keys, binary}),
+                op_worker_rpc:luma_storage_users_store(StorageId, OnedataUser2, StorageUser2);
+            _OtherType ->
+                ?ERROR_BAD_VALUE_NOT_ALLOWED(type, [StorageType])
+        end
     end, Ctx).
 
 -spec add_default_posix_credentials(Ctx :: service:step_ctx()) -> ok.

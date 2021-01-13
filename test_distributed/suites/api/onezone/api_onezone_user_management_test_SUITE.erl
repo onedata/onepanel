@@ -19,6 +19,7 @@
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
 -export([all/0]).
@@ -49,8 +50,8 @@ all() -> [
 create_user_test(Config) ->
     MemRef = api_test_memory:init(),
 
-    OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
-    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
+    OzPanelNodes = oct_background:get_zone_panels(),
+    OzWorkerNodes = oct_background:get_zone_nodes(),
 
     GroupIds = [oz_worker_test_rpc:create_group(Config, str_utils:rand_hex(6)) || _ <- lists:seq(1, 3)],
 
@@ -171,8 +172,8 @@ is_user_member_of_groups(Config, UserId, GroupIds) ->
 
 get_user_details_test(Config) ->
     MemRef = api_test_memory:init(),
-    OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
-    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
+    OzPanelNodes = oct_background:get_zone_panels(),
+    OzWorkerNodes = oct_background:get_zone_nodes(),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -249,8 +250,8 @@ build_get_user_details_prepare_rest_args_fun(MemRef) ->
 
 set_user_password_test(Config) ->
     MemRef = api_test_memory:init(),
-    OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
-    OzWorkerNodes = test_config:get_all_oz_worker_nodes(Config),
+    OzPanelNodes = oct_background:get_zone_panels(),
+    OzWorkerNodes = oct_background:get_zone_nodes(),
 
     Fullname = str_utils:rand_hex(5),
     Username = str_utils:rand_hex(10),
@@ -398,11 +399,9 @@ authentication_succeeds(Config, UserName, Password) ->
 init_per_suite(Config) ->
     application:start(ssl),
     hackney:start(),
-    test_config:set_many(Config, [
-        {set_onenv_scenario, ["1op"]}, % name of yaml file in test_distributed/onenv_scenarios
-        {set_posthook, fun onenv_test_utils:prepare_base_test_config/1}
-    ]).
-
+    oct_background:init_per_suite(Config, #onenv_test_config{
+        onenv_scenario = "1op"
+    }).
 
 end_per_suite(_Config) ->
     hackney:stop(),
