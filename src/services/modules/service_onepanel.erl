@@ -400,7 +400,7 @@ ensure_node_ready(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec reload_webcert(service:step_ctx()) -> ok.
 reload_webcert(_Ctx) ->
-    ssl:clear_pem_cache().
+    https_listener:restart_and_reload_web_certs().
 
 
 %%--------------------------------------------------------------------
