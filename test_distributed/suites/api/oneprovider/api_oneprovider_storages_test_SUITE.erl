@@ -55,7 +55,7 @@ all() -> [
 get_storages_ids(Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-    StoragesIds = op_worker_test_rpc:get_storage_ids(krakow),
+    StoragesIds = opw_test_rpc:storage_list_ids(krakow),
 
     ExpectedData = #{
         <<"ids">> => StoragesIds
@@ -93,7 +93,7 @@ add_s3_storage(Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
-    StorageIdsBeforeAdd = op_worker_test_rpc:get_storage_ids(krakow),
+    StorageIdsBeforeAdd = opw_test_rpc:storage_list_ids(krakow),
 
     RequestBody = ?S3_STORAGE_SPEC,
 
@@ -131,15 +131,15 @@ add_s3_storage(Config) ->
 build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody) ->
     fun
         (expected_success, _) ->
-            StorageIdsAfterAdd = op_worker_test_rpc:get_storage_ids(krakow),
+            StorageIdsAfterAdd = opw_test_rpc:storage_list_ids(krakow),
 
             % todo: VFS-6716 get NewStorageId from HTTP response
             [NewStorageID] = ?assertMatch([_], lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd)),
-            StorageDetails = op_worker_test_rpc:describe_storage(krakow, NewStorageID),
+            StorageDetails = opw_test_rpc:storage_describe(krakow, NewStorageID),
             ?assert(add_request_match_response(RequestBody, StorageDetails)),
             true;
         (expected_failure, _) ->
-            StorageIdsAfterAdd = op_worker_test_rpc:get_storage_ids(krakow),
+            StorageIdsAfterAdd = opw_test_rpc:storage_list_ids(krakow),
             ?assertEqual(StorageIdsBeforeAdd, StorageIdsAfterAdd),
             true
     end.
@@ -182,7 +182,7 @@ get_s3_storage(Config) ->
                     path = <<"provider/storages/", StorageId/binary>>}
             end,
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                StorageDetails = op_worker_test_rpc:describe_storage(krakow, StorageId),
+                StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
                 StorageDetailsBinary = onepanel_utils:convert_recursive(StorageDetails, {map, binary}),
                 RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
                 ?assertEqual(StorageDetailsBinary, RespBodyBinary)
@@ -231,7 +231,7 @@ delete_s3_storage(Config) ->
 build_delete_s3_storage_verify_fun(StorageId) ->
     fun
         (ExpectedResult, _) ->
-            StorageIdsAfterDelete = op_worker_test_rpc:get_storage_ids(krakow),
+            StorageIdsAfterDelete = opw_test_rpc:storage_list_ids(krakow),
             case ExpectedResult of
                 expected_success -> ?assertNot(lists:member(StorageId, StorageIdsAfterDelete));
                 expected_failure -> ?assert(lists:member(StorageId, StorageIdsAfterDelete))

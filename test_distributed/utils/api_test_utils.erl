@@ -71,8 +71,8 @@ substitute_placeholders(Data, ReplacementsMap) ->
 
 -spec get_storage_id_by_name(test_config:config(), binary()) -> binary().
 get_storage_id_by_name(ProviderIdOrPlaceholder, StorageName) ->
-    StorageIds = op_worker_test_rpc:get_storage_ids(ProviderIdOrPlaceholder),
-    Storages = [op_worker_test_rpc:describe_storage(ProviderIdOrPlaceholder, X) || X <- StorageIds],
+    StorageIds = opw_test_rpc:storage_list_ids(ProviderIdOrPlaceholder),
+    Storages = [opw_test_rpc:storage_describe(ProviderIdOrPlaceholder, X) || X <- StorageIds],
 
     [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
     StorageId.
