@@ -314,13 +314,12 @@ obtain_cert(Ctx) ->
 
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
 
-    % Reloading webcerts stops https_listener and kills all connection. To ensure
-    % that response to PATCH /web_certs is send rather than doing it synchronously
+    % Reloading webcerts stops https_listener and kills all connections. To ensure
+    % that response to PATCH /web_certs is sent rather than doing it synchronously
     % spawn separate process that will do it with delay
-    spawn(fun() ->
-        timer:sleep(timer:seconds(5)),
-        service:apply_sync(?SERVICE_PANEL, reload_webcert, #{})
-    end),
+    timer:apply_after(timer:seconds(5), service, apply_sync, [
+        ?SERVICE_PANEL, reload_webcert, #{}
+    ]),
 
     ok.
 
