@@ -171,16 +171,16 @@ build_modify_onezone_policies_verify_fun(Config) ->
 %% @private
 -spec get_onezone_policies_with_rpc(test_config:config()) -> map().
 get_onezone_policies_with_rpc(Config) ->
-    ZoneConfiguration = oz_worker_test_rpc:get_zone_configuration(Config),
     OneproviderRegistration = oz_worker_test_rpc:get_env(Config, provider_registration_policy),
     GuiPackageVerification = oz_worker_test_rpc:get_env(Config, gui_package_verification),
     HarvesterGuiPackageVerification = oz_worker_test_rpc:get_env(Config, harvester_gui_package_verification),
+    SubdomainDelegationSupported = oz_worker_test_rpc:get_env(Config, subdomain_delegation_supported),
 
     #{
         <<"guiPackageVerification">> => GuiPackageVerification,
         <<"harvesterGuiPackageVerification">> => HarvesterGuiPackageVerification,
         <<"oneproviderRegistration">> => atom_to_binary(OneproviderRegistration, utf8),
-        <<"subdomainDelegation">> => maps:get(subdomainDelegationSupported, ZoneConfiguration)
+        <<"subdomainDelegation">> => SubdomainDelegationSupported
     }.
 
 
