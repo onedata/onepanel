@@ -31,7 +31,7 @@
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},2},
  {<<"gui">>,
   {git,"ssh://git@git.onedata.org:7999/vfs/gui.git",
-       {ref,"d78fc2f0e6fa86d43a2cae6afad7ed24b3dce09a"}},
+       {ref,"f5e769d1a3e3649ab949db7bd93c02f7dd0832cb"}},
   0},
  {<<"hackney">>,
   {git,"git://github.com/bwalkowi/hackney.git",
