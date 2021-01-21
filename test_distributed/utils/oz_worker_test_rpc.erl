@@ -16,7 +16,6 @@
 
 %% API
 -export([
-    get_zone_configuration/1,
     get_env/2,
     create_group/2,
     get_group_users/2,
@@ -30,12 +29,6 @@
     get_spaces_ids/1,
     delete_space/2
 ]).
-
-
--spec get_zone_configuration(test_config:config()) -> map().
-get_zone_configuration(Config) ->
-    {ok, ZoneConfiguration} = ?assertMatch({ok, _}, call_zone_node(Config, zone_logic, get_configuration, [])),
-    ZoneConfiguration.
 
 
 -spec get_env(test_config:config(), atom()) -> term().
