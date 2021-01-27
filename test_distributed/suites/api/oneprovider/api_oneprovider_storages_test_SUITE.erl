@@ -55,7 +55,7 @@ all() -> [
 get_storages_ids(Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-    StoragesIds = opw_test_rpc:storage_list_ids(krakow),
+    StoragesIds = opw_test_rpc:get_storages(krakow),
 
     ExpectedData = #{
         <<"ids">> => StoragesIds
@@ -93,7 +93,7 @@ add_s3_storage(Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
-    StorageIdsBeforeAdd = opw_test_rpc:storage_list_ids(krakow),
+    StorageIdsBeforeAdd = opw_test_rpc:get_storages(krakow),
 
     RequestBody = ?S3_STORAGE_SPEC,
 
@@ -131,7 +131,7 @@ add_s3_storage(Config) ->
 build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody) ->
     fun
         (expected_success, _) ->
-            StorageIdsAfterAdd = opw_test_rpc:storage_list_ids(krakow),
+            StorageIdsAfterAdd = opw_test_rpc:get_storages(krakow),
 
             % todo: VFS-6716 get NewStorageId from HTTP response
             [NewStorageID] = ?assertMatch([_], lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd)),
@@ -139,7 +139,7 @@ build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody) ->
             ?assert(add_request_match_response(RequestBody, StorageDetails)),
             true;
         (expected_failure, _) ->
-            StorageIdsAfterAdd = opw_test_rpc:storage_list_ids(krakow),
+            StorageIdsAfterAdd = opw_test_rpc:get_storages(krakow),
             ?assertEqual(StorageIdsBeforeAdd, StorageIdsAfterAdd),
             true
     end.
@@ -231,7 +231,7 @@ delete_s3_storage(Config) ->
 build_delete_s3_storage_verify_fun(StorageId) ->
     fun
         (ExpectedResult, _) ->
-            StorageIdsAfterDelete = opw_test_rpc:storage_list_ids(krakow),
+            StorageIdsAfterDelete = opw_test_rpc:get_storages(krakow),
             case ExpectedResult of
                 expected_success -> ?assertNot(lists:member(StorageId, StorageIdsAfterDelete));
                 expected_failure -> ?assert(lists:member(StorageId, StorageIdsAfterDelete))

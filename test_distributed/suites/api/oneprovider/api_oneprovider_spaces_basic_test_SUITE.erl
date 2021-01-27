@@ -501,8 +501,8 @@ get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize) ->
 -spec get_space_details_with_rpc(binary()) -> map().
 get_space_details_with_rpc(SpaceId) ->
     SpaceDoc = opw_test_rpc:get_space_details(krakow, SpaceId),
-    StorageId = opw_test_rpc:get_local_storage_id(krakow, SpaceId),
-    LocalStorages = opw_test_rpc:get_local_storage_ids(krakow, SpaceId),
+    StorageId = opw_test_rpc:get_local_storage(krakow, SpaceId),
+    LocalStorages = opw_test_rpc:get_local_storages(krakow, SpaceId),
     IsImportedStorage = opw_test_rpc:is_storage_imported(krakow, StorageId),
     AutocleaningStatus = opw_test_rpc:get_autocleaning_status(krakow, SpaceId),
 
@@ -554,7 +554,7 @@ unsupport_all_spaces() ->
 %% @private
 -spec delete_all_spaces() -> ok.
 delete_all_spaces() ->
-    SpacesId = ozw_test_rpc:list_spaces(),
+    SpacesId = ozw_test_rpc:get_spaces(),
     [ozw_test_rpc:delete_space(X) || X <- SpacesId].
 
 

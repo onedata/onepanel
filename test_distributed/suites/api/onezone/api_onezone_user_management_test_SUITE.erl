@@ -80,11 +80,11 @@ create_user_test(Config) ->
             validate_result_fun = api_test_validate:http_201_created("zone/users/", <<"id">>,
                 fun(NewUserId) ->
                     api_test_memory:set(MemRef, user_id, NewUserId),
-                    Users = ozw_test_rpc:list_users(),
+                    Users = ozw_test_rpc:get_users(),
                     ?assert(lists:member(NewUserId, Users))
                 end
             ),
-            verify_fun = build_create_user_verify_fun(MemRef, Config, GroupIds)
+            verify_fun = build_create_user_verify_fun(MemRef, GroupIds)
         }
     ])).
 
@@ -141,8 +141,8 @@ build_create_user_prepare_args_fun(MemRef) ->
 
 
 %% @private
--spec build_create_user_verify_fun(api_test_memory:env_ref(), test_config:config(), [binary()]) -> api_test_runner:verify_fun().
-build_create_user_verify_fun(MemRef, Config, Groups) ->
+-spec build_create_user_verify_fun(api_test_memory:env_ref(), [binary()]) -> api_test_runner:verify_fun().
+build_create_user_verify_fun(MemRef, Groups) ->
     fun
         (expected_success, _) ->
             UserId = api_test_memory:get(MemRef, user_id),
@@ -385,10 +385,7 @@ create_user(Username, Fullname, Password) ->
 %% @private
 -spec authentication_succeeds(binary(), basic_auth:password()) -> boolean().
 authentication_succeeds(UserName, Password) ->
-    case ozw_test_rpc:authenticate(UserName, Password) of
-        {true, _} -> true;
-        {error, _} -> false
-    end.
+    ozw_test_rpc:are_basic_credentials_valid(UserName, Password).
 
 
 %%%===================================================================

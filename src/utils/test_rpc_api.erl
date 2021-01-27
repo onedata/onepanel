@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Module exposing onepanel functions, that are used in tests.
+%%% Module exposing onepanel functions that are used in tests.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(test_rpc_api).
