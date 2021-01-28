@@ -597,7 +597,7 @@ post_should_register_provider(Config) ->
         )),
         ?assertReceivedMatch({service, oneprovider, register, #{
             oneprovider_token := Token,
-            onezone_domain := <<"some.domain">>,
+            oneprovider_token_provision_method := <<"inline">>,
             oneprovider_name := <<"someName">>,
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
