@@ -190,7 +190,6 @@ service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     OpDomain = ?config(oneprovider_domain, Config),
-    OzDomain = ?config(onezone_domain, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
 
     % test the alternative way of providing the registration token
@@ -211,8 +210,7 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_domain => OpDomain,
         oneprovider_admin_email => <<"admin@onedata.org">>,
         oneprovider_token_provision_method => <<"fromFile">>,
-        oneprovider_token_file => RegistrationTokenFile,
-        onezone_domain => str_utils:to_binary(OzDomain)
+        oneprovider_token_file => RegistrationTokenFile
     }).
 
 
