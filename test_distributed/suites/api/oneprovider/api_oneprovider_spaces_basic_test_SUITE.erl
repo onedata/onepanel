@@ -501,8 +501,9 @@ get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize) ->
 -spec get_space_details_with_rpc(binary()) -> map().
 get_space_details_with_rpc(SpaceId) ->
     SpaceDoc = opw_test_rpc:get_space_details(krakow, SpaceId),
-    StorageId = opw_test_rpc:get_local_storage(krakow, SpaceId),
-    LocalStorages = opw_test_rpc:get_local_storages(krakow, SpaceId),
+
+    % TODO VFS-5497 Until multisupport is implemented, this list always has 1 storage
+    [StorageId] = opw_test_rpc:get_space_local_storages(krakow, SpaceId),
     IsImportedStorage = opw_test_rpc:is_storage_imported(krakow, StorageId),
     AutocleaningStatus = opw_test_rpc:get_autocleaning_status(krakow, SpaceId),
 
@@ -510,7 +511,7 @@ get_space_details_with_rpc(SpaceId) ->
         <<"id">> => SpaceId,
         <<"name">> => maps:get(name, SpaceDoc),
         <<"storageId">> => StorageId,
-        <<"localStorages">> => LocalStorages,
+        <<"localStorages">> => [StorageId],
         <<"supportingProviders">> => maps:get(providers, SpaceDoc),
         <<"importedStorage">> => IsImportedStorage,
         <<"spaceOccupancy">> => maps:get(spaceOccupancy, AutocleaningStatus)
