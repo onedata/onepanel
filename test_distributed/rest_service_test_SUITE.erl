@@ -588,7 +588,7 @@ post_should_configure_oneprovider_service(Config) ->
                 oneprovider_domain := <<"someDomain">>,
                 oneprovider_register := true,
                 oneprovider_token := Token,
-                onezone_domain := ?TOKEN_ONEZONE_DOMAIN
+                oneprovider_token_provision_method := <<"inline">>
             }
         }}, ?TIMEOUT)
     end, [{oneprovider_hosts, <<"/provider">>}]).
