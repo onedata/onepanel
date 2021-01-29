@@ -80,7 +80,7 @@ create_user_test(Config) ->
             validate_result_fun = api_test_validate:http_201_created("zone/users/", <<"id">>,
                 fun(NewUserId) ->
                     api_test_memory:set(MemRef, user_id, NewUserId),
-                    Users = ozw_test_rpc:get_users(),
+                    Users = ozw_test_rpc:list_users(),
                     ?assert(lists:member(NewUserId, Users))
                 end
             ),

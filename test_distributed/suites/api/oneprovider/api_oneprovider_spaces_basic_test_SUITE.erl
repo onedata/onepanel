@@ -555,7 +555,7 @@ unsupport_all_spaces() ->
 %% @private
 -spec delete_all_spaces() -> ok.
 delete_all_spaces() ->
-    SpacesId = ozw_test_rpc:get_spaces(),
+    SpacesId = ozw_test_rpc:list_spaces(),
     [ozw_test_rpc:delete_space(X) || X <- SpacesId].
 
 
