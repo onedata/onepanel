@@ -106,7 +106,7 @@ add_user_to_groups(OzNode, Auth, UserId, Groups) ->
 -spec list_users(service:step_ctx()) -> [UserId :: binary()].
 list_users(_Ctx) ->
     {OzNode, Client} = get_node_and_client(),
-    {ok, Ids} = oz_worker_rpc:list_users(OzNode, Client),
+    {ok, Ids} = oz_worker_rpc:get_users(OzNode, Client),
     Ids.
 
 

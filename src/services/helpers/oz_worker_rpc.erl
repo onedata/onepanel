@@ -60,7 +60,7 @@
 -export([set_user_password/3, set_user_password/4]).
 -export([create_user/2, create_user/3]).
 -export([add_user_to_group/3, add_user_to_group/4]).
--export([list_users/1, list_users/2]).
+-export([get_users/1, get_users/2]).
 -export([user_exists/1, user_exists/2]).
 -export([username_exists/1, username_exists/2]).
 -export([get_user_details/1]).
@@ -176,12 +176,12 @@ add_user_to_group(Node, Auth, GroupId, UserId) ->
     ?CALL(Node, [Auth, GroupId, UserId]).
 
 
--spec list_users(aai:auth()) -> {ok, [od_user_id()]} | {error, term()}.
-list_users(Auth) ->
+-spec get_users(aai:auth()) -> {ok, [od_user_id()]} | {error, term()}.
+get_users(Auth) ->
     ?CALL([Auth]).
 
--spec list_users(node(), aai:auth()) -> {ok, [od_user_id()]} | {error, term()}.
-list_users(Node, Auth) ->
+-spec get_users(node(), aai:auth()) -> {ok, [od_user_id()]} | {error, term()}.
+get_users(Node, Auth) ->
     ?CALL(Node, [Auth]).
 
 
