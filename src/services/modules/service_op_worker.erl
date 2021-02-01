@@ -241,8 +241,9 @@ get_compatible_onezones() ->
             PanelVersion
     end,
 
-    {ok, Versions} = compatibility:get_compatible_versions(
-        ?ONEPROVIDER, OpVersion, ?ONEZONE),
+    TrustedCaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
+    Resolver = compatibility:build_resolver(hosts:all(service_onepanel:name()), TrustedCaCerts),
+    {ok, Versions} = compatibility:get_compatible_versions(Resolver, ?ONEPROVIDER, OpVersion, ?ONEZONE),
     Versions.
 
 
