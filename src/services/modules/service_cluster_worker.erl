@@ -402,13 +402,12 @@ get_hosts_ips(#{name := ServiceName}) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Restarts worker https_listener to ensure certificates changed on disk
-%% are reloaded.
+%% Reloads webcerts.
 %% @end
 %%--------------------------------------------------------------------
 reload_webcert(#{name := ServiceName}) ->
     Node = nodes:local(ServiceName),
-    ok = rpc:call(Node, https_listener, restart_and_reload_web_certs, []).
+    ok = rpc:call(Node, https_listener, reload_web_certs, []).
 
 
 %%--------------------------------------------------------------------
