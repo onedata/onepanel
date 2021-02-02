@@ -225,7 +225,7 @@ init_per_testcase(get_should_list_oz_users, Config) ->
     UserIds = [?USER_ID1, ?USER_ID2],
     test_utils:mock_new(Nodes, [onezone_users]),
     test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, rpc_api, apply, [get_users, [?ROOT]]) -> {ok, UserIds};
+        (_, rpc_api, apply, [list_users, [?ROOT]]) -> {ok, UserIds};
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
     [{oz_user_ids, UserIds} | Config2];
