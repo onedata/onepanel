@@ -110,7 +110,7 @@ is_compatible(Domain, #{<<"version">> := OzVersion} = OzConfiguration) ->
 
 
 %% @private
--spec get_compatible_onezone_versions(Domain :: binary(), OzRegistryRevision :: compatibility:revision()) ->
+-spec get_compatible_onezone_versions(Domain :: binary(), json_utils:json_term()) ->
     [onedata:release_version()].
 get_compatible_onezone_versions(Domain, OzConfiguration) ->
     TrustedCaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
@@ -123,7 +123,8 @@ get_compatible_onezone_versions(Domain, OzConfiguration) ->
 
 
 %% @private
--spec check_for_compatibility_registry_updates(Domain :: binary(), compatibility:resolver(), json_utils:json_term()) -> ok.
+-spec check_for_compatibility_registry_updates(Domain :: binary(), compatibility:resolver(), json_utils:json_term()) ->
+    ok.
 check_for_compatibility_registry_updates(Domain, Resolver, OzConfiguration) ->
     case maps:get(<<"compatibilityRegistryRevision">>, OzConfiguration, <<"unknown">>) of
         RemoteRevision when is_integer(RemoteRevision) ->
