@@ -141,6 +141,7 @@
         {ip_check_url, "http://ip4.icanhazip.com"},
 
         {onezone_configuration_urn, "/api/v3/onezone/configuration"},
+        {onezone_compatibility_registry_urn, "/compatibility.json"},
 
         %% IPs of DNS servers used to validate domain configuration.
         %% Empty list causes use of system defaults

@@ -312,8 +312,15 @@ obtain_cert(Ctx) ->
 
     ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
 
-    service:apply_sync(?SERVICE_PANEL, reload_webcert, #{}),
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
+
+    % Reloading webcerts stops https_listener and kills all connections. To ensure
+    % that response to PATCH /web_certs is sent rather than doing it synchronously
+    % spawn separate process that will do it with delay
+    timer:apply_after(timer:seconds(5), service, apply_sync, [
+        ?SERVICE_PANEL, reload_webcert, #{}
+    ]),
+
     ok.
 
 

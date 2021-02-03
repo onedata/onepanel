@@ -37,6 +37,7 @@
     service_op_worker_update_storage_test/1,
     service_op_worker_add_node_test/1,
     service_oz_worker_add_node_test/1,
+    service_oneprovider_fetch_compatibility_registry_test/1,
     services_status_test/1,
     cluster_clocks_sync_test/1,
     services_stop_start_test/1
@@ -71,6 +72,7 @@ all() ->
         service_op_worker_update_storage_test,
         service_op_worker_add_node_test,
         service_oz_worker_add_node_test,
+        service_oneprovider_fetch_compatibility_registry_test,
         services_status_test,
         cluster_clocks_sync_test
         %% TODO VFS-4056
@@ -190,7 +192,6 @@ service_oneprovider_unregister_register_test(Config) ->
     [OzNode | _] = ?config(onezone_nodes, Config),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     OpDomain = ?config(oneprovider_domain, Config),
-    OzDomain = ?config(onezone_domain, Config),
     onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
 
     % test the alternative way of providing the registration token
@@ -211,8 +212,7 @@ service_oneprovider_unregister_register_test(Config) ->
         oneprovider_domain => OpDomain,
         oneprovider_admin_email => <<"admin@onedata.org">>,
         oneprovider_token_provision_method => <<"fromFile">>,
-        oneprovider_token_file => RegistrationTokenFile,
-        onezone_domain => str_utils:to_binary(OzDomain)
+        oneprovider_token_file => RegistrationTokenFile
     }).
 
 
@@ -457,6 +457,34 @@ service_oz_worker_add_node_test(Config) ->
         rpc:call(NewNode, service_oz_worker, get_policies, [])).
 
 
+service_oneprovider_fetch_compatibility_registry_test(Config) ->
+    % place some initial, outdated compatibility registry on all nodes
+    OnepanelNodes = ?config(oneprovider_nodes, Config),
+    OldRevision = 2000010100,
+    lists:foreach(fun(Node) ->
+        CurrentRegistryPath = rpc:call(Node, ctool, get_env, [current_compatibility_registry_file]),
+        DefaultRegistryPath = rpc:call(Node, ctool, get_env, [default_compatibility_registry_file]),
+        OldRegistry = #{<<"revision">> => OldRevision},
+        ok = rpc:call(Node, ctool, set_env, [compatibility_registry_mirrors, []]),
+        ok = rpc:call(Node, file, write_file, [CurrentRegistryPath, json_utils:encode(OldRegistry)]),
+        ok = rpc:call(Node, file, write_file, [DefaultRegistryPath, json_utils:encode(OldRegistry)]),
+        ok = rpc:call(Node, compatibility, clear_registry_cache, [])
+    end, OnepanelNodes),
+
+    % force a registry query that should cause Onepanel to fetch a newer one from Onezone
+    ChosenNode = lists_utils:random_element(OnepanelNodes),
+    ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
+        hosts:from_node(ChosenNode), "/provider/onezone_info", get, ?PASSPHRASE
+    )),
+    NewerRevision = peek_current_registry_revision_on_node(ChosenNode),
+    ?assertNotEqual(NewerRevision, OldRevision),
+
+    % in the process, the new registry should be propagated to all nodes
+    lists:foreach(fun(Node) ->
+        ?assertEqual(NewerRevision, peek_current_registry_revision_on_node(Node))
+    end, OnepanelNodes -- [ChosenNode]).
+
+
 services_status_test(Config) ->
     lists:foreach(fun({NodesType, MainService, Services}) ->
         Nodes = ?config(NodesType, Config),
@@ -597,6 +625,8 @@ services_stop_start_test(Config) ->
 %%%===================================================================
 
 init_per_suite(Config) ->
+    ssl:start(),
+    hackney:start(),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
@@ -641,7 +671,8 @@ end_per_testcase(_Case, _Config) ->
     ok.
 
 end_per_suite(_Config) ->
-    ok.
+    ssl:stop(),
+    hackney:stop().
 
 
 %%%===================================================================
@@ -735,3 +766,11 @@ get_storages(Config) ->
 -spec are_timestamps_in_sync(time:millis(), time:millis()) -> boolean().
 are_timestamps_in_sync(TimestampA, TimestampB) ->
     TimestampA - TimestampB > -5000 andalso TimestampA - TimestampB < 5000.
+
+
+%% @private
+-spec peek_current_registry_revision_on_node(node()) -> integer().
+peek_current_registry_revision_on_node(Node) ->
+    Resolver = compatibility:build_resolver([Node], []),
+    {ok, Rev} = rpc:call(Node, compatibility, peek_current_registry_revision, [Resolver]),
+    Rev.
