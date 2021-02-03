@@ -48,7 +48,7 @@
     supports_letsencrypt_challenge/1]).
 
 %% Public API
--export([get_compatible_onezones/0, is_connected_to_oz/0,
+-export([get_version/0, is_connected_to_oz/0,
     is_transfers_mock_enabled/0]).
 
 %% Step functions
@@ -220,16 +220,12 @@ get_steps(Action, Ctx) ->
 %%% Functions which can be called on any node.
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc Returns list of Onezone versions compatible with this worker.
-%% @end
-%%--------------------------------------------------------------------
--spec get_compatible_onezones() -> [binary()].
-get_compatible_onezones() ->
+-spec get_version() -> onedata:release_version().
+get_version() ->
     % Try to retrieve oneprovider version from op worker.
     % When opw is not responding use onepanel version instead.
     {_, PanelVersion} = onepanel:get_build_and_version(),
-    OpVersion = case nodes:any(?SERVICE_OPW) of
+    case nodes:any(?SERVICE_OPW) of
         {ok, Node} ->
             case op_worker_rpc:get_op_worker_version(Node) of
                 {badrpc, _} ->
@@ -239,12 +235,7 @@ get_compatible_onezones() ->
             end;
         _ ->
             PanelVersion
-    end,
-
-    TrustedCaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
-    Resolver = compatibility:build_resolver(hosts:all(service_onepanel:name()), TrustedCaCerts),
-    {ok, Versions} = compatibility:get_compatible_versions(Resolver, ?ONEPROVIDER, OpVersion, ?ONEZONE),
-    Versions.
+    end.
 
 
 %%--------------------------------------------------------------------
