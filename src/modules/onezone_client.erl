@@ -39,17 +39,14 @@ fetch_zone_info(Domain) ->
     Url = configuration_url(Domain),
     case http_client:get(Url, #{}, <<>>, ?OPTS) of
         {ok, ?HTTP_200_OK, _, Response} ->
-            #{
-                <<"version">> := OzVersion,
-                <<"compatibleOneproviderVersions">> := CompatOps
-            } = ResponseMap = json_utils:decode(Response),
+            ResponseMap = json_utils:decode(Response),
             SelectedFields = maps:with([
                 <<"version">>, <<"name">>, <<"subdomainDelegationSupported">>
             ], ResponseMap),
             SelectedFields#{
                 <<"online">> => true,
                 <<"domain">> => Domain,
-                <<"compatible">> => is_compatible(OzVersion, CompatOps)
+                <<"compatible">> => is_compatible(Domain, ResponseMap)
             };
         _ ->
             #{
@@ -100,18 +97,64 @@ root_auth() ->
 %%%===================================================================
 
 %% @private
--spec is_compatible(OzVersion :: binary(), CompatOpVersions :: [binary()]) ->
+-spec is_compatible(Domain :: binary(), json_utils:json_term()) ->
     boolean().
-is_compatible(OzVersion, CompatOpVersions) ->
-    {_, OurVersion} = onepanel:get_build_and_version(),
-    CompatOzVersions = service_op_worker:get_compatible_onezones(),
+is_compatible(Domain, #{<<"version">> := OzVersion} = OzConfiguration) ->
+    CompatOpVersions = utils:ensure_list(maps:get(<<"compatibleOneproviderVersions">>, OzConfiguration, <<"unknown">>)),
 
+    CompatOzVersions = get_compatible_onezone_versions(Domain, OzConfiguration),
+
+    OpVersion = service_op_worker:get_version(),
     lists:member(OzVersion, CompatOzVersions)
-        orelse lists:member(OurVersion, CompatOpVersions).
+        orelse lists:member(OpVersion, CompatOpVersions).
 
 
 %% @private
--spec configuration_url(Domain :: binary() | string()) -> binary().
+-spec get_compatible_onezone_versions(Domain :: binary(), json_utils:json_term()) ->
+    [onedata:release_version()].
+get_compatible_onezone_versions(Domain, OzConfiguration) ->
+    TrustedCaCerts = cert_utils:load_ders_in_dir(oz_plugin:get_cacerts_dir()),
+    Resolver = compatibility:build_resolver(service_onepanel:get_nodes(), TrustedCaCerts),
+    check_for_compatibility_registry_updates(Domain, Resolver, OzConfiguration),
+
+    OpVersion = service_op_worker:get_version(),
+    {ok, Versions} = compatibility:get_compatible_versions(Resolver, ?ONEPROVIDER, OpVersion, ?ONEZONE),
+    Versions.
+
+
+%% @private
+-spec check_for_compatibility_registry_updates(Domain :: binary(), compatibility:resolver(), json_utils:json_term()) ->
+    ok.
+check_for_compatibility_registry_updates(Domain, Resolver, OzConfiguration) ->
+    case maps:get(<<"compatibilityRegistryRevision">>, OzConfiguration, <<"unknown">>) of
+        RemoteRevision when is_integer(RemoteRevision) ->
+            LocalRevision = case compatibility:peek_current_registry_revision(Resolver) of
+                {ok, R} -> R;
+                _ -> 0
+            end,
+            case RemoteRevision > LocalRevision of
+                true ->
+                    compatibility:check_for_updates(Resolver, [compatibility_registry_url(Domain)]);
+                false ->
+                    ?debug(
+                        "Local compatibility registry (v. ~s) is not older than Onezone's (v. ~s)",
+                        [LocalRevision, RemoteRevision]
+                    )
+            end;
+        Other ->
+            utils:throttle(timer:minutes(30), fun() ->
+                ?warning("Cannot check Onezone's compatibility registry revision - got '~w'", [Other])
+            end)
+    end.
+
+
+%% @private
+-spec configuration_url(Domain :: binary()) -> binary().
 configuration_url(Domain) ->
-    str_utils:format_bin("https://~s~s",
-        [Domain, onepanel_env:get(onezone_configuration_urn)]).
+    str_utils:format_bin("https://~s~s", [Domain, onepanel_env:get(onezone_configuration_urn)]).
+
+
+%% @private
+-spec compatibility_registry_url(Domain :: binary()) -> binary().
+compatibility_registry_url(Domain) ->
+    str_utils:format_bin("https://~s~s", [Domain, onepanel_env:get(onezone_compatibility_registry_urn)]).
