@@ -69,10 +69,10 @@ substitute_placeholders(Data, ReplacementsMap) ->
     end, Data).
 
 
--spec get_storage_id_by_name(test_config:config(), binary()) -> binary().
-get_storage_id_by_name(Config, StorageName) ->
-    StorageIds = op_worker_test_rpc:get_storage_ids(Config),
-    Storages = [op_worker_test_rpc:describe_storage(Config, X) || X <- StorageIds],
+-spec get_storage_id_by_name(oct_background:entity_selector(), binary()) -> binary().
+get_storage_id_by_name(EntitySelector, StorageName) ->
+    StorageIds = opw_test_rpc:get_storages(EntitySelector),
+    Storages = [opw_test_rpc:storage_describe(EntitySelector, X) || X <- StorageIds],
 
     [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
     StorageId.

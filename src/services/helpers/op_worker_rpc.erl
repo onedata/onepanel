@@ -76,7 +76,7 @@
 -export([storage_create/6, storage_create/7]).
 -export([storage_safe_remove/1, storage_safe_remove/2]).
 -export([storage_supports_any_space/1, storage_supports_any_space/2]).
--export([storage_list_ids/0, storage_list_ids/1]).
+-export([get_storages/0, get_storages/1]).
 -export([storage_get_helper/1, storage_get_helper/2]).
 -export([storage_update_admin_ctx/2, storage_update_admin_ctx/3]).
 -export([storage_update_helper_args/2, storage_update_helper_args/3]).
@@ -117,7 +117,7 @@
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
 -export([get_helper_args/1, get_helper_args/2]).
 -export([get_helper_admin_ctx/1, get_helper_admin_ctx/2]).
--export([space_logic_get_storage_ids/1, space_logic_get_storage_ids/2]).
+-export([space_logic_get_storages/1, space_logic_get_storages/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1, file_popularity_api_get_configuration/2]).
 -export([autocleaning_configure/2, autocleaning_configure/3]).
@@ -197,12 +197,12 @@ storage_supports_any_space(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec storage_list_ids() -> {ok, [storage_id()]} | {error, term()}.
-storage_list_ids() ->
+-spec get_storages() -> {ok, [storage_id()]} | {error, term()}.
+get_storages() ->
     ?CALL([]).
 
--spec storage_list_ids(node()) -> {ok, [storage_id()]} | {error, term()}.
-storage_list_ids(Node) ->
+-spec get_storages(node()) -> {ok, [storage_id()]} | {error, term()}.
+get_storages(Node) ->
     ?CALL(Node, []).
 
 
@@ -596,12 +596,12 @@ get_helper_admin_ctx(Node, Helper) ->
 
 
 
--spec space_logic_get_storage_ids(od_space_id()) -> {ok, [op_worker_storage:id()]}.
-space_logic_get_storage_ids(SpaceId) ->
+-spec space_logic_get_storages(od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storages(SpaceId) ->
     ?CALL([SpaceId]).
 
--spec space_logic_get_storage_ids(node(), od_space_id()) -> {ok, [op_worker_storage:id()]}.
-space_logic_get_storage_ids(Node, SpaceId) ->
+-spec space_logic_get_storages(node(), od_space_id()) -> {ok, [op_worker_storage:id()]}.
+space_logic_get_storages(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
