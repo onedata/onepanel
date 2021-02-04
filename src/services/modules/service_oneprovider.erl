@@ -264,18 +264,33 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OPW, action = status}
     ];
 
-get_steps(register, #{hosts := _Hosts}) ->
+get_steps(register, #{hosts := _, onezone_domain := _, oneprovider_token := _} = Ctx) ->
     [
-        #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{function = register, hosts = [hosts:self()]},
-        #step{function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
-        % explicitly fail on connection problems before executing further steps
-        #step{function = check_oz_connection, args = [],
+        #step{ctx = Ctx, function = check_oz_availability,
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #steps{action = set_cluster_ips}
+        #step{ctx = Ctx, function = register, hosts = [hosts:self()]},
+        #step{ctx = Ctx, function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
+        % explicitly fail on connection problems before executing further steps
+        #step{ctx = Ctx, function = check_oz_connection, args = [],
+            attempts = onepanel_env:get(connect_to_onezone_attempts)},
+        #steps{ctx = Ctx, action = set_cluster_ips}
     ];
-get_steps(register, Ctx) ->
-    get_steps(register, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
+get_steps(register, Ctx0) ->
+    Ctx1 = case maps:is_key(hosts, Ctx0) of
+        false -> Ctx0#{hosts => hosts:all(?SERVICE_OPW)};
+        true -> Ctx0
+    end,
+    Ctx2 = case maps:is_key(oneprovider_token, Ctx1) of
+        false -> Ctx1#{oneprovider_token => resolve_registration_token(Ctx1)};
+        true -> Ctx1
+    end,
+    % the domain is read from the token, which can be given either directly or
+    % from a file that may appear with a delay
+    Ctx3 = case maps:is_key(onezone_domain, Ctx2) of
+        false -> Ctx2#{onezone_domain => onezone_tokens:read_domain(maps:get(oneprovider_token, Ctx2))};
+        true -> Ctx2
+    end,
+    get_steps(register, Ctx3);
 
 get_steps(unregister, _Ctx) ->
     [#step{function = unregister, selection = any, args = []}];
@@ -512,41 +527,8 @@ register(Ctx) ->
 
     end,
 
-    RegistrationToken = case kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>) of
-        <<"inline">> ->
-            case kv_utils:find(oneprovider_token, Ctx) of
-                {ok, Token} ->
-                    sanitize_registration_token(Token);
-                error ->
-                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
-            end;
-        <<"fromFile">> ->
-            case kv_utils:find(oneprovider_token_file, Ctx) of
-                {ok, FilePath} ->
-                    Attempts = onepanel_env:get(op_worker_wait_for_registration_token_file_attempts),
-                    Delay = onepanel_env:get(op_worker_wait_for_registration_token_file_delay),
-                    try
-                        onepanel_utils:wait_until(
-                            ?MODULE, await_registration_token_from_file, [FilePath],
-                            successful_result, Attempts, Delay
-                        )
-                    catch throw:attempts_limit_exceeded ->
-                        ?error(
-                            "Registration failed - timeout waiting for a suitable registration "
-                            "token to be present in file ~s", [FilePath]
-                        ),
-                        throw(?ERROR_BAD_DATA(
-                            <<"tokenFile">>,
-                            <<"timeout waiting for a suitable registration token to be present in the file">>
-                        ))
-                    end;
-                error ->
-                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
-            end
-    end,
-
     Params = DomainParams#{
-        <<"token">> => RegistrationToken,
+        <<"token">> => onepanel_utils:get_converted(oneprovider_token, Ctx, binary),
         <<"name">> => onepanel_utils:get_converted(oneprovider_name, Ctx, binary),
         <<"adminEmail">> => onepanel_utils:get_converted(oneprovider_admin_email, Ctx, binary),
         <<"latitude">> => onepanel_utils:get_converted(oneprovider_geo_latitude, Ctx, float, 0.0),
@@ -1043,7 +1025,8 @@ await_registration_token_from_file(FilePath) ->
         utils:throttle(60, fun() ->
             ?notice(
                 "No suitable Oneprovider registration token found in file '~s', retrying...~n"
-                "Last error was: ~w:~w", [FilePath, Class, Reason])
+                "Last error was: ~w:~w", [FilePath, Class, Reason]
+            )
         end),
         ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", [Class, Reason]),
         throw(attempt_failed)
@@ -1052,6 +1035,43 @@ await_registration_token_from_file(FilePath) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% @private
+-spec resolve_registration_token(service:step_ctx()) -> tokens:serialized() | no_return().
+resolve_registration_token(Ctx) ->
+    case kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>) of
+        <<"inline">> ->
+            case kv_utils:find(oneprovider_token, Ctx) of
+                {ok, Token} ->
+                    sanitize_registration_token(Token);
+                error ->
+                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
+            end;
+        <<"fromFile">> ->
+            case kv_utils:find(oneprovider_token_file, Ctx) of
+                {ok, FilePath} ->
+                    Attempts = onepanel_env:get(op_worker_wait_for_registration_token_file_attempts),
+                    Delay = onepanel_env:get(op_worker_wait_for_registration_token_file_delay),
+                    try
+                        onepanel_utils:wait_until(
+                            ?MODULE, await_registration_token_from_file, [FilePath],
+                            successful_result, Attempts, Delay
+                        )
+                    catch throw:attempts_limit_exceeded ->
+                        ?error(
+                            "Registration failed - timeout waiting for a suitable registration "
+                            "token to be present in file ~s", [FilePath]
+                        ),
+                        throw(?ERROR_BAD_DATA(
+                            <<"tokenFile">>,
+                            <<"timeout waiting for a suitable registration token to be present in the file">>
+                        ))
+                    end;
+                error ->
+                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
+            end
+    end.
+
 
 %% @private
 -spec sanitize_registration_token(binary()) -> tokens:serialized() | no_return().
