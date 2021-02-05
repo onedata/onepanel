@@ -47,7 +47,7 @@ all() -> [
 
 get_onezone_policies_test(Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
-    ExpectedPolicies = get_onezone_policies_with_rpc(Config),
+    ExpectedPolicies = get_onezone_policies_with_rpc(),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
@@ -105,7 +105,7 @@ set_onezone_policies_test(Config) ->
 
             prepare_args_fun = build_modify_onezone_policies_prepare_args_fun(),
             validate_result_fun = api_test_validate:http_204_no_content(),
-            verify_fun = build_modify_onezone_policies_verify_fun(Config)
+            verify_fun = build_modify_onezone_policies_verify_fun()
         }
     ])).
 
@@ -150,11 +150,11 @@ build_modify_onezone_policies_prepare_args_fun() ->
 
 
 %% @private
--spec build_modify_onezone_policies_verify_fun(test_config:config()) -> api_test_runner:verify_fun().
-build_modify_onezone_policies_verify_fun(Config) ->
+-spec build_modify_onezone_policies_verify_fun() -> api_test_runner:verify_fun().
+build_modify_onezone_policies_verify_fun() ->
     fun
         (expected_success, #api_test_ctx{data = Data}) ->
-            OnezonePolicies = get_onezone_policies_with_rpc(Config),
+            OnezonePolicies = get_onezone_policies_with_rpc(),
 
             ?assert(maps_utils:is_submap(Data, OnezonePolicies)),
             true;
@@ -169,12 +169,12 @@ build_modify_onezone_policies_verify_fun(Config) ->
 
 
 %% @private
--spec get_onezone_policies_with_rpc(test_config:config()) -> map().
-get_onezone_policies_with_rpc(Config) ->
-    OneproviderRegistration = oz_worker_test_rpc:get_env(Config, provider_registration_policy),
-    GuiPackageVerification = oz_worker_test_rpc:get_env(Config, gui_package_verification),
-    HarvesterGuiPackageVerification = oz_worker_test_rpc:get_env(Config, harvester_gui_package_verification),
-    SubdomainDelegationSupported = oz_worker_test_rpc:get_env(Config, subdomain_delegation_supported),
+-spec get_onezone_policies_with_rpc() -> map().
+get_onezone_policies_with_rpc() ->
+    OneproviderRegistration = ozw_test_rpc:get_env(provider_registration_policy),
+    GuiPackageVerification = ozw_test_rpc:get_env(gui_package_verification),
+    HarvesterGuiPackageVerification = ozw_test_rpc:get_env(harvester_gui_package_verification),
+    SubdomainDelegationSupported = ozw_test_rpc:get_env(subdomain_delegation_supported),
 
     #{
         <<"guiPackageVerification">> => GuiPackageVerification,
