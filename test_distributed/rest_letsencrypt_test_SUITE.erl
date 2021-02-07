@@ -208,14 +208,17 @@ ssl_cache_is_cleared_after_certification(Config) ->
         ?assertEqual(?HTTP_204_NO_CONTENT, patch_web_cert(Host, #{letsEncrypt => true}))
     end),
 
+    % Cert reload is done asynchronously in onepanel and may happen some time after request return
+    Attempts = 10,
+
     lists:foreach(fun(Node) ->
         ?assertEqual(1, rpc:call(Node, meck, num_calls, [service_oz_worker, reload_webcert, 1])),
-        ?assertEqual(1, rpc:call(Node, meck, num_calls, [service_onepanel, reload_webcert, 1]))
+        ?assertEqual(1, rpc:call(Node, meck, num_calls, [service_onepanel, reload_webcert, 1]), Attempts)
     end, ?config(onezone_nodes, Config)),
 
     lists:foreach(fun(Node) ->
         ?assertEqual(1, rpc:call(Node, meck, num_calls, [service_op_worker, reload_webcert, 1])),
-        ?assertEqual(1, rpc:call(Node, meck, num_calls, [service_onepanel, reload_webcert, 1]))
+        ?assertEqual(1, rpc:call(Node, meck, num_calls, [service_onepanel, reload_webcert, 1]), Attempts)
     end, ?config(oneprovider_nodes, Config)).
 
 
@@ -446,8 +449,8 @@ mock_plugin_modules(Config) ->
     OpHosts = ?config(oneprovider_hosts, Config),
     OzDomain = onepanel_test_utils:get_domain(hd(OzHosts)),
     OpDomain = onepanel_test_utils:get_domain(hd(OpHosts)),
-    test_utils:mock_new(OpNodes, [service_op_worker, service], [passthrough]),
-    test_utils:mock_new(OzNodes, [service_oz_worker, service], [passthrough]),
+    test_utils:mock_new(OpNodes, [service_op_worker, service_onepanel, service], [passthrough]),
+    test_utils:mock_new(OzNodes, [service_oz_worker, service_onepanel, service], [passthrough]),
 
     test_utils:mock_expect(OzNodes ++ OpNodes, service, is_healthy, fun(_) -> true end),
     test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
@@ -457,7 +460,8 @@ mock_plugin_modules(Config) ->
     test_utils:mock_expect(OpNodes, service_op_worker, get_hosts, fun() -> OpHosts end),
     test_utils:mock_expect(OzNodes, service_oz_worker, get_hosts, fun() -> OzHosts end),
     test_utils:mock_expect(OpNodes, service_op_worker, reload_webcert, fun(_) -> ok end),
-    test_utils:mock_expect(OzNodes, service_oz_worker, reload_webcert, fun(_) -> ok end).
+    test_utils:mock_expect(OzNodes, service_oz_worker, reload_webcert, fun(_) -> ok end),
+    test_utils:mock_expect(OzNodes, service_onepanel, reload_webcert, fun(_) -> ok end).
 
 
 %%--------------------------------------------------------------------
