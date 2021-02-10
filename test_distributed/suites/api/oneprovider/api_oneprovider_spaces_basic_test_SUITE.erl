@@ -565,8 +565,6 @@ delete_all_spaces() ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
     oct_background:init_per_suite(Config, #onenv_test_config{
         envs = [
             {oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]}

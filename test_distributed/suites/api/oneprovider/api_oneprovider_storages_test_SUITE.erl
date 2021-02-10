@@ -246,8 +246,6 @@ build_delete_s3_storage_verify_fun(StorageId) ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
     oct_background:init_per_suite(Config, #onenv_test_config{
         onenv_scenario = "1op"
     }).

@@ -66,7 +66,10 @@
         api_test_runner:api_client_or_placeholder() |
         {api_test_runner:api_client_or_placeholder(), Reason :: errors:error()}
     ],
-    forbidden = [] :: [api_test_runner:api_client_or_placeholder()]
+    forbidden = [] :: [
+        api_test_runner:api_client_or_placeholder()|
+        {api_test_runner:api_client_or_placeholder(), Reason :: errors:error()}
+    ]
 }).
 
 -record(data_spec, {

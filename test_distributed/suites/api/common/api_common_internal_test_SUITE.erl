@@ -19,6 +19,7 @@
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("onenv_ct/include/chart_values.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
@@ -51,65 +52,88 @@ all() -> [
 %%% API
 %%%===================================================================
 
+
 get_remote_op_details_test(Config) ->
-    get_remote_op_details_test_base(Config, krakow, krakow).
+    get_remote_op_details_test_base(Config, ?OP_PANEL, paris, krakow),
+    get_remote_op_details_test_base(Config, ?OZ_PANEL, zone, krakow),
+    get_remote_op_details_test_base(Config, ?OP_PANEL, krakow, krakow).
 
 
 %% @private
-get_remote_op_details_test_base(Config, Target,  RemoteProvider) ->
-    TargetNodes = oct_background:get_provider_panels(Target),
-    TargetId = oct_background:get_provider_id(Target),
+-spec get_remote_op_details_test_base(test_config:config(), atom(), oct_background:entity_selector(), oct_background:entity_selector()) -> boolean().
+get_remote_op_details_test_base(Config, TargetPanelType, TargetEntitySelector, RemoteProviderSelector) ->
+    TargetId = oct_background:to_entity_id(TargetEntitySelector),
+    TargetPanelNodes = case TargetPanelType of
+        ?OZ_PANEL -> oct_background:get_zone_panels();
+        ?OP_PANEL -> oct_background:get_provider_panels(TargetEntitySelector)
+    end,
 
-
-    RemoteProviderId = oct_background:get_provider_id(RemoteProvider),
+    RemoteProviderId = oct_background:get_provider_id(RemoteProviderSelector),
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get remote provider details using /providers rest endpoint">>,
             type = rest,
-            target_nodes = TargetNodes,
+            target_nodes = TargetPanelNodes,
             client_spec = #client_spec{
-                correct = [
-                    % Only member can fetch data, root is not a member of any provider, therefore he receives an error.
-%%                    root,
-                    member
-                ],
+                correct = [member],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, TargetId))}
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
-                forbidden = [peer]
+                forbidden = [
+                    peer,
+                    {root, ?ERROR_NOT_FOUND}
+                ]
             },
-            prepare_args_fun = fun(_) -> #rest_args{
-                method = get,
-                path = <<"providers/", RemoteProviderId/binary>>
-            } end,
+            data_spec = build_get_remote_op_details_data_spec(),
+            prepare_args_fun = build_get_remote_op_details_prepare_args_fun(RemoteProviderId),
 
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                ExpDetails = get_expected_provider_details(RemoteProvider),
+                ExpDetails = get_expected_provider_details(RemoteProviderSelector),
                 ?assertEqual(ExpDetails, RespBody)
             end)
         }
     ])).
 
 
+%% @private
+-spec build_get_remote_op_details_data_spec() -> api_test_runner:data_spec().
+build_get_remote_op_details_data_spec() ->
+    #data_spec{
+        bad_values = [
+            {bad_id, <<"inexistentProviderId">>, ?ERROR_NOT_FOUND}
+        ]
+    }.
+
+
+%% @private
+-spec build_get_remote_op_details_prepare_args_fun(binary()) -> api_test_runner:prepare_args_fun().
+build_get_remote_op_details_prepare_args_fun(RemoteProviderId) ->
+    fun(#api_test_ctx{data = Data}) ->
+        {Id, _} = api_test_utils:maybe_substitute_bad_id(RemoteProviderId, Data),
+        #rest_args{
+            method = get,
+            path = <<"providers/", Id/binary>>
+        }
+    end.
+
 
 %% @private
 -spec get_expected_provider_details(atom() | binary()) -> map().
 get_expected_provider_details(Provider) ->
     ProviderId = oct_background:get_provider_id(Provider),
-    OpWorkerNodes = oct_background:get_provider_nodes(Provider),
-    OpDomain = ?GET_DOMAIN_BIN(hd(OpWorkerNodes)),
+    OpDomain = oct_background:get_provider_domain(Provider),
     OpName = hd(binary:split(OpDomain, <<".">>)),
     Localization = case oct_background:to_entity_placeholder(Provider) of
         krakow -> #{
-            <<"geoLatitude">> => 50.0647,
-            <<"geoLongitude">> => 19.945
+            <<"geoLatitude">> => ?PROVIDER_KRAKOW_GEO_LATITUDE,
+            <<"geoLongitude">> => ?PROVIDER_KRAKOW_GEO_LONGITUDE
         };
         paris -> #{
-            <<"geoLatitude">> => 48.8566,
-            <<"geoLongitude">> => 2.3522
+            <<"geoLatitude">> => ?PROVIDER_PARIS_GEO_LATITUDE,
+            <<"geoLongitude">> => ?PROVIDER_PARIS_GEO_LONGITUDE
         }
     end,
 
@@ -128,7 +152,7 @@ get_test_image_test(Config) ->
 
 
 %% @private
--spec get_test_image_test_base(test_config:config(), atom(),  oct_background:entity_selector()) -> ok.
+-spec get_test_image_test_base(test_config:config(), atom(), oct_background:entity_selector()) -> ok.
 get_test_image_test_base(Config, PanelType, EntitySelector) ->
     EntityId = oct_background:to_entity_id(EntitySelector),
     PanelNodes = case PanelType of
@@ -170,8 +194,6 @@ get_test_image_test_base(Config, PanelType, EntitySelector) ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
     oct_background:init_per_suite(Config, #onenv_test_config{
         onenv_scenario = "2op"
     }).
