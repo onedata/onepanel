@@ -61,9 +61,9 @@
         % Path to the JSON file holding information about services compatibility
         % and verified gui hashes. This file evolves during service's lifetime -
         % can be overwritten by a newer registry when such is available.
-        {compatibility_registry_path, "{{platform_etc_dir}}/compatibility.json"},
+        {current_compatibility_registry_file, "{{platform_etc_dir}}/compatibility.json"},
         % Path to the default compatibility.json for current software version.
-        {default_compatibility_registry, "{{platform_data_dir}}/compatibility.default.json"}
+        {default_compatibility_registry_file, "{{platform_data_dir}}/compatibility.default.json"}
     ]},
 
     %% onepanel config
@@ -125,6 +125,13 @@
         %% General
         %% ===================================================================
 
+        %% Initial clock sync is required for the cluster to successfully
+        %% initialize (consecutive syncs are best effort). Below parameters can
+        %% be used to tune the number of attempts and the interval.
+        %% 40 attempts every 15 seconds yield 10 minutes of waiting.
+        {initial_clock_synchronization_attempts, 40},
+        {initial_clock_synchronization_retry_delay, 15000},
+
         %% How ofter the clocks of all nodes in the cluster are synchronized.
         %% In Onezone, the clocks are synchronized with the master oz-panel node.
         %% In Oneprovider, they are synchronized with Onezone's clock.
@@ -134,6 +141,7 @@
         {ip_check_url, "http://ip4.icanhazip.com"},
 
         {onezone_configuration_urn, "/api/v3/onezone/configuration"},
+        {onezone_compatibility_registry_urn, "/compatibility.json"},
 
         %% IPs of DNS servers used to validate domain configuration.
         %% Empty list causes use of system defaults
@@ -345,8 +353,9 @@
         {op_worker_nagios_protocol, "https"},
         {op_worker_wait_for_init_attempts, 60},
         {op_worker_wait_for_init_delay, 5000},
+        %% 360 attempts every 5 seconds yield 30 minutes of waiting.
         {op_worker_wait_for_registration_token_file_attempts, 360},
-        {op_worker_wait_for_registration_token_file_delay, 5000},  % 360 * 5s = 30m
+        {op_worker_wait_for_registration_token_file_delay, 5000},
         % this variable is overridden after op-worker deployment with an absolute path.
         {op_worker_root_token_path, "{{platform_etc_dir}}/../op_worker/provider_root_token.json"},
 

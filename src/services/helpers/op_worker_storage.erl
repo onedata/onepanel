@@ -174,7 +174,7 @@ remove(OpNode, Id) ->
 %%--------------------------------------------------------------------
 -spec list() -> [id()].
 list() ->
-    {ok, Ids} = op_worker_rpc:storage_list_ids(),
+    {ok, Ids} = op_worker_rpc:get_storages(),
     Ids.
 
 
@@ -206,7 +206,7 @@ get_supporting_storage(OpNode, SpaceId) ->
 %%--------------------------------------------------------------------
 -spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> {ok, [id()]}.
 get_supporting_storages(OpNode, SpaceId) ->
-    op_worker_rpc:space_logic_get_storage_ids(OpNode, SpaceId).
+    op_worker_rpc:space_logic_get_storages(OpNode, SpaceId).
 
 
 %%--------------------------------------------------------------------

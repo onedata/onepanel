@@ -400,7 +400,7 @@ ensure_node_ready(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec reload_webcert(service:step_ctx()) -> ok.
 reload_webcert(_Ctx) ->
-    ssl:clear_pem_cache().
+    https_listener:reload_web_certs().
 
 
 %%--------------------------------------------------------------------
@@ -488,7 +488,7 @@ build_url(Host, Suffix) ->
 %%--------------------------------------------------------------------
 -spec https_opts(Timeout :: time:millis()) -> http_client:opts().
 https_opts(Timeout) ->
-    CaCerts = https_listener:get_cert_chain_pems(),
+    CaCerts = https_listener:get_cert_chain_ders(),
     [
         {ssl_options, [{secure, false}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},
