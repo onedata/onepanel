@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Piotr Duleba
-%%% @copyright (C) 2020 ACK CYFRONET AGH
+%%% @copyright (C) 2021 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -31,13 +31,21 @@
 ]).
 
 -export([
-    get_remote_op_details_test/1,
-    get_test_image_test/1
+    get_krakow_details_from_paris_test/1,
+    get_krakow_details_from_zone_test/1,
+    get_krakow_details_from_krakow_test/1,
+    get_krakow_test_image_test/1,
+    get_paris_test_image_test/1,
+    get_zone_test_image_test/1
 ]).
 
 all() -> [
-    get_remote_op_details_test,
-    get_test_image_test
+    get_krakow_details_from_paris_test,
+    get_krakow_details_from_zone_test,
+    get_krakow_details_from_krakow_test,
+    get_krakow_test_image_test,
+    get_paris_test_image_test,
+    get_zone_test_image_test
 ].
 
 -define(TEST_IMAGE, <<
@@ -53,9 +61,15 @@ all() -> [
 %%%===================================================================
 
 
-get_remote_op_details_test(Config) ->
-    get_remote_op_details_test_base(Config, ?OP_PANEL, paris, krakow),
-    get_remote_op_details_test_base(Config, ?OZ_PANEL, zone, krakow),
+get_krakow_details_from_paris_test(Config) ->
+    get_remote_op_details_test_base(Config, ?OP_PANEL, paris, krakow).
+
+
+get_krakow_details_from_zone_test(Config) ->
+    get_remote_op_details_test_base(Config, ?OZ_PANEL, zone, krakow).
+
+
+get_krakow_details_from_krakow_test(Config) ->
     get_remote_op_details_test_base(Config, ?OP_PANEL, krakow, krakow).
 
 
@@ -125,7 +139,7 @@ build_get_remote_op_details_prepare_args_fun(RemoteProviderId) ->
 get_expected_provider_details(Provider) ->
     ProviderId = oct_background:get_provider_id(Provider),
     OpDomain = oct_background:get_provider_domain(Provider),
-    OpName = hd(binary:split(OpDomain, <<".">>)),
+    OpName = oct_background:get_provider_name(Provider),
     Localization = case oct_background:to_entity_placeholder(Provider) of
         krakow -> #{
             <<"geoLatitude">> => ?PROVIDER_KRAKOW_GEO_LATITUDE,
@@ -145,9 +159,15 @@ get_expected_provider_details(Provider) ->
     }).
 
 
-get_test_image_test(Config) ->
-    get_test_image_test_base(Config, ?OP_PANEL, krakow),
-    get_test_image_test_base(Config, ?OP_PANEL, paris),
+get_krakow_test_image_test(Config) ->
+    get_test_image_test_base(Config, ?OP_PANEL, krakow).
+
+
+get_paris_test_image_test(Config) ->
+    get_test_image_test_base(Config, ?OP_PANEL, paris).
+
+
+get_zone_test_image_test(Config) ->
     get_test_image_test_base(Config, ?OZ_PANEL, zone).
 
 
@@ -200,5 +220,4 @@ init_per_suite(Config) ->
 
 
 end_per_suite(_Config) ->
-    hackney:stop(),
-    application:stop(ssl).
+    oct_background:end_per_suite().
