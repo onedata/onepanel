@@ -63,7 +63,7 @@
  {<<"mimerl">>,{pkg,<<"mimerl">>,<<"1.0.2">>},2},
  {<<"onenv_ct">>,
   {git,"ssh://git@git.onedata.org:7999/vfs/onenv-ct.git",
-       {ref,"88cf31e9ce9c2f5b4bfe0f4aade2203a9e045f3f"}},
+       {ref,"12d36ee0da6e0309a36e9b6d9939e8726590d78f"}},
   0},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
