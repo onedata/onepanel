@@ -177,7 +177,7 @@ get_or_create_client(user, _PanelNodes, Config) ->
     OzNode = ?OZ_NODE(Config),
 
     {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
-        ?ROOT, #{}
+        ?ROOT, #{<<"username">> => str_utils:rand_hex(8)}
     ])),
     Token = create_oz_temp_token(OzNode, UserId),
 
@@ -192,7 +192,7 @@ get_or_create_client({member, Privileges}, PanelNodes, Config) ->
     ClusterId = rpc:call(PanelNode, clusters, get_id, []),
 
     {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
-        ?ROOT, #{}
+        ?ROOT, #{<<"username">> => str_utils:rand_hex(8)}
     ])),
     ?assertMatch({ok, _}, rpc:call(OzNode, cluster_logic, add_user, [
         ?ROOT, ClusterId, UserId, Privileges

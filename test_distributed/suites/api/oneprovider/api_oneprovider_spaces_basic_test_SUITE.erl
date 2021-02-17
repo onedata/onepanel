@@ -16,6 +16,7 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/space_support/support_stage.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -118,7 +119,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
-    SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize),
+    SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize, krakow),
     ExpResult = get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize),
 
     ?assert(api_test_runner:run_tests(Config, [
@@ -401,7 +402,9 @@ revoke_space_support_test(Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
-
+    [OzWorkerNode | _] = oct_background:get_zone_nodes(),
+    api_test_memory:set(MemRef, oz_worker_node, OzWorkerNode),
+    
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
@@ -441,7 +444,7 @@ build_revoke_space_support_data_spec(OpWorkerNodes) ->
 %% @private
 build_revoke_space_support_setup_fun(MemRef) ->
     fun() ->
-        SpaceId = create_and_support_space(),
+        SpaceId = create_and_support_space([krakow, paris]),
         api_test_memory:set(MemRef, space_id, SpaceId)
     end.
 
@@ -462,12 +465,9 @@ build_revoke_space_support_prepare_rest_args_fun(MemRef) ->
 %% @private
 build_revoke_space_support_verify_fun(MemRef) ->
     fun(ExpectedResult, _) ->
-        SpaceId = api_test_memory:get(MemRef, space_id),
-        SupportedSpaces = opw_test_rpc:get_spaces(krakow),
-
         case ExpectedResult of
-            expected_success -> ?assertNot(lists:member(SpaceId, SupportedSpaces));
-            expected_failure -> ?assert(lists:member(SpaceId, SupportedSpaces))
+            expected_success -> ?assertEqual(retired, get_provider_support_stage(MemRef), 2 * ?ATTEMPTS);
+            expected_failure -> ?assertEqual(active, get_provider_support_stage(MemRef))
         end,
         true
     end.
@@ -521,35 +521,51 @@ get_space_details_with_rpc(SpaceId) ->
 %% @private
 -spec create_space_and_support_token(binary()) -> {SpaceId :: binary(), SerializedToken :: binary()}.
 create_space_and_support_token(SpaceName) ->
-    UserId = ozw_test_rpc:create_user(),
-    SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
-    Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
-    {ok, SerializedToken} = tokens:serialize(Token),
+    {UserId, SpaceId} = create_user_and_space(SpaceName),
+    SerializedToken = create_support_token(UserId, SpaceId),
     {SpaceId, SerializedToken}.
 
 
 %% @private
 -spec create_and_support_space() -> SpaceId :: binary().
 create_and_support_space() ->
-    SpaceName = str_utils:rand_hex(12),
-    create_and_support_space(SpaceName, ?STORAGE_NAME, ?SUPPORT_SIZE).
+    create_and_support_space(krakow).
 
 
 %% @private
--spec create_and_support_space(binary(), binary(), binary()) -> SpaceId :: binary().
-create_and_support_space(SpaceName, StorageName, SupportSize) ->
-    {_, SerializedToken} = create_space_and_support_token( SpaceName),
-    StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
-    SpaceId = opw_test_rpc:support_space(krakow, StorageId, SerializedToken, SupportSize),
-    ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
+-spec create_and_support_space([atom()]) -> SpaceId :: binary().
+create_and_support_space(Providers) ->
+    SpaceName = str_utils:rand_hex(12),
+    create_and_support_space(SpaceName, ?STORAGE_NAME, ?SUPPORT_SIZE, Providers).
+
+
+%% @private
+-spec create_and_support_space(binary(), binary(), binary(), [atom()]) -> SpaceId :: binary().
+create_and_support_space(SpaceName, StorageName, SupportSize, Providers) ->
+    {UserId, SpaceId} = create_user_and_space(SpaceName),
+    lists:foreach(fun(Provider) ->
+        SerializedToken = create_support_token(UserId, SpaceId),
+        StorageId = api_test_utils:get_storage_id_by_name(Provider, StorageName),
+        SpaceId = opw_test_rpc:support_space(Provider, StorageId, SerializedToken, SupportSize),
+        ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(Provider)), ?ATTEMPTS)
+    end, utils:ensure_list(Providers)),
     SpaceId.
 
 
 %% @private
--spec unsupport_all_spaces() -> ok.
-unsupport_all_spaces() ->
-    SpacesId = opw_test_rpc:get_spaces(krakow),
-    [opw_test_rpc:revoke_space_support(krakow, X) || X <- SpacesId].
+-spec create_user_and_space(binary()) -> {UserId :: binary(), SpaceId :: binary()}.
+create_user_and_space(SpaceName) ->
+    UserId = ozw_test_rpc:create_user(#{<<"username">> => str_utils:rand_hex(8)}),
+    SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
+    {UserId, SpaceId}.
+
+
+%% @private
+-spec create_support_token(binary(), binary()) -> SerializedToken :: binary().
+create_support_token(UserId, SpaceId) ->
+    Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
+    {ok, SerializedToken} = tokens:serialize(Token),
+    SerializedToken.
 
 
 %% @private
@@ -557,6 +573,19 @@ unsupport_all_spaces() ->
 delete_all_spaces() ->
     SpacesId = ozw_test_rpc:list_spaces(),
     [ozw_test_rpc:delete_space(X) || X <- SpacesId].
+
+
+%% @private
+-spec get_provider_support_stage(api_test_memory:env_ref()) -> support_stage:provider_support_stage().
+get_provider_support_stage(MemRef) ->
+    SpaceId = api_test_memory:get(MemRef, space_id),
+    OzWorkerNode = api_test_memory:get(MemRef, oz_worker_node),
+    {ok, SpaceData} = rpc:call(OzWorkerNode, space_logic, get_protected_data, [?ROOT, SpaceId]),
+    SupportStageRegistry = maps:get(<<"supportStageRegistry">>, SpaceData),
+    ProviderId = opw_test_rpc:get_provider_id(krakow),
+    {ok, #support_stage_details{provider_stage = ProviderStage}} =
+        support_stage:lookup_details(SupportStageRegistry, ProviderId),
+    ProviderStage.
 
 
 %%%===================================================================
@@ -571,7 +600,7 @@ init_per_suite(Config) ->
         envs = [
             {oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]}
         ],
-        onenv_scenario = "1op"
+        onenv_scenario = "2op"
     }).
 
 
@@ -581,9 +610,9 @@ end_per_suite(_Config) ->
 
 
 init_per_testcase(get_space_ids_test, Config) ->
-    unsupport_all_spaces(),
     delete_all_spaces(),
     ?assertEqual([], opw_test_rpc:get_spaces(krakow), ?ATTEMPTS),
+    ?assertEqual([], opw_test_rpc:get_spaces(paris), ?ATTEMPTS),
     Config;
 
 init_per_testcase(_, Config) ->
