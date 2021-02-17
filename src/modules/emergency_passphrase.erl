@@ -71,9 +71,14 @@ change(OldPassphrase, NewPassphrase) ->
     case not is_set() orelse verify(OldPassphrase) of
         true -> set(NewPassphrase);
         false ->
-            ?info("Attempt to change emergency passphrase failed due to " ++
-            "incorrect previous passphrase given"),
-            ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)
+            case OldPassphrase == undefined of
+                true ->
+                    ?ERROR_MISSING_REQUIRED_VALUE(<<"currentPassphrase">>);
+                false ->
+                    ?info("Attempt to change emergency passphrase failed due to " ++
+                    "incorrect previous passphrase given"),
+                    ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)
+            end
     end.
 
 

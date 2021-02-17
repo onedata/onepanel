@@ -15,7 +15,7 @@
 %% API
 -export([
     get_op_worker_nodes/0,
-    is_set_emergency_passphrase/0,
+    is_emergency_passphrase_set/0,
     verify_emergency_passphrase/1
 ]).
 
@@ -30,8 +30,8 @@ get_op_worker_nodes() ->
     service_op_worker:get_nodes().
 
 
--spec is_set_emergency_passphrase() -> boolean().
-is_set_emergency_passphrase()->
+-spec is_emergency_passphrase_set() -> boolean().
+is_emergency_passphrase_set()->
     emergency_passphrase:is_set().
 
 

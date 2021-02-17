@@ -19,8 +19,6 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
-
-%% API
 -export([all/0]).
 
 -export([
@@ -32,13 +30,15 @@
 ]).
 
 -export([
-    get_emergency_passphrase_status_test/1,
+    get_provider_panel_emergency_passphrase_status_test/1,
+    get_zone_panel_emergency_passphrase_status_test/1,
     set_emergency_passphrase_with_op_panel_test/1,
     set_emergency_passphrase_with_oz_panel_test/1
 ]).
 
 all() -> [
-    get_emergency_passphrase_status_test,
+    get_provider_panel_emergency_passphrase_status_test,
+    get_zone_panel_emergency_passphrase_status_test,
     set_emergency_passphrase_with_op_panel_test,
     set_emergency_passphrase_with_oz_panel_test
 ].
@@ -51,8 +51,11 @@ all() -> [
 %%%===================================================================
 
 
-get_emergency_passphrase_status_test(Config) ->
-    get_emergency_passphrase_status_test_base(Config, ?OP_PANEL, krakow),
+get_provider_panel_emergency_passphrase_status_test(Config) ->
+    get_emergency_passphrase_status_test_base(Config, ?OP_PANEL, krakow).
+
+
+get_zone_panel_emergency_passphrase_status_test(Config) ->
     get_emergency_passphrase_status_test_base(Config, ?OZ_PANEL, zone).
 
 
@@ -89,7 +92,7 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
             end,
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
                 ExpectedResponse = #{
-                    <<"isSet">> => node_cache:get(is_set_ep)
+                    <<"isSet">> => true
                 },
                 ?assertEqual(ExpectedResponse, Body)
             end)
@@ -98,11 +101,11 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
 
 
 %% @private
--spec build_get_emergency_passphrase_status_setup_fun(oct_background:entity_selector()) -> ok.
+-spec build_get_emergency_passphrase_status_setup_fun(oct_background:entity_selector()) -> api_test_runner:setup_fun().
 build_get_emergency_passphrase_status_setup_fun(Target) ->
     fun() ->
-        IsEPSet = panel_test_rpc:is_set_emergency_passphrase(Target),
-        node_cache:put(is_set_ep, IsEPSet)
+        IsEPSet = panel_test_rpc:is_emergency_passphrase_set(Target),
+        node_cache:put(is_ep_set, IsEPSet)
     end.
 
 
@@ -156,13 +159,14 @@ set_emergency_passphrase_test_base(Config, TargetPanelType, Target) ->
 -spec build_set_emergency_passphrase_data_spec() -> api_test_runner:data_spec().
 build_set_emergency_passphrase_data_spec() ->
     #data_spec{
-        required = [<<"newPassphrase">>],
+        required = [<<"newPassphrase">>, <<"currentPassphrase">>],
 
         correct_values = #{
-            <<"newPassphrase">> => [new_passphrase_placeholder]
+            <<"newPassphrase">> => [new_passphrase_placeholder],
+            <<"currentPassphrase">> => [current_passphrase_placeholder]
         },
         bad_values = [
-            {<<"newPassphrase">>, bad_passphrase_placeholder, ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)}
+            {<<"currentPassphrase">>, <<"badCurrentPassphrase">>, ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)}
         ]
     }.
 
@@ -174,25 +178,20 @@ build_set_emergency_passphrase_prepare_args_fun() ->
         CurrentPassphrase = node_cache:get(current_emergency_passphrase),
         NewPassphrase = str_utils:rand_hex(12),
 
-        Request = case maps:get(<<"newPassphrase">>, Data, undefined) of
-            new_passphrase_placeholder ->
-                case Role of
-                    root ->
-                        node_cache:put(previous_emergency_passphrase, CurrentPassphrase),
-                        node_cache:put(current_emergency_passphrase, NewPassphrase);
-                    _ -> ok
-                end,
-                #{
-                    <<"newPassphrase">> => NewPassphrase,
-                    <<"currentPassphrase">> => CurrentPassphrase
-                };
-            bad_passphrase_placeholder ->
-                #{
-                    <<"newPassphrase">> => NewPassphrase,
-                    <<"currentPassphrase">> => <<"badPassphrase">>
-                };
-            _ -> Data
-        end,
+        RequestData = api_test_utils:substitute_placeholders(Data, #{
+            <<"newPassphrase">> => #{
+                new_passphrase_placeholder => #placeholder_substitute{
+                    value = NewPassphrase,
+                    posthook = maybe_memorize_credentials(Data, Role,  NewPassphrase, CurrentPassphrase)
+                }
+            },
+            <<"currentPassphrase">> => #{
+                current_passphrase_placeholder => #placeholder_substitute{
+                    value = CurrentPassphrase,
+                    posthook = maybe_memorize_credentials(Data, Role, NewPassphrase, CurrentPassphrase)
+                }
+            }
+        }),
 
         node_cache:put(requested_emergency_passphrase, NewPassphrase),
 
@@ -200,8 +199,22 @@ build_set_emergency_passphrase_prepare_args_fun() ->
             method = put,
             path = <<"emergency_passphrase">>,
             headers = #{<<"content-type">> => <<"application/json">>},
-            body = json_utils:encode(Request)
+            body = json_utils:encode(RequestData)
         }
+    end.
+
+
+%% @private
+-spec maybe_memorize_credentials(map(), atom(), term(), term()) -> fun(() -> ok).
+maybe_memorize_credentials(Data, Client, NewEP, CurrentEP) ->
+    fun() ->
+        case {Client, maps:get(<<"currentPassphrase">>, Data, undefined), maps:get(<<"newPassphrase">>, Data, undefined)} of
+            {root, current_passphrase_placeholder, new_passphrase_placeholder} ->
+                node_cache:put(previous_emergency_passphrase, CurrentEP),
+                node_cache:put(current_emergency_passphrase, NewEP);
+            _ ->
+                ok
+        end
     end.
 
 
@@ -259,9 +272,6 @@ init_per_testcase(set_emergency_passphrase_with_oz_panel_test, Config) ->
 init_per_testcase(_, Config) ->
     Config.
 
-
-end_per_testcase(set_emergency_passphrase_test, Config) ->
-    Config;
 
 end_per_testcase(_, Config) ->
     Config.
