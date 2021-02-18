@@ -574,8 +574,7 @@ init_per_suite(Config) ->
 
 
 end_per_suite(_Config) ->
-    hackney:stop(),
-    application:stop(ssl).
+    oct_background:end_per_suite().
 
 
 init_per_testcase(get_space_ids_test, Config) ->
