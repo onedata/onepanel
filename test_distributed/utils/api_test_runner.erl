@@ -176,9 +176,7 @@ get_or_create_client(guest, _PanelNodes, _Config) ->
 get_or_create_client(user, _PanelNodes, Config) ->
     OzNode = ?OZ_NODE(Config),
 
-    {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
-        ?ROOT, #{}
-    ])),
+    UserId = ozw_test_rpc:create_user(),
     Token = create_oz_temp_token(OzNode, UserId),
 
     #api_client{role = user, token = Token};
@@ -186,24 +184,23 @@ get_or_create_client(user, _PanelNodes, Config) ->
 get_or_create_client(member, PanelNodes, Config) ->
     get_or_create_client({member, privileges:cluster_member()}, PanelNodes, Config);
 
-get_or_create_client({member, Privileges}, PanelNodes, Config) ->
+get_or_create_client({member, Privileges}, _PanelNodes, Config) ->
     OzNode = ?OZ_NODE(Config),
-    PanelNode = lists_utils:random_element(PanelNodes),
-    ClusterId = rpc:call(PanelNode, clusters, get_id, []),
+    UserId = ozw_test_rpc:create_user(),
 
-    {ok, UserId} = ?assertMatch({ok, _}, rpc:call(OzNode, user_logic, create, [
-        ?ROOT, #{}
-    ])),
-    ?assertMatch({ok, _}, rpc:call(OzNode, cluster_logic, add_user, [
-        ?ROOT, ClusterId, UserId, Privileges
-    ])),
+    lists:foreach(fun(PanelNode) ->
+        ClusterId = panel_test_rpc:get_cluster_id(PanelNode),
+        ozw_test_rpc:add_user_to_cluster(ClusterId, UserId, Privileges)
+    end, oct_background:get_all_panels()),
+
+
     Token = create_oz_temp_token(OzNode, UserId),
 
     #api_client{role = member, privileges = Privileges, token = Token};
 
 get_or_create_client(peer, PanelNodes, _Config) ->
     Node = lists_utils:random_element(PanelNodes),
-    {ok, Token} = ?assertMatch({ok, _}, rpc:call(Node, invite_tokens, create, [])),
+    Token = panel_test_rpc:create_invite_token(Node),
     #api_client{role = peer, token = Token};
 
 get_or_create_client(root, PanelNodes, _Config) ->
@@ -278,6 +275,8 @@ get_scenario_specific_error_for_invalid_clients(unauthorized, {Client, AuthError
     {Client, ?ERROR_UNAUTHORIZED(AuthError)};
 get_scenario_specific_error_for_invalid_clients(unauthorized, Client) ->
     {Client, ?ERROR_UNAUTHORIZED};
+get_scenario_specific_error_for_invalid_clients(forbidden, {Client, Error}) ->
+    {Client, Error};
 get_scenario_specific_error_for_invalid_clients(forbidden, Client) ->
     {Client, ?ERROR_FORBIDDEN}.
 
@@ -695,15 +694,13 @@ get_correct_value(Key, #data_spec{correct_values = CorrectValues}) ->
 -spec create_oz_temp_token(node(), UserId :: binary()) -> tokens:serialized().
 create_oz_temp_token(OzNode, UserId) ->
     Auth = ?USER(UserId),
-    Now = rpc:call(OzNode, global_clock, timestamp_seconds, []),
+    Now = ozw_test_rpc:timestamp_seconds(),
 
-    {ok, Token} = ?assertMatch(
-        {ok, _},
-        rpc:call(OzNode, token_logic, create_user_temporary_token, [Auth, UserId, #{
-            <<"type">> => ?ACCESS_TOKEN,
-            <<"caveats">> => [#cv_time{valid_until = Now + ?DEFAULT_TEMP_CAVEAT_TTL}]
-        }])
-    ),
+    Token = ozw_test_rpc:create_user_temporary_token(Auth, UserId, #{
+        <<"type">> => ?ACCESS_TOKEN,
+        <<"caveats">> => [#cv_time{valid_until = Now + ?DEFAULT_TEMP_CAVEAT_TTL}]
+    }),
+
     {ok, SerializedToken} = tokens:serialize(Token),
     SerializedToken.
 
@@ -824,8 +821,8 @@ get_rest_auth_headers(#api_client{basic_credentials = BasicCredentials, token = 
     {ok, RespCode :: non_neg_integer(), RespBody :: binary() | map()} |
     {error, term()}.
 make_rest_request(Node, Method, URL, Headers, Body) ->
-    CaCerts = rpc:call(Node, https_listener, get_cert_chain_ders, []),
-    Opts = [{ssl_options, [{cacerts, CaCerts}]},{recv_timeout, 10000}],
+    CaCerts = panel_test_rpc:get_cert_chain_ders(Node),
+    Opts = [{ssl_options, [{cacerts, CaCerts}]}, {recv_timeout, 10000}],
 
     case http_client:request(Method, URL, Headers, Body, Opts) of
         {ok, RespCode, RespHeaders, RespBody} ->
