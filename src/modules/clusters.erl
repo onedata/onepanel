@@ -192,8 +192,11 @@ list_user_clusters({rest, Auth}) ->
     #{binary() := term()}.
 fetch_remote_provider_info({rpc, Client}, ProviderId) ->
     case oz_worker_rpc:get_protected_provider_data(Client, ProviderId) of
-        {ok, ProviderData} -> format_provider_info(ProviderData);
-        Error -> throw(Error)
+        {ok, ProviderData} ->
+            % the provider id is not included in the oz-worker logic response
+            format_provider_info(ProviderData#{<<"providerId">> => ProviderId});
+        Error ->
+            throw(Error)
     end;
 
 fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
@@ -203,6 +206,8 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
             format_provider_info(json_utils:decode(BodyJson));
         {ok, ?HTTP_404_NOT_FOUND, _, _} ->
             throw(?ERROR_NOT_FOUND);
+        {ok, ?HTTP_403_FORBIDDEN, _, BodyJson} ->
+            throw(errors:from_json(json_utils:decode(BodyJson)));
         {error, _} ->
             throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
