@@ -86,8 +86,6 @@ get_provider_details(Config) ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
     oct_background:init_per_suite(Config, #onenv_test_config{
         onenv_scenario = "1op"
     }).
@@ -95,6 +93,4 @@ init_per_suite(Config) ->
 
 
 end_per_suite(_Config) ->
-    hackney:stop(),
-    application:stop(ssl),
-    ok.
+    oct_background:end_per_suite().
