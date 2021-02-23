@@ -533,14 +533,14 @@ create_and_support_space() ->
 
 
 %% @private
--spec create_and_support_space([atom()]) -> SpaceId :: binary().
+-spec create_and_support_space(atom() | [atom()]) -> SpaceId :: binary().
 create_and_support_space(Providers) ->
     SpaceName = str_utils:rand_hex(12),
     create_and_support_space(SpaceName, ?STORAGE_NAME, ?SUPPORT_SIZE, Providers).
 
 
 %% @private
--spec create_and_support_space(binary(), binary(), binary(), [atom()]) -> SpaceId :: binary().
+-spec create_and_support_space(binary(), binary(), binary(), atom() | [atom()]) -> SpaceId :: binary().
 create_and_support_space(SpaceName, StorageName, SupportSize, Providers) ->
     {UserId, SpaceId} = create_user_and_space(SpaceName),
     lists:foreach(fun(Provider) ->
@@ -555,13 +555,13 @@ create_and_support_space(SpaceName, StorageName, SupportSize, Providers) ->
 %% @private
 -spec create_user_and_space(binary()) -> {UserId :: binary(), SpaceId :: binary()}.
 create_user_and_space(SpaceName) ->
-    UserId = ozw_test_rpc:create_user(#{<<"username">> => str_utils:rand_hex(8)}),
+    UserId = ozw_test_rpc:create_user(),
     SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
     {UserId, SpaceId}.
 
 
 %% @private
--spec create_support_token(binary(), binary()) -> SerializedToken :: binary().
+-spec create_support_token(binary(), binary()) -> tokens:serialized().
 create_support_token(UserId, SpaceId) ->
     Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
     {ok, SerializedToken} = tokens:serialize(Token),
