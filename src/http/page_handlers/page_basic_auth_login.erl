@@ -42,9 +42,15 @@ handle(<<"POST">>, Req) ->
             {{error, _} = Error, Req2} ->
                 rest_handler:send_response(
                     rest_translator:error_response(Error), Req2
+                );
+            {ignore, Req2} ->
+                rest_handler:send_response(
+                    rest_translator:error_response(?ERROR_UNAUTHORIZED), Req2
                 )
         end
     catch Type:Reason ->
         ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason]),
-        cowboy_req:reply(?HTTP_500_INTERNAL_SERVER_ERROR, Req)
+        rest_handler:send_response(
+            rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR), Req
+        )
     end.
