@@ -7,24 +7,24 @@ sourcesRoot: ".."
 
 # Sources are expected to be found in CWD (from where the 'up' script was run) or one dir above.
 # On bamboo all required sources will be pulled automatically.
-# NOTE: Cluster manager in Onezone and Oneprovider will be started from the same sources 
+# NOTE: Cluster manager in Onezone and Oneprovider will be started from the same sources
 # (by default cluster_manager provided as op_worker dependency will be used).
 sources:
   onezone:
     node-1:
+      - oz-panel
       - oz-worker
       - cluster-manager
-      - oz-panel
   oneprovider-1:
     node-1:
+      - op-panel
       - op-worker
       - cluster-manager
-      - op-panel
   oneprovider-2:
     node-1:
+      - op-panel
       - op-worker
       - cluster-manager
-      - op-panel
 
 
 # Onezone image to use. Note that if 'sources' option is enabled, it must
@@ -60,4 +60,4 @@ forceImagePull: false
 # By default spaces supported by all providers are created. For custom
 # space configuration please refer to one of MyValues.yaml file in
 # scenario directory.
-spaces: true
+

@@ -594,8 +594,6 @@ get_provider_support_stage(MemRef) ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
     oct_background:init_per_suite(Config, #onenv_test_config{
         envs = [
             {oz_worker, oz_worker, [{minimum_space_support_size, ?MIN_SUPPORT_SIZE}]}
@@ -605,8 +603,7 @@ init_per_suite(Config) ->
 
 
 end_per_suite(_Config) ->
-    hackney:stop(),
-    application:stop(ssl).
+    oct_background:end_per_suite().
 
 
 init_per_testcase(get_space_ids_test, Config) ->
