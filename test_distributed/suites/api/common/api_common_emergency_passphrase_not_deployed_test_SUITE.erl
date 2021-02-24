@@ -6,7 +6,9 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file contains tests concerning onepanel common internal API (REST).
+%%% This file contains tests concerning onepanel Emergency Passphrase  API (REST).
+%%% Note, that suite is run under undeployed environment.
+%%% Not all features from oct_background module are available.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_common_emergency_passphrase_not_deployed_test_SUITE).
@@ -23,27 +25,24 @@
 
 -export([
     init_per_suite/1,
-    end_per_suite/1,
-
-    init_per_testcase/2,
-    end_per_testcase/2
+    end_per_suite/1
 ]).
 
 -export([
-    get_provider_panel_emergency_passphrase_status_test/1,
     get_zone_panel_emergency_passphrase_status_test/1,
+    get_provider_panel_emergency_passphrase_status_test/1,
+
     set_emergency_passphrase_with_op_panel_test/1,
     set_emergency_passphrase_with_oz_panel_test/1
 ]).
 
 all() -> [
-    get_provider_panel_emergency_passphrase_status_test,
     get_zone_panel_emergency_passphrase_status_test,
+    get_provider_panel_emergency_passphrase_status_test,
+
     set_emergency_passphrase_with_op_panel_test,
     set_emergency_passphrase_with_oz_panel_test
 ].
-
--define(INITIAL_EMERGENCY_PASSPHRASE, <<"password">>).
 
 
 %%%===================================================================
@@ -51,40 +50,31 @@ all() -> [
 %%%===================================================================
 
 
-get_provider_panel_emergency_passphrase_status_test(Config) ->
-    get_emergency_passphrase_status_test_base(Config, ?OP_PANEL, krakow).
-
-
 get_zone_panel_emergency_passphrase_status_test(Config) ->
-    get_emergency_passphrase_status_test_base(Config, ?OZ_PANEL, zone).
+    get_emergency_passphrase_status_test_base(Config, test_config:get_all_oz_panel_nodes(Config)).
 
 
--spec get_emergency_passphrase_status_test_base(test_config:config(), atom(), oct_background:entity_selector()) -> boolean().
-get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
-    TargetId = oct_background:to_entity_id(Target),
-    TargetPanelNodes = case TargetPanelType of
-        ?OP_PANEL -> oct_background:get_provider_panels(Target);
-        ?OZ_PANEL -> oct_background:get_zone_panels()
-    end,
+get_provider_panel_emergency_passphrase_status_test(Config) ->
+    get_emergency_passphrase_status_test_base(Config, test_config:get_all_op_panel_nodes(Config)).
+
+
+-spec get_emergency_passphrase_status_test_base(test_config:config(), [node()]) -> boolean().
+get_emergency_passphrase_status_test_base(Config, TargetPanels) ->
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Get emergency passphrase status using /emergency_passphrase rest endpoint">>,
             type = rest,
-            target_nodes = TargetPanelNodes,
+            target_nodes = TargetPanels,
+
+            % Not all clients are available due to undeployed oz-worker or unconfigured EP.
             client_spec = #client_spec{
                 correct = [
-                    root,
-                    member,
                     peer,
                     guest
-                ],
-                unauthorized = [
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
                 ]
             },
 
-            setup_fun = build_get_emergency_passphrase_status_setup_fun(Target),
             prepare_args_fun = fun(_) ->
                 #rest_args{
                     method = get,
@@ -92,65 +82,46 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
             end,
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
                 ExpectedResponse = #{
-                    <<"isSet">> => true
+                    <<"isSet">> => false
                 },
                 ?assertEqual(ExpectedResponse, Body)
-            end)
+            end),
+            test_proxied_onepanel_rest_endpoint = false
         }
     ])).
 
 
-%% @private
--spec build_get_emergency_passphrase_status_setup_fun(oct_background:entity_selector()) -> api_test_runner:setup_fun().
-build_get_emergency_passphrase_status_setup_fun(Target) ->
-    fun() ->
-        IsEPSet = panel_test_rpc:is_emergency_passphrase_set(Target),
-        node_cache:put(is_ep_set, IsEPSet)
-    end.
-
-
 set_emergency_passphrase_with_op_panel_test(Config) ->
-    set_emergency_passphrase_test_base(Config, ?OP_PANEL, krakow).
+    set_emergency_passphrase_test_base(Config, test_config:get_all_op_panel_nodes(Config)).
 
 
 set_emergency_passphrase_with_oz_panel_test(Config) ->
-    set_emergency_passphrase_test_base(Config, ?OZ_PANEL, zone).
+    set_emergency_passphrase_test_base(Config, test_config:get_all_oz_panel_nodes(Config)).
 
 
 %% @private
--spec set_emergency_passphrase_test_base(test_config:config(), atom(), oct_background:entity_selector()) -> boolean().
-set_emergency_passphrase_test_base(Config, TargetPanelType, Target) ->
-    TargetId = oct_background:to_entity_id(Target),
-    TargetPanelNodes = case TargetPanelType of
-        ?OP_PANEL -> oct_background:get_provider_panels(Target);
-        ?OZ_PANEL -> oct_background:get_zone_panels()
-    end,
+-spec set_emergency_passphrase_test_base(test_config:config(), [node()]) -> boolean().
+set_emergency_passphrase_test_base(Config, PanelNodes) ->
 
     ?assert(api_test_runner:run_tests(Config, [
         #scenario_spec{
             name = <<"Set emergency passphrase using /emergency_passphrase rest endpoint">>,
             type = rest,
-            target_nodes = TargetPanelNodes,
+            target_nodes = PanelNodes,
+
+            % Not all clients are available due to undeployed oz-worker or unconfigured EP.
             client_spec = #client_spec{
-                correct = [
-                    root
-                ],
-                forbidden = [
-                    member,
-                    peer
-                ],
-                unauthorized = [
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))},
-                    guest
-                ]
+                correct = [guest],
+                forbidden = [peer]
             },
 
             data_spec = build_set_emergency_passphrase_data_spec(),
-            setup_fun = build_get_emergency_passphrase_status_setup_fun(Target),
 
             prepare_args_fun = build_set_emergency_passphrase_prepare_args_fun(),
             validate_result_fun = api_test_validate:http_204_no_content(),
-            verify_fun = build_set_emergency_passphrase_verify_fun(Target)
+            verify_fun = build_set_emergency_passphrase_verify_fun(hd(PanelNodes)),
+
+            test_proxied_onepanel_rest_endpoint = false
         }
     ])).
 
@@ -159,36 +130,23 @@ set_emergency_passphrase_test_base(Config, TargetPanelType, Target) ->
 -spec build_set_emergency_passphrase_data_spec() -> api_test_runner:data_spec().
 build_set_emergency_passphrase_data_spec() ->
     #data_spec{
-        required = [<<"newPassphrase">>, <<"currentPassphrase">>],
-
+        required = [<<"newPassphrase">>],
         correct_values = #{
-            <<"newPassphrase">> => [new_passphrase_placeholder],
-            <<"currentPassphrase">> => [current_passphrase_placeholder]
-        },
-        bad_values = [
-            {<<"currentPassphrase">>, <<"badCurrentPassphrase">>, ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)}
-        ]
+            <<"newPassphrase">> => [new_passphrase_placeholder]
+        }
     }.
 
 
 %% @private
 -spec build_set_emergency_passphrase_prepare_args_fun() -> api_test_runner:prepare_args_fun().
 build_set_emergency_passphrase_prepare_args_fun() ->
-    fun(#api_test_ctx{data = Data, client = #api_client{role = Role}}) ->
-        CurrentPassphrase = node_cache:get(current_emergency_passphrase),
+    fun(#api_test_ctx{data = Data}) ->
         NewPassphrase = str_utils:rand_hex(12),
 
         RequestData = api_test_utils:substitute_placeholders(Data, #{
             <<"newPassphrase">> => #{
                 new_passphrase_placeholder => #placeholder_substitute{
-                    value = NewPassphrase,
-                    posthook = maybe_memorize_credentials(Data, Role,  NewPassphrase, CurrentPassphrase)
-                }
-            },
-            <<"currentPassphrase">> => #{
-                current_passphrase_placeholder => #placeholder_substitute{
-                    value = CurrentPassphrase,
-                    posthook = maybe_memorize_credentials(Data, Role, NewPassphrase, CurrentPassphrase)
+                    value = NewPassphrase
                 }
             }
         }),
@@ -205,41 +163,20 @@ build_set_emergency_passphrase_prepare_args_fun() ->
 
 
 %% @private
--spec maybe_memorize_credentials(map(), atom(), term(), term()) -> fun(() -> ok).
-maybe_memorize_credentials(Data, Client, NewEP, CurrentEP) ->
-    fun() ->
-        case {Client, maps:get(<<"currentPassphrase">>, Data, undefined), maps:get(<<"newPassphrase">>, Data, undefined)} of
-            {root, current_passphrase_placeholder, new_passphrase_placeholder} ->
-                node_cache:put(previous_emergency_passphrase, CurrentEP),
-                node_cache:put(current_emergency_passphrase, NewEP);
-            _ ->
-                ok
-        end
-    end.
-
-
-%% @private
 -spec build_set_emergency_passphrase_verify_fun(oct_background:entity_selector()) -> api_test_runner:verify_fun().
-build_set_emergency_passphrase_verify_fun(Target) ->
+build_set_emergency_passphrase_verify_fun(PanelNode) ->
     fun(ExpectedResult, _) ->
-        RequestedEP = node_cache:get(requested_emergency_passphrase),
-        PreviousEP = node_cache:get(previous_emergency_passphrase, <<"undefined">>),
-        CurrentEP = node_cache:get(current_emergency_passphrase),
-        ?assert(panel_test_rpc:verify_emergency_passphrase(Target, CurrentEP)),
+        RequestedEP = node_cache:get(requested_emergency_passphrase, undefined),
 
         case ExpectedResult of
             expected_success ->
-                ?assert(panel_test_rpc:verify_emergency_passphrase(Target, RequestedEP)),
-                ?assertNot(panel_test_rpc:verify_emergency_passphrase(Target, PreviousEP));
+                ?assert(panel_test_rpc:verify_emergency_passphrase(PanelNode, RequestedEP));
             expected_failure ->
-                ?assertNot(panel_test_rpc:verify_emergency_passphrase(Target, RequestedEP)),
-                case PreviousEP of
-                    <<"undefined">> -> ok;
-                    _ -> ?assert(panel_test_rpc:verify_emergency_passphrase(Target, PreviousEP))
-                end
+                ?assertNot(panel_test_rpc:verify_emergency_passphrase(PanelNode, RequestedEP))
         end,
         true
     end.
+
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -247,31 +184,10 @@ build_set_emergency_passphrase_verify_fun(Target) ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
-
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "2op_not_deployed"
+        onenv_scenario = "1op_not_deployed"
     }).
 
 
 end_per_suite(_Config) ->
-    hackney:stop(),
-    application:stop(ssl),
-    ok.
-
-
-% test suite is started with pre-defined emergency passphrase
-init_per_testcase(set_emergency_passphrase_with_op_panel_test, Config) ->
-    node_cache:put(current_emergency_passphrase, ?INITIAL_EMERGENCY_PASSPHRASE),
-    Config;
-init_per_testcase(set_emergency_passphrase_with_oz_panel_test, Config) ->
-    node_cache:put(current_emergency_passphrase, ?INITIAL_EMERGENCY_PASSPHRASE),
-    Config;
-
-init_per_testcase(_, Config) ->
-    Config.
-
-
-end_per_testcase(_, Config) ->
-    Config.
+    oct_background:end_per_suite().

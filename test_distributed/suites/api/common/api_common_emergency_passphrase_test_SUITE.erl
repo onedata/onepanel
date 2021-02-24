@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file contains tests concerning onepanel common internal API (REST).
+%%% This file contains tests concerning onepanel Emergency Passphrase  API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_common_emergency_passphrase_test_SUITE).

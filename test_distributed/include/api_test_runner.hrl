@@ -108,7 +108,12 @@
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
     validate_result_fun :: api_test_runner:validate_call_result_fun(),
 
-    data_spec = undefined :: undefined | api_test_runner:data_spec()
+    data_spec = undefined :: undefined | api_test_runner:data_spec(),
+
+    % When enabled, REST requests to onepanel will be made randomly
+    % on the native onepanel endpoint (port 9443), or via the proxy hosted by op-worker/oz-worker.
+    % When disabled, only the native endpoint will be tested (use for tests on undeployed environment)
+    test_proxied_onepanel_rest_endpoint = true :: boolean()
 }).
 
 % Template used to create scenario_spec(). It contains scenario specific data
@@ -118,7 +123,8 @@
     name :: binary(),
     type :: api_test_runner:scenario_type(),
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
-    validate_result_fun :: api_test_runner:validate_call_result_fun()
+    validate_result_fun :: api_test_runner:validate_call_result_fun(),
+    test_proxied_onepanel_rest_endpoint = true :: boolean()
 }).
 
 % Record used to group scenarios having common parameters like target nodes,
@@ -144,6 +150,8 @@
     % - client2 makes call with data1 on provider2 using scenario A
     % - client2 makes call with data2 on provider1 using scenario B
     randomly_select_scenarios = false,
+
+    test_proxied_onepanel_rest_endpoint = true :: boolean(),
 
     data_spec = undefined :: undefined | api_test_runner:data_spec()
 }).
