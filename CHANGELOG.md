@@ -4,6 +4,11 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha3
+
+-   **VFS-6638** Fixed handling duplicate clusters states on clusters
+    list in GUI.
+
 ### 21.02.0-alpha2
 
 -   **VFS-7280** Fixed page reload after Let\'s Encrypt certificate
