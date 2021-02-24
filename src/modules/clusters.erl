@@ -381,5 +381,6 @@ format_provider_info(OzResponse) ->
         {<<"longitude">>, <<"geoLongitude">>},
         {<<"latitude">>, <<"geoLatitude">>},
         {<<"cluster">>, <<"cluster">>},
+        {[<<"connectionStatus">>, <<"online">>], <<"online">>},
         {<<"online">>, <<"online">>}
     ], OzResponse).
