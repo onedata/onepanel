@@ -125,10 +125,10 @@ run_suite(Config, #suite_spec{
         SuiteSpec = SuiteSpec0#suite_spec{client_spec = ClientSpec},
 
         run_invalid_clients_test_cases(Config, unauthorized, SuiteSpec)
-            and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
-            and run_malformed_data_test_cases(Config, SuiteSpec)
-            and run_missing_required_data_test_cases(Config, SuiteSpec)
-            and run_expected_success_test_cases(Config, SuiteSpec)
+        and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
+        and run_malformed_data_test_cases(Config, SuiteSpec)
+        and run_missing_required_data_test_cases(Config, SuiteSpec)
+        and run_expected_success_test_cases(Config, SuiteSpec)
     catch
         throw:fail ->
             false;
@@ -329,9 +329,9 @@ run_malformed_data_test_cases(Config, #suite_spec{
 
 
 %% @private
-is_data_error_applicable_to_scenario({error, _}, _) ->           true;
+is_data_error_applicable_to_scenario({error, _}, _)           -> true;
 is_data_error_applicable_to_scenario({Scenario, _}, Scenario) -> true;
-is_data_error_applicable_to_scenario(_, _) ->                    false.
+is_data_error_applicable_to_scenario(_, _)                    -> false.
 
 
 %% @private
