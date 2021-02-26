@@ -19,7 +19,9 @@
     get_cluster_id/0,
     create_invite_token/0,
     is_emergency_passphrase_set/0,
-    verify_emergency_passphrase/1
+    verify_emergency_passphrase/1,
+    list_onepanel_deployment/0,
+    get_https_listener_healthcheck/0
 ]).
 
 
@@ -56,3 +58,13 @@ is_emergency_passphrase_set()->
 -spec verify_emergency_passphrase(binary()) -> boolean().
 verify_emergency_passphrase(Passphrase)->
     emergency_passphrase:verify(Passphrase).
+
+
+-spec list_onepanel_deployment() -> list().
+list_onepanel_deployment() ->
+    onepanel_deployment:list().
+
+
+-spec get_https_listener_healthcheck() -> ok | {error, server_not_responding}.
+get_https_listener_healthcheck()->
+    https_listener:healthcheck().

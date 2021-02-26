@@ -14,9 +14,6 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
--include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 -export([all/0]).
@@ -84,7 +81,6 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
                 ]
             },
 
-            setup_fun = build_get_emergency_passphrase_status_setup_fun(Target),
             prepare_args_fun = fun(_) ->
                 #rest_args{
                     method = get,
@@ -98,15 +94,6 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
             end)
         }
     ])).
-
-
-%% @private
--spec build_get_emergency_passphrase_status_setup_fun(oct_background:entity_selector()) -> api_test_runner:setup_fun().
-build_get_emergency_passphrase_status_setup_fun(Target) ->
-    fun() ->
-        IsEPSet = panel_test_rpc:is_emergency_passphrase_set(Target),
-        node_cache:put(is_ep_set, IsEPSet)
-    end.
 
 
 set_emergency_passphrase_with_op_panel_test(Config) ->
@@ -146,7 +133,6 @@ set_emergency_passphrase_test_base(Config, TargetPanelType, Target) ->
             },
 
             data_spec = build_set_emergency_passphrase_data_spec(),
-            setup_fun = build_get_emergency_passphrase_status_setup_fun(Target),
 
             prepare_args_fun = build_set_emergency_passphrase_prepare_args_fun(),
             validate_result_fun = api_test_validate:http_204_no_content(),
@@ -247,18 +233,13 @@ build_set_emergency_passphrase_verify_fun(Target) ->
 
 
 init_per_suite(Config) ->
-    application:start(ssl),
-    hackney:start(),
-
     oct_background:init_per_suite(Config, #onenv_test_config{
         onenv_scenario = "1op"
     }).
 
 
 end_per_suite(_Config) ->
-    hackney:stop(),
-    application:stop(ssl),
-    ok.
+    oct_background:end_per_suite().
 
 
 % test suite is started with pre-defined emergency passphrase

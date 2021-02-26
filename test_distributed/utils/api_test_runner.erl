@@ -39,8 +39,8 @@
 
 -type api_client() :: #api_client{}.
 -type api_client_placeholder() ::
-root | peer | guest | user |
-member | {member, Privileges :: [privileges:cluster_privilege()]}.
+    root | peer | guest | user |
+    member | {member, Privileges :: [privileges:cluster_privilege()]}.
 -type api_client_or_placeholder() :: api_client() | api_client_placeholder().
 
 -type client_spec() :: #client_spec{}.
@@ -58,7 +58,7 @@ member | {member, Privileges :: [privileges:cluster_privilege()]}.
 % on environment (e.g. check if resource deleted during test was truly deleted).
 % First argument tells whether request made during testcase should succeed
 -type verify_fun() :: fun(
-(RequestResultExpectation :: expected_success | expected_failure, api_test_ctx()) -> boolean()
+    (RequestResultExpectation :: expected_success | expected_failure, api_test_ctx()) -> boolean()
 ).
 
 % Function called during testcase to prepare call/request arguments.
@@ -329,9 +329,9 @@ run_malformed_data_test_cases(Config, #suite_spec{
 
 
 %% @private
-is_data_error_applicable_to_scenario({error, _}, _) -> true;
+is_data_error_applicable_to_scenario({error, _}, _) ->           true;
 is_data_error_applicable_to_scenario({Scenario, _}, Scenario) -> true;
-is_data_error_applicable_to_scenario(_, _) -> false.
+is_data_error_applicable_to_scenario(_, _) ->                    false.
 
 
 %% @private
