@@ -78,6 +78,7 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelType, Target) ->
                 ],
                 unauthorized = [
                     {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ]
             },
 
@@ -129,6 +130,7 @@ set_emergency_passphrase_test_base(Config, TargetPanelType, Target) ->
                 unauthorized = [
                     {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))},
                     guest
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ]
             },
 
@@ -160,7 +162,7 @@ build_set_emergency_passphrase_data_spec() ->
 %% @private
 -spec build_set_emergency_passphrase_prepare_args_fun() -> api_test_runner:prepare_args_fun().
 build_set_emergency_passphrase_prepare_args_fun() ->
-    fun(#api_test_ctx{data = Data, client = #api_client{role = Role}}) ->
+    fun(#api_test_ctx{data = Data, client = Client}) ->
         CurrentPassphrase = node_cache:get(current_emergency_passphrase),
         NewPassphrase = str_utils:rand_hex(12),
 
@@ -168,13 +170,13 @@ build_set_emergency_passphrase_prepare_args_fun() ->
             <<"newPassphrase">> => #{
                 new_passphrase_placeholder => #placeholder_substitute{
                     value = NewPassphrase,
-                    posthook = maybe_memorize_credentials(Data, Role,  NewPassphrase, CurrentPassphrase)
+                    posthook = maybe_memorize_credentials(Data, Client, NewPassphrase, CurrentPassphrase)
                 }
             },
             <<"currentPassphrase">> => #{
                 current_passphrase_placeholder => #placeholder_substitute{
                     value = CurrentPassphrase,
-                    posthook = maybe_memorize_credentials(Data, Role, NewPassphrase, CurrentPassphrase)
+                    posthook = maybe_memorize_credentials(Data, Client, NewPassphrase, CurrentPassphrase)
                 }
             }
         }),
@@ -191,14 +193,20 @@ build_set_emergency_passphrase_prepare_args_fun() ->
 
 
 %% @private
--spec maybe_memorize_credentials(map(), atom(), term(), term()) -> fun(() -> ok).
+-spec maybe_memorize_credentials(map(), api_test_runner:api_client(), term(), term()) -> fun(() -> ok).
 maybe_memorize_credentials(Data, Client, NewEP, CurrentEP) ->
     fun() ->
-        case {Client, maps:get(<<"currentPassphrase">>, Data, undefined), maps:get(<<"newPassphrase">>, Data, undefined)} of
-            {root, current_passphrase_placeholder, new_passphrase_placeholder} ->
-                node_cache:put(previous_emergency_passphrase, CurrentEP),
-                node_cache:put(current_emergency_passphrase, NewEP);
-            _ ->
+        case lists:member(Client, ?INVALID_API_CLIENTS) of
+            false ->
+                Role = Client#api_client.role,
+                case {Role, maps:get(<<"currentPassphrase">>, Data, undefined), maps:get(<<"newPassphrase">>, Data, undefined)} of
+                    {root, current_passphrase_placeholder, new_passphrase_placeholder} ->
+                        node_cache:put(previous_emergency_passphrase, CurrentEP),
+                        node_cache:put(current_emergency_passphrase, NewEP);
+                    _ ->
+                        ok
+                end;
+            true ->
                 ok
         end
     end.

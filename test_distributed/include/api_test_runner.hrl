@@ -60,6 +60,12 @@
     {?API_USER_BAD_TOKEN, ?ERROR_BAD_TOKEN}
 ]).
 
+-define(INVALID_API_CLIENTS, [
+    ?API_ROOT_BAD_PASSPHRASE,
+    ?API_ROOT_BAD_USERNAME,
+    ?API_USER_BAD_TOKEN
+]).
+
 -record(client_spec, {
     correct = [] :: [api_test_runner:api_client_or_placeholder()],
     unauthorized = [] :: [
