@@ -20,7 +20,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([is_set/0, get_hash/0]).
+-export([is_set/0, unset/0, get_hash/0]).
 -export([set/1, change/2]).
 -export([verify/1]).
 -export([migrate_from_users/0]).
@@ -49,6 +49,15 @@ set(Passphrase) ->
 -spec is_set() -> boolean().
 is_set() ->
     onepanel_kv:exists(?KV_EMERGENCY_PASSPHRASE).
+
+
+%%--------------------------------------------------------------------
+%% @doc Unsets emergency passphrase.
+%% @end
+%%--------------------------------------------------------------------
+-spec unset() -> ok | no_return().
+unset() ->
+    onepanel_kv:delete(?KV_EMERGENCY_PASSPHRASE).
 
 
 %%--------------------------------------------------------------------

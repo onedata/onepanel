@@ -12,6 +12,8 @@
 -module(test_rpc_api).
 -author("Piotr Duleba").
 
+-include_lib("ctool/include/errors.hrl").
+
 %% API
 -export([
     get_op_worker_nodes/0,
@@ -19,9 +21,11 @@
     get_cluster_id/0,
     create_invite_token/0,
     is_emergency_passphrase_set/0,
+    set_emergency_passphrase/1,
+    unset_emergency_passphrase/0,
     verify_emergency_passphrase/1,
     list_onepanel_deployment/0,
-    get_https_listener_healthcheck/0
+    is_onepanel_initialized/0
 ]).
 
 
@@ -51,12 +55,22 @@ create_invite_token() ->
 
 
 -spec is_emergency_passphrase_set() -> boolean().
-is_emergency_passphrase_set()->
+is_emergency_passphrase_set() ->
     emergency_passphrase:is_set().
 
 
+-spec set_emergency_passphrase(binary()) -> ok | ?ERROR_BAD_VALUE_PASSWORD.
+set_emergency_passphrase(NewPassphrase) ->
+    emergency_passphrase:set(NewPassphrase).
+
+
+-spec unset_emergency_passphrase() -> ok | no_return().
+unset_emergency_passphrase() ->
+    emergency_passphrase:unset().
+
+
 -spec verify_emergency_passphrase(binary()) -> boolean().
-verify_emergency_passphrase(Passphrase)->
+verify_emergency_passphrase(Passphrase) ->
     emergency_passphrase:verify(Passphrase).
 
 
@@ -65,6 +79,9 @@ list_onepanel_deployment() ->
     onepanel_deployment:list().
 
 
--spec get_https_listener_healthcheck() -> ok | {error, server_not_responding}.
-get_https_listener_healthcheck()->
-    https_listener:healthcheck().
+-spec is_onepanel_initialized() -> boolean().
+is_onepanel_initialized() ->
+    case https_listener:healthcheck() of
+        ok -> true;
+        _ -> false
+    end.

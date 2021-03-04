@@ -858,14 +858,10 @@ get_onepanel_endpoint(Node, ResourcePath) ->
 get_onepanel_rest_endpoint(Node, ResourcePath, TestProxiedRestEndpoint) ->
     {ok, Domain} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain),
 
-    % If TestProxiedRestEndpoint is set to true -  select between testing direct request or proxy one via
-    % Onezone/Oneprovider.
     Port = case TestProxiedRestEndpoint of
         true ->
-            case rand:uniform(2) of
-                1 -> <<>>;
-                2 -> <<":9443">>
-            end;
+            % randomly select between testing direct request or proxied via Onezone/Oneprovider
+            lists_utils:random_element([<<>>, <<":9443">>]);
         false ->
             <<":9443">>
     end,
