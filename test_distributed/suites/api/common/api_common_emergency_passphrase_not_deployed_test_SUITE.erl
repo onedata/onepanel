@@ -121,6 +121,8 @@ set_emergency_passphrase_with_oz_panel_test(Config) ->
     set_emergency_passphrase_test_base(Config, OzPanelNodes).
 
 
+% Initial emergency passphrase setup test, where only newPassphrase is required.
+% Further emergency passphrase updates are tested in update_emergency_passphrase_* test cases.
 %% @private
 -spec set_emergency_passphrase_test_base(test_config:config(), [node()]) -> boolean().
 set_emergency_passphrase_test_base(Config, PanelNodes) ->
