@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha4
+
 ### 21.02.0-alpha3
 
 -   **VFS-6638** Fixed handling duplicate clusters states on clusters
