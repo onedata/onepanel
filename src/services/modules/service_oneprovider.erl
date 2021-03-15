@@ -176,7 +176,7 @@ get_steps(deploy, Ctx) ->
             % If provider is already registered the deployment request
             % should not override Let's Encrypt config
 
-            % TODO remove this check when some time passes since introducing manage_restart
+            % NOTE: remove this check when some time passes since introducing manage_restart
             true -> maps:remove(letsencrypt_enabled, LeCtx);
             _ -> LeCtx
         end,
@@ -1445,11 +1445,11 @@ upload_onepanel_gui() ->
     case Result of
         {ok, ?HTTP_200_OK, _, _} ->
             ok;
-        Other ->
+        FailureResult ->
             try
-                {ok, ?HTTP_400_BAD_REQUEST, _, Body} = Other,
-                {error, json_utils:decode(Body)}
+                {ok, _, _, RespBody} = FailureResult,
+                errors:from_json(maps:get(<<"error">>, json_utils:decode(RespBody)))
             catch _:_ ->
-                {error, {unexpected_gui_upload_result, Other}}
+                {error, {unexpected_gui_upload_result, FailureResult}}
             end
     end.
