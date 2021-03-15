@@ -176,7 +176,7 @@ get_steps(deploy, Ctx) ->
             % If provider is already registered the deployment request
             % should not override Let's Encrypt config
 
-            % TODO remove this check when some time passes since introducing manage_restart
+            % NOTE: remove this check when some time passes since introducing manage_restart
             true -> maps:remove(letsencrypt_enabled, LeCtx);
             _ -> LeCtx
         end,
