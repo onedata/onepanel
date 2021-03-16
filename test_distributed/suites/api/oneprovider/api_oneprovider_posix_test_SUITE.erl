@@ -81,54 +81,51 @@ add_storage_test_base(Config, StorageType, ArgsCorrectness, SkipStorageDetection
                 ],
                 forbidden = [peer]
             },
-            data_spec = build_add_storage_data_spec(StorageType, ArgsCorrectness, SkipStorageDetection),
-            prepare_args_fun = build_add_storage_prepare_args_fun(),
+            data_spec = build_add_storage_data_spec(StorageType, ArgsCorrectness),
+            prepare_args_fun = build_add_storage_prepare_args_fun(SkipStorageDetection),
             validate_result_fun = build_add_posix_storage_validate_result_fun(ArgsCorrectness, SkipStorageDetection)
         }
     ])).
 
-build_add_storage_data_spec(posix, correct_args, SkipStorageDetection) ->
+build_add_storage_data_spec(posix, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     node_cache:put(storage_name, StorageName),
     #data_spec{
         required_with_custom_error = [
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".type">>]))},
-            {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".mountPoint">>]))},
-            {<<"skipStorageDetection">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".skipStorageDetection">>]))}
+            {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".mountPoint">>]))}
+
         ],
         correct_values = #{
             name => [StorageName],
             <<"type">> => [<<"posix">>],
-            <<"mountPoint">> => [<<"/volumes/persistence/storage">>],
-            <<"skipStorageDetection">> => [SkipStorageDetection]
+            <<"mountPoint">> => [<<"/volumes/persistence/storage">>]
         }
     };
 
 
-build_add_storage_data_spec(posix, bad_args, SkipStorageDetection) ->
+build_add_storage_data_spec(posix, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     node_cache:put(storage_name, StorageName),
     #data_spec{
         required_with_custom_error = [
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".type">>]))},
-            {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".mountPoint">>]))},
-            {<<"skipStorageDetection">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".skipStorageDetection">>]))}
+            {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".mountPoint">>]))}
         ],
         correct_values = #{
             name => [StorageName],
             <<"type">> => [<<"posix">>],
-            <<"mountPoint">> => [<<"/volumes/wrong/path">>],
-            <<"skipStorageDetection">> => [SkipStorageDetection]
+            <<"mountPoint">> => [<<"/volumes/wrong/path">>]
         }
     }.
 
 
-build_add_storage_prepare_args_fun() ->
+build_add_storage_prepare_args_fun(SkipStorageDetection) ->
     fun(#api_test_ctx{data = Data}) ->
         StorageName = node_cache:get(storage_name),
 
         RequestBody = #{
-            StorageName => Data
+            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, Data)
         },
 
         #rest_args{

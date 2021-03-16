@@ -350,9 +350,52 @@ run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = undefined}
     true;
 run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = #data_spec{
     required = [],
+    required_with_custom_error = [],
     at_least_one = []
 }}) ->
     true;
+run_missing_required_data_test_cases(Config, #suite_spec{
+    target_nodes = TargetNodes,
+    client_spec = #client_spec{correct = CorrectClients},
+
+    setup_fun = SetupFun,
+    teardown_fun = TeardownFun,
+    verify_fun = VerifyFun,
+
+    scenario_templates = ScenarioTemplates,
+
+    data_spec = DataSpec = #data_spec{
+        required = [],
+        at_least_one = [],
+        required_with_custom_error = RequiredParamsWithCustomError
+    }
+}) ->
+    RequiredDataSets = required_data_sets(DataSpec),
+    RequiredDataSet = hd(RequiredDataSets),
+
+    MissingRequiredParamsDataSetsAndErrors = lists:map(fun({RequiredParam, CustomError}) ->
+        {maps:remove(RequiredParam, RequiredDataSet), CustomError}
+    end, RequiredParamsWithCustomError),
+
+    IncompleteDataSetsAndErrors = lists:flatten([
+        MissingRequiredParamsDataSetsAndErrors
+    ]),
+
+    TestCaseFun = fun(TargetNode, Client, {DataSet, MissingParamError}, ScenarioTemplate) ->
+        run_exp_error_testcase(
+            TargetNode, Client, DataSet, MissingParamError,
+            VerifyFun, ScenarioTemplate, Config
+        )
+    end,
+
+    SetupFun(),
+    TestsPassed = run_scenarios(
+        ScenarioTemplates, TargetNodes, CorrectClients, IncompleteDataSetsAndErrors,
+        TestCaseFun
+    ),
+    TeardownFun(),
+
+    TestsPassed;
 run_missing_required_data_test_cases(Config, #suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
