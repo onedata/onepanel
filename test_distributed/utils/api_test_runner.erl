@@ -365,6 +365,7 @@ run_missing_required_data_test_cases(Config, #suite_spec{
 
     data_spec = DataSpec = #data_spec{
         required = RequiredParams,
+        required_with_custom_error = RequiredParamsWithCustomError,
         at_least_one = AtLeastOneParams
     }
 }) ->
@@ -373,7 +374,11 @@ run_missing_required_data_test_cases(Config, #suite_spec{
 
     MissingRequiredParamsDataSetsAndErrors = lists:map(fun(RequiredParam) ->
         {maps:remove(RequiredParam, RequiredDataSet), ?ERROR_MISSING_REQUIRED_VALUE(RequiredParam)}
-    end, RequiredParams),
+    end, RequiredParams) ++ lists:map(fun({RequiredParam, CustomError}) ->
+        {maps:remove(RequiredParam, RequiredDataSet), CustomError}
+    end, RequiredParamsWithCustomError)
+
+    ,
     MissingAtLeastOneParamsDataSetAndError = case AtLeastOneParams of
         [] ->
             [];
@@ -602,6 +607,7 @@ required_data_sets(undefined) ->
 required_data_sets(DataSpec) ->
     #data_spec{
         required = Required,
+        required_with_custom_error = RequiredWithCustomError,
         at_least_one = AtLeastOne
     } = DataSpec,
 
@@ -614,7 +620,12 @@ required_data_sets(DataSpec) ->
         fun(Key) ->
             [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
         end, Required
+    ) ++ lists:map(
+        fun({Key, _Error}) ->
+            [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
+        end, RequiredWithCustomError
     ),
+
     RequiredCombinations = lists:foldl(
         fun(ValuesForKey, Acc) ->
             [maps:merge(A, B) || A <- ValuesForKey, B <- Acc]
@@ -661,13 +672,14 @@ bad_data_sets(undefined) ->
     [?NO_DATA];
 bad_data_sets(#data_spec{
     required = Required,
+    required_with_custom_error = RequiredWithCustomError,
     at_least_one = AtLeastOne,
     optional = Optional,
     bad_values = BadValues
 } = DataSpec) ->
     AllCorrect = lists:foldl(fun(Param, Acc) ->
         Acc#{Param => hd(get_correct_value(Param, DataSpec))}
-    end, #{}, Required ++ AtLeastOne ++ Optional),
+    end, #{}, Required  ++ AtLeastOne ++ Optional ++ lists:map(fun({Key, _Error}) -> Key end, RequiredWithCustomError)),
 
     lists:map(fun({Param, InvalidValue, ExpError}) ->
         Data = AllCorrect#{Param => InvalidValue},
