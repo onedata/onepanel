@@ -84,7 +84,7 @@ add_storage_test_base(Config, StorageType, ArgsCorrectness, SkipStorageDetection
             data_spec = build_add_storage_data_spec(StorageType, ArgsCorrectness),
             prepare_args_fun = build_add_storage_prepare_args_fun(SkipStorageDetection),
             validate_result_fun = build_add_posix_storage_validate_result_fun(ArgsCorrectness, SkipStorageDetection)
-        }
+            }
     ])).
 
 build_add_storage_data_spec(posix, correct_args) ->
@@ -102,8 +102,6 @@ build_add_storage_data_spec(posix, correct_args) ->
             <<"mountPoint">> => [<<"/volumes/persistence/storage">>]
         }
     };
-
-
 build_add_storage_data_spec(posix, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     node_cache:put(storage_name, StorageName),
@@ -123,11 +121,9 @@ build_add_storage_data_spec(posix, bad_args) ->
 build_add_storage_prepare_args_fun(SkipStorageDetection) ->
     fun(#api_test_ctx{data = Data}) ->
         StorageName = node_cache:get(storage_name),
-
         RequestBody = #{
             StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, Data)
         },
-
         #rest_args{
             method = post,
             path = <<"provider/storages">>,
