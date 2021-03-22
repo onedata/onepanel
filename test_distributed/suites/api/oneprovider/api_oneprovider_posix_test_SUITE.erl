@@ -46,6 +46,22 @@ all() -> [
 -define(SUPPORT_SIZE, 10000000).
 -define(ATTEMPTS, 15).
 -define(SAMPLE_FILE_CONTENT, <<"abcdef">>).
+-define(STORAGE_TYPES, [
+    <<"cephrados">>,
+    <<"glusterfs">>,
+    <<"http">>,
+    <<"localceph">>,
+    <<"nulldevice">>,
+    <<"posix">>,
+    <<"s3">>,
+    <<"swift">>,
+    <<"webdav">>,
+    <<"xrootd">>
+]).
+-define(POSIX_TIMEOUT, 5000).
+-define(POSIX_QOS_PARAMETERS, #{
+    <<"key">> => <<"value">>
+}).
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -118,13 +134,26 @@ build_add_storage_data_spec(MemRef, posix, correct_args) ->
         required_with_custom_error = [
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".type">>]))},
             {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".mountPoint">>]))}
-
+        ],
+        optional = [
+            <<"timeout">>,
+            <<"qosParameters">>,
+            <<"storagePathType">>
         ],
         correct_values = #{
             name => [StorageName],
             <<"type">> => [<<"posix">>],
-            <<"mountPoint">> => [<<"/volumes/persistence/storage">>]
-        }
+            <<"mountPoint">> => [<<"/volumes/persistence/storage">>],
+            <<"timeout">> => [?POSIX_TIMEOUT],
+            <<"qosParameters">> => [?POSIX_QOS_PARAMETERS],
+            <<"storagePathType">> => [<<"canonical">>]
+        },
+        bad_values = [
+            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(iolist_to_binary([StorageName, <<".type">>]), ?STORAGE_TYPES)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(iolist_to_binary([StorageName, <<".timeout">>]))},
+            {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERROR_MISSING_REQUIRED_VALUE(iolist_to_binary([StorageName, <<".qosParameters._">>]))},
+            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(iolist_to_binary([StorageName, <<".storagePathType">>]))}
+        ]
     };
 build_add_storage_data_spec(MemRef, posix, bad_args) ->
     StorageName = str_utils:rand_hex(10),
