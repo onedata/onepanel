@@ -14,10 +14,10 @@
 
 -include("api_test_runner.hrl").
 -include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
+-include_lib("onenv_ct/include/chart_values.hrl").
 
 %% API
 -export([all/0]).
@@ -31,10 +31,7 @@
     add_correct_storage_skip_detection/1,
     add_bad_storage_perform_detection/1,
     add_bad_storage_skip_detection/1
-
 ]).
-
-
 
 all() -> [
     add_correct_storage_perform_detection_test,
@@ -44,7 +41,7 @@ all() -> [
 ].
 
 -define(SUPPORT_SIZE, 10000000).
--define(ATTEMPTS, 15).
+-define(ATTEMPTS, 60).
 -define(SAMPLE_FILE_CONTENT, <<"abcdef">>).
 -define(STORAGE_TYPES, [
     <<"cephrados">>,
@@ -62,6 +59,8 @@ all() -> [
 -define(POSIX_QOS_PARAMETERS, #{
     <<"key">> => <<"value">>
 }).
+
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -143,7 +142,7 @@ build_add_storage_data_spec(MemRef, posix, correct_args) ->
         correct_values = #{
             name => [StorageName],
             <<"type">> => [<<"posix">>],
-            <<"mountPoint">> => [<<"/volumes/persistence/storage">>],
+            <<"mountPoint">> => [?POSIX_MOUNTPOINT],
             <<"timeout">> => [?POSIX_TIMEOUT],
             <<"qosParameters">> => [?POSIX_QOS_PARAMETERS],
             <<"storagePathType">> => [<<"canonical">>]
@@ -239,7 +238,7 @@ build_add_posix_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetectio
 -spec perform_io_test_on_storage(binary()) -> ok | error.
 perform_io_test_on_storage(StorageId) ->
     {UserSession, SpaceName} = create_and_support_space_with_storage(StorageId),
-    FilePath = <<"/", SpaceName/binary, "/test_file">>,
+    FilePath = filename:join(["/", SpaceName, <<"test_file">>]),
     case opw_test_rpc:lfm_create(krakow, UserSession, FilePath) of
         {error, _} -> error;
         {ok, Guid} ->
