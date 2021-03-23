@@ -4,6 +4,15 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha5
+
+-   **VFS-7294** Added publicly available REST endpoints for fetching
+    information and data of shared files/directories. The data-related
+    endpoints are offered by Onezone, which redirects to a suitable
+    Oneprovider so that a guest user does not need any knowledge of the
+    environment to access the data. Improved the Web GUI\'s shares view
+    to present the public endpoints in an easy-to-use manner.
+
 ### 21.02.0-alpha4
 
 ### 21.02.0-alpha3
