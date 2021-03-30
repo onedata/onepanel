@@ -334,7 +334,9 @@ service_op_worker_add_storage_test(Config) ->
             }
         }
     }),
-    assert_expected_result(service:get_module(op_worker), add_storage, [Node], ok, Results).
+
+    {_ResponseMap, ErrorOccurred} = get_storages_map(Results),
+    ?assertEqual(ErrorOccurred, false).
 
 
 service_op_worker_update_storage_test(Config) ->
@@ -755,6 +757,25 @@ get_storages(Config) ->
         Details
     end, Ids).
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Converts result from add_storages steps to storage map.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_storages_map(list()) -> map().
+get_storages_map(ActionResults) ->
+    lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
+        case StepResult of
+            {step_end, _, _, {[{_, {storage_add_error, {StorageName, Reason}}}], []}} ->
+                {AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}}, true};
+            {step_end, _, _, {[{_, {StorageName, StorageId}}], []}} ->
+                {AccMap#{StorageName => #{<<"id">> => StorageId}}, AccErrorOccurred};
+            _ ->
+                {AccMap, AccErrorOccurred}
+        end
+    end, {#{}, false}, ActionResults).
 
 %%--------------------------------------------------------------------
 %% @private
