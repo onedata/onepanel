@@ -363,9 +363,22 @@ validate(#onp_req{
 
 -spec create(middleware:req()) -> middleware:create_result().
 create(#onp_req{gri = #gri{aspect = instances}, data = Data}) ->
-    middleware_utils:execute_service_action(?SERVICE_OPW, add_storages, #{
-        storages => Data
-    });
+    ActionResults = service:apply_sync(?SERVICE_OPW, add_storages, #{storages => Data}),
+    {ResponseMap, ErrorOccurred} = lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
+        case StepResult of
+            {step_end, _, _, {[{_, {storage_add_error, {StorageName, Reason}}}], []}} ->
+                {AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}}, true};
+            {step_end, _, _, {[{_, {StorageName, StorageId}}], []}} ->
+                {AccMap#{StorageName => #{<<"id">> => StorageId}}, AccErrorOccurred};
+            _ ->
+                {AccMap, AccErrorOccurred}
+        end
+    end, {#{}, false}, ActionResults),
+
+    case ErrorOccurred of
+        true -> {storages_add_error, ResponseMap};
+        false ->  {ok, value, ResponseMap}
+    end;
 create(#onp_req{
     gri = #gri{
         aspect = local_feed_luma_onedata_user_to_credentials_mapping,

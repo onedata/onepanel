@@ -17,13 +17,16 @@
 -include("http/rest.hrl").
 -include_lib("ctool/include/graph_sync/gri.hrl").
 
--export([get_response/2, update_response/2]).
+-export([create_response/3, get_response/2, update_response/2]).
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+-spec create_response(gri:gri(), value, Resource :: term()) -> #rest_resp{}.
+create_response(#gri{}, value, Ids) ->
+    ?OK_REPLY(Ids).
 
 -spec get_response(gri:gri(), Resource :: term()) -> #rest_resp{}.
 get_response(#gri{aspect = list}, StorageIds) ->

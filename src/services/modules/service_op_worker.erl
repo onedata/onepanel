@@ -445,7 +445,7 @@ synchronize_clock_upon_start(_) ->
 %% @doc Configures the service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storage(Ctx :: service:step_ctx()) -> ok | no_return().
+-spec add_storage(Ctx :: service:step_ctx()) -> {op_worker_storage:name(), op_worker_storage:id()} | no_return().
 add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
     Type == ?LOCAL_CEPH_STORAGE_TYPE ->
     case hosts:all(?SERVICE_CEPH_OSD) of
