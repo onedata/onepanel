@@ -364,21 +364,9 @@ validate(#onp_req{
 -spec create(middleware:req()) -> middleware:create_result().
 create(#onp_req{gri = #gri{aspect = instances}, data = Data}) ->
     ActionResults = service:apply_sync(?SERVICE_OPW, add_storages, #{storages => Data}),
-    {ResponseMap, ErrorOccurred} = lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
-        case StepResult of
-            {step_end, _, _, {[{_, {storage_add_error, {StorageName, Reason}}}], []}} ->
-                {AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}}, true};
-            {step_end, _, _, {[{_, {StorageName, StorageId}}], []}} ->
-                {AccMap#{StorageName => #{<<"id">> => StorageId}}, AccErrorOccurred};
-            _ ->
-                {AccMap, AccErrorOccurred}
-        end
-    end, {#{}, false}, ActionResults),
+    ResponseMap = parse_add_storages_results(ActionResults),
+    {ok, value, ResponseMap};
 
-    case ErrorOccurred of
-        true -> {storages_add_error, ResponseMap};
-        false ->  {ok, value, ResponseMap}
-    end;
 create(#onp_req{
     gri = #gri{
         aspect = local_feed_luma_onedata_user_to_credentials_mapping,
@@ -658,3 +646,16 @@ is_local_feed_luma_request(Aspect) ->
         <<"local_feed_", _/binary>> -> true;
         _ -> false
     end.
+
+-spec parse_add_storages_results(list()) -> map().
+parse_add_storages_results(ActionResults) ->
+    lists:foldl(fun(StepResult, AccMap) ->
+        case StepResult of
+            {step_end, _, add_storage, {[{_, {StorageName, {error, Reason}}}], []}} ->
+                AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}};
+            {step_end, _, add_storage, {[{_, {StorageName, {ok, StorageId}}}], []}} ->
+                AccMap#{StorageName => #{<<"id">> => StorageId}};
+            _ ->
+                AccMap
+        end
+    end, #{}, ActionResults).

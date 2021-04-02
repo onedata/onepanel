@@ -37,8 +37,6 @@
 -spec response(_, middleware:result()) -> #rest_resp{}.
 response(_, {error, _} = Error) ->
     error_response(Error);
-response(_, {storages_add_error, _} = Error) ->
-    error_response(Error);
 
 response(#onp_req{operation = create}, ok) ->
     % No need for translation, 'ok' means success with no response data
@@ -82,12 +80,6 @@ error_response({error, _} = Error) ->
         code = errors:to_http_code(Error),
         headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
         body = #{<<"error">> => errors:to_json(Error)}
-    };
-error_response({storages_add_error, ErrorMap} ) ->
-    #rest_resp{
-        code = ?HTTP_400_BAD_REQUEST,
-        headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-        body = ErrorMap
     }.
 
 

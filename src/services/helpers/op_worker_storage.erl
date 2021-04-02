@@ -85,10 +85,10 @@ add(#{name := Name, params := Params}) ->
 
     case Result of
         {error, Reason} ->
-            {storage_add_error, {StorageName, Reason}};
-        {AddedStorageName, AddedStorageId} ->
+            {StorageName, {error, Reason}};
+        {_AddedStorageName, AddedStorageId} ->
             ?info("Successfully added storage: \"~ts\" (~ts)", [StorageName, StorageType]),
-            {AddedStorageName, AddedStorageId}
+            {StorageName, {ok, AddedStorageId}}
     end.
 
 %%--------------------------------------------------------------------
