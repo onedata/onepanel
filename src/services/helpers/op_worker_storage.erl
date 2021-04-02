@@ -75,7 +75,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Ctx :: #{name := name(), params := storage_params()}) ->
-    {op_worker_storage:name(), op_worker_storage:id()}  | no_return().
+    {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
 add(#{name := Name, params := Params}) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),

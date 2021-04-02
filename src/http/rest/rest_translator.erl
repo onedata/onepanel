@@ -74,7 +74,7 @@ response(#onp_req{operation = delete}, ok) ->
     ?NO_CONTENT_REPLY.
 
 
--spec error_response(errors:error()|{storages_add_error, map()}) -> #rest_resp{}.
+-spec error_response(errors:error()) -> #rest_resp{}.
 error_response({error, _} = Error) ->
     #rest_resp{
         code = errors:to_http_code(Error),
