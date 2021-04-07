@@ -768,9 +768,9 @@ get_storages(Config) ->
 get_storages_map(ActionResults) ->
     lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
         case StepResult of
-            {step_end, _, _, {[{_, {storage_add_error, {StorageName, Reason}}}], []}} ->
+            {step_end, _, add_storage, {[{_, {StorageName, {error, Reason}}}], []}}->
                 {AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}}, true};
-            {step_end, _, _, {[{_, {StorageName, StorageId}}], []}} ->
+            {step_end, _, add_storage, {[{_, {StorageName, {ok, StorageId}}}], []}} ->
                 {AccMap#{StorageName => #{<<"id">> => StorageId}}, AccErrorOccurred};
             _ ->
                 {AccMap, AccErrorOccurred}

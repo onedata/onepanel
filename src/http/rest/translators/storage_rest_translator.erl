@@ -130,9 +130,7 @@ get_storage_model(xrootd) -> rest_model:xrootd_model().
 %%--------------------------------------------------------------------
 -spec adding_storages_caused_error(map()) -> boolean().
 adding_storages_caused_error(StoragesMap) ->
-    lists:foldl(fun(StorageStatus, ErrorOccurredAcc) ->
-        case maps:is_key(<<"error">>, StorageStatus) of
-            true -> true;
-            false -> ErrorOccurredAcc
-        end
-    end, false, maps:values(StoragesMap)).
+    lists:any(fun(StorageStatus) ->
+        maps:is_key(<<"error">>, StorageStatus)
+    end, maps:values(StoragesMap)).
+
