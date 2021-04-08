@@ -335,7 +335,7 @@ service_op_worker_add_storage_test(Config) ->
         }
     }),
 
-    {_ResponseMap, ErrorOccurred} = get_storages_map(Results),
+    {_ResponseMap, ErrorOccurred} = parse_add_storages_results(Results),
     ?assertEqual(ErrorOccurred, false).
 
 
@@ -761,11 +761,11 @@ get_storages(Config) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Converts result from add_storages steps to storage map.
+%% Parses result from add_storages steps to storage map and searches for any error occurred during adding storages.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storages_map(list()) -> map().
-get_storages_map(ActionResults) ->
+-spec parse_add_storages_results(list()) -> map().
+parse_add_storages_results(ActionResults) ->
     lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
         case StepResult of
             {step_end, _, add_storage, {[{_, {StorageName, {error, Reason}}}], []}}->
