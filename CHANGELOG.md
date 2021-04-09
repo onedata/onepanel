@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.8
+
 ### 20.02.7
 
 -   **VFS-7294** Added publicly available REST endpoints for fetching
