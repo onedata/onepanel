@@ -55,7 +55,7 @@
 -type helper() :: op_worker_rpc:helper().
 % @formatter:on
 
--export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
+-export_type([id/0, name/0, storage_params/0, storage_details/0, storages_map/0,
     qos_parameters/0, helper_args/0, user_ctx/0]).
 
 -define(EXEC_AND_THROW_ON_ERROR(Fun, Args),
@@ -75,7 +75,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Ctx :: #{name := name(), params := storage_params()}) ->
-    ok | no_return().
+    {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
 add(#{name := Name, params := Params}) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
@@ -84,13 +84,12 @@ add(#{name := Name, params := Params}) ->
     Result = add(OpNode, StorageName, Params),
 
     case Result of
-        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
-            [StorageName, StorageType]),
-            ok;
         {error, Reason} ->
-            throw({error, Reason})
+            {StorageName, {error, Reason}};
+        {_AddedStorageName, AddedStorageId} ->
+            ?info("Successfully added storage: \"~ts\" (~ts)", [StorageName, StorageType]),
+            {StorageName, {ok, AddedStorageId}}
     end.
-
 
 %%--------------------------------------------------------------------
 %% @doc Updates details of a selected storage in op_worker service.
@@ -316,7 +315,7 @@ can_be_removed(StorageId) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
-    ok | {error, Reason :: term()}.
+    {op_worker_storage:name(), op_worker_storage:id()} | {error, Reason :: term()}.
 add(OpNode, Name, Params) ->
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
@@ -342,14 +341,18 @@ add(OpNode, Name, Params) ->
     LumaConfig = make_luma_config(OpNode, StorageParams2),
     LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
 
-    SkipStorageDetection orelse verify_write_access(Helper, LumaFeed),
-
-    ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
-    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
-        Readonly,  normalize_numeric_qos_parameters(QosParameters)
-    ) of
-        {ok, _StorageId} -> ok;
-        {error, Reason} -> {error, Reason}
+    try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
+        _ ->
+            ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
+            case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
+                Readonly,  normalize_numeric_qos_parameters(QosParameters)
+            ) of
+                {ok, StorageId} -> {Name, StorageId};
+                {error, Reason} -> {error, Reason}
+            end
+    catch
+        _ErrType:Error ->
+            Error
     end.
 
 
