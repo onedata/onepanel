@@ -16,14 +16,27 @@
 -include("middleware/middleware.hrl").
 -include("http/rest.hrl").
 -include_lib("ctool/include/graph_sync/gri.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
--export([get_response/2, update_response/2]).
+-export([create_response/3, get_response/2, update_response/2]).
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+-spec create_response(gri:gri(), value, Resource :: term()) -> #rest_resp{}.
+create_response(#gri{aspect = instances}, value, StoragesMap) ->
+    case adding_storages_caused_error(StoragesMap) of
+        true ->
+            #rest_resp{
+                code = ?HTTP_400_BAD_REQUEST,
+                headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                body = StoragesMap
+            };
+        false ->
+            ?OK_REPLY(StoragesMap)
+    end.
 
 -spec get_response(gri:gri(), Resource :: term()) -> #rest_resp{}.
 get_response(#gri{aspect = list}, StorageIds) ->
@@ -108,3 +121,16 @@ get_storage_model(nulldevice) -> rest_model:nulldevice_model();
 get_storage_model(webdav) -> rest_model:webdav_model();
 get_storage_model(http) -> rest_model:http_model();
 get_storage_model(xrootd) -> rest_model:xrootd_model().
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Finds, if any error occurred during adding storages, based on response storages map.
+%% @end
+%%--------------------------------------------------------------------
+-spec adding_storages_caused_error(map()) -> boolean().
+adding_storages_caused_error(StoragesMap) ->
+    lists:any(fun(StorageStatus) ->
+        maps:is_key(<<"error">>, StorageStatus)
+    end, maps:values(StoragesMap)).
+

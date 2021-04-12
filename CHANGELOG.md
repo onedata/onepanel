@@ -4,6 +4,19 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha7
+
+### 21.02.0-alpha6
+
+### 21.02.0-alpha5
+
+-   **VFS-7294** Added publicly available REST endpoints for fetching
+    information and data of shared files/directories. The data-related
+    endpoints are offered by Onezone, which redirects to a suitable
+    Oneprovider so that a guest user does not need any knowledge of the
+    environment to access the data. Improved the Web GUI\'s shares view
+    to present the public endpoints in an easy-to-use manner.
+
 ### 21.02.0-alpha4
 
 ### 21.02.0-alpha3
@@ -18,6 +31,27 @@ CHANGELOG
 -   **VFS-7165** Add a workaround for Erlang\'s SSL implementation that
     would not reload server certificate chain when it is changed (e.g.
     after Let\'s Encrypt certificate regeneration).
+-   **VFS-6566** Improved UX and fixed minor issues in share views.
+    Fixed inability to open share hosted by Oneprovider 19.02.x using
+    Onezone 20.02.x.
+
+### 20.02.8
+
+### 20.02.7
+
+-   **VFS-7294** Added publicly available REST endpoints for fetching
+    information and data of shared files/directories. The data-related
+    endpoints are offered by Onezone, which redirects to a suitable
+    Oneprovider so that a guest user does not need any knowledge of the
+    environment to access the data. Improved the Web GUI's shares view
+    to present the public endpoints in an easy-to-use manner.
+-   **VFS-7280** Fixed page reload after Let's Encrypt certificate
+    generation via Onepanel GUI.
+-   **VFS-7165** Add a workaround for Erlang's SSL implementation that
+    would not reload server certificate chain when it is changed (e.g.
+    after Let's Encrypt certificate regeneration).
+-   **VFS-6638** Fixed handling duplicate clusters states on clusters
+    list in GUI.
 -   **VFS-6566** Improved UX and fixed minor issues in share views.
     Fixed inability to open share hosted by Oneprovider 19.02.x using
     Onezone 20.02.x.
