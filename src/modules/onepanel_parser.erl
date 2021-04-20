@@ -256,7 +256,7 @@ parse_value(Value, {subclasses, {DiscriminatorField, ValueToSpec}}, Keys) ->
 parse_value(Values, [ValueSpec], Keys) ->
     try
         [parse_value(Value, ValueSpec, [Idx | Keys])
-            || {Idx, Value} <- lists_utils:number_items(Values)]
+            || {Idx, Value} <- lists_utils:enumerate(Values)]
     catch
         ErrorClass:Error ->
             case ValueSpec of
