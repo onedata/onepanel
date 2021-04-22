@@ -11,7 +11,7 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
-    {vsn, "21.02.0-alpha7"},
+    {vsn, "21.02.0-alpha8"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
