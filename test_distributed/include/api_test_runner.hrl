@@ -79,8 +79,7 @@
 }).
 
 -record(data_spec, {
-    required = [] :: [Key :: binary()],
-    required_with_custom_error = [] :: [{Key :: binary(), errors:error()}],
+    required = [] :: [Key :: binary() | {Key :: binary(), erorrs:error()}],
     optional = [] :: [Key :: binary()],
     at_least_one = [] :: [Key :: binary()],
     correct_values = #{} :: #{Key :: binary() => Values :: [binary()]},

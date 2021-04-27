@@ -56,8 +56,13 @@ http_204_no_content() ->
     end.
 
 
-http_400_bad_request(ExpectedError) ->
+http_400_bad_request(ExpectedError) when is_tuple(ExpectedError) ->
     fun(_, {ok, RespCode, _, Body}) ->
         ?assertEqual(?HTTP_400_BAD_REQUEST, RespCode),
         ?assertEqual(?REST_ERROR(ExpectedError), Body)
+    end;
+http_400_bad_request(VerifyFun) ->
+    fun(_, {ok, RespCode, _, Body}) ->
+        ?assertEqual(?HTTP_400_BAD_REQUEST, RespCode),
+        VerifyFun(Body)
     end.

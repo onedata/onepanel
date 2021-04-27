@@ -39,8 +39,8 @@
 
 -type api_client() :: #api_client{}.
 -type api_client_placeholder() ::
-    root | peer | guest | user |
-    member | {member, Privileges :: [privileges:cluster_privilege()]}.
+root | peer | guest | user |
+member | {member, Privileges :: [privileges:cluster_privilege()]}.
 -type api_client_or_placeholder() :: api_client() | api_client_placeholder().
 
 -type client_spec() :: #client_spec{}.
@@ -58,7 +58,7 @@
 % on environment (e.g. check if resource deleted during test was truly deleted).
 % First argument tells whether request made during testcase should succeed
 -type verify_fun() :: fun(
-    (RequestResultExpectation :: expected_success | expected_failure, api_test_ctx()) -> boolean()
+(RequestResultExpectation :: expected_success | expected_failure, api_test_ctx()) -> boolean()
 ).
 
 % Function called during testcase to prepare call/request arguments.
@@ -125,10 +125,10 @@ run_suite(Config, #suite_spec{
         SuiteSpec = SuiteSpec0#suite_spec{client_spec = ClientSpec},
 
         run_invalid_clients_test_cases(Config, unauthorized, SuiteSpec)
-        and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
-        and run_malformed_data_test_cases(Config, SuiteSpec)
-        and run_missing_required_data_test_cases(Config, SuiteSpec)
-        and run_expected_success_test_cases(Config, SuiteSpec)
+            and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
+            and run_malformed_data_test_cases(Config, SuiteSpec)
+            and run_missing_required_data_test_cases(Config, SuiteSpec)
+            and run_expected_success_test_cases(Config, SuiteSpec)
     catch
         throw:fail ->
             false;
@@ -350,7 +350,6 @@ run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = undefined}
     true;
 run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = #data_spec{
     required = [],
-    required_with_custom_error = [],
     at_least_one = []
 }}) ->
     true;
@@ -365,63 +364,20 @@ run_missing_required_data_test_cases(Config, #suite_spec{
     scenario_templates = ScenarioTemplates,
 
     data_spec = DataSpec = #data_spec{
-        required = [],
-        at_least_one = [],
-        required_with_custom_error = RequiredParamsWithCustomError
-    }
-}) ->
-    RequiredDataSets = required_data_sets(DataSpec),
-    RequiredDataSet = hd(RequiredDataSets),
-
-    MissingRequiredParamsDataSetsAndErrors = lists:map(fun({RequiredParam, CustomError}) ->
-        {maps:remove(RequiredParam, RequiredDataSet), CustomError}
-    end, RequiredParamsWithCustomError),
-
-    IncompleteDataSetsAndErrors = lists:flatten([
-        MissingRequiredParamsDataSetsAndErrors
-    ]),
-
-    TestCaseFun = fun(TargetNode, Client, {DataSet, MissingParamError}, ScenarioTemplate) ->
-        run_exp_error_testcase(
-            TargetNode, Client, DataSet, MissingParamError,
-            VerifyFun, ScenarioTemplate, Config
-        )
-    end,
-
-    SetupFun(),
-    TestsPassed = run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, IncompleteDataSetsAndErrors,
-        TestCaseFun
-    ),
-    TeardownFun(),
-
-    TestsPassed;
-run_missing_required_data_test_cases(Config, #suite_spec{
-    target_nodes = TargetNodes,
-    client_spec = #client_spec{correct = CorrectClients},
-
-    setup_fun = SetupFun,
-    teardown_fun = TeardownFun,
-    verify_fun = VerifyFun,
-
-    scenario_templates = ScenarioTemplates,
-
-    data_spec = DataSpec = #data_spec{
         required = RequiredParams,
-        required_with_custom_error = RequiredParamsWithCustomError,
         at_least_one = AtLeastOneParams
     }
 }) ->
     RequiredDataSets = required_data_sets(DataSpec),
     RequiredDataSet = hd(RequiredDataSets),
 
-    MissingRequiredParamsDataSetsAndErrors = lists:map(fun(RequiredParam) ->
-        {maps:remove(RequiredParam, RequiredDataSet), ?ERROR_MISSING_REQUIRED_VALUE(RequiredParam)}
-    end, RequiredParams) ++ lists:map(fun({RequiredParam, CustomError}) ->
-        {maps:remove(RequiredParam, RequiredDataSet), CustomError}
-    end, RequiredParamsWithCustomError)
+    MissingRequiredParamsDataSetsAndErrors = lists:map(fun
+        ({RequiredParam, CustomError}) ->
+            {maps:remove(RequiredParam, RequiredDataSet), CustomError};
+        (RequiredParam) ->
+            {maps:remove(RequiredParam, RequiredDataSet), ?ERROR_MISSING_REQUIRED_VALUE(RequiredParam)}
+    end, RequiredParams),
 
-    ,
     MissingAtLeastOneParamsDataSetAndError = case AtLeastOneParams of
         [] ->
             [];
@@ -652,9 +608,13 @@ required_data_sets(undefined) ->
 required_data_sets(DataSpec) ->
     #data_spec{
         required = Required,
-        required_with_custom_error = RequiredWithCustomError,
         at_least_one = AtLeastOne
     } = DataSpec,
+
+    RequiredKeys = lists:map(fun(
+        {Key, _Error}) -> Key;
+        (Key)-> Key
+    end, Required),
 
     AtLeastOneWithValues = lists:flatten(lists:map(
         fun(Key) ->
@@ -664,13 +624,8 @@ required_data_sets(DataSpec) ->
     RequiredWithValues = lists:map(
         fun(Key) ->
             [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
-        end, Required
-    ) ++ lists:map(
-        fun({Key, _Error}) ->
-            [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
-        end, RequiredWithCustomError
+        end, RequiredKeys
     ),
-
     RequiredCombinations = lists:foldl(
         fun(ValuesForKey, Acc) ->
             [maps:merge(A, B) || A <- ValuesForKey, B <- Acc]
@@ -717,14 +672,19 @@ bad_data_sets(undefined) ->
     [?NO_DATA];
 bad_data_sets(#data_spec{
     required = Required,
-    required_with_custom_error = RequiredWithCustomError,
     at_least_one = AtLeastOne,
     optional = Optional,
     bad_values = BadValues
 } = DataSpec) ->
+
+    RequiredKeys = lists:map(fun(
+        {Key, _Error}) -> Key;
+        (Key)-> Key
+    end, Required),
+
     AllCorrect = lists:foldl(fun(Param, Acc) ->
         Acc#{Param => hd(get_correct_value(Param, DataSpec))}
-    end, #{}, Required  ++ AtLeastOne ++ Optional ++ lists:map(fun({Key, _Error}) -> Key end, RequiredWithCustomError)),
+    end, #{}, RequiredKeys ++ AtLeastOne ++ Optional),
 
     lists:map(fun({Param, InvalidValue, ExpError}) ->
         Data = AllCorrect#{Param => InvalidValue},
