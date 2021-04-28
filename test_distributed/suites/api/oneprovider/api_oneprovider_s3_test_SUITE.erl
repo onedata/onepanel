@@ -6,14 +6,14 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file provides tests concerning provider posix storage API (REST).
+%%% This file provides tests concerning provider s3 storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_posix_test_SUITE).
+-module(api_oneprovider_s3_test_SUITE).
 -author("Piotr Duleba").
 
--include("api_test_runner.hrl").
 -include("api_test_storages.hrl").
+-include("api_test_runner.hrl").
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
@@ -22,7 +22,6 @@
 
 %% API
 -export([all/0]).
-
 -export([
     init_per_suite/1,
     end_per_suite/1
@@ -49,49 +48,49 @@ all() -> [
 
 
 add_correct_storage_and_perform_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, correct_args, false,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
+    api_oneprovider_storages_test_base:add_storage_test_base(Config, s3, correct_args, false,
+        fun build_add_s3_storage_setup_fun/1,
+        fun build_add_s3_storage_data_spec/3,
+        fun build_add_s3_storage_prepare_args_fun/2,
+        fun build_add_s3_storage_validate_result_fun/3,
+        fun build_add_s3_storage_verify_fun/3
     ).
 
 
 add_correct_storage_and_skip_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, correct_args, true,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
+    api_oneprovider_storages_test_base:add_storage_test_base(Config, s3, correct_args, true,
+        fun build_add_s3_storage_setup_fun/1,
+        fun build_add_s3_storage_data_spec/3,
+        fun build_add_s3_storage_prepare_args_fun/2,
+        fun build_add_s3_storage_validate_result_fun/3,
+        fun build_add_s3_storage_verify_fun/3
     ).
 
 
 add_bad_storage_and_perform_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, bad_args, false,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
+    api_oneprovider_storages_test_base:add_storage_test_base(Config, s3, bad_args, false,
+        fun build_add_s3_storage_setup_fun/1,
+        fun build_add_s3_storage_data_spec/3,
+        fun build_add_s3_storage_prepare_args_fun/2,
+        fun build_add_s3_storage_validate_result_fun/3,
+        fun build_add_s3_storage_verify_fun/3
     ).
 
 
 add_bad_storage_and_skip_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, bad_args, true,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
+    api_oneprovider_storages_test_base:add_storage_test_base(Config, s3, bad_args, true,
+        fun build_add_s3_storage_setup_fun/1,
+        fun build_add_s3_storage_data_spec/3,
+        fun build_add_s3_storage_prepare_args_fun/2,
+        fun build_add_s3_storage_validate_result_fun/3,
+        fun build_add_s3_storage_verify_fun/3
     ).
 
 
 %% @private
--spec build_add_posix_storage_setup_fun(api_test_memory:env_ref()) ->
+-spec build_add_s3_storage_setup_fun(api_test_memory:env_ref()) ->
     api_test_runner:setup_fun().
-build_add_posix_storage_setup_fun(MemRef) ->
+build_add_s3_storage_setup_fun(MemRef) ->
     fun() ->
         ExistingStorages = opw_test_rpc:get_storages(krakow),
         api_test_memory:set(MemRef, existing_storages, ExistingStorages)
@@ -99,24 +98,30 @@ build_add_posix_storage_setup_fun(MemRef) ->
 
 
 %% @private
--spec build_add_posix_storage_data_spec(api_test_memory:env_ref(), api_oneprovider_storages_test_base:storage_type(), api_oneprovider_storages_test_base:args_correctness()) ->
-    api_test_runner:data_spec().
-build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
+-spec build_add_s3_storage_data_spec(api_test_memory:env_ref(), api_oneprovider_storages_test_base:storage_type(),
+    api_oneprovider_storages_test_base:args_correctness()) -> api_test_runner:data_spec().
+build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
     #data_spec{
         required = [
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
-            {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"mountPoint">>))}
+            {<<"hostname">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))},
+            {<<"bucketName">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"bucketName">>))}
         ],
         optional = [
+            <<"accessKey">>,
+            <<"secretKey">>,
             <<"timeout">>,
             <<"qosParameters">>,
             <<"storagePathType">>
         ],
         correct_values = #{
-            <<"type">> => [<<"posix">>],
-            <<"mountPoint">> => [?POSIX_MOUNTPOINT],
+            <<"bucketName">> => [?S3_BUCKET_NAME],
+            <<"hostname">> => [?S3_HOSTNAME],
+            <<"accessKey">> => [?S3_KEY_ID],
+            <<"secretKey">> => [?S3_ACCESS_KEY],
+            <<"type">> => [<<"s3">>],
             <<"timeout">> => [?STORAGE_TIMEOUT],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             %% TODO: VFS-7621 add flat path type to tests
@@ -132,31 +137,39 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
             {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))}
         ]
     };
-build_add_posix_storage_data_spec(MemRef, posix, bad_args) ->
+build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
+    ct:pal("~p", [node_cache:get(oct_mapping)]),
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
     #data_spec{
         required = [
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
-            {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"mountPoint">>))}
+            {<<"hostname">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))},
+            {<<"bucketName">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"bucketName">>))}
         ],
         correct_values = #{
             name => [StorageName],
-            <<"type">> => [<<"posix">>],
-            <<"mountPoint">> => [<<"/volumes/wrong/path">>]
+            <<"type">> => [<<"s3">>],
+            <<"hostname">> => [?S3_HOSTNAME],
+            <<"bucketName">> => [<<"unexistent_bucket">>]
         }
     }.
 
 
 %% @private
--spec build_add_posix_storage_prepare_args_fun(api_test_memory:env_ref(), boolean()) ->
+-spec build_add_s3_storage_prepare_args_fun(api_test_memory:env_ref(), boolean()) ->
     api_test_runner:prepare_args_fun().
-build_add_posix_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
+build_add_s3_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
     fun(#api_test_ctx{data = Data}) ->
+        DataWithCredentials = maps:merge(Data, #{
+            <<"accessKey">> => ?S3_KEY_ID,
+            <<"secretKey">> => ?S3_ACCESS_KEY
+        }),
         StorageName = api_test_memory:get(MemRef, storage_name),
         RequestBody = #{
-            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, Data)
+            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, DataWithCredentials)
         },
+
         #rest_args{
             method = post,
             path = <<"provider/storages">>,
@@ -166,21 +179,21 @@ build_add_posix_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
 
 
 %% @private
--spec build_add_posix_storage_validate_result_fun(api_test_memory:env_ref(), api_oneprovider_storages_test_base:args_correctness(), boolean()) ->
-    api_test_runner:validate_result_fun().
-build_add_posix_storage_validate_result_fun(MemRef, correct_args, _) ->
+-spec build_add_s3_storage_validate_result_fun(api_test_memory:env_ref(),
+    api_oneprovider_storages_test_base:args_correctness(), boolean()) -> api_test_runner:validate_result_fun().
+build_add_s3_storage_validate_result_fun(MemRef, correct_args, _) ->
     api_test_validate:http_200_ok(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
         StorageId = kv_utils:get([StorageName, <<"id">>], Body),
         api_test_memory:set(MemRef, storage_id, StorageId)
     end);
-build_add_posix_storage_validate_result_fun(MemRef, bad_args, true) ->
+build_add_s3_storage_validate_result_fun(MemRef, bad_args, true) ->
     api_test_validate:http_200_ok(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
         StorageId = kv_utils:get([StorageName, <<"id">>], Body),
         api_test_memory:set(MemRef, storage_id, StorageId)
     end);
-build_add_posix_storage_validate_result_fun(MemRef, bad_args, false) ->
+build_add_s3_storage_validate_result_fun(MemRef, bad_args, false) ->
     api_test_validate:http_400_bad_request(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
         ExpRespBody = #{
@@ -191,16 +204,16 @@ build_add_posix_storage_validate_result_fun(MemRef, bad_args, false) ->
 
 
 %% @private
--spec build_add_posix_storage_verify_fun(api_test_memory:env_ref(), api_oneprovider_storages_test_base:args_correctness(), boolean()) ->
-    api_test_runner:verify_fun().
-build_add_posix_storage_verify_fun(MemRef, bad_args, false) ->
+-spec build_add_s3_storage_verify_fun(api_test_memory:env_ref(), api_oneprovider_storages_test_base:args_correctness(),
+    boolean()) -> api_test_runner:verify_fun().
+build_add_s3_storage_verify_fun(MemRef, bad_args, false) ->
     fun(_, _) ->
         StoragesBeforeTest = api_test_memory:get(MemRef, existing_storages),
         StoragesAfterTest = opw_test_rpc:get_storages(krakow),
         ?assertEqual(StoragesBeforeTest, StoragesAfterTest),
         true
     end;
-build_add_posix_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
+build_add_s3_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
     fun
         (expected_success, _) ->
             StoragesBeforeTest = api_test_memory:get(MemRef, existing_storages),
