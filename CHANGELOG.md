@@ -4,6 +4,13 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha8
+
+-   **VFS-7510** Add API for browsing dataset structures, separately for
+    datasets in attached and detached state. The datasets can be listed
+    using batches of requested size, with desired starting point and
+    offset.
+
 ### 21.02.0-alpha7
 
 ### 21.02.0-alpha6
@@ -34,6 +41,8 @@ CHANGELOG
 -   **VFS-6566** Improved UX and fixed minor issues in share views.
     Fixed inability to open share hosted by Oneprovider 19.02.x using
     Onezone 20.02.x.
+
+### 20.02.9
 
 ### 20.02.8
 
