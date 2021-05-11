@@ -75,7 +75,7 @@ get_krakow_details_from_krakow_test(Config) ->
 
 %% @private
 -spec get_remote_op_details_test_base(test_config:config(), atom(), oct_background:entity_selector(), oct_background:entity_selector()) -> boolean().
-get_remote_op_details_test_base(Config, TargetPanelType, TargetEntitySelector, RemoteProviderSelector) ->
+get_remote_op_details_test_base(_Config, TargetPanelType, TargetEntitySelector, RemoteProviderSelector) ->
     TargetId = oct_background:to_entity_id(TargetEntitySelector),
     TargetPanelNodes = case TargetPanelType of
         ?OZ_PANEL -> oct_background:get_zone_panels();
@@ -84,7 +84,7 @@ get_remote_op_details_test_base(Config, TargetPanelType, TargetEntitySelector, R
 
     RemoteProviderId = oct_background:get_provider_id(RemoteProviderSelector),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get remote provider details using /providers rest endpoint">>,
             type = rest,
@@ -173,13 +173,13 @@ get_zone_test_image_test(Config) ->
 
 %% @private
 -spec get_test_image_test_base(test_config:config(), atom(), oct_background:entity_selector()) -> ok.
-get_test_image_test_base(Config, PanelType, EntitySelector) ->
+get_test_image_test_base(_Config, PanelType, EntitySelector) ->
     EntityId = oct_background:to_entity_id(EntitySelector),
     PanelNodes = case PanelType of
         ?OZ_PANEL -> oct_background:get_zone_panels();
         ?OP_PANEL -> oct_background:get_provider_panels(EntitySelector)
     end,
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get test image using /test_image rest endpoint">>,
             type = rest,

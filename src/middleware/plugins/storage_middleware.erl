@@ -28,6 +28,8 @@
     authorize/2, validate/2]).
 -export([create/1, get/2, update/1, delete/1]).
 
+-define(DEFAULT_STORAGE_TIMEOUT, 5000).
+-define(MIN_STORAGE_TIMEOUT, 1).
 
 %%%===================================================================
 %%% middleware_plugin callbacks
@@ -269,11 +271,22 @@ authorize(#onp_req{
 
 
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
-validate(#onp_req{operation = create, gri = #gri{aspect = As}}, _)  when
+validate(#onp_req{operation = create, gri = #gri{aspect = As}, data = Data}, _) when
     As == instances;
     As == local_feed_luma_onedata_user_to_credentials_mapping
 ->
-    ensure_registered();
+    ensure_registered(),
+    lists:foreach(fun(StorageName) ->
+        Timeout = kv_utils:get([StorageName, timeout], Data, ?DEFAULT_STORAGE_TIMEOUT),
+        case Timeout < ?MIN_STORAGE_TIMEOUT of
+            false ->
+                ok;
+            true ->
+                Key = str_utils:join_as_binaries([StorageName, timeout], <<".">>),
+                throw(?ERROR_BAD_VALUE_TOO_LOW(Key, ?MIN_STORAGE_TIMEOUT))
+        end
+    end, maps:keys(Data));
+
 validate(#onp_req{operation = create, gri = #gri{
     aspect = {As, _}
 }}, _) when

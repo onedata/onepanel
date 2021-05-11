@@ -166,13 +166,6 @@
 
 -define(REST_ERROR(__ERROR), #{<<"error">> => errors:to_json(__ERROR)}).
 
--define(OZ_NODE(__CONFIG), lists_utils:random_element(
-    test_config:get_all_oz_worker_nodes(__CONFIG)
-)).
--define(OP_NODE(__CONFIG), lists_utils:random_element(test_config:get_provider_nodes(
-    __CONFIG, hd(test_config:get_providers(__CONFIG))
-))).
-
 -define(REST_PATH_PREFIX, "/api/v3/onepanel/").
 
 -endif.

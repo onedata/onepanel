@@ -32,15 +32,15 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 
--export([run_tests/2]).
+-export([run_tests/1]).
 
 -type scenario_type() :: rest.
 -type target_nodes() :: [node()].
 
 -type api_client() :: #api_client{}.
 -type api_client_placeholder() ::
-root | peer | guest | user |
-member | {member, Privileges :: [privileges:cluster_privilege()]}.
+    root | peer | guest | user |
+    member | {member, Privileges :: [privileges:cluster_privilege()]}.
 -type api_client_or_placeholder() :: api_client() | api_client_placeholder().
 
 -type client_spec() :: #client_spec{}.
@@ -58,7 +58,7 @@ member | {member, Privileges :: [privileges:cluster_privilege()]}.
 % on environment (e.g. check if resource deleted during test was truly deleted).
 % First argument tells whether request made during testcase should succeed
 -type verify_fun() :: fun(
-(RequestResultExpectation :: expected_success | expected_failure, api_test_ctx()) -> boolean()
+    (RequestResultExpectation :: expected_success | expected_failure, api_test_ctx()) -> boolean()
 ).
 
 % Function called during testcase to prepare call/request arguments.
@@ -84,12 +84,15 @@ member | {member, Privileges :: [privileges:cluster_privilege()]}.
     scenario_spec/0, scenario_template/0, suite_spec/0
 ]).
 
--type config() :: proplists:proplist().
-
 -define(NO_DATA, undefined).
 
 % Time caveat is required in temporary tokens, a default one is added if there isn't any
 -define(DEFAULT_TEMP_CAVEAT_TTL, 36000).
+
+-define(REQUIRED_KEYS(Required),  lists:map(fun(
+    {Key, _Error}) -> Key;
+    (Key)-> Key
+    end, Required)).
 
 
 %%%===================================================================
@@ -97,14 +100,14 @@ member | {member, Privileges :: [privileges:cluster_privilege()]}.
 %%%===================================================================
 
 
--spec run_tests(config(), [scenario_spec() | suite_spec()]) ->
+-spec run_tests([scenario_spec() | suite_spec()]) ->
     boolean().
-run_tests(Config, Specs) ->
+run_tests(Specs) ->
     lists:foldl(fun
         (#scenario_spec{} = ScenarioSpec, AllTestsPassed) ->
-            AllTestsPassed and run_suite(Config, scenario_spec_to_suite_spec(ScenarioSpec));
+            AllTestsPassed and run_suite(scenario_spec_to_suite_spec(ScenarioSpec));
         (#suite_spec{} = SuiteSpec, AllTestsPassed) ->
-            AllTestsPassed and run_suite(Config, SuiteSpec)
+            AllTestsPassed and run_suite(SuiteSpec)
     end, true, Specs).
 
 
@@ -114,21 +117,21 @@ run_tests(Config, Specs) ->
 
 
 %% @private
-run_suite(Config, #suite_spec{
+run_suite(#suite_spec{
     client_spec = ClientSpecWithPlaceholders,
     target_nodes = PanelNodes
 } = SuiteSpec0) ->
     try
         ClientSpec = replace_client_placeholders_with_valid_clients(
-            ClientSpecWithPlaceholders, PanelNodes, Config
+            ClientSpecWithPlaceholders, PanelNodes
         ),
         SuiteSpec = SuiteSpec0#suite_spec{client_spec = ClientSpec},
 
-        run_invalid_clients_test_cases(Config, unauthorized, SuiteSpec)
-            and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
-            and run_malformed_data_test_cases(Config, SuiteSpec)
-            and run_missing_required_data_test_cases(Config, SuiteSpec)
-            and run_expected_success_test_cases(Config, SuiteSpec)
+        run_invalid_clients_test_cases(unauthorized, SuiteSpec)
+        and run_invalid_clients_test_cases(forbidden, SuiteSpec)
+        and run_malformed_data_test_cases(SuiteSpec)
+        and run_missing_required_data_test_cases(SuiteSpec)
+        and run_expected_success_test_cases(SuiteSpec)
     catch
         throw:fail ->
             false;
@@ -145,47 +148,47 @@ replace_client_placeholders_with_valid_clients(#client_spec{
     correct = CorrectClientsAndPlaceholders,
     unauthorized = UnauthorizedClientsAndPlaceholders,
     forbidden = ForbiddenClientsAndPlaceholders
-}, PanelNodes, Config) ->
+}, PanelNodes) ->
     #client_spec{
         correct = replace_client_placeholders(
-            CorrectClientsAndPlaceholders, PanelNodes, Config
+            CorrectClientsAndPlaceholders, PanelNodes
         ),
         unauthorized = replace_client_placeholders(
-            UnauthorizedClientsAndPlaceholders, PanelNodes, Config
+            UnauthorizedClientsAndPlaceholders, PanelNodes
         ),
         forbidden = replace_client_placeholders(
-            ForbiddenClientsAndPlaceholders, PanelNodes, Config
+            ForbiddenClientsAndPlaceholders, PanelNodes
         )
     }.
 
 
 %% @private
-replace_client_placeholders(ClientsAndPlaceholders, PanelNodes, Config) ->
+replace_client_placeholders(ClientsAndPlaceholders, PanelNodes) ->
     lists:map(fun
         ({ClientOrPlaceholder, {error, _} = Error}) ->
-            {get_or_create_client(ClientOrPlaceholder, PanelNodes, Config), Error};
+            {get_or_create_client(ClientOrPlaceholder, PanelNodes), Error};
         (ClientOrPlaceholder) ->
-            get_or_create_client(ClientOrPlaceholder, PanelNodes, Config)
+            get_or_create_client(ClientOrPlaceholder, PanelNodes)
     end, ClientsAndPlaceholders).
 
 
 %% @private
-get_or_create_client(guest, _PanelNodes, _Config) ->
+get_or_create_client(guest, _PanelNodes) ->
     ?API_GUEST;
 
-get_or_create_client(user, _PanelNodes, Config) ->
-    OzNode = ?OZ_NODE(Config),
+get_or_create_client(user, _PanelNodes) ->
+    OzNode = hd(oct_background:get_zone_nodes()),
 
     UserId = ozw_test_rpc:create_user(),
     Token = create_oz_temp_token(OzNode, UserId),
 
     #api_client{role = user, token = Token};
 
-get_or_create_client(member, PanelNodes, Config) ->
-    get_or_create_client({member, privileges:cluster_member()}, PanelNodes, Config);
+get_or_create_client(member, PanelNodes) ->
+    get_or_create_client({member, privileges:cluster_member()}, PanelNodes);
 
-get_or_create_client({member, Privileges}, _PanelNodes, Config) ->
-    OzNode = ?OZ_NODE(Config),
+get_or_create_client({member, Privileges}, _PanelNodes) ->
+    OzNode = hd(oct_background:get_zone_nodes()),
     UserId = ozw_test_rpc:create_user(),
 
     lists:foreach(fun(PanelNode) ->
@@ -198,12 +201,12 @@ get_or_create_client({member, Privileges}, _PanelNodes, Config) ->
 
     #api_client{role = member, privileges = Privileges, token = Token};
 
-get_or_create_client(peer, PanelNodes, _Config) ->
+get_or_create_client(peer, PanelNodes) ->
     Node = lists_utils:random_element(PanelNodes),
     Token = panel_test_rpc:create_invite_token(Node),
     #api_client{role = peer, token = Token};
 
-get_or_create_client(root, PanelNodes, _Config) ->
+get_or_create_client(root, PanelNodes) ->
     Username = ?LOCAL_USERNAME,
     Password = ?ONENV_EMERGENCY_PASSPHRASE,
 
@@ -219,12 +222,12 @@ get_or_create_client(root, PanelNodes, _Config) ->
         token = Token
     };
 
-get_or_create_client(#api_client{} = ApiClient, _PanelNodes, _Config) ->
+get_or_create_client(#api_client{} = ApiClient, _PanelNodes) ->
     ApiClient.
 
 
 %% @private
-run_invalid_clients_test_cases(Config, InvalidClientsType, #suite_spec{
+run_invalid_clients_test_cases(InvalidClientsType, #suite_spec{
     target_nodes = TargetNodes,
 
     setup_fun = SetupFun,
@@ -245,7 +248,7 @@ run_invalid_clients_test_cases(Config, InvalidClientsType, #suite_spec{
         ),
         run_exp_error_testcase(
             TargetNode, InvalidClient, DataSet, ExpError,
-            VerifyFun, ScenarioTemplate, Config
+            VerifyFun, ScenarioTemplate
         )
     end,
 
@@ -282,7 +285,7 @@ get_scenario_specific_error_for_invalid_clients(forbidden, Client) ->
 
 
 %% @private
-run_malformed_data_test_cases(Config, #suite_spec{
+run_malformed_data_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -313,7 +316,7 @@ run_malformed_data_test_cases(Config, #suite_spec{
                     run_exp_error_testcase(
                         TargetNode, Client, DataSet,
                         get_expected_malformed_data_error(Error, ScenarioType, TestCaseCtx),
-                        VerifyFun, ScenarioTemplate, Config
+                        VerifyFun, ScenarioTemplate
                     )
             end
     end,
@@ -346,14 +349,14 @@ get_expected_malformed_data_error({_ScenarioType, {error_fun, ErrorFun}}, _, Tes
 
 
 %% @private
-run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = undefined}) ->
+run_missing_required_data_test_cases(#suite_spec{data_spec = undefined}) ->
     true;
-run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = #data_spec{
+run_missing_required_data_test_cases(#suite_spec{data_spec = #data_spec{
     required = [],
     at_least_one = []
 }}) ->
     true;
-run_missing_required_data_test_cases(Config, #suite_spec{
+run_missing_required_data_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -394,7 +397,7 @@ run_missing_required_data_test_cases(Config, #suite_spec{
     TestCaseFun = fun(TargetNode, Client, {DataSet, MissingParamError}, ScenarioTemplate) ->
         run_exp_error_testcase(
             TargetNode, Client, DataSet, MissingParamError,
-            VerifyFun, ScenarioTemplate, Config
+            VerifyFun, ScenarioTemplate
         )
     end,
 
@@ -409,7 +412,7 @@ run_missing_required_data_test_cases(Config, #suite_spec{
 
 
 %% @private
-run_expected_success_test_cases(Config, #suite_spec{
+run_expected_success_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -445,14 +448,14 @@ run_expected_success_test_cases(Config, #suite_spec{
 
             SetupFun(),
             TestCasePassed = run_exp_success_testcase(
-                TargetNode, Client, DataSet, VerifyFun, Scenario, Config
+                TargetNode, Client, DataSet, VerifyFun, Scenario
             ),
             TeardownFun(),
 
             InnerAcc and TestCasePassed
         end, true, ScenarioPerDataSet)
     end, true, CorrectClients);
-run_expected_success_test_cases(Config, #suite_spec{
+run_expected_success_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -468,7 +471,7 @@ run_expected_success_test_cases(Config, #suite_spec{
     TestCaseFun = fun(TargetNode, Client, DataSet, ScenarioTemplate) ->
         SetupFun(),
         TestCasePassed = run_exp_success_testcase(
-            TargetNode, Client, DataSet, VerifyFun, ScenarioTemplate, Config
+            TargetNode, Client, DataSet, VerifyFun, ScenarioTemplate
         ),
         TeardownFun(),
 
@@ -502,7 +505,7 @@ run_exp_error_testcase(
         type = ScenarioType,
         prepare_args_fun = PrepareArgsFun,
         test_proxied_onepanel_rest_endpoint = TestProxiedRestEndpoint
-    }, Config
+    }
 ) ->
     TestCaseCtx = build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet),
 
@@ -510,7 +513,7 @@ run_exp_error_testcase(
         skip ->
             true;
         Args ->
-            RequestResult = make_request(Config, TargetNode, Client, TestProxiedRestEndpoint, Args),
+            RequestResult = make_request(TargetNode, Client, TestProxiedRestEndpoint, Args),
             try
                 validate_error_result(ScenarioType, ExpError, RequestResult),
                 VerifyFun(expected_failure, TestCaseCtx)
@@ -528,13 +531,13 @@ run_exp_success_testcase(TargetNode, Client, DataSet, VerifyFun, #scenario_templ
     prepare_args_fun = PrepareArgsFun,
     validate_result_fun = ValidateResultFun,
     test_proxied_onepanel_rest_endpoint = TestProxiedRestEndpoint
-}, Config) ->
+}) ->
     TestCaseCtx = build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet),
     case PrepareArgsFun(TestCaseCtx) of
         skip ->
             true;
         Args ->
-            Result = make_request(Config, TargetNode, Client, TestProxiedRestEndpoint, Args),
+            Result = make_request(TargetNode, Client, TestProxiedRestEndpoint, Args),
             try
                 ValidateResultFun(TestCaseCtx, Result),
                 VerifyFun(expected_success, TestCaseCtx)
@@ -611,11 +614,6 @@ required_data_sets(DataSpec) ->
         at_least_one = AtLeastOne
     } = DataSpec,
 
-    RequiredKeys = lists:map(fun(
-        {Key, _Error}) -> Key;
-        (Key)-> Key
-    end, Required),
-
     AtLeastOneWithValues = lists:flatten(lists:map(
         fun(Key) ->
             [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
@@ -624,7 +622,7 @@ required_data_sets(DataSpec) ->
     RequiredWithValues = lists:map(
         fun(Key) ->
             [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
-        end, RequiredKeys
+        end, ?REQUIRED_KEYS(Required)
     ),
     RequiredCombinations = lists:foldl(
         fun(ValuesForKey, Acc) ->
@@ -677,14 +675,9 @@ bad_data_sets(#data_spec{
     bad_values = BadValues
 } = DataSpec) ->
 
-    RequiredKeys = lists:map(fun(
-        {Key, _Error}) -> Key;
-        (Key)-> Key
-    end, Required),
-
     AllCorrect = lists:foldl(fun(Param, Acc) ->
         Acc#{Param => hd(get_correct_value(Param, DataSpec))}
-    end, #{}, RequiredKeys ++ AtLeastOne ++ Optional),
+    end, #{}, ?REQUIRED_KEYS(Required) ++ AtLeastOne ++ Optional),
 
     lists:map(fun({Param, InvalidValue, ExpError}) ->
         Data = AllCorrect#{Param => InvalidValue},
@@ -801,9 +794,9 @@ build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet) ->
 
 
 %% @private
--spec make_request(config(), node(), api_client(), boolean(), rest_args()) ->
+-spec make_request(node(), api_client(), boolean(), rest_args()) ->
     {ok, Result :: term()} | {error, term()}.
-make_request(_Config, Node, Client, TestProxiedRestEndpoint, #rest_args{
+make_request(Node, Client, TestProxiedRestEndpoint, #rest_args{
     method = Method,
     path = Path,
     headers = Headers,

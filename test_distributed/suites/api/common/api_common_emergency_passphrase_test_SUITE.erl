@@ -75,36 +75,36 @@ all() -> [
 %%%===================================================================
 
 
-get_provider_panel_emergency_passphrase_status_test(Config) ->
+get_provider_panel_emergency_passphrase_status_test(_Config) ->
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     ProviderId = oct_background:get_provider_id(krakow),
     panel_test_rpc:set_emergency_passphrase(krakow, ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:get_emergency_passphrase_status_test_base(
-        Config, ProviderPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC(?OP_PANEL, ProviderId), true, true
+        ProviderPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC(?OP_PANEL, ProviderId), true, true
     ).
 
 
-get_zone_panel_emergency_passphrase_status_test(Config) ->
+get_zone_panel_emergency_passphrase_status_test(_Config) ->
     ZonePanelNodes = oct_background:get_zone_panels(),
     ZoneId = oct_background:to_entity_id(zone),
     panel_test_rpc:set_emergency_passphrase(zone, ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:get_emergency_passphrase_status_test_base(
-        Config, ZonePanelNodes, ?GET_EP_STATUS_CLIENT_SPEC(?OZ_PANEL, ZoneId), true, true
+        ZonePanelNodes, ?GET_EP_STATUS_CLIENT_SPEC(?OZ_PANEL, ZoneId), true, true
     ).
 
 
-update_emergency_passphrase_with_op_panel_test(Config) ->
+update_emergency_passphrase_with_op_panel_test(_Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     api_common_emergency_passphrase_test_base:update_emergency_passphrase_test_base(
-        Config, ProviderPanelNodes, ?UPDATE_EP_CLIENT_SPEC(?OP_PANEL, ProviderId), ?INITIAL_EMERGENCY_PASSPHRASE, true
+        ProviderPanelNodes, ?UPDATE_EP_CLIENT_SPEC(?OP_PANEL, ProviderId), ?INITIAL_EMERGENCY_PASSPHRASE, true
     ).
 
 
-update_emergency_passphrase_with_oz_panel_test(Config) ->
+update_emergency_passphrase_with_oz_panel_test(_Config) ->
     ZonePanelNodes = oct_background:get_zone_panels(),
     api_common_emergency_passphrase_test_base:update_emergency_passphrase_test_base(
-        Config, ZonePanelNodes, ?UPDATE_EP_CLIENT_SPEC(?OZ_PANEL, <<"onezone">>), ?INITIAL_EMERGENCY_PASSPHRASE, true
+        ZonePanelNodes, ?UPDATE_EP_CLIENT_SPEC(?OZ_PANEL, <<"onezone">>), ?INITIAL_EMERGENCY_PASSPHRASE, true
     ).
 
 

@@ -16,14 +16,15 @@
 -include("api_test_storages.hrl").
 -include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 -include_lib("onenv_ct/include/chart_values.hrl").
 
 %% API
--export([all/0]).
-
 -export([
+    groups/0,
+    all/0,
     init_per_suite/1,
     end_per_suite/1
 ]).
@@ -35,11 +36,17 @@
     add_bad_storage_and_skip_detection_test/1
 ]).
 
+groups() -> [
+    {all_tests, [parallel], [
+        add_correct_storage_and_perform_detection_test,
+        add_correct_storage_and_skip_detection_test,
+        add_bad_storage_and_perform_detection_test,
+        add_bad_storage_and_skip_detection_test
+    ]}
+].
+
 all() -> [
-    add_correct_storage_and_perform_detection_test,
-    add_correct_storage_and_skip_detection_test,
-    add_bad_storage_and_perform_detection_test,
-    add_bad_storage_and_skip_detection_test
+    {group, all_tests}
 ].
 
 
@@ -48,58 +55,46 @@ all() -> [
 %%%===================================================================
 
 
-add_correct_storage_and_perform_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, correct_args, false,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
-    ).
+add_correct_storage_and_perform_detection_test(_Config) ->
+    add_posix_storage_test_base(correct_args, false).
 
 
-add_correct_storage_and_skip_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, correct_args, true,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
-    ).
+add_correct_storage_and_skip_detection_test(_Config) ->
+    add_posix_storage_test_base(correct_args, true).
 
 
-add_bad_storage_and_perform_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, bad_args, false,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
-    ).
+add_bad_storage_and_perform_detection_test(_Config) ->
+    add_posix_storage_test_base(bad_args, false).
 
 
-add_bad_storage_and_skip_detection_test(Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(Config, posix, bad_args, true,
-        fun build_add_posix_storage_setup_fun/1,
-        fun build_add_posix_storage_data_spec/3,
-        fun build_add_posix_storage_prepare_args_fun/2,
-        fun build_add_posix_storage_validate_result_fun/3,
-        fun build_add_posix_storage_verify_fun/3
-    ).
+add_bad_storage_and_skip_detection_test(_Config) ->
+    add_posix_storage_test_base(bad_args, true).
 
 
 %% @private
--spec build_add_posix_storage_setup_fun(api_test_memory:env_ref()) ->
-    api_test_runner:setup_fun().
-build_add_posix_storage_setup_fun(MemRef) ->
-    fun() ->
-        ExistingStorages = opw_test_rpc:get_storages(krakow),
-        api_test_memory:set(MemRef, existing_storages, ExistingStorages)
-    end.
+-spec add_posix_storage_test_base(
+    api_oneprovider_storages_test_base:args_correctness(),
+    api_oneprovider_storages_test_base:skip_storage_detection()
+) ->
+    ok.
+add_posix_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
+    api_oneprovider_storages_test_base:add_storage_test_base(
+        #add_storage_test_spec{
+            storage_type = posix,
+            args_correctness = ArgsCorrectness,
+            skip_storage_detection = SkipStorageDetection,
+
+            data_spec_fun = fun build_add_posix_storage_data_spec/3,
+            prepare_args_fun = fun build_add_posix_storage_prepare_args_fun/2
+        }).
 
 
 %% @private
--spec build_add_posix_storage_data_spec(api_test_memory:env_ref(), api_oneprovider_storages_test_base:storage_type(), api_oneprovider_storages_test_base:args_correctness()) ->
+-spec build_add_posix_storage_data_spec(
+    api_test_memory:env_ref(),
+    api_oneprovider_storages_test_base:storage_type(),
+    api_oneprovider_storages_test_base:args_correctness()
+) ->
     api_test_runner:data_spec().
 build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
     StorageName = str_utils:rand_hex(10),
@@ -117,16 +112,18 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
         correct_values = #{
             <<"type">> => [<<"posix">>],
             <<"mountPoint">> => [?POSIX_MOUNTPOINT],
-            <<"timeout">> => [?STORAGE_TIMEOUT],
+            <<"timeout">> => [?STORAGE_TIMEOUT, 1],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             %% TODO: VFS-7621 add flat path type to tests
             <<"storagePathType">> => [<<"canonical">>]
         },
         bad_values = [
+            {<<"skipStorageDetection">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"skipStorageDetection">>))},
             {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
-            {<<"timeout">>, -?STORAGE_TIMEOUT, ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(write))},
+            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
-            {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"qosParameters._">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))}
@@ -141,7 +138,6 @@ build_add_posix_storage_data_spec(MemRef, posix, bad_args) ->
             {<<"mountPoint">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"mountPoint">>))}
         ],
         correct_values = #{
-            name => [StorageName],
             <<"type">> => [<<"posix">>],
             <<"mountPoint">> => [<<"/volumes/wrong/path">>]
         }
@@ -149,82 +145,33 @@ build_add_posix_storage_data_spec(MemRef, posix, bad_args) ->
 
 
 %% @private
--spec build_add_posix_storage_prepare_args_fun(api_test_memory:env_ref(), boolean()) ->
+-spec build_add_posix_storage_prepare_args_fun(
+    api_test_memory:env_ref(),
+    api_oneprovider_storages_test_base:skip_storage_detection()
+) ->
     api_test_runner:prepare_args_fun().
 build_add_posix_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
     fun(#api_test_ctx{data = Data}) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
-        RequestBody = #{
-            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, Data)
-        },
+        RequestBody = case maps:is_key(<<"skipStorageDetection">>, Data) of
+            true -> #{
+                StorageName => Data
+            };
+            false -> #{
+                StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, Data)
+            }
+        end,
         #rest_args{
             method = post,
             path = <<"provider/storages">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestBody)}
-    end.
-
-
-%% @private
--spec build_add_posix_storage_validate_result_fun(api_test_memory:env_ref(), api_oneprovider_storages_test_base:args_correctness(), boolean()) ->
-    api_test_runner:validate_result_fun().
-build_add_posix_storage_validate_result_fun(MemRef, correct_args, _) ->
-    api_test_validate:http_200_ok(fun(Body) ->
-        StorageName = api_test_memory:get(MemRef, storage_name),
-        StorageId = kv_utils:get([StorageName, <<"id">>], Body),
-        api_test_memory:set(MemRef, storage_id, StorageId)
-    end);
-build_add_posix_storage_validate_result_fun(MemRef, bad_args, true) ->
-    api_test_validate:http_200_ok(fun(Body) ->
-        StorageName = api_test_memory:get(MemRef, storage_name),
-        StorageId = kv_utils:get([StorageName, <<"id">>], Body),
-        api_test_memory:set(MemRef, storage_id, StorageId)
-    end);
-build_add_posix_storage_validate_result_fun(MemRef, bad_args, false) ->
-    api_test_validate:http_400_bad_request(fun(Body) ->
-        StorageName = api_test_memory:get(MemRef, storage_name),
-        ExpRespBody = #{
-            StorageName => ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(write))
-        },
-        ?assertEqual(ExpRespBody, Body)
-    end).
-
-
-%% @private
--spec build_add_posix_storage_verify_fun(api_test_memory:env_ref(), api_oneprovider_storages_test_base:args_correctness(), boolean()) ->
-    api_test_runner:verify_fun().
-build_add_posix_storage_verify_fun(MemRef, bad_args, false) ->
-    fun(_, _) ->
-        StoragesBeforeTest = api_test_memory:get(MemRef, existing_storages),
-        StoragesAfterTest = opw_test_rpc:get_storages(krakow),
-        ?assertEqual(StoragesBeforeTest, StoragesAfterTest),
-        true
-    end;
-build_add_posix_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
-    fun
-        (expected_success, _) ->
-            StoragesBeforeTest = api_test_memory:get(MemRef, existing_storages),
-            StoragesAfterTest = opw_test_rpc:get_storages(krakow),
-            [NewStorageId] = ?assertMatch([_], lists:subtract(StoragesAfterTest, StoragesBeforeTest)),
-            case ArgsCorrectness of
-                correct_args ->
-                    ?assertEqual(ok, api_oneprovider_storages_test_base:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS);
-                bad_args ->
-                    ?assertEqual(error, api_oneprovider_storages_test_base:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS)
-            end,
-            true;
-        (expected_failure, _) ->
-            StoragesBeforeTest = api_test_memory:get(MemRef, existing_storages),
-            StoragesAfterTest = opw_test_rpc:get_storages(krakow),
-            ?assertEqual(StoragesBeforeTest, StoragesAfterTest),
-            true
     end.
 
 
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
-
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{

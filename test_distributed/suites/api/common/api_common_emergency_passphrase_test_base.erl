@@ -16,8 +16,8 @@
 -include("api_test_utils.hrl").
 
 -export([
-    get_emergency_passphrase_status_test_base/5,
-    update_emergency_passphrase_test_base/5
+    get_emergency_passphrase_status_test_base/4,
+    update_emergency_passphrase_test_base/4
 ]).
 
 
@@ -27,9 +27,9 @@
 
 
 -spec get_emergency_passphrase_status_test_base(
-    test_config:config(), [node()], api_test_runner:client_spec(), boolean(), boolean()) -> boolean().
-get_emergency_passphrase_status_test_base(Config, TargetPanelNodes, ClientSpec, IsEPSet, TestProxied) ->
-    ?assert(api_test_runner:run_tests(Config, [
+    [node()], api_test_runner:client_spec(), boolean(), boolean()) -> boolean().
+get_emergency_passphrase_status_test_base(TargetPanelNodes, ClientSpec, IsEPSet, TestProxied) ->
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get emergency passphrase status using /emergency_passphrase rest endpoint">>,
             type = rest,
@@ -54,12 +54,12 @@ get_emergency_passphrase_status_test_base(Config, TargetPanelNodes, ClientSpec, 
 
 
 -spec update_emergency_passphrase_test_base(
-    test_config:config(), [node()], api_test_runner:client_spec(), boolean(), boolean()) -> boolean().
-update_emergency_passphrase_test_base(Config, TargetPanelNodes, ClientSpec, InitialEmergencyPassphrase, TestProxied) ->
+    [node()], api_test_runner:client_spec(), boolean(), boolean()) -> boolean().
+update_emergency_passphrase_test_base(TargetPanelNodes, ClientSpec, InitialEmergencyPassphrase, TestProxied) ->
     MemRef = api_test_memory:init(),
     api_test_memory:set(MemRef, current_emergency_passphrase, InitialEmergencyPassphrase),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Set emergency passphrase using /emergency_passphrase rest endpoint">>,
             type = rest,

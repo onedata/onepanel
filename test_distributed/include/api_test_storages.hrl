@@ -6,13 +6,23 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Definitions of macros and records used in storage tests API (REST) tests.
+%%% Definitions of macros and records used in storage API (REST) tests.
 %%% @end
 %%%-------------------------------------------------------------------
 -author("Piotr Duleba").
 
 -ifndef(API_TEST_STORAGES_HRL).
 -define(API_TEST_STORAGES_HRL, 1).
+-include("api_test_runner.hrl").
+
+-record(add_storage_test_spec, {
+    storage_type = undefined :: api_oneprovider_storages_test_base:storage_type(),
+    args_correctness = undefined :: api_oneprovider_storages_test_base:args_correctness(),
+    skip_storage_detection = undefined :: api_oneprovider_storages_test_base:skip_storage_detection(),
+
+    data_spec_fun = api_oneprovider_storages_test_base:data_spec_builder(),
+    prepare_args_fun = api_oneprovider_storages_test_base:prepare_args_fun_builder()
+}).
 
 -define(STORAGE_DATA_KEY(StorageName, Key), iolist_to_binary([StorageName, <<".">>, Key])).
 -define(SUPPORT_SIZE, 10000000).

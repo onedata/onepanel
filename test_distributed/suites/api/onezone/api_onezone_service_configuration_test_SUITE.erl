@@ -45,11 +45,11 @@ all() -> [
 %%%===================================================================
 
 
-get_onezone_policies_test(Config) ->
+get_onezone_policies_test(_Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
     ExpectedPolicies = get_onezone_policies_with_rpc(),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get Onezone policies using /zone/policies endpoint">>,
             type = rest,
@@ -81,10 +81,10 @@ get_onezone_policies_test(Config) ->
     ])).
 
 
-set_onezone_policies_test(Config) ->
+set_onezone_policies_test(_Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Set Onezone policies using /zone/policies endpoint">>,
             type = rest,
