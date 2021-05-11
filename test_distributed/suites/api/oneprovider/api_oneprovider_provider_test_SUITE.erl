@@ -46,7 +46,7 @@ get_provider_details(Config) ->
     ExpDetails = #{
         <<"name">> => OpName,
         <<"domain">> => OpDomain,
-        <<"onezoneDomainName">> => ?GET_DOMAIN_BIN(?OZ_NODE(Config)),
+        <<"onezoneDomainName">> => ?GET_DOMAIN_BIN(oct_background:get_zone_nodes()),
         <<"id">> => ProviderId,
         % Below values are defined in k8s charts
         <<"geoLatitude">> => 50.0647,

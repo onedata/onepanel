@@ -210,14 +210,14 @@ update_emergency_passphrase_with_op_panel_test(Config) ->
     OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     panel_test_rpc:set_emergency_passphrase(lists_utils:random_element(OpPanelNodes), ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:update_emergency_passphrase_test_base(
-        Config, OpPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
+        OpPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
 
 
 update_emergency_passphrase_with_oz_panel_test(Config) ->
     OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
     panel_test_rpc:set_emergency_passphrase(lists_utils:random_element(OzPanelNodes), ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:update_emergency_passphrase_test_base(
-        Config, OzPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
+        OzPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
 
 
 %%%===================================================================
