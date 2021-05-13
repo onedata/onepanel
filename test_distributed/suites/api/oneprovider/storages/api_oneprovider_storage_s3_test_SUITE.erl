@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider S3 storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_s3_test_SUITE).
+-module(api_oneprovider_storage_s3_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_storages.hrl").
@@ -115,7 +115,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
         ],
         correct_values = #{
             <<"bucketName">> => [?S3_BUCKET_NAME],
-            <<"hostname">> => [<<"volume-s3.dev-volume-s3-krakow:9000">>],
+            <<"hostname">> => [?S3_HOSTNAME],
             <<"accessKey">> => [?S3_KEY_ID],
             <<"secretKey">> => [?S3_ACCESS_KEY],
             <<"type">> => [<<"s3">>],
@@ -123,9 +123,9 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             %% TODO: VFS-7621 add flat path type to tests
             <<"storagePathType">> => [<<"canonical">>, <<"flat">>],
-            <<"signatureVersion">> => [4],
-            <<"blockSize">> => [0, 1, 2 * ?S3_DEFAULT_BLOCK_SIZE],
-            <<"maximumCanonicalObjectSize">> => [1, 2 * ?S3_DEFAULT_MAX_CANONICAL_OBJECT]
+            <<"signatureVersion">> => ?S3_ALLOWED_SIGNATURE_VERSIONS,
+            <<"blockSize">> => [?S3_MIN_BLOCK_SIZE, 2 * ?S3_DEFAULT_BLOCK_SIZE],
+            <<"maximumCanonicalObjectSize">> => [?S3_MIN_MAX_CANONICAL_OBJECT_SIZE, 2 * ?S3_DEFAULT_MAX_CANONICAL_OBJECT_SIZE]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
@@ -135,10 +135,12 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
-            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
             {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
             {<<"blockSize">>, <<"blockSize_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>))}
+            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>))},
+            {<<"signatureVersion">>, 2, ?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
+            {<<"blockSize">>, -1, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)},
+            {<<"maximumCanonicalObjectSize">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)}
         ]
     };
 build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->

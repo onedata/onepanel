@@ -31,6 +31,17 @@
 -define(DEFAULT_STORAGE_TIMEOUT, 5000).
 -define(MIN_STORAGE_TIMEOUT, 1).
 
+-define(DEFAULT_S3_SIGNATURE_VERSION, 4).
+-define(ALLOWED_S3_SIGNATURE_VERSIONS, [4]).
+
+-define(DEFAULT_S3_BLOCK_SIZE, 10485760).
+-define(MIN_S3_BLOCK_SIZE, 0).
+
+-define(DEFAULT_S3_MAX_CANONICAL_OBJECT_SIZE, 67108864).
+-define(MIN_S3_MAX_CANONICAL_OBJECT_SIZE, 1).
+
+-define(STORAGE_KEY(StorageName, Key), str_utils:join_as_binaries([StorageName, Key], <<".">>)).
+
 %%%===================================================================
 %%% middleware_plugin callbacks
 %%%===================================================================
@@ -272,20 +283,18 @@ authorize(#onp_req{
 
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
 validate(#onp_req{operation = create, gri = #gri{aspect = As}, data = Data}, _) when
-    As == instances;
-    As == local_feed_luma_onedata_user_to_credentials_mapping
+    As == instances
 ->
     ensure_registered(),
     lists:foreach(fun(StorageName) ->
-        Timeout = kv_utils:get([StorageName, timeout], Data, ?DEFAULT_STORAGE_TIMEOUT),
-        case Timeout < ?MIN_STORAGE_TIMEOUT of
-            false ->
-                ok;
-            true ->
-                Key = str_utils:join_as_binaries([StorageName, timeout], <<".">>),
-                throw(?ERROR_BAD_VALUE_TOO_LOW(Key, ?MIN_STORAGE_TIMEOUT))
-        end
+        validate_add_storage_common_args(StorageName, maps:get(StorageName, Data)),
+        validate_add_storage_custom_args(StorageName, maps:get(StorageName, Data))
     end, maps:keys(Data));
+
+validate(#onp_req{operation = create, gri = #gri{aspect = As}}, _) when
+    As == local_feed_luma_onedata_user_to_credentials_mapping
+->
+    ensure_registered();
 
 validate(#onp_req{operation = create, gri = #gri{
     aspect = {As, _}
@@ -672,3 +681,38 @@ parse_add_storages_results(ActionResults) ->
                 AccMap
         end
     end, #{}, ActionResults).
+
+
+-spec validate_add_storage_common_args(binary(), map()) -> ok.
+validate_add_storage_common_args(StorageName, StorageArgs) ->
+    Timeout =  maps:get(timeout, StorageArgs, ?DEFAULT_STORAGE_TIMEOUT),
+    case Timeout < ?MIN_STORAGE_TIMEOUT of
+        true ->
+            throw(?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_KEY(StorageName, timeout), ?MIN_STORAGE_TIMEOUT));
+        false ->
+            ok
+    end.
+
+
+-spec validate_add_storage_custom_args(binary(), map()) -> ok.
+validate_add_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
+    SignatureVersion = maps:get(signatureVersion, Data, ?DEFAULT_S3_SIGNATURE_VERSION),
+    case lists:member(SignatureVersion, ?ALLOWED_S3_SIGNATURE_VERSIONS) of
+        true -> ok;
+        false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_KEY(StorageName, signatureVersion), ?ALLOWED_S3_SIGNATURE_VERSIONS))
+    end,
+
+    BlockSize = maps:get(blockSize, Data, ?DEFAULT_S3_BLOCK_SIZE),
+    case BlockSize < ?MIN_S3_BLOCK_SIZE of
+        true -> throw(?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_KEY(StorageName, blockSize), ?MIN_S3_BLOCK_SIZE));
+        false -> ok
+    end,
+
+    MaxCanonicalObjectSize = maps:get(maximumCanonicalObjectSize, Data, ?DEFAULT_S3_MAX_CANONICAL_OBJECT_SIZE),
+    case MaxCanonicalObjectSize < ?MIN_S3_MAX_CANONICAL_OBJECT_SIZE of
+        true -> throw(?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_KEY(StorageName, maximumCanonicalObjectSize), ?MIN_S3_MAX_CANONICAL_OBJECT_SIZE));
+        false -> ok
+    end;
+
+validate_add_storage_custom_args(_StorageName, _Data) ->
+    ok.

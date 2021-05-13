@@ -46,7 +46,7 @@ get_provider_details(Config) ->
     ExpDetails = #{
         <<"name">> => OpName,
         <<"domain">> => OpDomain,
-        <<"onezoneDomainName">> => ?GET_DOMAIN_BIN(oct_background:get_zone_nodes()),
+        <<"onezoneDomainName">> => ?GET_DOMAIN_BIN(hd(oct_background:get_zone_nodes())),
         <<"id">> => ProviderId,
         % Below values are defined in k8s charts
         <<"geoLatitude">> => 50.0647,
@@ -55,7 +55,7 @@ get_provider_details(Config) ->
         <<"subdomainDelegation">> => false
     },
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get provider details using /provider rest endpoint">>,
             type = rest,

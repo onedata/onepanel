@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider posix storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_posix_test_SUITE).
+-module(api_oneprovider_storage_posix_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
