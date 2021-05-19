@@ -326,12 +326,14 @@ add(OpNode, Name, Params) ->
     % if skipStorageDetection is not defined, set it to the same value as Readonly
     SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, StorageParams, boolean, Readonly),
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
+    ArchiveStorage = onepanel_utils:get_converted(archiveStorage, StorageParams, boolean, false),
 
     % ensure all params are in the config map
     StorageParams2 = StorageParams#{
         readonly => Readonly,
         skipStorageDetection => SkipStorageDetection,
-        importedStorage => ImportedStorage
+        importedStorage => ImportedStorage,
+        archiveStorage => ArchiveStorage
     },
     UserCtx = make_user_ctx(OpNode, StorageType, StorageParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams2),
