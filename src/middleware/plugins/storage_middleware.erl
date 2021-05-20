@@ -28,6 +28,7 @@
     authorize/2, validate/2]).
 -export([create/1, get/2, update/1, delete/1]).
 
+-define(STORAGE_KEY(StorageName, Key), str_utils:join_as_binaries([StorageName, Key], <<".">>)).
 
 %%%===================================================================
 %%% middleware_plugin callbacks
@@ -269,8 +270,15 @@ authorize(#onp_req{
 
 
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
-validate(#onp_req{operation = create, gri = #gri{aspect = As}}, _)  when
-    As == instances;
+validate(#onp_req{operation = create, gri = #gri{aspect = As}, data = Data}, _) when
+    As == instances
+->
+    ensure_registered(),
+    lists:foreach(fun(StorageName) ->
+        validate_storage_custom_args(StorageName, maps:get(StorageName, Data))
+    end, maps:keys(Data));
+
+validate(#onp_req{operation = create, gri = #gri{aspect = As}}, _) when
     As == local_feed_luma_onedata_user_to_credentials_mapping
 ->
     ensure_registered();
@@ -311,6 +319,10 @@ validate(#onp_req{
     operation = update, gri = #gri{aspect = instance}, data = Data
 }, CurrentDetails) ->
     ensure_registered(),
+
+    lists:foreach(fun(StorageName) ->
+        validate_storage_custom_args(StorageName, maps:get(StorageName, Data))
+    end, maps:keys(Data)),
 
     % Swagger spec defines an object to allow for polymorphic storage type.
     % As a result, it is ensured here that only the storage with
@@ -645,3 +657,16 @@ is_local_feed_luma_request(Aspect) ->
         <<"local_feed_", _/binary>> -> true;
         _ -> false
     end.
+
+
+-spec validate_storage_custom_args(binary(), map()) -> ok.
+validate_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
+    try
+        url_utils:infer_components(maps:get(hostname, Data))
+    catch
+        _:_  -> throw(?ERROR_BAD_DATA(?STORAGE_KEY(StorageName, <<"hostname">>)))
+    end,
+    ok;
+
+validate_storage_custom_args(_StorageName, _Data) ->
+    ok.
