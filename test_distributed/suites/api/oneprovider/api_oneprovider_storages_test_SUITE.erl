@@ -90,6 +90,7 @@ get_storages_ids(Config) ->
 
 add_s3_storage(Config) ->
     % todo: VFS-6717 delete s3 storage after test
+    MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
@@ -121,20 +122,24 @@ add_s3_storage(Config) ->
                 headers = #{<<"content-type">> => <<"application/json">>},
                 body = json_utils:encode(RequestBody)}
             end,
-            verify_fun = build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody),
-            validate_result_fun = api_test_validate:http_204_no_content()
+            verify_fun = build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody),
+            validate_result_fun = api_test_validate:http_200_ok(
+                fun(Body) ->
+                    AddedStorageId = kv_utils:get([?S3_STORAGE_NAME, <<"id">>], Body),
+                    api_test_memory:set(MemRef, storage_id, AddedStorageId)
+                end
+            )
         }
     ])).
 
 
 %% @private
-build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody) ->
+build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody) ->
     fun
         (expected_success, _) ->
             StorageIdsAfterAdd = opw_test_rpc:get_storages(krakow),
 
-            % todo: VFS-6716 get NewStorageId from HTTP response
-            [NewStorageID] = ?assertMatch([_], lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd)),
+            NewStorageID = api_test_memory:get(MemRef, storage_id),
             StorageDetails = opw_test_rpc:storage_describe(krakow, NewStorageID),
             ExpectedScheme = maps:get(<<"scheme">>, StorageDetails),
             ExpectedHostname = maps:get(<<"hostname">>, StorageDetails),

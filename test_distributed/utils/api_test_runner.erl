@@ -496,7 +496,8 @@ run_exp_error_testcase(
     TargetNode, Client, DataSet, ExpError, VerifyFun, #scenario_template{
         name = ScenarioName,
         type = ScenarioType,
-        prepare_args_fun = PrepareArgsFun
+        prepare_args_fun = PrepareArgsFun,
+        test_proxied_onepanel_rest_endpoint = TestProxiedRestEndpoint
     }, Config
 ) ->
     TestCaseCtx = build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet),
@@ -505,7 +506,7 @@ run_exp_error_testcase(
         skip ->
             true;
         Args ->
-            RequestResult = make_request(Config, TargetNode, Client, Args),
+            RequestResult = make_request(Config, TargetNode, Client, TestProxiedRestEndpoint, Args),
             try
                 validate_error_result(ScenarioType, ExpError, RequestResult),
                 VerifyFun(expected_failure, TestCaseCtx)
@@ -521,14 +522,15 @@ run_exp_success_testcase(TargetNode, Client, DataSet, VerifyFun, #scenario_templ
     name = ScenarioName,
     type = ScenarioType,
     prepare_args_fun = PrepareArgsFun,
-    validate_result_fun = ValidateResultFun
+    validate_result_fun = ValidateResultFun,
+    test_proxied_onepanel_rest_endpoint = TestProxiedRestEndpoint
 }, Config) ->
     TestCaseCtx = build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet),
     case PrepareArgsFun(TestCaseCtx) of
         skip ->
             true;
         Args ->
-            Result = make_request(Config, TargetNode, Client, Args),
+            Result = make_request(Config, TargetNode, Client, TestProxiedRestEndpoint, Args),
             try
                 ValidateResultFun(TestCaseCtx, Result),
                 VerifyFun(expected_success, TestCaseCtx)
@@ -743,7 +745,9 @@ scenario_spec_to_suite_spec(#scenario_spec{
     prepare_args_fun = PrepareArgsFun,
     validate_result_fun = ValidateResultFun,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+
+    test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
 }) ->
     #suite_spec{
         target_nodes = TargetNodes,
@@ -757,9 +761,12 @@ scenario_spec_to_suite_spec(#scenario_spec{
             name = ScenarioName,
             type = ScenarioType,
             prepare_args_fun = PrepareArgsFun,
-            validate_result_fun = ValidateResultFun
+            validate_result_fun = ValidateResultFun,
+            test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
         }],
         randomly_select_scenarios = false,
+
+        test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint,
 
         data_spec = DataSpec
     }.
@@ -779,15 +786,15 @@ build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet) ->
 
 
 %% @private
--spec make_request(config(), node(), api_client(), rest_args()) ->
+-spec make_request(config(), node(), api_client(), boolean(), rest_args()) ->
     {ok, Result :: term()} | {error, term()}.
-make_request(_Config, Node, Client, #rest_args{
+make_request(_Config, Node, Client, TestProxiedRestEndpoint, #rest_args{
     method = Method,
     path = Path,
     headers = Headers,
     body = Body
 }) ->
-    URL = get_onepanel_rest_endpoint(Node, Path),
+    URL = get_onepanel_rest_endpoint(Node, Path, TestProxiedRestEndpoint),
     HeadersWithAuth = maps:merge(Headers, get_rest_auth_headers(Client)),
     make_rest_request(Node, Method, URL, HeadersWithAuth, Body).
 
@@ -846,16 +853,17 @@ get_onepanel_endpoint(Node, ResourcePath) ->
 
 
 %% @private
--spec get_onepanel_rest_endpoint(node(), ResourcePath :: string() | binary()) ->
+-spec get_onepanel_rest_endpoint(node(), ResourcePath :: string() | binary(), boolean()) ->
     URL :: binary().
-get_onepanel_rest_endpoint(Node, ResourcePath) ->
+get_onepanel_rest_endpoint(Node, ResourcePath, TestProxiedRestEndpoint) ->
     {ok, Domain} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain),
 
-    % Randomly select between testing direct request or proxy one via
-    % Onezone/Oneprovider.
-    Port = case rand:uniform(2) of
-        1 -> <<>>;
-        2 -> <<":9443">>
+    Port = case TestProxiedRestEndpoint of
+        true ->
+            % randomly select between testing direct request or proxied via Onezone/Oneprovider
+            lists_utils:random_element([<<>>, <<":9443">>]);
+        false ->
+            <<":9443">>
     end,
 
     str_utils:join_as_binaries(

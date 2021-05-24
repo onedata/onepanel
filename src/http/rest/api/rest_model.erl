@@ -1966,6 +1966,8 @@ ceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2063,6 +2065,8 @@ ceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2121,6 +2125,8 @@ cephrados_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2196,6 +2202,8 @@ cephrados_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2250,6 +2258,8 @@ glusterfs_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2327,6 +2337,8 @@ glusterfs_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2386,6 +2398,8 @@ http_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2509,6 +2523,8 @@ http_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2582,6 +2598,8 @@ localceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2646,6 +2664,8 @@ localceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2783,6 +2803,8 @@ nulldevice_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2875,6 +2897,8 @@ nulldevice_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3005,6 +3029,8 @@ posix_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3071,6 +3097,8 @@ posix_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3119,6 +3147,8 @@ s3_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3211,6 +3241,8 @@ s3_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3281,6 +3313,8 @@ swift_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3356,6 +3390,8 @@ swift_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3411,6 +3447,8 @@ webdav_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3550,6 +3588,8 @@ webdav_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3636,6 +3676,8 @@ xrootd_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3727,6 +3769,8 @@ xrootd_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.

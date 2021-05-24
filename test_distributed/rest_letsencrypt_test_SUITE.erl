@@ -37,7 +37,8 @@
     ssl_cache_is_cleared_after_certification/1,
     existing_certificates_are_reused/1,
     failed_patch_leaves_letsencrypt_disabled/1,
-    failed_patch_leaves_letsencrypt_enabled/1
+    failed_patch_leaves_letsencrypt_enabled/1,
+    csr_generation_works/1
 ]).
 
 all() ->
@@ -51,7 +52,8 @@ all() ->
         ssl_cache_is_cleared_after_certification,
         existing_certificates_are_reused,
         failed_patch_leaves_letsencrypt_disabled,
-        failed_patch_leaves_letsencrypt_enabled
+        failed_patch_leaves_letsencrypt_enabled,
+        csr_generation_works
     ]).
 
 -define(LE_PLUGIN_MOCK, service_le_plugin_mock).
@@ -269,6 +271,15 @@ failed_patch_leaves_letsencrypt_enabled(Config) ->
     lists:foreach(fun(Host) ->
         ?assertMatch(#{<<"letsEncrypt">> := true}, get_web_cert(Host))
     end, ?config(all_hosts, Config)).
+
+
+csr_generation_works(Config) ->
+    ?nodePerCluster(Config, fun(Node) ->
+        ?assertMatch(
+            {ok, _, _},
+            rpc:call(Node, onepanel_cert, generate_csr_and_key, ["domain.example.com"])
+        )
+    end).
 
 
 %%%===================================================================
