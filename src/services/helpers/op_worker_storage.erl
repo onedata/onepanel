@@ -184,8 +184,14 @@ list() ->
 -spec get(Id :: id()) -> storage_details().
 get(Id) ->
     {ok, Map} = op_worker_rpc:storage_describe(Id),
+
+    % In case of s3 storage we want scheme to be a part of hostname.
+    DetailsMap = case maps:get(<<"type">>, Map) of
+        <<"s3">> -> join_scheme_and_hostname_args(Map);
+        _ -> Map
+    end,
     onepanel_utils:convert(
-        maps_utils:undefined_to_null(Map),
+        maps_utils:undefined_to_null(DetailsMap),
         {keys, atom}).
 
 
@@ -670,3 +676,11 @@ exec_and_throw_on_error(Function, Args) ->
         error:{badmatch, Error2} ->
             throw(Error2)
     end.
+
+
+%% @private
+-spec join_scheme_and_hostname_args(map()) -> map().
+join_scheme_and_hostname_args(Map) ->
+    Scheme = maps:get(<<"scheme">>, Map),
+    HostName = maps:get(<<"hostname">>, Map),
+    maps:put(<<"hostname">>, str_utils:join_binary([Scheme, <<"://">>, HostName]), maps:remove(<<"scheme">>, Map)).
