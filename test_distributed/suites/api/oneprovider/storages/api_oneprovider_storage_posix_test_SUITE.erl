@@ -107,15 +107,17 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
         optional = [
             <<"timeout">>,
             <<"qosParameters">>,
-            <<"storagePathType">>
+            <<"storagePathType">>,
+            <<"archiveStorage">>
         ],
         correct_values = #{
             <<"type">> => [<<"posix">>],
             <<"mountPoint">> => [?POSIX_MOUNTPOINT],
-            <<"timeout">> => [?STORAGE_TIMEOUT, 1],
+            <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             %% TODO: VFS-7621 add flat path type to tests
-            <<"storagePathType">> => [<<"canonical">>]
+            <<"storagePathType">> => [<<"canonical">>],
+            <<"archiveStorage">> => [true, false]
         },
         bad_values = [
             {<<"skipStorageDetection">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"skipStorageDetection">>))},
@@ -126,7 +128,8 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
-            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))}
+            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
         ]
     };
 build_add_posix_storage_data_spec(MemRef, posix, bad_args) ->

@@ -15,6 +15,7 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_storages.hrl").
+-include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 
@@ -42,6 +43,7 @@
     storage_id/0
 ]).
 
+-define(DEFAULT_TEMP_CAVEAT_TTL, 360000).
 
 %%%===================================================================
 %%% API
@@ -157,9 +159,24 @@ perform_io_test_on_storage(StorageId) ->
     Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
     {ok, SerializedToken} = tokens:serialize(Token),
     opw_test_rpc:support_space(krakow, StorageId, SerializedToken, ?SUPPORT_SIZE),
-    UserSessId = oct_background:get_user_session_id(UserId, krakow),
+    AccessToken = create_oz_temp_access_token(UserId),
 
-    ?assertMatch(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, UserSessId, UserId, SpaceName)),
+    ?assertEqual(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, UserId, SpaceName, AccessToken), ?ATTEMPTS),
     ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
     Path = filename:join(["/", SpaceName]),
-    opw_test_rpc:perform_io_test(krakow, UserSessId, Path).
+    opw_test_rpc:perform_io_test(krakow, Path, UserId, AccessToken).
+
+
+%% @private
+-spec create_oz_temp_access_token(UserId :: binary()) -> tokens:serialized().
+create_oz_temp_access_token(UserId) ->
+    OzNode = hd(oct_background:get_zone_nodes()),
+    Auth = ?USER(UserId),
+    Now = ozw_test_rpc:timestamp_seconds(OzNode),
+    Token = ozw_test_rpc:create_user_temporary_token(OzNode, Auth, UserId, #{
+        <<"type">> => ?ACCESS_TOKEN,
+        <<"caveats">> => [#cv_time{valid_until = Now + ?DEFAULT_TEMP_CAVEAT_TTL}]
+    }),
+
+    {ok, SerializedToken} = tokens:serialize(Token),
+    SerializedToken.

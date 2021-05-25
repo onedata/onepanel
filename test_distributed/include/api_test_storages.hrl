@@ -24,6 +24,8 @@
     prepare_args_fun = api_oneprovider_storages_test_base:prepare_args_fun_builder()
 }).
 
+-define(STORAGE_DETECTION_FILE_SIZE, 10000).
+
 -define(STORAGE_DATA_KEY(StorageName, Key), iolist_to_binary([StorageName, <<".">>, Key])).
 -define(SUPPORT_SIZE, 10000000).
 -define(ATTEMPTS, 60).

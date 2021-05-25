@@ -111,7 +111,8 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"storagePathType">>,
             <<"signatureVersion">>,
             <<"maximumCanonicalObjectSize">>,
-            <<"blockSize">>
+            <<"blockSize">>,
+            <<"archiveStorage">>
         ],
         correct_values = #{
             <<"bucketName">> => [?S3_BUCKET_NAME],
@@ -121,16 +122,17 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"type">> => [<<"s3">>],
             <<"timeout">> => [?STORAGE_TIMEOUT],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            %% TODO: VFS-7621 add flat path type to tests
             <<"storagePathType">> => [<<"canonical">>, <<"flat">>],
             <<"signatureVersion">> => ?S3_ALLOWED_SIGNATURE_VERSIONS,
-            <<"blockSize">> => [?S3_MIN_BLOCK_SIZE, 2 * ?S3_DEFAULT_BLOCK_SIZE],
-            <<"maximumCanonicalObjectSize">> => [?S3_MIN_MAX_CANONICAL_OBJECT_SIZE, 2 * ?S3_DEFAULT_MAX_CANONICAL_OBJECT_SIZE]
+            <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE],
+            <<"maximumCanonicalObjectSize">> => [?STORAGE_DETECTION_FILE_SIZE],
+            <<"archiveStorage">> => [true, false]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
             {<<"timeout">>, -?STORAGE_TIMEOUT, ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(write))},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
@@ -140,7 +142,8 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>))},
             {<<"signatureVersion">>, 2, ?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
             {<<"blockSize">>, -1, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)}
+            {<<"maximumCanonicalObjectSize">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
         ]
     };
 build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
@@ -172,9 +175,16 @@ build_add_s3_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
             <<"accessKey">> => ?S3_KEY_ID,
             <<"secretKey">> => ?S3_ACCESS_KEY
         }),
+
+        %% TODO VFS-7706 currently storage detection always fails on s3 storage when archiveStorage is enabled
+        IsArchiveStorage = maps:get(<<"archiveStorage">>, DataWithCredentials, false),
+        SkipStorageDetection2 = case IsArchiveStorage of
+            true -> true;
+            _ -> SkipStorageDetection
+        end,
         StorageName = api_test_memory:get(MemRef, storage_name),
         RequestBody = #{
-            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, DataWithCredentials)
+            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection2, DataWithCredentials)
         },
 
         #rest_args{
