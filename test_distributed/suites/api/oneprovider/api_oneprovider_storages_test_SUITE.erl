@@ -37,7 +37,7 @@
     ?S3_STORAGE_NAME => #{
         <<"type">> => <<"s3">>,
         <<"bucketName">> => <<"bucket2.iam.example.com">>,
-        <<"hostname">> => <<"s3.amazonaws.com:80/">>,
+        <<"hostname">> => <<"https://s3.amazonaws.com:443/">>,
         <<"skipStorageDetection">> => <<"true">>
     }
 }).
@@ -141,7 +141,12 @@ build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody) ->
 
             NewStorageID = api_test_memory:get(MemRef, storage_id),
             StorageDetails = opw_test_rpc:storage_describe(krakow, NewStorageID),
-            ?assert(add_request_match_response(RequestBody, StorageDetails)),
+            ExpectedScheme = maps:get(<<"scheme">>, StorageDetails),
+            ExpectedHostname = maps:get(<<"hostname">>, StorageDetails),
+            ExtendedHostname =  str_utils:join_binary([ExpectedScheme, <<"://">>, ExpectedHostname]),
+            StorageDetails2 = maps:put(<<"hostname">>,ExtendedHostname, maps:remove(<<"scheme">>, StorageDetails)),
+
+            ?assert(add_request_match_response(RequestBody, StorageDetails2)),
             true;
         (expected_failure, _) ->
             StorageIdsAfterAdd = opw_test_rpc:get_storages(krakow),
@@ -189,8 +194,12 @@ get_s3_storage(_Config) ->
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
                 StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
                 StorageDetailsBinary = onepanel_utils:convert_recursive(StorageDetails, {map, binary}),
+                ExpectedScheme = maps:get(<<"scheme">>, StorageDetailsBinary),
+                ExpectedHostname = maps:get(<<"hostname">>, StorageDetailsBinary),
+                ExtendedHostname =  str_utils:join_binary([ExpectedScheme, <<"://">>, ExpectedHostname]),
+                StorageDetails2 = maps:put(<<"hostname">>,ExtendedHostname, maps:remove(<<"scheme">>, StorageDetailsBinary)),
                 RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
-                ?assertEqual(StorageDetailsBinary, RespBodyBinary)
+                ?assertEqual(StorageDetails2, RespBodyBinary)
             end)
         }
     ])).

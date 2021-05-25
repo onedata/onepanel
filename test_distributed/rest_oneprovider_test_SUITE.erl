@@ -333,7 +333,7 @@ all() ->
     },
     <<"someS3">> => #{
         <<"type">> => <<"s3">>,
-        <<"hostname">> => <<"someHostname">>,
+        <<"hostname">> => <<"https://someHostname.com:443">>,
         <<"bucketName">> => <<"someName">>,
         <<"accessKey">> => <<"someKey">>,
         <<"secretKey">> => <<"someKey">>,
@@ -773,7 +773,7 @@ post_should_add_storage(Config) ->
                     type := <<"s3">>,
                     accessKey := <<"someKey">>,
                     bucketName := <<"someName">>,
-                    hostname := <<"someHostname">>,
+                    hostname := <<"https://someHostname.com:443">>,
                     secretKey := <<"someKey">>,
                     blockSize := 1024,
                     readonly := false,

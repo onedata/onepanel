@@ -287,8 +287,8 @@ validate(#onp_req{operation = create, gri = #gri{aspect = As}, data = Data}, _) 
 ->
     ensure_registered(),
     lists:foreach(fun(StorageName) ->
-        validate_add_storage_common_args(StorageName, maps:get(StorageName, Data)),
-        validate_add_storage_custom_args(StorageName, maps:get(StorageName, Data))
+        validate_storage_common_args(StorageName, maps:get(StorageName, Data)),
+        validate_storage_custom_args(StorageName, maps:get(StorageName, Data))
     end, maps:keys(Data));
 
 validate(#onp_req{operation = create, gri = #gri{aspect = As}}, _) when
@@ -333,6 +333,10 @@ validate(#onp_req{
     operation = update, gri = #gri{aspect = instance}, data = Data
 }, CurrentDetails) ->
     ensure_registered(),
+
+    lists:foreach(fun(StorageName) ->
+        validate_storage_custom_args(StorageName, maps:get(StorageName, Data))
+    end, maps:keys(Data)),
 
     % Swagger spec defines an object to allow for polymorphic storage type.
     % As a result, it is ensured here that only the storage with
@@ -683,8 +687,8 @@ parse_add_storages_results(ActionResults) ->
     end, #{}, ActionResults).
 
 
--spec validate_add_storage_common_args(binary(), map()) -> ok.
-validate_add_storage_common_args(StorageName, StorageArgs) ->
+-spec validate_storage_common_args(binary(), map()) -> ok.
+validate_storage_common_args(StorageName, StorageArgs) ->
     Timeout =  maps:get(timeout, StorageArgs, ?DEFAULT_STORAGE_TIMEOUT),
     case Timeout < ?MIN_STORAGE_TIMEOUT of
         true ->
@@ -694,8 +698,14 @@ validate_add_storage_common_args(StorageName, StorageArgs) ->
     end.
 
 
--spec validate_add_storage_custom_args(binary(), map()) -> ok.
-validate_add_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
+-spec validate_storage_custom_args(binary(), map()) -> ok.
+validate_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
+    try
+        url_utils:infer_components(maps:get(hostname, Data))
+    catch
+        _:_  -> throw(?ERROR_BAD_DATA(?STORAGE_KEY(StorageName, <<"hostname">>)))
+    end,
+
     SignatureVersion = maps:get(signatureVersion, Data, ?DEFAULT_S3_SIGNATURE_VERSION),
     case lists:member(SignatureVersion, ?ALLOWED_S3_SIGNATURE_VERSIONS) of
         true -> ok;
@@ -714,5 +724,5 @@ validate_add_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
         false -> ok
     end;
 
-validate_add_storage_custom_args(_StorageName, _Data) ->
+validate_storage_custom_args(_StorageName, _Data) ->
     ok.
