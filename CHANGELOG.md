@@ -1,8 +1,8 @@
-Release notes for project onepanel
-==================================
+# Release notes for project onepanel
 
-CHANGELOG
----------
+## CHANGELOG
+
+### 21.02.0-alpha10
 
 ### 21.02.0-alpha9
 
