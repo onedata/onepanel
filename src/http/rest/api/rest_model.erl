@@ -3170,7 +3170,7 @@ s3_model() ->
         hostname => string,
         %% The storage bucket name.
         bucketName => string,
-        %% The version of signature used to sign requests. Only version 4. is
+        %% The version of signature used to sign requests. Only version 4 is
         %% supported.
         signatureVersion => {integer, {optional, 4}},
         %% Storage block size in bytes. In case the block size is `0`
@@ -3269,7 +3269,7 @@ s3_modify_model() ->
         accessKey => {string, optional},
         %% The secret key to the S3 storage.
         secretKey => {string, optional},
-        %% The version of signature used to sign requests. Only version 4. is
+        %% The version of signature used to sign requests. Only version 4 is
         %% supported.
         signatureVersion => {integer, optional},
         %% Defines the maximum size for objects, which can be modified on the S3
