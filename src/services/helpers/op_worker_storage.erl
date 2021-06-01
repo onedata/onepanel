@@ -81,15 +81,16 @@ add(#{name := Name, params := Params}) ->
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    Result = add(OpNode, StorageName, Params),
-
-    case Result of
+    try add(OpNode, StorageName, Params) of
         {error, Reason} ->
             {StorageName, {error, Reason}};
         {_AddedStorageName, AddedStorageId} ->
             ?info("Successfully added storage: \"~ts\" (~ts)", [StorageName, StorageType]),
             {StorageName, {ok, AddedStorageId}}
+    catch
+        _:{error, Reason} -> {StorageName, {error, Reason}}
     end.
+
 
 %%--------------------------------------------------------------------
 %% @doc Updates details of a selected storage in op_worker service.
