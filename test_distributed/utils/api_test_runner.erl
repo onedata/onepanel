@@ -295,7 +295,8 @@ run_malformed_data_test_cases(#suite_spec{
 
     scenario_templates = ScenarioTemplates,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+    data_spec_random_coverage = DataSpecRandomCoverage
 }) ->
     TestCaseFun = fun
         (_TargetNode, _Client, ?NO_DATA, _) ->
@@ -323,7 +324,7 @@ run_malformed_data_test_cases(#suite_spec{
 
     SetupFun(),
     TestsPassed = run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, bad_data_sets(DataSpec),
+        ScenarioTemplates, TargetNodes, CorrectClients, bad_data_sets(DataSpec, DataSpecRandomCoverage),
         TestCaseFun
     ),
     TeardownFun(),
@@ -604,9 +605,9 @@ correct_data_sets(DataSpec, DataSpecRandomCoverage) ->
         maps:merge(AllRequiredParamsDataSet, OptionalDataSet)
     end, optional_data_sets(DataSpec)),
 
-    AllDatasets = RequiredDataSets ++ AllRequiredWithOptionalDataSets,
-    SelectedDatasetsSize = round(DataSpecRandomCoverage/100 * length(AllDatasets)),
-    lists_utils:random_sublist(AllDatasets, SelectedDatasetsSize, SelectedDatasetsSize).
+    AllDataSets = RequiredDataSets ++ AllRequiredWithOptionalDataSets,
+    SelectedDatasetsSize = round(DataSpecRandomCoverage/100 * length(AllDataSets)),
+    lists_utils:random_sublist(AllDataSets, SelectedDatasetsSize, SelectedDatasetsSize).
 
 
 % Generates all combinations of "required" params and one "at_least_one" param
@@ -668,25 +669,28 @@ optional_data_sets(#data_spec{optional = Optional} = DataSpec) ->
     lists:delete(#{}, OptionalParamsCombinations).
 
 
+
 % Generates combinations of bad data sets by adding wrong values to
 % correct data set (one set with correct values for all params).
-bad_data_sets(undefined) ->
+bad_data_sets(undefined, _DataSpecRandomCoverage) ->
     [?NO_DATA];
 bad_data_sets(#data_spec{
     required = Required,
     at_least_one = AtLeastOne,
     optional = Optional,
     bad_values = BadValues
-} = DataSpec) ->
+} = DataSpec, DataSpecRandomCoverage) ->
 
     AllCorrect = lists:foldl(fun(Param, Acc) ->
         Acc#{Param => hd(get_correct_value(Param, DataSpec))}
     end, #{}, ?REQUIRED_KEYS(Required) ++ AtLeastOne ++ Optional),
 
-    lists:map(fun({Param, InvalidValue, ExpError}) ->
+    AllDataSets = lists:map(fun({Param, InvalidValue, ExpError}) ->
         Data = AllCorrect#{Param => InvalidValue},
         {Data, Param, ExpError}
-    end, BadValues).
+    end, BadValues),
+    SelectedDataSetsSize = round(DataSpecRandomCoverage/100 * length(AllDataSets)),
+    lists_utils:random_sublist(AllDataSets, SelectedDataSetsSize, SelectedDataSetsSize).
 
 
 % Converts correct value spec into a value

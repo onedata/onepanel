@@ -24,8 +24,12 @@
 -export([
     groups/0,
     all/0,
+
     init_per_suite/1,
-    end_per_suite/1
+    end_per_suite/1,
+
+    init_per_testcase/2,
+    end_per_testcase/2
 ]).
 
 -export([
@@ -85,7 +89,7 @@ add_s3_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
 
             data_spec_fun = fun build_add_s3_storage_data_spec/3,
             prepare_args_fun = fun build_add_s3_storage_prepare_args_fun/2,
-            data_spec_random_coverage = 20
+            data_spec_random_coverage = 10
         }).
 
 
@@ -172,6 +176,9 @@ build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
     api_test_runner:prepare_args_fun().
 build_add_s3_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
     fun(#api_test_ctx{data = Data}) ->
+
+        %% S3 Storage that onenv creates, requires credentials even though swagger marks them as optional.
+        %% Therefore, we need to inject them to each request body.
         DataWithCredentials = maps:merge(Data, #{
             <<"accessKey">> => ?S3_KEY_ID,
             <<"secretKey">> => ?S3_ACCESS_KEY
@@ -210,3 +217,12 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
+
+
+init_per_testcase(_, Config) ->
+    ct:timetrap({minutes, 90}),
+    Config.
+
+
+end_per_testcase(_, Config) ->
+    Config.

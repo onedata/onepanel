@@ -31,7 +31,7 @@
 -type data_spec_builder() :: fun((_, _, _)-> api_test_runner:data_spec()).
 -type prepare_args_fun_builder() :: fun((_, _)-> api_test_runner:prepare_args_fun()).
 
--type data_spec_random_coverage() :: integer().
+-type data_spec_random_coverage() :: 1..100.
 
 -type storage_id() :: binary().
 

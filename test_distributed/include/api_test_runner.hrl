@@ -121,9 +121,8 @@
     % When disabled, only the native endpoint will be tested (use for tests on undeployed environment)
     test_proxied_onepanel_rest_endpoint = true :: boolean(),
 
-    % When set to 100, all datasets will be tested,
-    % if the value is lower, randomly selected corresponding percent of all datasets will be tested.
-    data_spec_random_coverage = 100 :: integer()
+    % Percentage of all data sets to be tested.
+    data_spec_random_coverage = 100 :: 1..100
 }).
 
 % Template used to create scenario_spec(). It contains scenario specific data
@@ -135,7 +134,7 @@
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
     validate_result_fun :: api_test_runner:validate_call_result_fun(),
     test_proxied_onepanel_rest_endpoint = true :: boolean(),
-    data_spec_random_coverage  = 100 :: integer()
+    data_spec_random_coverage  = 100 :: 1..100
 }).
 
 % Record used to group scenarios having common parameters like target nodes,
@@ -164,7 +163,7 @@
 
     test_proxied_onepanel_rest_endpoint = true :: boolean(),
 
-    data_spec_random_coverage  = 100 :: integer(),
+    data_spec_random_coverage  = 100 :: 1..100,
 
     data_spec = undefined :: undefined | api_test_runner:data_spec()
 }).
