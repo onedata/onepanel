@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.10
+
 ### 20.02.9
 
 ### 20.02.8
