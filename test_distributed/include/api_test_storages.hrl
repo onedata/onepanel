@@ -13,6 +13,7 @@
 
 -ifndef(API_TEST_STORAGES_HRL).
 -define(API_TEST_STORAGES_HRL, 1).
+
 -include("api_test_runner.hrl").
 
 -record(add_storage_test_spec, {
@@ -21,7 +22,8 @@
     skip_storage_detection = undefined :: api_oneprovider_storages_test_base:skip_storage_detection(),
 
     data_spec_fun = api_oneprovider_storages_test_base:data_spec_builder(),
-    prepare_args_fun = api_oneprovider_storages_test_base:prepare_args_fun_builder()
+    prepare_args_fun = api_oneprovider_storages_test_base:prepare_args_fun_builder(),
+    data_spec_random_coverage = 100 :: api_oneprovider_storages_test_base:data_spec_random_coverage()
 }).
 
 -define(STORAGE_DETECTION_FILE_SIZE, 10000).

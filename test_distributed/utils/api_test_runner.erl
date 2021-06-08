@@ -92,7 +92,7 @@
 -define(REQUIRED_KEYS(Required),  lists:map(fun(
     {Key, _Error}) -> Key;
     (Key)-> Key
-    end, Required)).
+end, Required)).
 
 
 %%%===================================================================
@@ -423,9 +423,10 @@ run_expected_success_test_cases(#suite_spec{
     scenario_templates = ScenarioTemplates,
     randomly_select_scenarios = true,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+    data_spec_random_coverage = DataSpecRandomCoverage
 }) ->
-    CorrectDataSets = correct_data_sets(DataSpec),
+    CorrectDataSets = correct_data_sets(DataSpec, DataSpecRandomCoverage),
 
     lists:foldl(fun(Client, OuterAcc) ->
         CorrectDataSetsNum = length(CorrectDataSets),
@@ -466,7 +467,8 @@ run_expected_success_test_cases(#suite_spec{
     scenario_templates = ScenarioTemplates,
     randomly_select_scenarios = false,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+    data_spec_random_coverage = DataSpecRandomCoverage
 }) ->
     TestCaseFun = fun(TargetNode, Client, DataSet, ScenarioTemplate) ->
         SetupFun(),
@@ -479,7 +481,7 @@ run_expected_success_test_cases(#suite_spec{
     end,
 
     run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, correct_data_sets(DataSpec),
+        ScenarioTemplates, TargetNodes, CorrectClients, correct_data_sets(DataSpec, DataSpecRandomCoverage),
         TestCaseFun
     ).
 
@@ -589,9 +591,9 @@ log_failure(ScenarioName, #api_test_ctx{
 
 
 % Returns data sets that are correct
-correct_data_sets(undefined) ->
+correct_data_sets(undefined, _DataSpecRandomCoverage) ->
     [?NO_DATA];
-correct_data_sets(DataSpec) ->
+correct_data_sets(DataSpec, DataSpecRandomCoverage) ->
     RequiredDataSets = required_data_sets(DataSpec),
 
     AllRequiredParamsDataSet = case RequiredDataSets of
@@ -602,7 +604,9 @@ correct_data_sets(DataSpec) ->
         maps:merge(AllRequiredParamsDataSet, OptionalDataSet)
     end, optional_data_sets(DataSpec)),
 
-    RequiredDataSets ++ AllRequiredWithOptionalDataSets.
+    AllDatasets = RequiredDataSets ++ AllRequiredWithOptionalDataSets,
+    SelectedDatasetsSize = round(DataSpecRandomCoverage/100 * length(AllDatasets)),
+    lists_utils:random_sublist(AllDatasets, SelectedDatasetsSize, SelectedDatasetsSize).
 
 
 % Generates all combinations of "required" params and one "at_least_one" param
@@ -753,6 +757,7 @@ scenario_spec_to_suite_spec(#scenario_spec{
     prepare_args_fun = PrepareArgsFun,
     validate_result_fun = ValidateResultFun,
 
+    data_spec_random_coverage = DataSpecRandomCoverage,
     data_spec = DataSpec,
 
     test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
@@ -770,11 +775,13 @@ scenario_spec_to_suite_spec(#scenario_spec{
             type = ScenarioType,
             prepare_args_fun = PrepareArgsFun,
             validate_result_fun = ValidateResultFun,
+            data_spec_random_coverage = DataSpecRandomCoverage,
             test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
         }],
         randomly_select_scenarios = false,
 
         test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint,
+        data_spec_random_coverage = DataSpecRandomCoverage,
 
         data_spec = DataSpec
     }.

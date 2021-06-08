@@ -119,7 +119,11 @@
     % When enabled, REST requests to onepanel will be made randomly
     % on the native onepanel endpoint (port 9443), or via the proxy hosted by op-worker/oz-worker.
     % When disabled, only the native endpoint will be tested (use for tests on undeployed environment)
-    test_proxied_onepanel_rest_endpoint = true :: boolean()
+    test_proxied_onepanel_rest_endpoint = true :: boolean(),
+
+    % When set to 100, all datasets will be tested,
+    % if the value is lower, randomly selected corresponding percent of all datasets will be tested.
+    data_spec_random_coverage = 100 :: integer()
 }).
 
 % Template used to create scenario_spec(). It contains scenario specific data
@@ -130,7 +134,8 @@
     type :: api_test_runner:scenario_type(),
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
     validate_result_fun :: api_test_runner:validate_call_result_fun(),
-    test_proxied_onepanel_rest_endpoint = true :: boolean()
+    test_proxied_onepanel_rest_endpoint = true :: boolean(),
+    data_spec_random_coverage  = 100 :: integer()
 }).
 
 % Record used to group scenarios having common parameters like target nodes,
@@ -158,6 +163,8 @@
     randomly_select_scenarios = false,
 
     test_proxied_onepanel_rest_endpoint = true :: boolean(),
+
+    data_spec_random_coverage  = 100 :: integer(),
 
     data_spec = undefined :: undefined | api_test_runner:data_spec()
 }).
