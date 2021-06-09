@@ -86,12 +86,12 @@ get_zone_panel_emergency_passphrase_status_test(Config) ->
 
     panel_test_rpc:unset_emergency_passphrase(lists_utils:random_element(OzPanelNodes)),
     api_common_emergency_passphrase_test_base:get_emergency_passphrase_status_test_base(
-        Config, OzPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, false, false
+        OzPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, false, false
     ),
 
     panel_test_rpc:set_emergency_passphrase(lists_utils:random_element(OzPanelNodes), ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:get_emergency_passphrase_status_test_base(
-        Config, OzPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, true, false
+        OzPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, true, false
     ).
 
 
@@ -100,34 +100,34 @@ get_provider_panel_emergency_passphrase_status_test(Config) ->
 
     panel_test_rpc:unset_emergency_passphrase(lists_utils:random_element(OpPanelNodes)),
     api_common_emergency_passphrase_test_base:get_emergency_passphrase_status_test_base(
-        Config, OpPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, false, false
+        OpPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, false, false
     ),
 
     panel_test_rpc:set_emergency_passphrase(lists_utils:random_element(OpPanelNodes), ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:get_emergency_passphrase_status_test_base(
-        Config, OpPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, true, false
+        OpPanelNodes, ?GET_EP_STATUS_CLIENT_SPEC, true, false
     ).
 
 
 set_emergency_passphrase_with_op_panel_test(Config) ->
     OpPanelNodes = get_undeployed_op_panel_nodes(Config),
     panel_test_rpc:unset_emergency_passphrase(lists_utils:random_element(OpPanelNodes)),
-    set_emergency_passphrase_test_base(Config, OpPanelNodes).
+    set_emergency_passphrase_test_base(OpPanelNodes).
 
 
 set_emergency_passphrase_with_oz_panel_test(Config) ->
     OzPanelNodes = get_undeployed_oz_panel_nodes(Config),
     panel_test_rpc:unset_emergency_passphrase(lists_utils:random_element(OzPanelNodes)),
-    set_emergency_passphrase_test_base(Config, OzPanelNodes).
+    set_emergency_passphrase_test_base(OzPanelNodes).
 
 
 % Initial emergency passphrase setup test, where only newPassphrase is required.
 % Further emergency passphrase updates are tested in update_emergency_passphrase_* test cases.
 %% @private
--spec set_emergency_passphrase_test_base(test_config:config(), [node()]) -> boolean().
-set_emergency_passphrase_test_base(Config, PanelNodes) ->
+-spec set_emergency_passphrase_test_base([node()]) -> boolean().
+set_emergency_passphrase_test_base(PanelNodes) ->
     MemRef = api_test_memory:init(),
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Set emergency passphrase using /emergency_passphrase rest endpoint">>,
             type = rest,
@@ -210,14 +210,14 @@ update_emergency_passphrase_with_op_panel_test(Config) ->
     OpPanelNodes = test_config:get_all_op_panel_nodes(Config),
     panel_test_rpc:set_emergency_passphrase(lists_utils:random_element(OpPanelNodes), ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:update_emergency_passphrase_test_base(
-        Config, OpPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
+        OpPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
 
 
 update_emergency_passphrase_with_oz_panel_test(Config) ->
     OzPanelNodes = test_config:get_all_oz_panel_nodes(Config),
     panel_test_rpc:set_emergency_passphrase(lists_utils:random_element(OzPanelNodes), ?INITIAL_EMERGENCY_PASSPHRASE),
     api_common_emergency_passphrase_test_base:update_emergency_passphrase_test_base(
-        Config, OzPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
+        OzPanelNodes, ?UPDATE_EP_CLIENT_SPEC, ?INITIAL_EMERGENCY_PASSPHRASE, false).
 
 
 %%%===================================================================

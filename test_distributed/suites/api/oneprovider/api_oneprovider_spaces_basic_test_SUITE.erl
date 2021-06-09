@@ -63,23 +63,23 @@ all() -> [
 %%%===================================================================
 
 
-get_space_ids_test(Config) ->
-    get_space_ids_test_base(Config, []),
+get_space_ids_test(_Config) ->
+    get_space_ids_test_base([]),
 
     FirstSpaceId = create_and_support_space(),
-    get_space_ids_test_base(Config, [FirstSpaceId]),
+    get_space_ids_test_base([FirstSpaceId]),
 
     ManySpacesId = [create_and_support_space() || _ <- lists:seq(1, 5)],
-    get_space_ids_test_base(Config, [FirstSpaceId | ManySpacesId]).
+    get_space_ids_test_base([FirstSpaceId | ManySpacesId]).
 
 
 %% @private
-get_space_ids_test_base(Config, ExpSpaceIds) ->
+get_space_ids_test_base(ExpSpaceIds) ->
     ProviderId = oct_background:get_provider_id(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get space ids using /provider/spaces rest endpoint">>,
             type = rest,
@@ -106,13 +106,13 @@ get_space_ids_test_base(Config, ExpSpaceIds) ->
     ])).
 
 
-get_space_details_test(Config) ->
-    get_space_details_test_base(Config, <<"posix-space">>, ?STORAGE_NAME, 10000000),
-    get_space_details_test_base(Config, <<"null-space">>, <<"IdealNullStorage">>, 20000000).
+get_space_details_test(_Config) ->
+    get_space_details_test_base(<<"posix-space">>, ?STORAGE_NAME, 10000000),
+    get_space_details_test_base(<<"null-space">>, <<"IdealNullStorage">>, 20000000).
 
 
 %% @private
-get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
+get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
@@ -121,7 +121,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
     SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize),
     ExpResult = get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get space details using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
@@ -167,7 +167,7 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
     end.
 
 
-support_space_test(Config) ->
+support_space_test(_Config) ->
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
@@ -176,7 +176,7 @@ support_space_test(Config) ->
     SpaceName = str_utils:rand_hex(12),
     StorageId = api_test_utils:get_storage_id_by_name(krakow, ?STORAGE_NAME),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Support space using /provider/spaces rest endpoint">>,
             type = rest,
@@ -280,7 +280,7 @@ build_support_space_verify_fun(MemRef) ->
     end.
 
 
-modify_space_support_test(Config) ->
+modify_space_support_test(_Config) ->
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
@@ -290,7 +290,7 @@ modify_space_support_test(Config) ->
     SpaceName = str_utils:rand_hex(12),
     SupportSize = ?SUPPORT_SIZE,
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Modify space support using /provider/spaces rest endpoint">>,
             type = rest,
@@ -396,13 +396,13 @@ build_modify_space_support_verify_fun(MemRef) ->
     end.
 
 
-revoke_space_support_test(Config) ->
+revoke_space_support_test(_Config) ->
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,

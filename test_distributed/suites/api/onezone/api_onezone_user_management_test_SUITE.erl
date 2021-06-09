@@ -47,7 +47,7 @@ all() -> [
 %%%===================================================================
 
 
-create_user_test(Config) ->
+create_user_test(_Config) ->
     MemRef = api_test_memory:init(),
 
     OzPanelNodes = oct_background:get_zone_panels(),
@@ -55,7 +55,7 @@ create_user_test(Config) ->
 
     GroupIds = [ozw_test_rpc:create_group(str_utils:rand_hex(6)) || _ <- lists:seq(1, 3)],
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Add zone user using /zone/users endpoint">>,
             type = rest,
@@ -170,12 +170,12 @@ is_user_member_of_groups(UserId, GroupIds) ->
     end, GroupIds).
 
 
-get_user_details_test(Config) ->
+get_user_details_test(_Config) ->
     MemRef = api_test_memory:init(),
     OzPanelNodes = oct_background:get_zone_panels(),
     OzWorkerNodes = oct_background:get_zone_nodes(),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get Onezone user details using /zone/users rest endpoint">>,
             type = rest,
@@ -248,7 +248,7 @@ build_get_user_details_prepare_rest_args_fun(MemRef) ->
     end.
 
 
-set_user_password_test(Config) ->
+set_user_password_test(_Config) ->
     MemRef = api_test_memory:init(),
     OzPanelNodes = oct_background:get_zone_panels(),
     OzWorkerNodes = oct_background:get_zone_nodes(),
@@ -262,7 +262,7 @@ set_user_password_test(Config) ->
     api_test_memory:set(MemRef, old_password, Password),
     api_test_memory:set(MemRef, user_name, Username),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Set Onezone user password using /zone/users rest endpoint">>,
             type = rest,
