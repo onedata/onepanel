@@ -751,7 +751,7 @@ get_should_return_storage(Config) ->
 
 post_should_add_storage(Config) ->
     ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages">>,
             post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
             ?STORAGES_JSON
