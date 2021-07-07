@@ -628,7 +628,7 @@ services_stop_start_test(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
@@ -674,7 +674,7 @@ end_per_testcase(_Case, _Config) ->
 
 end_per_suite(_Config) ->
     ssl:stop(),
-    hackney:stop().
+    application:stop(hackney).
 
 
 %%%===================================================================

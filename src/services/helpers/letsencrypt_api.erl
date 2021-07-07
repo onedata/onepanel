@@ -238,7 +238,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
         {ok, State3} = register_account(State2),
         {ok, _State4} = attempt_certification(State3)
     catch
-        Type:Error ->
+        Type:Error:Stacktrace ->
             case AccountExists of
                 true -> ok;
                 false ->
@@ -248,7 +248,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
                     % authorization rate limit.
                     catch clean_keys(KeysDir)
             end,
-            erlang:raise(Type, Error, erlang:get_stacktrace())
+            erlang:raise(Type, Error, Stacktrace)
     end,
     % Remove TXT record only on success to ease debugging
     catch clean_txt_record(Plugin),

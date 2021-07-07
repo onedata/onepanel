@@ -1,8 +1,6 @@
 %% plugins
 {plugins, [rebar3_hex, rebar3_elixir,
-    {rebar_raw_resource,
-        {git, "git://github.com/tburghart/rebar_raw_resource.git", {ref, "0.5.0"}}
-    }
+    {rebar_raw_resource, {git, "https://github.com/alertlogic/rebar_raw_resource", {branch, "master"}}}
 ]}.
 
 
@@ -33,10 +31,9 @@
 
 {deps, [
     {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "02a5ba5f7fa7"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "ec0e106243e1e0e5"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "f3d309ed7af6"}}},
-    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "f58517cd56530eedf5"}}},
-    {yamerl, {git, "git://github.com/yakaz/yamerl.git", {ref, "3f46bf06b9"}}}
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "398322a8eda0"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "3cf823013b3f"}}},
+    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "280105fbf04d"}}}
 ]}.
 
 {pre_hooks, [
@@ -59,7 +56,7 @@
 
 %% relx configuration
 {relx, [
-    {release, {"{{release_name}}", "1.0.0"},
+    {release, {{{release_name}}, "1.0.0"},
         [
             kernel,
             stdlib,
@@ -73,7 +70,7 @@
             {common_test, load},
             {debugger, load},
             {edoc, load},
-            {enacl_p, load},
+            {enacl, load},
             {erts, load},
             {et, load},
             {eunit, load},
@@ -95,9 +92,11 @@
 
     {vm_args, "rel/files/vm.args"},
     {sys_config, "rel/files/app.config"},
-    {target_dir, "{{release_name}}"},
     {include_src, false},
     {dev_mode, true},
+    % NOTE: {dev_mode, true} expands implicitly to {include_erts, false},
+    % so we need this line AFTER the dev mode to override this setting
+    {include_erts, true},
 
     {overlay, [
         %% Copy base files for starting and interacting with node

@@ -584,7 +584,7 @@ patch_should_modify_pool(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         CephNodes = tl(?config(all_nodes, NewConfig2)),
