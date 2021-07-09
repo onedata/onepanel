@@ -43,7 +43,7 @@
     <<"webdav">>,
     <<"xrootd">>
 ]).
--define(STORAGE_TIMEOUT, 5000).
+-define(STORAGE_TIMEOUT, 20000).
 -define(STORAGE_QOS_PARAMETERS, #{
     <<"key">> => <<"value">>
 }).
