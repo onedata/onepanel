@@ -4,6 +4,11 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha14
+
+-   **VFS-7738** Fixed issues with navigation between datasets, archives
+    and archive files browsers.
+
 ### 21.02.0-alpha13
 
 ### 21.02.0-alpha12
