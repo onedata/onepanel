@@ -11,7 +11,7 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
-    {vsn, "20.02.10"},
+    {vsn, "20.02.11"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,
