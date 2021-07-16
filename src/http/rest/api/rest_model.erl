@@ -2450,6 +2450,11 @@ http_model() ->
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
         connectionPoolSize => {integer, {optional, 150}},
+        %% Defines the maximum number of requests performed in a single HTTP
+        %% session. After the limit is reached, 'Connection: close'
+        %% header is sent to the server. When set to 0 (default), number of
+        %% requests per session is unlimited, unless imposed by the server.
+        maxRequestsPerSession => {integer, {optional, 0}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2565,6 +2570,11 @@ http_modify_model() ->
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
         connectionPoolSize => {integer, optional},
+        %% Defines the maximum number of requests performed in a single HTTP
+        %% session. After the limit is reached, 'Connection: close'
+        %% header is sent to the server. When set to 0 (default), number of
+        %% requests per session is unlimited, unless imposed by the server.
+        maxRequestsPerSession => {integer, optional},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
