@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha16
+
 ### 21.02.0-alpha15
 
 -   **VFS-7747** Upgrade the codebase to Erlang OTP 24.
