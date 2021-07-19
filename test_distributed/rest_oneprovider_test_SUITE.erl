@@ -1446,7 +1446,7 @@ get_should_return_transfers_mock(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         onepanel_test_rest:set_default_passphrase(NewConfig2),

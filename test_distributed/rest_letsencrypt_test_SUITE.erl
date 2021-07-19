@@ -288,7 +288,7 @@ csr_generation_works(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
@@ -437,7 +437,7 @@ get_web_cert(Host) ->
 %%--------------------------------------------------------------------
 -spec patch_web_cert(Host :: service:host(), Data :: map()) -> Code :: non_neg_integer().
 patch_web_cert(Host, Data) ->
-    {ok, Code, _, Body} = ?assertMatch({ok, _, _, _},
+    {ok, Code, _, _} = ?assertMatch({ok, _, _, _},
         onepanel_test_rest:auth_request(
             Host, <<"/web_cert">>, patch,
             hd(?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])),

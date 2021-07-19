@@ -151,8 +151,7 @@ assert_fields(TupleList, ExpectedFields) ->
         case lists:keymember(Field, 1, TupleList) of
             true -> ok;
             false ->
-                ct:pal("Key ~p missing in body ~p", [Field, TupleList]),
-                ?assert(false)
+                ct:fail("Key ~p missing in body ~p", [Field, TupleList])
         end
     end, ExpectedFields).
 
@@ -230,17 +229,15 @@ service_action(Node, Service, Action, Ctx) ->
         Results when is_list(Results) ->
             case service_utils:results_contain_error(Results) of
                 {true, Error} ->
-                    ct:pal("Service action ~tp:~tp on node ~tp failed.~n"
+                    ct:fail("Service action ~tp:~tp on node ~tp failed.~n"
                         "Error: ~tp~nCtx: ~tp~nSteps history: ~tp",
-                        [Service, Action, Node, Error, Ctx, Results]),
-                    ?assert(false);
+                        [Service, Action, Node, Error, Ctx, Results]);
                 false ->
                     Results
             end;
         Error ->
-            ct:pal("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",
-                [Service, Action, Node, Ctx, Error]),
-            ?assert(false)
+            ct:fail("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",
+                [Service, Action, Node, Ctx, Error])
     end.
 
 

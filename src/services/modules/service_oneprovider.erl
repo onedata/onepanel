@@ -635,12 +635,12 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            erlang:raise(Type, Error, erlang:get_stacktrace());
-        Type:Error ->
+        Type:?ERROR_UNREGISTERED_ONEPROVIDER:Stacktrace ->
+            erlang:raise(Type, ?ERROR_UNREGISTERED_ONEPROVIDER, Stacktrace);
+        Type:Error:Stacktrace ->
             case service:get_ctx(name()) of
                 #{?DETAILS_PERSISTENCE := Cached} -> Cached;
-                _ -> erlang:raise(Type, Error, erlang:get_stacktrace())
+                _ -> erlang:raise(Type, Error, Stacktrace)
             end
     end.
 
@@ -1061,14 +1061,15 @@ await_registration_token_from_file(FilePath) ->
         Token = sanitize_registration_token(FileBody),
         ?info("Successfully retrieved registration token from file ~s", [FilePath]),
         Token
-    catch Class:Reason ->
+    catch Class:Reason:Stacktrace ->
         utils:throttle(60, fun() ->
             ?notice(
                 "No suitable Oneprovider registration token found in file '~s', retrying...~n"
                 "Last error was: ~w:~w", [FilePath, Class, Reason]
             )
         end),
-        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", [Class, Reason]),
+        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", 
+            [Class, Reason], Stacktrace),
         throw(attempt_failed)
     end.
 
@@ -1086,8 +1087,9 @@ sanitize_registration_token(Token) ->
     catch
         throw:{error, _} = Error ->
             Error;
-        Class:Reason ->
-            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p", [Class, Reason]),
+        Class:Reason:Stacktrace ->
+            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p", 
+                [Class, Reason], Stacktrace),
             throw(?ERROR_BAD_DATA(<<"token">>))
     end.
 
@@ -1132,10 +1134,11 @@ schedule_periodic_onezone_connection_check() ->
                 try
                     set_up_in_onezone(),
                     onepanel_cron:remove_job(?FUNCTION_NAME)
-                catch Class:Reason ->
+                catch Class:Reason:Stacktrace ->
                     ?error_stacktrace(
                         "Unexpected error when running procedures upon Onezone connection - ~w:~p",
-                        [Class, Reason]
+                        [Class, Reason],
+                        Stacktrace
                     )
                 end;
             false ->
