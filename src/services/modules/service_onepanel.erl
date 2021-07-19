@@ -488,7 +488,7 @@ build_url(Host, Suffix) ->
 %%--------------------------------------------------------------------
 -spec https_opts(Timeout :: time:millis()) -> http_client:opts().
 https_opts(Timeout) ->
-    CaCerts = https_listener:get_cert_chain_ders(),
+    CaCerts = cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir)),
     [
         {ssl_options, [{secure, false}, {cacerts, CaCerts}]},
         {connect_timeout, Timeout},

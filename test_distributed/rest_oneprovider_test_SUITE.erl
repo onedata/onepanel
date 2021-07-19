@@ -751,7 +751,7 @@ get_should_return_storage(Config) ->
 
 post_should_add_storage(Config) ->
     ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
+        ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/provider/storages">>,
             post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
             ?STORAGES_JSON
@@ -1446,7 +1446,7 @@ get_should_return_transfers_mock(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
         onepanel_test_rest:set_default_passphrase(NewConfig2),

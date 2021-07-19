@@ -59,14 +59,17 @@
 -define(WAIT_FOR_TXT_DELAY, timer:seconds(2)).
 % DNS servers used to verify TXT record at onezone
 -define(DNS_SERVERS, application:get_env(?APP_NAME,
-    letsencrypt_dns_verification_servers, [{8,8,8,8}])).
+    letsencrypt_dns_verification_servers, [{8, 8, 8, 8}])).
 
 % Number of failed request retries
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
 
--define(HTTP_OPTS,
-    [{connect_timeout, timer:seconds(15)}, {recv_timeout, timer:seconds(15)}]).
+-define(HTTP_OPTS, [{
+    connect_timeout, timer:seconds(30)},
+    {recv_timeout, timer:seconds(30)},
+    {ssl_options, [{cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}]}
+]).
 
 
 % Record for the endpoints directory presented by Let's Encrypt
@@ -235,7 +238,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
         {ok, State3} = register_account(State2),
         {ok, _State4} = attempt_certification(State3)
     catch
-        Type:Error ->
+        Type:Error:Stacktrace ->
             case AccountExists of
                 true -> ok;
                 false ->
@@ -245,7 +248,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
                     % authorization rate limit.
                     catch clean_keys(KeysDir)
             end,
-            erlang:raise(Type, Error, erlang:get_stacktrace())
+            erlang:raise(Type, Error, Stacktrace)
     end,
     % Remove TXT record only on success to ease debugging
     catch clean_txt_record(Plugin),
@@ -322,7 +325,6 @@ attempt_certification(#flow_state{service = Service} = State) ->
     end.
 
 
-
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -375,7 +377,7 @@ create_order(#flow_state{domain = Domain} = State) ->
 %% Obtains authorization objects given by URLs.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_authorizations(AuthorizationURLs :: [url()] , State :: #flow_state{}) ->
+-spec fetch_authorizations(AuthorizationURLs :: [url()], State :: #flow_state{}) ->
     {ok, #flow_state{}}.
 fetch_authorizations(AuthorizationURLs, State) ->
     State2 = lists:foldl(fun(AuthURL, StateAcc) ->
@@ -467,9 +469,7 @@ find_challenge(Type, ChallengeList) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_challenge(State :: #flow_state{}) -> {ok, #flow_state{}}.
-handle_challenge(#flow_state{challenge = Challenge} = State)
-    when Challenge#challenge.type == http
-->
+handle_challenge(#flow_state{challenge = #challenge{type = http}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
@@ -484,8 +484,7 @@ handle_challenge(#flow_state{challenge = Challenge} = State)
     {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2};
 
-handle_challenge(#flow_state{challenge = Challenge} = State)
-    when Challenge#challenge.type == dns->
+handle_challenge(#flow_state{challenge = #challenge{type = dns}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
@@ -835,7 +834,7 @@ get_jwk_or_kid(#flow_state{account_url = AccountUrl}) when is_binary(AccountUrl)
 pop_nonce(#flow_state{nonces = [Nonce | Rest]} = State) ->
     {Nonce, State#flow_state{nonces = Rest}};
 pop_nonce(#flow_state{nonces = [], directory = Directory} = State) ->
-    {ok, ?HTTP_200_OK, Headers} = http_client:request(head, Directory#directory.new_nonce),
+    {ok, ?HTTP_200_OK, Headers} = http_client:request(head, Directory#directory.new_nonce, #{}, <<>>, ?HTTP_OPTS),
     pop_nonce(push_nonce(Headers, State)).
 
 

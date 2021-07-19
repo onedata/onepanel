@@ -260,7 +260,7 @@ get_should_return_provider_info_test(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun onepanel_test_utils:init/1,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 

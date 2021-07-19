@@ -4,6 +4,76 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha17
+
+-   **VFS-8018** Added HTTP storage driver option to limit on the client
+    side maximum number of requests per single session, after which the
+    session is closed and reconnected.
+
+### 21.02.0-alpha16
+
+### 21.02.0-alpha15
+
+-   **VFS-7747** Upgrade the codebase to Erlang OTP 24.
+
+### 21.02.0-alpha14
+
+-   **VFS-7738** Fixed issues with navigation between datasets, archives
+    and archive files browsers.
+
+### 21.02.0-alpha13
+
+### 21.02.0-alpha12
+
+### 21.02.0-alpha11
+
+-   **VFS-7663** Changed background image of sign-in page in Onezone and
+    Onepanel.
+-   **VFS-7589** Added StorageRouter and BufferedStorage helpers to
+    handling of aggregate storages such as archive storage.
+
+### 21.02.0-alpha10
+
+### 21.02.0-alpha9
+
+### 21.02.0-alpha8
+
+-   **VFS-7510** Add API for browsing dataset structures, separately for
+    datasets in attached and detached state. The datasets can be listed
+    using batches of requested size, with desired starting point and
+    offset.
+
+### 21.02.0-alpha7
+
+### 21.02.0-alpha6
+
+### 21.02.0-alpha5
+
+-   **VFS-7294** Added publicly available REST endpoints for fetching
+    information and data of shared files/directories. The data-related
+    endpoints are offered by Onezone, which redirects to a suitable
+    Oneprovider so that a guest user does not need any knowledge of the
+    environment to access the data. Improved the Web GUI\'s shares view
+    to present the public endpoints in an easy-to-use manner.
+
+### 21.02.0-alpha4
+
+### 21.02.0-alpha3
+
+-   **VFS-6638** Fixed handling duplicate clusters states on clusters
+    list in GUI.
+
+### 21.02.0-alpha2
+
+-   **VFS-7280** Fixed page reload after Let\'s Encrypt certificate
+    generation via Onepanel GUI.
+-   **VFS-7165** Add a workaround for Erlang\'s SSL implementation that
+    would not reload server certificate chain when it is changed (e.g.
+    after Let\'s Encrypt certificate regeneration).
+-   **VFS-6566** Improved UX and fixed minor issues in share views.
+    Fixed inability to open share hosted by Oneprovider 19.02.x using
+    Onezone 20.02.x.
+
 ### 20.02.11
 
 -   **VFS-8016** Added option to POSIX storage driver to use different
@@ -35,7 +105,6 @@ CHANGELOG
 -   **VFS-6566** Improved UX and fixed minor issues in share views.
     Fixed inability to open share hosted by Oneprovider 19.02.x using
     Onezone 20.02.x.
-
 
 ### 20.02.6
 

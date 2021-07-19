@@ -37,7 +37,8 @@
     ssl_cache_is_cleared_after_certification/1,
     existing_certificates_are_reused/1,
     failed_patch_leaves_letsencrypt_disabled/1,
-    failed_patch_leaves_letsencrypt_enabled/1
+    failed_patch_leaves_letsencrypt_enabled/1,
+    csr_generation_works/1
 ]).
 
 all() ->
@@ -51,7 +52,8 @@ all() ->
         ssl_cache_is_cleared_after_certification,
         existing_certificates_are_reused,
         failed_patch_leaves_letsencrypt_disabled,
-        failed_patch_leaves_letsencrypt_enabled
+        failed_patch_leaves_letsencrypt_enabled,
+        csr_generation_works
     ]).
 
 -define(LE_PLUGIN_MOCK, service_le_plugin_mock).
@@ -271,13 +273,22 @@ failed_patch_leaves_letsencrypt_enabled(Config) ->
     end, ?config(all_hosts, Config)).
 
 
+csr_generation_works(Config) ->
+    ?nodePerCluster(Config, fun(Node) ->
+        ?assertMatch(
+            {ok, _, _},
+            rpc:call(Node, onepanel_cert, generate_csr_and_key, ["domain.example.com"])
+        )
+    end).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
@@ -426,7 +437,7 @@ get_web_cert(Host) ->
 %%--------------------------------------------------------------------
 -spec patch_web_cert(Host :: service:host(), Data :: map()) -> Code :: non_neg_integer().
 patch_web_cert(Host, Data) ->
-    {ok, Code, _, Body} = ?assertMatch({ok, _, _, _},
+    {ok, Code, _, _} = ?assertMatch({ok, _, _, _},
         onepanel_test_rest:auth_request(
             Host, <<"/web_cert">>, patch,
             hd(?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])),

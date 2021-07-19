@@ -48,8 +48,8 @@ handle(<<"POST">>, Req) ->
                     rest_translator:error_response(?ERROR_UNAUTHORIZED), Req2
                 )
         end
-    catch Type:Reason ->
-        ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason]),
+    catch Type:Reason:Stacktrace ->
+        ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason], Stacktrace),
         rest_handler:send_response(
             rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR), Req
         )

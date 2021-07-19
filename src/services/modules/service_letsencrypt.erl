@@ -187,12 +187,12 @@ check_webcert(Ctx) ->
             update_ctx(#{regenerating => true}),
             try
                 obtain_cert(Ctx)
-            catch Type:Error ->
+            catch Type:Error:Stacktrace ->
                 update_ctx(#{
                     regenerating => false,
                     last_failure => global_clock:timestamp_seconds()
                 }),
-                erlang:raise(Type, Error, erlang:get_stacktrace())
+                erlang:raise(Type, Error, Stacktrace)
             end,
 
             update_ctx(#{
@@ -350,8 +350,8 @@ schedule_check() ->
             any_challenge_available(),
             check_webcert(#{renewal => true})
         catch
-            Type:Error ->
-                ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error])
+            Type:Error:Stacktrace ->
+                ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error], Stacktrace)
         end
     end,
     % clean existing jobs to ensure no duplication
