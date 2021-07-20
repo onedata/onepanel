@@ -3063,7 +3063,13 @@ posix_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}}
+        storagePathType => {string, {optional, <<"canonical">>}},
+        %% UID of the user on whose behalf operations in the admin context will
+        %% be performed on the storage.
+        rootUid => {integer, {optional, 0}},
+        %% GID of the group on whose behalf operations in the admin context will
+        %% be performed on the storage.
+        rootGid => {integer, {optional, 0}}
     }.
 
 %%--------------------------------------------------------------------
@@ -3128,7 +3134,13 @@ posix_modify_model() ->
         type => {discriminator, <<"posix">>},
         %% The absolute path to the directory where the POSIX storage is mounted
         %% on the cluster nodes.
-        mountPoint => {string, optional}
+        mountPoint => {string, optional},
+        %% UID of the user on whose behalf operations in the admin context will
+        %% be performed on the storage.
+        rootUid => {integer, optional},
+        %% GID of the group on whose behalf operations in the admin context will
+        %% be performed on the storage.
+        rootGid => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
