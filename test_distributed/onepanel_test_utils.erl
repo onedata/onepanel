@@ -120,7 +120,7 @@ set_test_envs(Nodes) ->
 -spec set_test_envs(Nodes :: [node()], TestEnvs :: proplists:proplist()) -> ok.
 set_test_envs(Nodes, TestEnvs) ->
     lists:foreach(fun({Key, Value}) ->
-        rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
+        utils:rpc_multicall(Nodes, onepanel_env, set, [Key, Value])
     end, TestEnvs).
 
 
@@ -133,7 +133,7 @@ mock_start(Config) ->
     Nodes = ?config(all_nodes, Config),
     lists:foreach(fun(App) ->
         {Results, []} = ?assertMatch({_, []},
-            rpc:multicall(Nodes, application, start, [App])),
+            utils:rpc_multicall(Nodes, application, start, [App])),
         ?assert(lists:all(fun(Result) -> Result =:= ok end, Results))
     end, [tools, meck]),
     Config.

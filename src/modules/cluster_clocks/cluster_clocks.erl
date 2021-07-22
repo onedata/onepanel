@@ -171,5 +171,5 @@ get_master_node() ->
 -spec abort_periodic_sync() -> ok.
 abort_periodic_sync() ->
     % remove any previous periodic sync jobs across the cluster
-    rpc:multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
+    utils:rpc_multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
     ok.

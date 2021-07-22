@@ -241,7 +241,7 @@ init_per_testcase(wrapper_test, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     NewConfig = init_per_testcase(default, Config),
     % revert to older table schema to test its upgrade
-    {_, []} = rpc:multicall(Nodes, mnesia, transform_table, [
+    {_, []} = utils:rpc_multicall(Nodes, mnesia, transform_table, [
         ?MODEL,
         fun(_Record) -> throw(table_not_empty) end,
         record_info(fields, ?MODEL),
