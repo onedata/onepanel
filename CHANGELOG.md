@@ -4,6 +4,12 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha18
+
+-   **VFS-8065** Fixed null device helper setup in GUI, where the
+    simulated filesystem parameters can include as a last component a
+    file size for the simulated files.
+
 ### 21.02.0-alpha17
 
 -   **VFS-8018** Added HTTP storage driver option to limit on the client
