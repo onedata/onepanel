@@ -721,7 +721,7 @@ supports_letsencrypt_challenge(_) -> false.
 -spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
 set_http_record(Name, Value) ->
     Nodes = get_nodes(),
-    {Results, []} = rpc:multicall(Nodes, http_listener,
+    {Results, []} = utils:rpc_multicall(Nodes, http_listener,
         set_response_to_letsencrypt_challenge, [Name, Value]),
     lists:foreach(fun(R) -> ok = R end, Results),
     ok.

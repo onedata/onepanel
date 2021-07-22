@@ -92,7 +92,7 @@ call(Nodes, Module, Function, Args) ->
     Args :: [term()], timeout()) -> results().
 call(NodeOrNodes, Module, Function, Args, Timeout) ->
     Nodes = utils:ensure_list(NodeOrNodes),
-    {Values, _} = rpc:multicall(
+    {Values, _} = utils:rpc_multicall(
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
 

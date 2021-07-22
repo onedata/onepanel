@@ -280,14 +280,14 @@ init_per_testcase(_Case, Config) ->
         fun(_) -> true end),
 
 
-    {_, []} = rpc:multicall(OpNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OpNodes, service, save, [#service{
         name = op_worker, hosts = OpHosts}]),
-    {_, []} = rpc:multicall(OzNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OzNodes, service, save, [#service{
         name = oz_worker, hosts = OzHosts}]),
     % models required for cluster data caching to work
-    {_, []} = rpc:multicall(OpNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OpNodes, service, save, [#service{
         name = oneprovider, ctx = #{registered => true}}]),
-    {_, []} = rpc:multicall(OzNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OzNodes, service, save, [#service{
         name = onezone}]),
 
     test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain,

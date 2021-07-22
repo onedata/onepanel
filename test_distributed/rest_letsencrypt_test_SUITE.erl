@@ -485,7 +485,7 @@ deploy_certs(SourcePaths, Config) ->
     Nodes = ?config(all_nodes, Config),
     lists:foreach(fun({FileType, Path}) ->
         {ok, Content} = file:read_file(?TEST_FILE(Config, Path)),
-        {Result, []} = rpc:multicall(Nodes, erlang, apply, [fun() ->
+        {Result, []} = utils:rpc_multicall(Nodes, erlang, apply, [fun() ->
             Dest = onepanel_env:get(FileType),
             file:write_file(Dest, Content)
         end, []]),

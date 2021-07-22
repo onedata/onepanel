@@ -355,7 +355,7 @@ schedule_check() ->
         end
     end,
     % clean existing jobs to ensure no duplication
-    rpc:multicall(get_nodes(), onepanel_cron, remove_job, [name()]),
+    utils:rpc_multicall(get_nodes(), onepanel_cron, remove_job, [name()]),
     ok = onepanel_cron:add_job(name(), Action, ?CHECK_DELAY).
 
 
