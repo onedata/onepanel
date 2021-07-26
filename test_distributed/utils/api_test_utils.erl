@@ -17,6 +17,7 @@
 
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 % an object containing API request data, serializable to json
 -type data() :: map()| undefined.
@@ -85,7 +86,7 @@ to_hostnames(Nodes) ->
 
 -spec match_location_header(map(), binary()) -> binary().
 match_location_header(Headers, Path) ->
-    Location = maps:get(<<"location">>, Headers),
+    Location = maps:get(?HDR_LOCATION, Headers),
     {match, [Item]} = ?assertMatch({match, [_]}, re:run(Location, Path ++ "(.+)", [{capture, all_but_first, binary}])),
     Item.
 

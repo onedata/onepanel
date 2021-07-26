@@ -15,6 +15,7 @@
 -include("api_test_runner.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -119,7 +120,7 @@ add_s3_storage(_Config) ->
             prepare_args_fun = fun(_) -> #rest_args{
                 method = post,
                 path = <<"provider/storages">>,
-                headers = #{<<"content-type">> => <<"application/json">>},
+                headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
                 body = json_utils:encode(RequestBody)}
             end,
             verify_fun = build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody),

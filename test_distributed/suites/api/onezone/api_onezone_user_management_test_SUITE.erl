@@ -17,6 +17,7 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -135,7 +136,7 @@ build_create_user_prepare_args_fun(MemRef) ->
         #rest_args{
             method = post,
             path = <<"zone/users">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestData)}
     end.
 
@@ -340,7 +341,7 @@ build_set_user_password_prepare_rest_args_fun(MemRef) ->
         #rest_args{
             method = patch,
             path = <<"zone/users/", Id/binary>>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestData)
         }
     end.

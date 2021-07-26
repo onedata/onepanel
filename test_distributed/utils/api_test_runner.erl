@@ -727,7 +727,7 @@ create_oz_temp_token(OzNode, UserId) ->
 -spec obtain_local_token(node(), http_client:headers()) -> binary().
 obtain_local_token(Node, BasicAuthHeaders) ->
     LoginURL = get_onepanel_endpoint(Node, "login"),
-    {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch(
+    {ok, _, #{?HDR_SET_COOKIE := CookieHeader}, _} = ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
         make_rest_request(Node, post, LoginURL, BasicAuthHeaders, <<>>)
     ),
@@ -737,7 +737,7 @@ obtain_local_token(Node, BasicAuthHeaders) ->
     {SessionCookieKey, SessionCookie} = proplists:lookup(SessionCookieKey, Cookies),
 
     PreauthorizeURL = get_onepanel_endpoint(Node, "gui-preauthorize"),
-    CookieAuthHeaders = #{<<"cookie">> => <<SessionCookieKey/binary, "=", SessionCookie/binary>>},
+    CookieAuthHeaders = #{?HDR_COOKIE => <<SessionCookieKey/binary, "=", SessionCookie/binary>>},
 
     {ok, _, _, #{<<"token">> := Token}} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
@@ -852,7 +852,7 @@ make_rest_request(Node, Method, URL, Headers, Body) ->
 
     case http_client:request(Method, URL, Headers, Body, Opts) of
         {ok, RespCode, RespHeaders, RespBody} ->
-            case maps:get(<<"content-type">>, RespHeaders, undefined) of
+            case maps:get(?HDR_CONTENT_TYPE, RespHeaders, undefined) of
                 <<"application/json">> ->
                     {ok, RespCode, RespHeaders, json_utils:decode(RespBody)};
                 _ ->

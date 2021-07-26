@@ -16,6 +16,7 @@
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -export([all/0]).
 
@@ -184,7 +185,7 @@ build_set_emergency_passphrase_prepare_args_fun(MemRef) ->
         #rest_args{
             method = put,
             path = <<"emergency_passphrase">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestData)
         }
     end.
@@ -235,7 +236,7 @@ get_undeployed_oz_panel_nodes(Config) ->
 
 %% @private
 -spec get_undeployed_op_panel_nodes(test_config:connfig()) -> [node()].
-get_undeployed_op_panel_nodes(Config)->
+get_undeployed_op_panel_nodes(Config) ->
     test_config:get_all_op_panel_nodes(Config).
 
 

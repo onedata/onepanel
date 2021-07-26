@@ -16,6 +16,7 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -252,7 +253,7 @@ build_support_space_prepare_args_fun(MemRef) ->
         #rest_args{
             method = post,
             path = <<"provider/spaces">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestMap)}
     end.
 
@@ -363,7 +364,7 @@ build_modify_space_support_prepare_rest_args_fun(MemRef) ->
         #rest_args{
             method = patch,
             path = <<"provider/spaces/", Id/binary>>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(LeftoverData)
         }
     end.
@@ -463,11 +464,10 @@ build_revoke_space_support_prepare_rest_args_fun(MemRef) ->
 build_revoke_space_support_verify_fun(MemRef) ->
     fun(ExpectedResult, _) ->
         SpaceId = api_test_memory:get(MemRef, space_id),
-        SupportedSpaces = opw_test_rpc:get_spaces(krakow),
 
         case ExpectedResult of
-            expected_success -> ?assertNot(lists:member(SpaceId, SupportedSpaces));
-            expected_failure -> ?assert(lists:member(SpaceId, SupportedSpaces))
+            expected_success -> ?assertNot(lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS);
+            expected_failure -> ?assert(lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS)
         end,
         true
     end.

@@ -99,7 +99,7 @@ auth_request(HostOrConfig, Port, Endpoint, Method, none, Headers, Body) ->
 
 auth_request(HostOrConfig, Port, Endpoint, Method, {cookie, Name, Value},
     Headers, Body) ->
-    NewHeaders = [{<<"cookie">>, <<Name/binary, "=", Value/binary>>}
+    NewHeaders = [{?HDR_COOKIE, <<Name/binary, "=", Value/binary>>}
         | Headers],
     noauth_request(HostOrConfig, Port, Endpoint, Method, NewHeaders, Body);
 
@@ -323,7 +323,7 @@ oz_token_auth(UserId, Name, Privileges) ->
 -spec obtain_local_token(HostOrConfig :: config(),
     {Username :: binary(), Auth :: auth()}) -> auth().
 obtain_local_token(HostOrConfig, Auth) ->
-    {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
+    {ok, _, #{?HDR_SET_COOKIE := CookieHeader}, _} = ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
         auth_request(HostOrConfig, {noprefix, "/login"}, post, Auth)),
 
     SessionCookieKey = gui_session_plugin:session_cookie_key(),
