@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -export([
     get_emergency_passphrase_status_test_base/4,
@@ -117,7 +118,7 @@ build_update_emergency_passphrase_prepare_args_fun(MemRef) ->
         #rest_args{
             method = put,
             path = <<"emergency_passphrase">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestData)
         }
     end.

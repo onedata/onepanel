@@ -18,6 +18,7 @@
 -include("http/gui_paths.hrl").
 -include_lib("gui/include/gui.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -define(PORT, application:get_env(onepanel, rest_port, 443)).
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_https_acceptors, 100)).
@@ -150,7 +151,7 @@ merge_routes(AllRoutes) ->
 common_response_headers(_Req) ->
     case rest_handler:allowed_origin() of
         undefined -> #{};
-        Origin -> #{<<"access-control-allow-origin">> => Origin}
+        Origin -> #{?HDR_ACCESS_CONTROL_ALLOW_ORIGIN => Origin}
     end.
 
 

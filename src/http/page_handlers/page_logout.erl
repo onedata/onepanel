@@ -14,6 +14,7 @@
 -author("Lukasz Opiola").
 
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -behaviour(dynamic_page_behaviour).
 
@@ -30,4 +31,4 @@
 %%--------------------------------------------------------------------
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"POST">>, Req) ->
-    cowboy_req:reply(?HTTP_303_SEE_OTHER, #{<<"location">> => <<"/">>}, gui_session:log_out(Req)).
+    cowboy_req:reply(?HTTP_303_SEE_OTHER, #{?HDR_LOCATION => <<"/">>}, gui_session:log_out(Req)).

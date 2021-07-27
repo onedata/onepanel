@@ -21,6 +21,7 @@
 -include_lib("ctool/include/test/performance.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 
@@ -679,8 +680,7 @@ post_should_support_space(Config) ->
                 }
             )
         ),
-        ?assertMatch( #{<<"location">> :=
-            <<"/api/v3/onepanel/provider/spaces/", _/binary>>}, Headers),
+        ?assertMatch(#{?HDR_LOCATION := <<"/api/v3/onepanel/provider/spaces/", _/binary>>}, Headers),
         onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
     end).
 
