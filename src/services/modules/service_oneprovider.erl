@@ -1105,11 +1105,10 @@ sanitize_registration_token(Token) ->
     tokens:serialized(), OnezoneDomain :: binary()) -> ok.
 on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
     OpwNodes = nodes:all(?SERVICE_OPW),
+    OppNodes = nodes:all(?SERVICE_PANEL),
     OnezoneDomainStr = unicode:characters_to_list(OnezoneDomain),
-    ok = onepanel_env:set_remote(OpwNodes, oz_domain,
-        OnezoneDomainStr, ?SERVICE_OPW),
-    ok = onepanel_env:write(OpwNodes, [?SERVICE_OPW, oz_domain],
-        OnezoneDomainStr, ?SERVICE_OPW),
+    ok = onepanel_env:set_remote(OpwNodes, oz_domain, OnezoneDomainStr, ?SERVICE_OPW),
+    onepanel_env:write(OppNodes, [?SERVICE_OPW, oz_domain], OnezoneDomainStr, ?SERVICE_OPW),
     ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
     ?info("Oneprovider registered in Onezone ~ts", [OnezoneDomain]),
 
