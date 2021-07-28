@@ -364,7 +364,7 @@ init_per_testcase(join_should_fail_on_clustered_node, Config) ->
 init_per_testcase(sequential_join_should_create_cluster, Config) ->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(onepanel_nodes, Config2),
-    clock_freezer_mock:setup_on_nodes(Nodes, [global_clock]),
+    clock_freezer_mock:setup_for_ct(Nodes, [global_clock]),
     Config2;
 
 init_per_testcase(extend_should_work_in_deployed_cluster, Config) ->
@@ -441,7 +441,7 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(sequential_join_should_create_cluster, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
-    clock_freezer_mock:teardown_on_nodes(Nodes),
+    clock_freezer_mock:teardown_for_ct(Nodes),
     end_per_testcase(default, Config);
 
 end_per_testcase(_Case, Config) ->
