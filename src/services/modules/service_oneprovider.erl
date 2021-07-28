@@ -1108,7 +1108,7 @@ on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
     OnezoneDomainStr = unicode:characters_to_list(OnezoneDomain),
     ok = onepanel_env:set_remote(OpwNodes, oz_domain,
         OnezoneDomainStr, ?SERVICE_OPW),
-    ok = onepanel_env:write([?SERVICE_OPW, oz_domain],
+    ok = onepanel_env:write(OpwNodes, [?SERVICE_OPW, oz_domain],
         OnezoneDomainStr, ?SERVICE_OPW),
     ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
     ?info("Oneprovider registered in Onezone ~ts", [OnezoneDomain]),
