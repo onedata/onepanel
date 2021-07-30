@@ -57,7 +57,7 @@
     "BuildRequires: openssl\n"
     "BuildRequires: automake\n"
     "BuildRequires: cmake3\n"
-    "BuildRequires: esl-erlang >= 24.0.2\n"
+    "BuildRequires: esl-erlang >= 24.0.5\n"
     "BuildRequires: git224\n"
     "BuildRequires: golang\n"
     "BuildRequires: libsodium-devel\n"
@@ -78,7 +78,7 @@
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
-    ", esl-erlang (>= 24.0.2)"
+    ", esl-erlang (>= 24.0.5)"
     ", folly-dev (>= 2017.10.02.00)"
     ", g++ (>= 4.9.0)"
     ", git"
