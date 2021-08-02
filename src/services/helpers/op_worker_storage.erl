@@ -81,15 +81,28 @@ add(#{name := Name, params := Params}) ->
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    try add(OpNode, StorageName, Params) of
-        {error, Reason} ->
-            {StorageName, {error, Reason}};
-        {_AddedStorageName, AddedStorageId} ->
-            ?info("Successfully added storage: \"~ts\" (~ts)", [StorageName, StorageType]),
-            {StorageName, {ok, AddedStorageId}}
+    Result = try
+        add(OpNode, StorageName, StorageType, Params)
     catch
-        _:{error, Reason} -> {StorageName, {error, Reason}}
-    end.
+        _:{error, Reason} ->
+            {error, Reason};
+        Class:Reason:Stacktrace ->
+            ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~p", [
+                StorageName, StorageType, Class, Reason
+            ], Stacktrace),
+            {error, storage_add_failed}
+    end,
+    case Result of
+        {ok, AddedStorageId} ->
+            ?notice("Successfully added storage '~ts' (~ts) with Id: '~ts'", [
+                StorageName, StorageType, AddedStorageId
+            ]);
+        {error, _} = Error ->
+            ?error("Failed to add storage '~ts' (~ts) due to ~p", [
+                StorageName, StorageType, Error
+            ])
+    end,
+    {StorageName, Result}.
 
 
 %%--------------------------------------------------------------------
@@ -321,13 +334,12 @@ can_be_removed(StorageId) ->
 %% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
-    {op_worker_storage:name(), op_worker_storage:id()} | {error, Reason :: term()}.
-add(OpNode, Name, Params) ->
-    StorageType = onepanel_utils:get_converted(type, Params, binary),
-
-    ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
-
+-spec add(OpNode :: node(), Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
+    {ok, op_worker_storage:id()} | {error, Reason :: term()}.
+add(OpNode, Name, StorageType, Params) ->
+    ?info("Gathering storage configuration for '~ts' (~ts)~nParameters: ~p", [
+        Name, StorageType, maps:without([type], Params)
+    ]),
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     Readonly = onepanel_utils:get_converted(readonly, StorageParams, boolean, false),
     % if skipStorageDetection is not defined, set it to the same value as Readonly
@@ -352,11 +364,11 @@ add(OpNode, Name, Params) ->
 
     try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
         _ ->
-            ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
+            ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
             case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
-                Readonly,  normalize_numeric_qos_parameters(QosParameters)
+                Readonly, normalize_numeric_qos_parameters(QosParameters)
             ) of
-                {ok, StorageId} -> {Name, StorageId};
+                {ok, StorageId} -> {ok, StorageId};
                 {error, Reason} -> {error, Reason}
             end
     catch
@@ -663,7 +675,7 @@ normalize_numeric_qos_parameters(QosParameters) ->
             json_utils:decode(Value)
         catch
             _:invalid_json -> Value
-        end 
+        end
     end, QosParameters).
 
 %% @private
