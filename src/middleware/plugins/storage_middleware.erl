@@ -667,6 +667,12 @@ validate_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
         _:_  -> throw(?ERROR_BAD_DATA(?STORAGE_KEY(StorageName, <<"hostname">>)))
     end,
     ok;
+validate_storage_custom_args(_StorageName, Data = #{type := <<"cephrados">>}) ->
+    case maps:get(storagePathType, Data, undefined) of
+        <<"canonical">> -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"storagePathType">>, [<<"flat">>]));
+        _ -> ok
+    end,
+    ok;
 
 validate_storage_custom_args(_StorageName, _Data) ->
     ok.
