@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.12
+
 ### 20.02.11
 
 -   **VFS-8016** Added option to POSIX storage driver to use different
