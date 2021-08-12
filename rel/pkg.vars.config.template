@@ -46,10 +46,10 @@
     "Requires: util-linux-ng\n"
     "Requires: sed\n"
     "Requires: lvm2\n"
-    "Requires: %scl_require_package %{scl} folly\n"}.
+    "Requires: %scl_require_package %{scl} folly >= 2021.01.04.00\n"}.
 {rpm_build_requires,
     "BuildRequires: %scl_require_package %{scl} boost-devel\n"
-    "BuildRequires: %scl_require_package %{scl} folly-devel\n"
+    "BuildRequires: %scl_require_package %{scl} folly-devel >= 2021.01.04.00\n"
     "BuildRequires: %scl_require_package %{scl} gflags-devel\n"
     "BuildRequires: %scl_require_package %{scl} glog-devel\n"
     "BuildRequires: %scl_require_package %{scl} fmt-devel\n"
