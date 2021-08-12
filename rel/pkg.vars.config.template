@@ -50,7 +50,6 @@
 {rpm_build_requires,
     "BuildRequires: %scl_require_package %{scl} boost-devel\n"
     "BuildRequires: %scl_require_package %{scl} folly-devel\n"
-    "BuildRequires: %scl_require_package %{scl} folly-static\n"
     "BuildRequires: %scl_require_package %{scl} gflags-devel\n"
     "BuildRequires: %scl_require_package %{scl} glog-devel\n"
     "BuildRequires: %scl_require_package %{scl} fmt-devel\n"
