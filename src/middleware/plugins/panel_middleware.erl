@@ -43,6 +43,7 @@ operation_supported(create, invite_token, private) -> true;
 operation_supported(get, configuration, private) -> true;
 operation_supported(get, cookie, private) -> true;
 operation_supported(get, test_image, private) -> true;
+operation_supported(get, health, private) -> true;
 operation_supported(get, progress, private) -> true;
 operation_supported(get, web_cert, private) -> true;
 operation_supported(get, dns_check, private) -> true;
@@ -65,6 +66,7 @@ required_availability(create, invite_token, private) -> [];
 required_availability(get, configuration, private) -> [];
 required_availability(get, cookie, private) -> [];
 required_availability(get, test_image, private) -> [];
+required_availability(get, health, private) -> [];
 required_availability(get, progress, private) -> [];
 required_availability(get, web_cert, private) -> [];
 required_availability(get, dns_check, private) -> [];
@@ -99,6 +101,7 @@ authorize(#onp_req{operation = get,
 }, _) when
     Aspect == configuration;
     Aspect == test_image;
+    Aspect == health;
     Aspect == emergency_passphrase
 ->
     true;
@@ -170,6 +173,7 @@ validate(#onp_req{operation = get, gri = #gri{aspect = Aspect}}, _) when
     Aspect == configuration;
     Aspect == cookie;
     Aspect == test_image;
+    Aspect == health;
     Aspect == progress;
     Aspect == dns_check_configuration;
     Aspect == emergency_passphrase
@@ -212,6 +216,11 @@ get(#onp_req{gri = #gri{aspect = test_image}}, _) ->
         0, 0, 0, 10, 73, 68, 65, 84, 8, 153, 99, 96, 0, 0, 0, 2, 0, 1, 244,
         113, 100, 166, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
     >>};
+
+get(#onp_req{gri = #gri{aspect = health}}, _) ->
+    {ok, value, #{
+        <<"status">> => <<"healthy">>
+    }};
 
 get(#onp_req{gri = #gri{aspect = progress}}, _) ->
     {ok, value, format_deployment_progress()};
