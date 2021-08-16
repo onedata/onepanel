@@ -46,13 +46,13 @@
     "Requires: util-linux-ng\n"
     "Requires: sed\n"
     "Requires: lvm2\n"
-    "Requires: %scl_require_package %{scl} folly\n"}.
+    "Requires: %scl_require_package %{scl} folly >= 2021.01.04.00\n"}.
 {rpm_build_requires,
     "BuildRequires: %scl_require_package %{scl} boost-devel\n"
-    "BuildRequires: %scl_require_package %{scl} folly-devel\n"
-    "BuildRequires: %scl_require_package %{scl} folly-static\n"
+    "BuildRequires: %scl_require_package %{scl} folly-devel >= 2021.01.04.00\n"
     "BuildRequires: %scl_require_package %{scl} gflags-devel\n"
     "BuildRequires: %scl_require_package %{scl} glog-devel\n"
+    "BuildRequires: %scl_require_package %{scl} fmt-devel\n"
     "BuildRequires: %scl_require_package devtoolset-7 gcc-c++\n"
     "BuildRequires: openssl\n"
     "BuildRequires: automake\n"
@@ -74,15 +74,16 @@
     ", sed"
     ", util-linux"
     ", lvm2"
-    ", folly"}.
+    ", folly (>= 2021.01.04.00)"}.
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
     ", esl-erlang (>= 24.0.5)"
-    ", folly-dev (>= 2017.10.02.00)"
+    ", folly-dev (>= 2021.01.04.00)"
     ", g++ (>= 4.9.0)"
     ", git"
     ", golang-go"
+    ", libfmt-dev (>= 7.0.1)"
     ", libglu1-mesa"
     ", libssl-dev"
     ", libsodium-dev"
