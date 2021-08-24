@@ -50,7 +50,7 @@ routes() ->
                 type = onp_panel,
                 id = undefined,
                 aspect = health,
-                scope = private
+                scope = public
             },
             produces = [<<"application/json">>]
         }},
