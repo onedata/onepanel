@@ -55,7 +55,7 @@
 -type helper() :: op_worker_rpc:helper().
 % @formatter:on
 
--export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
+-export_type([id/0, name/0, storage_params/0, storage_details/0, storages_map/0,
     qos_parameters/0, helper_args/0, user_ctx/0]).
 
 -define(EXEC_AND_THROW_ON_ERROR(Fun, Args),
@@ -75,21 +75,34 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Ctx :: #{name := name(), params := storage_params()}) ->
-    ok | no_return().
+    {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
 add(#{name := Name, params := Params}) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    Result = add(OpNode, StorageName, Params),
-
+    Result = try
+        add(OpNode, StorageName, StorageType, Params)
+    catch
+        _:{error, Reason} ->
+            {error, Reason};
+        Class:Reason:Stacktrace ->
+            ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~p", [
+                StorageName, StorageType, Class, Reason
+            ], Stacktrace),
+            {error, storage_add_failed}
+    end,
     case Result of
-        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
-            [StorageName, StorageType]),
-            ok;
-        {error, Reason} ->
-            throw({error, Reason})
-    end.
+        {ok, AddedStorageId} ->
+            ?notice("Successfully added storage '~ts' (~ts) with Id: '~ts'", [
+                StorageName, StorageType, AddedStorageId
+            ]);
+        {error, _} = Error ->
+            ?error("Failed to add storage '~ts' (~ts) due to ~p", [
+                StorageName, StorageType, Error
+            ])
+    end,
+    {StorageName, Result}.
 
 
 %%--------------------------------------------------------------------
@@ -321,24 +334,25 @@ can_be_removed(StorageId) ->
 %% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
-    ok | {error, Reason :: term()}.
-add(OpNode, Name, Params) ->
-    StorageType = onepanel_utils:get_converted(type, Params, binary),
-
-    ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
-
+-spec add(OpNode :: node(), Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
+    {ok, op_worker_storage:id()} | {error, Reason :: term()}.
+add(OpNode, Name, StorageType, Params) ->
+    ?info("Gathering storage configuration for '~ts' (~ts)~nParameters: ~p", [
+        Name, StorageType, maps:without([type], Params)
+    ]),
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     Readonly = onepanel_utils:get_converted(readonly, StorageParams, boolean, false),
     % if skipStorageDetection is not defined, set it to the same value as Readonly
     SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, StorageParams, boolean, Readonly),
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
+    ArchiveStorage = onepanel_utils:get_converted(archiveStorage, StorageParams, boolean, false),
 
     % ensure all params are in the config map
     StorageParams2 = StorageParams#{
         readonly => Readonly,
         skipStorageDetection => SkipStorageDetection,
-        importedStorage => ImportedStorage
+        importedStorage => ImportedStorage,
+        archiveStorage => ArchiveStorage
     },
     UserCtx = make_user_ctx(OpNode, StorageType, StorageParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams2),
@@ -348,14 +362,18 @@ add(OpNode, Name, Params) ->
     LumaConfig = make_luma_config(OpNode, StorageParams2),
     LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
 
-    SkipStorageDetection orelse verify_write_access(Helper, LumaFeed),
-
-    ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
-    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
-        Readonly,  normalize_numeric_qos_parameters(QosParameters)
-    ) of
-        {ok, _StorageId} -> ok;
-        {error, Reason} -> {error, Reason}
+    try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
+        _ ->
+            ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
+            case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
+                Readonly, normalize_numeric_qos_parameters(QosParameters)
+            ) of
+                {ok, StorageId} -> {ok, StorageId};
+                {error, Reason} -> {error, Reason}
+            end
+    catch
+        _ErrType:Error ->
+            Error
     end.
 
 
@@ -657,7 +675,7 @@ normalize_numeric_qos_parameters(QosParameters) ->
             json_utils:decode(Value)
         catch
             _:invalid_json -> Value
-        end 
+        end
     end, QosParameters).
 
 %% @private

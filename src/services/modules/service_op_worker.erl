@@ -445,7 +445,8 @@ synchronize_clock_upon_start(_) ->
 %% @doc Configures the service storages.
 %% @end
 %%--------------------------------------------------------------------
--spec add_storage(Ctx :: service:step_ctx()) -> ok | no_return().
+-spec add_storage(Ctx :: service:step_ctx()) ->
+    {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
 add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
     Type == ?LOCAL_CEPH_STORAGE_TYPE ->
     case hosts:all(?SERVICE_CEPH_OSD) of
@@ -720,7 +721,7 @@ supports_letsencrypt_challenge(_) -> false.
 -spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
 set_http_record(Name, Value) ->
     Nodes = get_nodes(),
-    {Results, []} = rpc:multicall(Nodes, http_listener,
+    {Results, []} = utils:rpc_multicall(Nodes, http_listener,
         set_response_to_letsencrypt_challenge, [Name, Value]),
     lists:foreach(fun(R) -> ok = R end, Results),
     ok.

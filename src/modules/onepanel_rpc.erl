@@ -52,9 +52,9 @@ apply(Module, Function, Args) ->
     catch
         throw:{error, _} = Reason ->
             {node(), Reason};
-        Type:Reason ->
+        Type:Reason:Stacktrace ->
             ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp",
-                [Module, Function, erlang:length(Args), Type, Reason]),
+                [Module, Function, erlang:length(Args), Type, Reason], Stacktrace),
             {node(), {error, #exception{
                 % do not store stacktrace not to pollute logs since it's logged here
                 type = Type, value = Reason, stacktrace = []}}}
@@ -92,7 +92,7 @@ call(Nodes, Module, Function, Args) ->
     Args :: [term()], timeout()) -> results().
 call(NodeOrNodes, Module, Function, Args, Timeout) ->
     Nodes = utils:ensure_list(NodeOrNodes),
-    {Values, _} = rpc:multicall(
+    {Values, _} = utils:rpc_multicall(
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
 

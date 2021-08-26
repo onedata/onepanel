@@ -44,10 +44,14 @@ generate_csr_and_key(Domain) ->
 
     try
         os:cmd([
-            "openssl req -new -batch -subj '/CN=", Domain, "/'",
+            "openssl req"
+            " -new -batch",
+            " -subj '/CN=", Domain, "'",
+            " -addext 'subjectAltName=DNS:", Domain, "'",
             " -nodes", % no password on keyfile
             " -keyout ", KeyFile,
-            " -out ", CSRFile]),
+            " -out ", CSRFile
+        ]),
 
         {ok, KeyPem} = file:read_file(KeyFile),
         {ok, CSRPem} = file:read_file(CSRFile),

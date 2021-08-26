@@ -212,8 +212,7 @@ wait_for_init(Ctx) ->
     catch throw:attempts_limit_exceeded ->
         % Couchbase sometimes dies silently. Restart it once in such case
         % to reduce impact of this issue.
-        ?warning("Timed out when waiting for the couchbase server to come up. "
-            "Attempting restart..."),
+        ?warning("Timed out when waiting for the couchbase server to come up. Attempting restart..."),
         service_cli:restart(name()),
 
         onepanel_utils:wait_until(?MODULE, status, [Ctx],
@@ -251,7 +250,7 @@ init_cluster(Ctx) ->
         onepanel_utils:get_basic_auth_header(User, Password),
         #{?HDR_CONTENT_TYPE => "application/x-www-form-urlencoded"}
     ),
-    Body = str_utils:format("memoryQuota=~B", [ServerQuota]),
+    Body = {form, [{<<"memoryQuota">>, integer_to_binary(ServerQuota)}]},
 
     {ok, ?HTTP_200_OK, _, _} = http_client:post(
         Url, Headers, Body,

@@ -334,7 +334,9 @@ service_op_worker_add_storage_test(Config) ->
             }
         }
     }),
-    assert_expected_result(service:get_module(op_worker), add_storage, [Node], ok, Results).
+
+    {_ResponseMap, ErrorOccurred} = parse_add_storages_results(Results),
+    ?assertEqual(ErrorOccurred, false).
 
 
 service_op_worker_update_storage_test(Config) ->
@@ -626,7 +628,7 @@ services_stop_start_test(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
@@ -672,7 +674,7 @@ end_per_testcase(_Case, _Config) ->
 
 end_per_suite(_Config) ->
     ssl:stop(),
-    hackney:stop().
+    application:stop(hackney).
 
 
 %%%===================================================================
@@ -755,6 +757,25 @@ get_storages(Config) ->
         Details
     end, Ids).
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Parses result from add_storages steps to storage map and searches for any error occurred during adding storages.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_add_storages_results(list()) -> map().
+parse_add_storages_results(ActionResults) ->
+    lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
+        case StepResult of
+            {step_end, _, add_storage, {[{_, {StorageName, {error, Reason}}}], []}}->
+                {AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}}, true};
+            {step_end, _, add_storage, {[{_, {StorageName, {ok, StorageId}}}], []}} ->
+                {AccMap#{StorageName => #{<<"id">> => StorageId}}, AccErrorOccurred};
+            _ ->
+                {AccMap, AccErrorOccurred}
+        end
+    end, {#{}, false}, ActionResults).
 
 %%--------------------------------------------------------------------
 %% @private

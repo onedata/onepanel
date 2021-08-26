@@ -266,6 +266,6 @@ get_params(PoolName, Params) ->
 -spec clear_cache(name()) -> ok.
 clear_cache(Name) ->
     Nodes = nodes:all(?SERVICE_PANEL),
-    rpc:multicall(Nodes, node_cache, clear, [?DETAILS_CACHE_KEY(Name)]),
-    rpc:multicall(Nodes, node_cache, clear, [?LIST_CACHE_KEY]),
+    utils:rpc_multicall(Nodes, node_cache, clear, [?DETAILS_CACHE_KEY(Name)]),
+    utils:rpc_multicall(Nodes, node_cache, clear, [?LIST_CACHE_KEY]),
     ok.

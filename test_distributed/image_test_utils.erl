@@ -199,11 +199,11 @@ regenerate_web_certificate(Nodes, Domain) ->
     % Both key and cert are expected in the same file
     CAPath = rpc_get_env(Node, test_web_cert_ca_path),
 
-    {_, []} = rpc:multicall(Nodes, cert_utils, create_signed_webcert, [
+    {_, []} = utils:rpc_multicall(Nodes, cert_utils, create_signed_webcert, [
         WebKeyPath, WebCertPath, Domain, CAPath, CAPath]),
-    {_, []} = rpc:multicall(Nodes, file, copy, [CAPath, WebChainPath]),
+    {_, []} = utils:rpc_multicall(Nodes, file, copy, [CAPath, WebChainPath]),
 
-    {_, []} = rpc:multicall(Nodes, service_op_worker, reload_webcert, [#{}]),
+    {_, []} = utils:rpc_multicall(Nodes, service_op_worker, reload_webcert, [#{}]),
     ok.
 
 
