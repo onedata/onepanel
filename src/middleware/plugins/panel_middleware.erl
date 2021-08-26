@@ -218,16 +218,16 @@ get(#onp_req{gri = #gri{aspect = test_image}}, _) ->
     >>};
 
 get(#onp_req{gri = #gri{aspect = health}}, _) ->
-    Hosts = hosts:all(?SERVICE_PANEL),
-    Nodes = nodes:service_to_nodes(?SERVICE_PANEL, Hosts),
-    NodesStatus = onepanel_rpc:call_all(Nodes, https_listener, healthcheck, []),
-    AllHealthy = lists:foldl(
-        fun({_Node, Status}, StatusAcc) ->
-            case Status of
-                ok -> StatusAcc;
-                _ -> false
-            end
-        end, true, NodesStatus),
+    Nodes = nodes:all(?SERVICE_PANEL),
+    StatusResponses = onepanel_rpc:call_all(Nodes, https_listener, healthcheck, []),
+
+    AllHealthy = lists:all(fun(StatusReponse) ->
+        case StatusReponse of
+            {_Node, ok} -> true;
+            _ -> false
+        end
+    end, StatusResponses),
+
     case AllHealthy of
         true -> {ok, value, #{
             <<"status">> => <<"healthy">>

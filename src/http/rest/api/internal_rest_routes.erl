@@ -43,7 +43,7 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
-        %% Perform health check
+        %% Check cluster health
         {<<"/health">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
