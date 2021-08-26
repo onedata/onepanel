@@ -2158,7 +2158,7 @@ cephrados_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"flat">>}}
+        storagePathType => {{enum, string, [<<"flat">>]}, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -2640,7 +2640,7 @@ localceph_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"flat">>}}
+        storagePathType => {{enum, string, [<<"flat">>]}, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
