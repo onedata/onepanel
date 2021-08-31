@@ -7,6 +7,15 @@
   },
   "os_configs": {
     "cfg1": {
+      "__currently_disabled_storages": {
+        "__reason": "Due to TODO VFS-8296, swift helper is currently not tested",
+        "storages": {
+          "type": "swift",
+          "name": "someSwift",
+          "container": "swift",
+          "storagePathType": "flat"
+        }
+      },
       "storages": [
         {
           "type": "posix",
@@ -36,12 +45,6 @@
           "bucket": "onedata",
           "storagePathType": "flat",
           "disable_iam_mock": false
-        },
-        {
-          "type": "swift",
-          "name": "someSwift",
-          "container": "swift",
-          "storagePathType": "flat"
         },
         {
           "type": "glusterfs",

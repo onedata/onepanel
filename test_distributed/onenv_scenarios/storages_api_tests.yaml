@@ -62,5 +62,6 @@ storages:
   - s3
   - ceph
   - gluster
-  - swift
   - webdav
+  # @TODO VFS-8296 swift helper is currently not tested
+  # - swift
