@@ -250,10 +250,12 @@ format_onepanel_configuration(onezone) ->
     Defaults = #{serviceType => onezone, zoneDomain => null, zoneName => null},
     try
         Details = service_oz_worker:get_details(#{}),
-        Configuration = kv_utils:copy_found([
-            {domain, zoneDomain},
-            {name, zoneName}
-        ], Details, Defaults),
+        ZoneDomain = maps:get(domain, Details, undefined),
+        ZoneName = maps:get(name, Details, undefined),
+        Configuration = Defaults#{
+            zoneDomain => ZoneDomain,
+            zoneName => ZoneName
+        },
 
         maps_utils:undefined_to_null(
             maps:merge(Configuration, format_onepanel_configuration(common))
@@ -275,10 +277,17 @@ format_onepanel_configuration(oneprovider) ->
         true ->
             try
                 Details = service_oneprovider:get_details(),
-                kv_utils:copy_found([
-                    {id, providerId},
-                    {onezoneDomainName, zoneDomain}
-                ], Details, Common#{isRegistered => true})
+                ProviderID = maps:get(id, Details, undefined),
+                ProviderName = maps:get(name, Details, undefined),
+                ProviderDomain = maps:get(domain, Details,undefined),
+                ZoneDomain = maps:get(onezoneDomainName, Details, undefined),
+                Common#{
+                    providerId => ProviderID,
+                    providerName => ProviderName,
+                    providerDomain => ProviderDomain,
+                    zoneDomain => ZoneDomain,
+                    isRegistered => true
+                }
             catch
                 _:_ ->
                     % If op_worker was configured, the Onezone domain can be
