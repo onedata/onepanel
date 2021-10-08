@@ -97,7 +97,7 @@ result_from_service_action(Service, Action, Ctx, Module, Function) ->
 %%--------------------------------------------------------------------
 -spec has_privilege(Client :: middleware:client(),
     RequiredPrivilege :: privileges:cluster_privilege()) -> boolean().
-has_privilege(#client{role = member, privileges = UserPrivileges}, RequiredPrivilege)  ->
+has_privilege(#client{role = member, privileges = UserPrivileges}, RequiredPrivilege) ->
     lists:member(RequiredPrivilege, UserPrivileges);
 
 has_privilege(#client{}, _RequiredPrivileges) -> false.
@@ -237,7 +237,6 @@ get_cluster_ips(Data) ->
     end, #{}, NodesWithIPs).
 
 
-
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -262,7 +261,9 @@ format_onepanel_configuration(onezone) ->
         )
     catch _:_ ->
         % probably no oz_worker nodes
-        maps:merge(Defaults, format_onepanel_configuration(common))
+        maps_utils:undefined_to_null(
+            maps:merge(Defaults, format_onepanel_configuration(common))
+        )
     end;
 
 format_onepanel_configuration(oneprovider) ->
@@ -277,24 +278,26 @@ format_onepanel_configuration(oneprovider) ->
         true ->
             try
                 Details = service_oneprovider:get_details(),
-                ProviderID = maps:get(id, Details, undefined),
+                ProviderId = maps:get(id, Details, undefined),
                 ProviderName = maps:get(name, Details, undefined),
-                ProviderDomain = maps:get(domain, Details,undefined),
+                ProviderDomain = maps:get(domain, Details, undefined),
                 ZoneDomain = maps:get(onezoneDomainName, Details, undefined),
-                Common#{
-                    providerId => ProviderID,
+                maps_utils:undefined_to_null(Common#{
+                    providerId => ProviderId,
                     providerName => ProviderName,
                     providerDomain => ProviderDomain,
                     zoneDomain => ZoneDomain,
                     isRegistered => true
-                }
+                })
             catch
                 _:_ ->
                     % If op_worker was configured, the Onezone domain can be
                     % read even when the worker is down.
                     Common#{
-                        zoneDomain => list_to_binary(service_oneprovider:get_oz_domain()),
                         providerId => null,
+                        providerName => null,
+                        providerDomain => null,
+                        zoneDomain => list_to_binary(service_oneprovider:get_oz_domain()),
                         isRegistered => true
                     }
             end
