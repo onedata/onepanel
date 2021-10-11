@@ -273,7 +273,9 @@ format_onepanel_configuration(oneprovider) ->
             Common#{
                 zoneDomain => null,
                 providerId => null,
-                isRegistered => false
+                isRegistered => false,
+                providerName => null,
+                providerDomain => null
             };
         true ->
             try
