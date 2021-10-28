@@ -2987,6 +2987,14 @@ op_configuration_model() ->
         %% This cluster's Oneprovider Id. `null` if the
         %% Oneprovider is not registered or Oneprovider worker is down.
         providerId => string,
+        %% The name of this Oneprovider. If the cluster is not configured or
+        %% malfunctioning (e.g. the op-worker service is down), the value may be
+        %% `null`.
+        providerName => string,
+        %% The domain of this Oneprovider. If the cluster is not configured or
+        %% malfunctioning (e.g. the op-worker service is down), the value may be
+        %% `null`.
+        providerDomain => string,
         %% The domain of the Onezone where this Oneprovider is registered.
         %% `null` if the Oneprovider is not registered.
         zoneDomain => string,
