@@ -38,6 +38,7 @@
     monitor_is_added/1,
     manager_is_added/1,
     loopdevice_osd_is_added/1,
+    loopdevice_osd_is_added1/1,
     blockdevice_osd_is_added/1,
     storage_is_added_with_pool/1,
     pool_creation_fails_with_too_few_osds/1,
@@ -77,6 +78,7 @@ all() ->
         monitor_is_added,
         manager_is_added,
         loopdevice_osd_is_added,
+        loopdevice_osd_is_added1,
         blockdevice_osd_is_added,
         storage_is_added_with_pool,
         pool_creation_fails_with_too_few_osds,
@@ -103,14 +105,14 @@ localceph_storage_fails_without_ceph(_Config) ->
 
 
 ceph_is_deployed(_Config) ->
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
 
-    HostsBin = lists:sort(onepanel_utils:convert([OpHost1], {seq, binary})),
+    HostsBin = lists:sort(onepanel_utils:convert([OpHost1, OpHost2], {seq, binary})),
 
     onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
         cluster_name => <<"test_cluster">>,
@@ -151,61 +153,61 @@ ceph_is_deployed(_Config) ->
 
 
 monitor_is_added(Config) ->
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, _, OpNode3 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, _, OpPanel3 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode3IP} = ip_utils:to_binary(rpc:call(OpNode3, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
-    OpHost2 = hosts:from_node(OpNode2),
+    OpHost3 = hosts:from_node(OpNode3),
 
     onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
         monitors => [
             #{
-                ip => OpNode2IP,
+                ip => OpNode3IP,
                 % a list!
-                host => OpHost2
+                host => OpHost3
             }
         ]
     }),
-    MonIds = ?assertMatch([_, _], list_monitors(OpPanel1), ?ATTEMPTS),
+    MonIds = ?assertMatch([_, _, _], list_monitors(OpPanel1), ?ATTEMPTS),
     ?assertEqual(MonIds, lists:sort(maps:keys(
         get_instances(OpPanel1, ?SERVICE_CEPH_MON)
     ))).
 
 
 manager_is_added(Config) ->
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, _, OpNode3 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel3 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode3IP} = ip_utils:to_binary(rpc:call(OpNode3, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
-    OpHost2 = hosts:from_node(OpNode2),
+    OpHost3 = hosts:from_node(OpNode3),
 
     onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
         managers => [
             #{
-                host => OpHost2
+                host => OpHost3
             }
         ]
     }),
-    MgrIds = ?assertMatch([_, _], list_managers(OpPanel1), ?ATTEMPTS),
+    MgrIds = ?assertMatch([_, _, _], list_managers(OpPanel1), ?ATTEMPTS),
     ?assertEqual(MgrIds, lists:sort(maps:keys(
         get_instances(OpPanel1, ?SERVICE_CEPH_MGR)
     ))).
 
 
 loopdevice_osd_is_added(Config) ->
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, _, OpNode3 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode3IP} = ip_utils:to_binary(rpc:call(OpNode3, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
-    OpHost2 = hosts:from_node(OpNode2),
+    OpHost3 = hosts:from_node(OpNode3),
 
     onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
         osds => [
             #{
-                host => OpHost2,
+                host => OpHost3,
                 type => loopdevice,
                 path => ?CUSTOM_LOOP_PATH,
                 size => ?LOOPDEVICE_SIZE,
@@ -219,12 +221,36 @@ loopdevice_osd_is_added(Config) ->
     ))).
 
 
+loopdevice_osd_is_added1(Config) ->
+    [OpNode1, _, OpNode3 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode3IP} = ip_utils:to_binary(rpc:call(OpNode3, oneprovider, get_node_ip, [])),
+    OpHost1 = hosts:from_node(OpNode1),
+    OpHost3 = hosts:from_node(OpNode3),
+
+    onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
+        osds => [
+            #{
+                host => OpHost3,
+                type => loopdevice,
+                size => ?LOOPDEVICE_SIZE,
+                uuid => ?OSD_UUID2
+            }
+        ]
+    }),
+    OsdIds = ?assertMatch([<<"0">>, <<"1">>], list_osds(OpPanel1), ?ATTEMPTS),
+    ?assertEqual(OsdIds, lists:sort(maps:keys(
+        get_instances(OpPanel1, ?SERVICE_CEPH_OSD)
+    ))).
+
+
 blockdevice_osd_is_added(Config) ->
     Device = ?config(blockdevice, Config), % vgroup/lvolume
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
 
@@ -238,7 +264,7 @@ blockdevice_osd_is_added(Config) ->
             }
         ]
     }),
-    OsdIds = ?assertMatch([<<"0">>, <<"1">>, <<"2">>], list_osds(OpPanel1), ?ATTEMPTS),
+    OsdIds = ?assertMatch([<<"0">>, <<"1">>], list_osds(OpPanel1), ?ATTEMPTS),
     ?assertEqual(OsdIds, lists:sort(maps:keys(
         get_instances(OpPanel1, ?SERVICE_CEPH_OSD)
     ))).
@@ -246,10 +272,10 @@ blockdevice_osd_is_added(Config) ->
 
 
 storage_is_added_with_pool(Config) ->
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
     PoolName = ?POOL_NAME,
@@ -263,10 +289,10 @@ storage_is_added_with_pool(Config) ->
 
 
 pool_creation_fails_with_too_few_osds(Config) ->
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
     PoolName = ?POOL_NAME2,
@@ -288,15 +314,15 @@ pool_creation_fails_with_too_few_osds(Config) ->
 
 get_localceph_storage(Config) ->
     % select a node without ceph, it should still work
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
 
     Storages = list_storage_ids(OpPanel1),
-    ?assert(lists:any(fun (Id)->
+    ?assert(lists:any(fun(Id) ->
         Storage = get_storage(OpPanel1, Id),
         onepanel_test_utils:assert_values(Storage, [
             {id, Id},
@@ -311,13 +337,13 @@ get_localceph_storage(Config) ->
 
 storage_update_modifies_pool(Config) ->
     % select a node without ceph, it should still work
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
-    Storages =  list_storage_ids(OpPanel1),
+    Storages = list_storage_ids(OpPanel1),
 
     ?assert(lists:any(fun(Id) ->
         NewTimeout = 300,
@@ -341,13 +367,13 @@ storage_update_modifies_pool(Config) ->
 
 storage_delete_removes_pool(Config) ->
     % select a node without ceph, it should still work
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
-    Node= OpPanel1,
+    Node = OpPanel1,
 
     Storages = list_storage_ids(Node),
 
@@ -357,7 +383,7 @@ storage_delete_removes_pool(Config) ->
     ?assertMatch([], list_storage_ids(Node)),
     ?assertEqual([], rpc:call(Node, ceph_pool, list, []))
 
-    .
+.
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -369,14 +395,12 @@ init_per_testcase(blockdevice_osd_is_added, Config) ->
     % except the loopdevice is created by the test here rather than onepanel.
 
     % select a node without ceph, it should still work
-    [OpNode1, OpNode2] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1 , OpPanel2] = oct_background:get_provider_panels(krakow),
-    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider,get_node_ip,[])),
-    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider,get_node_ip,[])),
+    [OpNode1, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    [OpPanel1, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
+    {ok, OpNode1IP} = ip_utils:to_binary(rpc:call(OpNode1, oneprovider, get_node_ip, [])),
+    {ok, OpNode2IP} = ip_utils:to_binary(rpc:call(OpNode2, oneprovider, get_node_ip, [])),
     OpHost1 = hosts:from_node(OpNode1),
     OpHost2 = hosts:from_node(OpNode2),
-
-
 
 
     % code based on service_ceph_osd:prepare_loopdevice/1
@@ -404,7 +428,7 @@ end_per_testcase(_Case, _Config) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op-2nodes"
+        onenv_scenario = "1op-3nodes"
     }).
 
 

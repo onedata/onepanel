@@ -24,6 +24,10 @@ sources:
       - op-panel
       - op-worker
       - cluster-manager
+    node-3:
+      - op-panel
+      - op-worker
+      - cluster-manager
 
 
 # Onezone image to use. Note that if 'sources' option is enabled, it must
@@ -59,15 +63,11 @@ forceImagePull: false
 # By default spaces supported by all providers are created. For custom
 # space configuration please refer to one of MyValues.yaml file in
 # scenario directory.
-storages:
-  - s3
+
 
 users:
   - &user1
     name: user1
-    password: password
-  - &user2
-    name: user2
     password: password
 
 
@@ -78,11 +78,3 @@ spaces:
       - provider: "oneprovider-1"
         storage_name: "IdealNullStorage"
         size: '1000000000'
-  - name: space_krk
-    user: *user1
-    users:
-      - user: *user2
-    supports:
-      - provider: "oneprovider-1"
-        storage_name: "s3"
-        size: '1073741824'
