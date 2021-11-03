@@ -225,7 +225,7 @@ service_action(Node, Service, Action) ->
     Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
-    case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
+    case panel_test_rpc:service_apply_sync(Node, Service, Action, Ctx) of
         Results when is_list(Results) ->
             case service_utils:results_contain_error(Results) of
                 {true, Error} ->
@@ -250,7 +250,7 @@ service_action(Node, Service, Action, Ctx) ->
     Action :: atom(), Ctx :: service:step_ctx()) -> ok | {error, _}.
 attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
-    rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
+    panel_test_rpc:service_apply(Node, Service, Action, Ctx, Self).
 
 
 %%--------------------------------------------------------------------

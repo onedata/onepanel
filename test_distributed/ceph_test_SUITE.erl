@@ -82,6 +82,7 @@ all() ->
 
 
 localceph_storage_fails_without_ceph(Config) ->
+    ct:pal("Config: ~p", [Config]),
     [OpNode | _] = ?config(oneprovider_nodes, Config),
     PoolName = ?POOL_NAME,
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
@@ -244,6 +245,7 @@ get_localceph_storage(Config) ->
     Node = lists:nth(4, ?config(oneprovider_nodes, Config)),
     [Id] = ?assertMatch([_], list_storage_ids(Node)),
     Storage = get_storage(Node, Id),
+    ct:pal("Details: ~p", [Storage]),
     onepanel_test_utils:assert_values(Storage, [
         {id, Id},
         {name, ?POOL_NAME},
