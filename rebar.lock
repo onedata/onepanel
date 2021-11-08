@@ -18,7 +18,7 @@
   2},
  {<<"ctool">>,
   {git,"ssh://git@git.onedata.org:7999/vfs/ctool.git",
-       {ref,"31753a589714f781272e0898665eba0556c00a5e"}},
+       {ref,"522525a1d88e9acf6165325f5272416b3d344c0f"}},
   0},
  {<<"enacl">>,
   {git,"https://github.com/jlouis/enacl",
@@ -65,7 +65,7 @@
  {<<"observer_cli">>,{pkg,<<"observer_cli">>,<<"1.6.2">>},1},
  {<<"onenv_ct">>,
   {git,"ssh://git@git.onedata.org:7999/vfs/onenv-ct.git",
-       {ref,"913a6a3e127cfb005e1945dda182083fdcd3cc1d"}},
+       {ref,"a156391585f6b73b902b95e06196a328507bf629"}},
   0},
  {<<"parse_trans">>,{pkg,<<"parse_trans">>,<<"3.3.1">>},2},
  {<<"ranch">>,
@@ -76,10 +76,7 @@
  {<<"ssl_verify_fun">>,{pkg,<<"ssl_verify_fun">>,<<"1.1.6">>},2},
  {<<"tls_certificate_check">>,{pkg,<<"tls_certificate_check">>,<<"1.5.0">>},2},
  {<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.7.0">>},2},
- {<<"yamerl">>,
-  {git,"git://github.com/yakaz/yamerl.git",
-       {ref,"3f46bf06b9aa7c17ea6038dc8cf1ae078fc0c497"}},
-  0}]}.
+ {<<"yamerl">>,{pkg,<<"yamerl">>,<<"0.7.0">>},1}]}.
 [
 {pkg_hash,[
  {<<"certifi">>, <<"DBAB8E5E155A0763EEA978C913CA280A6B544BFA115633FA20249C3D396D9493">>},
@@ -94,7 +91,8 @@
  {<<"recon">>, <<"CBA53FA8DB83AD968C9A652E09C3ED7DDCC4DA434F27C3EAA9CA47FFB2B1FF03">>},
  {<<"ssl_verify_fun">>, <<"CF344F5692C82D2CD7554F5EC8FD961548D4FD09E7D22F5B62482E5AEAEBD4B0">>},
  {<<"tls_certificate_check">>, <<"54DC51DEFFA4EF157803E07035AB78516708F670FC910319C5893287E3AED725">>},
- {<<"unicode_util_compat">>, <<"BC84380C9AB48177092F43AC89E4DFA2C6D62B40B8BD132B1059ECC7232F9A78">>}]},
+ {<<"unicode_util_compat">>, <<"BC84380C9AB48177092F43AC89E4DFA2C6D62B40B8BD132B1059ECC7232F9A78">>},
+ {<<"yamerl">>, <<"E51DBA652DCE74C20A88294130B48051EBBBB0BE7D76F22DE064F0F3CCF0AAF5">>}]},
 {pkg_hash_ext,[
  {<<"certifi">>, <<"524C97B4991B3849DD5C17A631223896272C6B0AF446778BA4675A1DFF53BB7E">>},
  {<<"goldrush">>, <<"99CB4128CFFCB3227581E5D4D803D5413FA643F4EB96523F77D9E6937D994CEB">>},
@@ -108,5 +106,6 @@
  {<<"recon">>, <<"2C7523C8DEE91DFF41F6B3D63CBA2BD49EB6D2FE5BF1EEC0DF7F87EB5E230E1C">>},
  {<<"ssl_verify_fun">>, <<"BDB0D2471F453C88FF3908E7686F86F9BE327D065CC1EC16FA4540197EA04680">>},
  {<<"tls_certificate_check">>, <<"E1E3F9A969317126633D7A8F1D9A3223B35504414125C78FA048700385A59B25">>},
- {<<"unicode_util_compat">>, <<"25EEE6D67DF61960CF6A794239566599B09E17E668D3700247BC498638152521">>}]}
+ {<<"unicode_util_compat">>, <<"25EEE6D67DF61960CF6A794239566599B09E17E668D3700247BC498638152521">>},
+ {<<"yamerl">>, <<"CB5A4481E2E2AD36DB83BD9962153E1A9208E2B2484185E33FC2CAAC6A50B108">>}]}
 ].
