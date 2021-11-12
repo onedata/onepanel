@@ -38,7 +38,8 @@
     lvm_create_volume_group/2,
     ceph_mon_list_quorum/0,
     ceph_mgr_list_running/0,
-    ceph_cli_osd_df/0
+    ceph_cli_osd_df/0,
+    add_storage/1
 ]).
 
 
@@ -165,3 +166,8 @@ ceph_mgr_list_running()->
 -spec ceph_cli_osd_df() -> map().
 ceph_cli_osd_df() ->
     ceph_cli:osd_df().
+
+
+-spec add_storage(map()) -> {binary(), {ok, binary()}} | errors:error().
+add_storage(Storage) ->
+    service_op_worker:add_storage(Storage).

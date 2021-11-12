@@ -68,16 +68,16 @@
 
 all() ->
     ?ALL([
-%%        localceph_storage_fails_without_ceph,
-%%        ceph_is_deployed,
-%%        monitor_is_added,
-%%        manager_is_added,
-%%        loopdevice_osd_is_added,
-%%        blockdevice_osd_is_added,
-%%        storage_is_added_with_pool,
-%%        pool_creation_fails_with_too_few_osds,
-%%        get_localceph_storage,
-%%        storage_update_modifies_pool,
+        localceph_storage_fails_without_ceph,
+        ceph_is_deployed,
+        monitor_is_added,
+        manager_is_added,
+        loopdevice_osd_is_added,
+        blockdevice_osd_is_added,
+        storage_is_added_with_pool,
+        pool_creation_fails_with_too_few_osds,
+        get_localceph_storage,
+        storage_update_modifies_pool,
         storage_delete_removes_pool
 
     ]).
@@ -94,7 +94,7 @@ localceph_storage_fails_without_ceph(_Config) ->
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
         PanelNode, op_worker, add_storages, #{
             hosts => [hosts:from_node(PanelNode)],
-            storages => #{?POOL_NAME=> ?POOL_PARAMS}
+            storages => #{?POOL_NAME => ?POOL_PARAMS}
         })).
 
 
@@ -183,7 +183,7 @@ manager_is_added(_Config) ->
 
 loopdevice_osd_is_added(_Config) ->
     [_, _, OpNode3 | _] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1| _] = oct_background:get_provider_panels(krakow),
+    [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
     OpHost3 = hosts:from_node(OpNode3),
 
     onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
@@ -204,55 +204,44 @@ loopdevice_osd_is_added(_Config) ->
 
 
 blockdevice_osd_is_added(Config) ->
-    Device = ?config(blockdevice, Config), % vgroup/lvolume
-    [_, OpNode2 | _] = oct_background:get_provider_nodes(krakow),
+    Device = ?config(blockdevice, Config),
+    [_, _, OpNode3 | _] = oct_background:get_provider_nodes(krakow),
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
-    OpHost2 = hosts:from_node(OpNode2),
+    OpHost3 = hosts:from_node(OpNode3),
 
     onepanel_test_utils:service_action(OpPanel1, ?SERVICE_CEPH, deploy, #{
         osds => [
             #{
-                host => OpHost2,
+                host => OpHost3,
                 type => blockdevice,
                 uuid => ?OSD_UUID3,
                 device => Device
             }
         ]
     }),
-    OsdIds = ?assertMatch([<<"0">>, <<"1">>], list_osds(OpPanel1), ?ATTEMPTS),
+    OsdIds = ?assertMatch([<<"0">>, <<"1">>, <<"2">>], list_osds(OpPanel1), ?ATTEMPTS),
     ?assertEqual(OsdIds, lists:sort(maps:keys(
         get_instances(OpPanel1, ?SERVICE_CEPH_OSD)
     ))).
 
 
-
-storage_is_added_with_pool(_Config) ->
-    [OpNode1| _] = oct_background:get_provider_nodes(krakow),
+storage_is_added_with_pool(Config) ->
+    MemRef = ?config(mem_ref, Config),
+    [OpNode1 | _] = oct_background:get_provider_nodes(krakow),
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
 
-    OpHost1 = hosts:from_node(OpNode1),
     PoolName = ?POOL_NAME,
     StoragesBeforeCall = opw_test_rpc:get_storages(OpNode1),
-    ct:pal("Before: ~p", [StoragesBeforeCall]),
-    onepanel_test_utils:service_action(OpPanel1, op_worker, add_storages, #{
-        hosts => [OpHost1],
-        storages => #{PoolName => ?POOL_PARAMS}
-    }),
-    ?assertEqual([PoolName], panel_test_rpc:list_ceph_pool(OpPanel1)),
-    StoragesAfterCall =  opw_test_rpc:get_storages(OpNode1),
-    ct:pal("After: ~p", [StoragesAfterCall]),
 
-    Added = lists:dropwhile(fun(Id) ->
-        lists:member(Id, StoragesBeforeCall)
-    end, StoragesAfterCall),
-    ct:pal("Added: ~p", [Added]),
-
+    {_, {ok, StorageId}} = panel_test_rpc:add_storage(OpPanel1, #{name => PoolName, params => ?POOL_PARAMS}),
+    api_test_memory:set(MemRef, storage_id, StorageId),
+    StoragesAfterCall = opw_test_rpc:get_storages(OpNode1),
 
     ?assertEqual(length(StoragesBeforeCall) + 1, length(StoragesAfterCall)).
 
 
 pool_creation_fails_with_too_few_osds(_Config) ->
-    [OpNode1| _] = oct_background:get_provider_nodes(krakow),
+    [OpNode1 | _] = oct_background:get_provider_nodes(krakow),
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
     OpHost1 = hosts:from_node(OpNode1),
     PoolName = ?POOL_NAME2,
@@ -260,75 +249,61 @@ pool_creation_fails_with_too_few_osds(_Config) ->
         OpPanel1, op_worker, add_storages, #{
             hosts => [OpHost1],
             storages => #{PoolName => ?POOL_PARAMS#{
-                copiesNumber => 3
-            }}
-        })),
-    ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
-        OpPanel1, op_worker, add_storages, #{
-            hosts => [OpHost1],
-            storages => #{PoolName => ?POOL_PARAMS#{
-                minCopiesNumber => 3
+                copiesNumber => 4
             }}
         })).
 
 
-get_localceph_storage(_Config) ->
-    [OpNode1| _] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1| _] = oct_background:get_provider_panels(krakow),
-
-    Storages = get_localceph_storages(OpNode1),
-    ct:pal("ceph storages: ~p", [Storages]),
-    ?assert(lists:any(fun(Id) ->
-        Storage = get_storage(OpPanel1, Id),
-        ct:pal("StorageDetails: ~p", [Storage]),
-        onepanel_test_utils:assert_values(Storage, [
-            {id, Id},
-            {name, ?POOL_NAME},
-            {type, ?LOCAL_CEPH_STORAGE_TYPE},
-            {copiesNumber, 1},
-            {minCopiesNumber, 2}
-        ]),
-        true
-    end, Storages)).
-
-
-
-storage_update_modifies_pool(_Config) ->
-    [OpNode1| _] = oct_background:get_provider_nodes(krakow),
+get_localceph_storage(Config) ->
+    MemRef = ?config(mem_ref, Config),
+    StorageId = api_test_memory:get(MemRef, storage_id),
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
-    Storages = get_localceph_storages(OpNode1),
 
-    ?assert(lists:any(fun(Id) ->
-        NewTimeout = 300,
-        Changes = #{id => Id, storage => #{
-            type => ?LOCAL_CEPH_STORAGE_TYPE, name => ?POOL_NAME,
-            copiesNumber => 1, minCopiesNumber => 1, timeout => NewTimeout
+    Storage = get_storage(OpPanel1, StorageId),
+    onepanel_test_utils:assert_values(Storage, [
+        {id, StorageId},
+        {name, ?POOL_NAME},
+        {copiesNumber, 2},
+        {minCopiesNumber, 2}
+    ]).
+
+
+
+storage_update_modifies_pool(Config) ->
+    MemRef = ?config(mem_ref, Config),
+    StorageId = api_test_memory:get(MemRef, storage_id),
+    [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
+    NewTimeout = 300,
+    Changes = #{
+        id => StorageId,
+        storage => #{
+            type => ?LOCAL_CEPH_STORAGE_TYPE,
+            name => ?POOL_NAME,
+            copiesNumber => 1,
+            minCopiesNumber => 1,
+            timeout => NewTimeout
         }},
-        onepanel_test_utils:service_action(OpPanel1, op_worker, update_storage, Changes),
 
-        Storage = get_storage(OpPanel1, Id),
-        onepanel_test_utils:assert_values(Storage, [
-            {id, Id},
-            {name, ?POOL_NAME},
-            {type, ?LOCAL_CEPH_STORAGE_TYPE},
-            {copiesNumber, 1},
-            {minCopiesNumber, 1},
-            {timeout, integer_to_binary(NewTimeout)}
-        ])
-    end, Storages)).
+    onepanel_test_utils:service_action(OpPanel1, op_worker, update_storage, Changes),
+    Storage = get_storage(OpPanel1, StorageId),
+
+    onepanel_test_utils:assert_values(Storage, [
+        {id, StorageId},
+        {name, ?POOL_NAME},
+        {copiesNumber, 1},
+        {minCopiesNumber, 1},
+        {timeout, integer_to_binary(NewTimeout)}
+    ]).
 
 
-storage_delete_removes_pool(_Config) ->
-    [OpNode1 | _] = oct_background:get_provider_nodes(krakow),
-    [OpPanel1| _] = oct_background:get_provider_panels(krakow),
-    ok.
+storage_delete_removes_pool(Config) ->
+    MemRef = ?config(mem_ref, Config),
+    StorageId = api_test_memory:get(MemRef, storage_id),
+    [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
 
-%%    [CephStorageId] = get_localceph_storages(OpNode1),
-%%
-%%    onepanel_test_utils:service_action(OpPanel1, op_worker, remove_storage, #{id => CephStorageId}),
-%%    ?assertEqual([], panel_test_rpc:list_ceph_pool(OpPanel1))
-%%
-%%.
+    onepanel_test_utils:service_action(OpPanel1, op_worker, remove_storage, #{id => StorageId}),
+    ?assertEqual([], panel_test_rpc:list_ceph_pool(OpPanel1)).
+
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -339,21 +314,20 @@ init_per_testcase(blockdevice_osd_is_added, Config) ->
     % environment, the bluestore deployment is also tested using a loopdevice,
     % except the loopdevice is created by the test here rather than onepanel.
 
-    [_, OpPanel2 | _] = oct_background:get_provider_panels(krakow),
-
+    [_, _, OpPanel3 | _] = oct_background:get_provider_panels(krakow),
 
     % code based on service_ceph_osd:prepare_loopdevice/1
     Size = ?LOOPDEVICE_SIZE,
     UUID = ?OSD_UUID3,
     Path = ?MOCK_BLOCKDEVICE_PATH,
     Loop = ?assertMatch(<<_/binary>>,
-        panel_test_rpc:ensure_loopdevice(OpPanel2, Path, Size)),
+        panel_test_rpc:ensure_loopdevice(OpPanel3, Path, Size)),
     GroupName = gen_vgroup_name(UUID),
     VolumeName = gen_lvolume_name(UUID),
 
-    ?assertEqual(ok, panel_test_rpc:lvm_create_physical_volume(OpPanel2, Loop)),
-    ?assertEqual(ok, panel_test_rpc:lvm_create_volume_group(OpPanel2, GroupName, [Loop])),
-    ?assertEqual(ok, panel_test_rpc:lvm_create_logical_volume(OpPanel2, VolumeName, GroupName)),
+    ?assertEqual(ok, panel_test_rpc:lvm_create_physical_volume(OpPanel3, Loop)),
+    ?assertEqual(ok, panel_test_rpc:lvm_create_volume_group(OpPanel3, GroupName, [Loop])),
+    ?assertEqual(ok, panel_test_rpc:lvm_create_logical_volume(OpPanel3, VolumeName, GroupName)),
 
     Device = <<GroupName/binary, "/", VolumeName/binary>>,
     [{blockdevice, Device} | Config];
@@ -361,19 +335,22 @@ init_per_testcase(blockdevice_osd_is_added, Config) ->
 init_per_testcase(_Case, Config) ->
     Config.
 
+
 end_per_testcase(_Case, _Config) ->
     ok.
 
 
 init_per_suite(Config) ->
-    oct_background:init_per_suite(Config, #onenv_test_config{
+    MemRef = api_test_memory:init(),
+    ConfigWithMemory = [{mem_ref, MemRef} | Config],
+    oct_background:init_per_suite(ConfigWithMemory, #onenv_test_config{
         onenv_scenario = "1op-3nodes"
     }).
 
 
-
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
+
 
 %%%===================================================================
 %%% Internal functions
@@ -396,6 +373,7 @@ list_osds(Node) ->
     List = [integer_to_binary(Id) || #{<<"id">> := Id} <- Nodes],
     lists:sort(List).
 
+
 -spec get_instances(Node :: node(), Service :: service:name()) ->
     #{service_ceph_mon:id() => map()}.
 get_instances(Node, Service) ->
@@ -404,33 +382,11 @@ get_instances(Node, Service) ->
     maps:get(instances, Result).
 
 
--spec list_storage_ids(node()) -> [op_worker_storage:id()].
-list_storage_ids(Node) ->
-    Ctx = #{hosts => [hosts:from_node(Node)]},
-    onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    ?assertMatch(List when is_list(List), panel_test_rpc:get_result_from_service_action(
-        Node, ?SERVICE_OPW, get_storages
-    )).
-
-
 -spec get_storage(node(), op_worker_storage:id()) -> map().
 get_storage(Node, Id) ->
     Ctx = #{id => Id, hosts => [hosts:from_node(Node)]},
     onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
     panel_test_rpc:get_result_from_service_action(Node, ?SERVICE_OPW, get_storages, Ctx).
-
-
--spec get_localceph_storages(node()) -> [op_worker_storage:id()].
-get_localceph_storages(Node) ->
-    Storages = opw_test_rpc:get_storages(Node),
-    lists:filter(fun(StorageId) ->
-        Details = opw_test_rpc:storage_describe(Node, StorageId),
-        ct:pal("gls: ~p", [Details]),
-        case maps:get(<<"type">>, Details, undefined) of
-            ?LOCAL_CEPH_STORAGE_TYPE -> true;
-            _ -> false
-        end
-    end, Storages).
 
 
 %% @private

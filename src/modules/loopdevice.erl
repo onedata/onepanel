@@ -18,6 +18,7 @@
 
 -include("modules/errors.hrl").
 -include_lib("ctool/include/posix/errno.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 -type bytes() :: integer().
 -type device_path() :: binary(). % /dev/loopX path
@@ -129,8 +130,27 @@ fallocate(Path, Size) ->
 %%--------------------------------------------------------------------
 -spec losetup(Path :: binary()) -> device_path().
 losetup(Path) ->
-    onepanel_shell:get_success_output(["losetup",
-        "--find", % use first available device path
-        "--show", % print the assigned device path
-        ?QUOTE(Path)
-    ]).
+    try
+        onepanel_shell:get_success_output(["losetup",
+            "--find", % use first available device path
+            "--show", % print the assigned device path
+            ?QUOTE(Path)
+        ])
+    catch
+        _Error:_Reason ->
+            NewLoopDeviceNumber = integer_to_list(get_highest_loopdevice_number() + 1),
+            NewDevicePath = "/dev/loop" ++ NewLoopDeviceNumber,
+            onepanel_shell:get_success_output(["mknod", NewDevicePath, "b", "7", NewLoopDeviceNumber]),
+            onepanel_shell:get_success_output([
+                "losetup", "--show",
+                NewDevicePath,
+                Path
+            ])
+    end.
+
+
+-spec get_highest_loopdevice_number() -> integer().
+get_highest_loopdevice_number() ->
+    BinaryResponse = onepanel_shell:get_success_output(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]),
+    binary_to_integer(BinaryResponse).
+
