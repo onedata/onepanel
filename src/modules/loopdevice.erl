@@ -18,7 +18,6 @@
 
 -include("modules/errors.hrl").
 -include_lib("ctool/include/posix/errno.hrl").
--include_lib("ctool/include/logging.hrl").
 
 -type bytes() :: integer().
 -type device_path() :: binary(). % /dev/loopX path
