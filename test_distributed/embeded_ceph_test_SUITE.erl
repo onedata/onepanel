@@ -39,7 +39,6 @@
     blockdevice_osd_is_added/1,
     storage_is_added_with_pool/1,
     pool_creation_fails_with_too_few_osds/1,
-    get_localceph_storage/1,
     storage_update_modifies_pool/1,
     storage_delete_removes_pool/1
 ]).
@@ -76,10 +75,8 @@ all() ->
         blockdevice_osd_is_added,
         storage_is_added_with_pool,
         pool_creation_fails_with_too_few_osds,
-        get_localceph_storage,
         storage_update_modifies_pool,
         storage_delete_removes_pool
-
     ]).
 
 
@@ -197,6 +194,7 @@ loopdevice_osd_is_added(_Config) ->
             }
         ]
     }),
+
     OsdIds = ?assertMatch([<<"0">>, <<"1">>], list_osds(OpPanel1), ?ATTEMPTS),
     ?assertEqual(OsdIds, lists:sort(maps:keys(
         get_instances(OpPanel1, ?SERVICE_CEPH_OSD)
@@ -234,10 +232,21 @@ storage_is_added_with_pool(Config) ->
     StoragesBeforeCall = opw_test_rpc:get_storages(OpNode1),
 
     {_, {ok, StorageId}} = panel_test_rpc:add_storage(OpPanel1, #{name => PoolName, params => ?POOL_PARAMS}),
-    api_test_memory:set(MemRef, storage_id, StorageId),
-    StoragesAfterCall = opw_test_rpc:get_storages(OpNode1),
 
-    ?assertEqual(length(StoragesBeforeCall) + 1, length(StoragesAfterCall)).
+    ?assertEqual(ok, perform_io_test_on_storage(StorageId), ?ATTEMPTS),
+    api_test_memory:set(MemRef, storage_id, StorageId),
+    StoragesAfterCall = lists:sort(opw_test_rpc:get_storages(OpNode1)),
+    ?assertEqual(lists:sort([StorageId | StoragesBeforeCall]), StoragesAfterCall),
+    StorageDetails = get_storage(OpPanel1, StorageId),
+    ct:pal("StorageDetails: ~p", [StorageDetails]),
+    onepanel_test_utils:assert_values(StorageDetails, [
+        {id, StorageId},
+        {name, ?POOL_NAME},
+        {type, ?LOCAL_CEPH_STORAGE_TYPE},
+        {copiesNumber, 2},
+        {minCopiesNumber, 2}
+    ]).
+
 
 
 pool_creation_fails_with_too_few_osds(_Config) ->
@@ -245,34 +254,35 @@ pool_creation_fails_with_too_few_osds(_Config) ->
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
     OpHost1 = hosts:from_node(OpNode1),
     PoolName = ?POOL_NAME2,
+
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
         OpPanel1, op_worker, add_storages, #{
             hosts => [OpHost1],
             storages => #{PoolName => ?POOL_PARAMS#{
                 copiesNumber => 4
             }}
+        })),
+    ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
+        OpPanel1, op_worker, add_storages, #{
+            hosts => [OpHost1],
+            storages => #{PoolName => ?POOL_PARAMS#{
+                minCopiesNumber => 4
+            }}
         })).
 
-
-get_localceph_storage(Config) ->
-    MemRef = ?config(mem_ref, Config),
-    StorageId = api_test_memory:get(MemRef, storage_id),
-    [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
-
-    Storage = get_storage(OpPanel1, StorageId),
-    onepanel_test_utils:assert_values(Storage, [
-        {id, StorageId},
-        {name, ?POOL_NAME},
-        {copiesNumber, 2},
-        {minCopiesNumber, 2}
-    ]).
 
 
 
 storage_update_modifies_pool(Config) ->
-    MemRef = ?config(mem_ref, Config),
-    StorageId = api_test_memory:get(MemRef, storage_id),
+
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
+
+    PoolName = ?POOL_NAME,
+
+    {_, {ok, StorageId}} = panel_test_rpc:add_storage(OpPanel1, #{name => PoolName, params => ?POOL_PARAMS}),
+
+
+
     NewTimeout = 300,
     Changes = #{
         id => StorageId,
@@ -285,11 +295,13 @@ storage_update_modifies_pool(Config) ->
         }},
 
     onepanel_test_utils:service_action(OpPanel1, op_worker, update_storage, Changes),
-    Storage = get_storage(OpPanel1, StorageId),
+    StorageDetails = get_storage(OpPanel1, StorageId),
+    ct:pal("StorageDetails: ~p", [StorageDetails]),
 
-    onepanel_test_utils:assert_values(Storage, [
+    onepanel_test_utils:assert_values(StorageDetails, [
         {id, StorageId},
         {name, ?POOL_NAME},
+        {type, ?LOCAL_CEPH_STORAGE_TYPE},
         {copiesNumber, 1},
         {minCopiesNumber, 1},
         {timeout, integer_to_binary(NewTimeout)}
@@ -297,9 +309,11 @@ storage_update_modifies_pool(Config) ->
 
 
 storage_delete_removes_pool(Config) ->
-    MemRef = ?config(mem_ref, Config),
-    StorageId = api_test_memory:get(MemRef, storage_id),
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
+
+    PoolName = ?POOL_NAME,
+
+    {_, {ok, StorageId}} = panel_test_rpc:add_storage(OpPanel1, #{name => PoolName, params => ?POOL_PARAMS}),
 
     onepanel_test_utils:service_action(OpPanel1, op_worker, remove_storage, #{id => StorageId}),
     ?assertEqual([], panel_test_rpc:list_ceph_pool(OpPanel1)).
@@ -335,8 +349,7 @@ init_per_testcase(blockdevice_osd_is_added, Config) ->
 init_per_testcase(_Case, Config) ->
     Config.
 
-
-end_per_testcase(_Case, _Config) ->
+end_per_testcase(_, _Config) ->
     ok.
 
 
@@ -399,3 +412,18 @@ gen_vgroup_name(UUID) ->
 -spec gen_lvolume_name(ceph:uuid()) -> binary().
 gen_lvolume_name(UUID) ->
     <<"osd-data-", UUID/binary>>.
+
+
+perform_io_test_on_storage(StorageId) ->
+    SpaceName = str_utils:rand_hex(10),
+    UserId = oct_background:get_user_id(joe),
+    SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
+    Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
+    {ok, SerializedToken} = tokens:serialize(Token),
+    opw_test_rpc:support_space(krakow, StorageId, SerializedToken, 10000000),
+    AccessToken = ozw_test_rpc:create_user_temporary_access_token(zone, UserId),
+    ?assertEqual(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, SpaceName, AccessToken), ?ATTEMPTS),
+    ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
+    Path = filename:join(["/", SpaceName]),
+    opw_test_rpc:perform_io_test(krakow, Path, AccessToken),
+    opw_test_rpc:revoke_space_support(krakow, SpaceId).

@@ -23,6 +23,10 @@
     add_storage_test_base/1
 ]).
 
+-export([
+    perform_io_test_on_storage/1
+]).
+
 -type storage_type() :: cephrados | glusterfs | http | localceph | nulldvice | posix | s3 | swift | webdav | xrootd.
 -type args_correctness() :: bad_args | correct_args.
 -type skip_storage_detection() :: boolean().
@@ -150,12 +154,6 @@ build_add_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
     end.
 
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
-
-
-%% @private
 -spec perform_io_test_on_storage(storage_id()) -> ok | error.
 perform_io_test_on_storage(StorageId) ->
     SpaceName = str_utils:rand_hex(10),
