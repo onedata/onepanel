@@ -39,7 +39,7 @@
 %% Evaluates a function from a given module with provided arguments.
 %%
 %% rpc-calling this function rather than the target function directly
-%% adds node information to the result (otherwise rpc:multicall
+%% adds node information to the result (otherwise rpc:multicall    @codetag-tracker-ignore
 %% looses information about which nodes returned which result).
 %% In case of error logs it and returns an error-tuple or #exception.
 %% @end
