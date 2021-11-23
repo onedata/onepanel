@@ -32,6 +32,8 @@
 
 % storage helper name used for storages deployed as cephrados or localceph
 -define(CEPH_STORAGE_HELPER_NAME, <<"cephrados">>).
+
+% TODO VFS-8658 rename all occurences of "localceph" -> "embedded ceph"
 % storage type used in Onepanel REST API to indicate storage supported by a local Ceph pool
 -define(LOCAL_CEPH_STORAGE_TYPE, <<"localceph">>).
 

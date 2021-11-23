@@ -140,9 +140,9 @@ build_add_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
             ?assertEqual(true, lists:member(NewStorageId, opw_test_rpc:get_storages(krakow)), ?ATTEMPTS),
             case ArgsCorrectness of
                 correct_args ->
-                    ?assertEqual(ok, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS);
+                    ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS);
                 bad_args ->
-                    ?assertEqual(error, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS)
+                    ?assertMatch({error, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS)
             end,
             true;
         (expected_failure, _) ->
