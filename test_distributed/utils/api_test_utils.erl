@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
+-include("api_test_storages.hrl").
 
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
@@ -32,6 +33,7 @@
 -export([get_storage_id_by_name/2]).
 -export([to_hostnames/1]).
 -export([match_location_header/2]).
+-export([perform_io_test_on_storage/1]).
 
 %%%===================================================================
 %%% API
@@ -89,6 +91,22 @@ match_location_header(Headers, Path) ->
     Location = maps:get(?HDR_LOCATION, Headers),
     {match, [Item]} = ?assertMatch({match, [_]}, re:run(Location, Path ++ "(.+)", [{capture, all_but_first, binary}])),
     Item.
+
+
+-spec perform_io_test_on_storage(binary()) -> ok | error.
+perform_io_test_on_storage(StorageId) ->
+    SpaceName = str_utils:rand_hex(10),
+    UserId = oct_background:get_user_id(joe),
+    SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
+    Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
+    {ok, SerializedToken} = tokens:serialize(Token),
+    opw_test_rpc:support_space(krakow, StorageId, SerializedToken, 10000000),
+    AccessToken = ozw_test_rpc:create_user_temporary_access_token(zone, UserId),
+    ?assertEqual(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, SpaceName, AccessToken), ?ATTEMPTS),
+    ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
+    Path = filename:join(["/", SpaceName]),
+    opw_test_rpc:perform_io_test(krakow, Path, AccessToken),
+    opw_test_rpc:revoke_space_support(krakow, SpaceId).
 
 
 %%%===================================================================

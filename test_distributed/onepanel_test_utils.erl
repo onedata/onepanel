@@ -143,7 +143,7 @@ mock_start(Config) ->
 %% @doc Checks whether the tuple list contains specified fields.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_fields(KeyValue :: [tuple()] | map() , Fields :: [binary()]) -> ok.
+-spec assert_fields(KeyValue :: [tuple()] | map(), Fields :: [binary()]) -> ok.
 assert_fields(Map = #{}, ExpectedFields) ->
     assert_fields(maps:to_list(Map), ExpectedFields);
 assert_fields(TupleList, ExpectedFields) ->
@@ -225,7 +225,7 @@ service_action(Node, Service, Action) ->
     Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
-    case panel_test_rpc:service_apply_sync(Node, Service, Action, Ctx) of
+    case panel_test_rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
         Results when is_list(Results) ->
             case service_utils:results_contain_error(Results) of
                 {true, Error} ->
@@ -250,7 +250,7 @@ service_action(Node, Service, Action, Ctx) ->
     Action :: atom(), Ctx :: service:step_ctx()) -> ok | {error, _}.
 attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
-    panel_test_rpc:service_apply(Node, Service, Action, Ctx, Self).
+    panel_test_rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
 
 
 %%--------------------------------------------------------------------
