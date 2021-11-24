@@ -101,7 +101,7 @@ perform_io_test_on_storage_and_revoke_test_space(StorageId) ->
     Result.
 
 
--spec perform_io_test_on_storage(binary()) -> {ok, binary()} | error.
+-spec perform_io_test_on_storage(binary()) -> {ok, binary()} | {error, binary()}.
 perform_io_test_on_storage(StorageId) ->
     SpaceName = str_utils:rand_hex(10),
     UserId = oct_background:get_user_id(joe),

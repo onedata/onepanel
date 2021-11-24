@@ -11,6 +11,7 @@
 %%%--------------------------------------------------------------------
 -module(embedded_ceph_test_SUITE).
 -author("Wojciech Geisler").
+-author("Piotr Duleba").
 
 -include("names.hrl").
 -include("modules/models.hrl").
