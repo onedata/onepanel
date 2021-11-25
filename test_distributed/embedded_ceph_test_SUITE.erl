@@ -233,9 +233,11 @@ storage_is_added_with_pool(Config) ->
     PoolName = ?POOL_NAME,
     StoragesBeforeCall = opw_test_rpc:get_storages(OpNode1),
 
-    {_, {ok, StorageId}} = panel_test_rpc:call(OpPanel1, service_op_worker, add_storage, [#{name => PoolName, params => ?POOL_PARAMS}]),
+    {_, {ok, StorageId}} = panel_test_rpc:call(OpPanel1, service_op_worker, add_storage,
+        [#{name => PoolName, params => ?POOL_PARAMS}]),
 
-    ?assertEqual(ok, api_test_utils:perform_io_test_on_storage_and_revoke_test_space(StorageId), ?ATTEMPTS),
+    {ok, SpaceId} = ?assertEqual({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS),
+    opw_test_rpc:revoke_space_support(krakow, SpaceId),
     api_test_memory:set(MemRef, storage_id, StorageId),
     StoragesAfterCall = lists:sort(opw_test_rpc:get_storages(OpNode1)),
     ?assertEqual(lists:sort([StorageId | StoragesBeforeCall]), StoragesAfterCall),

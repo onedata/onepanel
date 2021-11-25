@@ -126,6 +126,8 @@ fallocate(Path, Size) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Creates loopdevice from file.
+%% Sometimes, losetup fails to dynamically create loop devices,
+%% therefore in case of error we have to create them manually.
 %% @end
 %%--------------------------------------------------------------------
 -spec losetup(Path :: binary()) -> device_path().
@@ -157,7 +159,7 @@ get_highest_loopdevice_number() ->
         global:del_lock({?LOCK_ID, self()}),
         binary_to_integer(BinaryResponse)
     catch
-        _ -> 1
+        _:_ -> 1
     end.
 
 

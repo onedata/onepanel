@@ -34,7 +34,6 @@
 -export([to_hostnames/1]).
 -export([match_location_header/2]).
 -export([perform_io_test_on_storage/1]).
--export([perform_io_test_on_storage_and_revoke_test_space/1]).
 
 %%%===================================================================
 %%% API
@@ -92,13 +91,6 @@ match_location_header(Headers, Path) ->
     Location = maps:get(?HDR_LOCATION, Headers),
     {match, [Item]} = ?assertMatch({match, [_]}, re:run(Location, Path ++ "(.+)", [{capture, all_but_first, binary}])),
     Item.
-
-
--spec perform_io_test_on_storage_and_revoke_test_space(binary()) -> ok | error.
-perform_io_test_on_storage_and_revoke_test_space(StorageId) ->
-    {Result, SpaceId} = perform_io_test_on_storage(StorageId),
-    opw_test_rpc:revoke_space_support(krakow, SpaceId),
-    Result.
 
 
 -spec perform_io_test_on_storage(binary()) -> {ok, binary()} | {error, binary()}.
