@@ -303,11 +303,13 @@ storage_update_modifies_pool(Config) ->
 
 storage_delete_removes_pool(Config) ->
     [OpPanel1 | _] = oct_background:get_provider_panels(krakow),
+    [OpNode1 | _] = oct_background:get_provider_nodes(krakow),
     MemRef = ?config(mem_ref, Config),
     StorageId = api_test_memory:get(MemRef, storage_id),
 
     onepanel_test_utils:service_action(OpPanel1, op_worker, remove_storage, #{id => StorageId}),
-    ?assertEqual([], panel_test_rpc:call(OpPanel1, ceph_pool, list, [])).
+    ?assertEqual([], panel_test_rpc:call(OpPanel1, ceph_pool, list, [])),
+    ?assertNot(lists:member(StorageId, opw_test_rpc:get_storages(OpNode1))).
 
 
 %%%===================================================================

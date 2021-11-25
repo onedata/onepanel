@@ -132,7 +132,8 @@ fallocate(Path, Size) ->
 %%--------------------------------------------------------------------
 -spec losetup(Path :: binary()) -> device_path().
 losetup(Path) ->
-    try
+    global:set_lock({?LOCK_ID, self()}),
+    DevicePath = try
         onepanel_shell:get_success_output(["losetup",
             "--find", % use first available device path
             "--show", % print the assigned device path
@@ -148,15 +149,15 @@ losetup(Path) ->
                 ?QUOTE(NewLoopDevice),
                 ?QUOTE(Path)
             ])
-    end.
+    end,
+    global:del_lock({?LOCK_ID, self()}),
+    DevicePath.
 
 
 -spec get_highest_loopdevice_number() -> integer().
 get_highest_loopdevice_number() ->
     try
-        global:set_lock({?LOCK_ID, self()}),
         BinaryResponse = onepanel_shell:get_success_output(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]),
-        global:del_lock({?LOCK_ID, self()}),
         binary_to_integer(BinaryResponse)
     catch
         _:_ -> 1
