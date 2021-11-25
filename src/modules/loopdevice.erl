@@ -126,8 +126,8 @@ fallocate(Path, Size) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Creates loopdevice from file.
-%% Sometimes, losetup fails to dynamically create loop devices,
-%% therefore in case of error we have to create them manually.
+%% Sometimes losetup fails to dynamically create loop device.
+%% Therefore, in case of error device has to be created manually.
 %% @end
 %%--------------------------------------------------------------------
 -spec losetup(Path :: binary()) -> device_path().

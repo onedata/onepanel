@@ -236,7 +236,7 @@ storage_is_added_with_pool(Config) ->
     {_, {ok, StorageId}} = panel_test_rpc:call(OpPanel1, service_op_worker, add_storage,
         [#{name => PoolName, params => ?POOL_PARAMS}]),
 
-    {ok, SpaceId} = ?assertEqual({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS),
+    {ok, SpaceId} = ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS),
     opw_test_rpc:revoke_space_support(krakow, SpaceId),
     api_test_memory:set(MemRef, storage_id, StorageId),
     StoragesAfterCall = lists:sort(opw_test_rpc:get_storages(OpNode1)),
