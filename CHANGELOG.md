@@ -4,6 +4,16 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha23
+
+-   **VFS-8288** It is now possible to specify requested resources and
+    resource limits on the lambda and task level for OpenFaaS functions.
+-   **VFS-8172** Add \`/health\` endpoints to REST APIs of all services.
+-   **VFS-8073** Upgrade folly, wangle and proxygen libraries to version
+    2021.01.04.00.
+-   **VFS-7633** UX improvements in web GUI concerning navigation
+    between files, datasets and archives using hyperlinks.
+
 ### 21.02.0-alpha22
 
 ### 21.02.0-alpha21
