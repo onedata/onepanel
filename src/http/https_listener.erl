@@ -196,7 +196,7 @@ maybe_generate_web_cert() ->
             onepanel_cert:backup_exisiting_certs(),
             % Both key and cert are expected in the same file
             CAPath = onepanel_env:get(test_web_cert_ca_path),
-            Domain = onepanel_env:get(test_web_cert_domain),
+            Domain = str_utils:to_binary(onepanel_env:get(test_web_cert_domain)),
             cert_utils:create_signed_webcert(
                 WebKeyPath, WebCertPath, Domain, CAPath, CAPath
             ),
