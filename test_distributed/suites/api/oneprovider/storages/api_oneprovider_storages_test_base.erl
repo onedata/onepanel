@@ -140,32 +140,12 @@ build_add_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
             ?assertEqual(true, lists:member(NewStorageId, opw_test_rpc:get_storages(krakow)), ?ATTEMPTS),
             case ArgsCorrectness of
                 correct_args ->
-                    ?assertEqual(ok, perform_io_test_on_storage(NewStorageId), ?ATTEMPTS);
+                    ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS);
                 bad_args ->
-                    ?assertEqual(error, perform_io_test_on_storage(NewStorageId), ?ATTEMPTS)
+                    ?assertMatch({error, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS)
             end,
             true;
         (expected_failure, _) ->
             true
     end.
 
-
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
-
-
-%% @private
--spec perform_io_test_on_storage(storage_id()) -> ok | error.
-perform_io_test_on_storage(StorageId) ->
-    SpaceName = str_utils:rand_hex(10),
-    UserId = oct_background:get_user_id(joe),
-    SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
-    Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
-    {ok, SerializedToken} = tokens:serialize(Token),
-    opw_test_rpc:support_space(krakow, StorageId, SerializedToken, ?SUPPORT_SIZE),
-    AccessToken = ozw_test_rpc:create_user_temporary_access_token(zone, UserId),
-    ?assertEqual(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, SpaceName, AccessToken), ?ATTEMPTS),
-    ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
-    Path = filename:join(["/", SpaceName]),
-    opw_test_rpc:perform_io_test(krakow, Path, AccessToken).
