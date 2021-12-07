@@ -87,7 +87,7 @@ add_webdav_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
             data_spec_fun = fun build_add_webdav_storage_data_spec/3,
             prepare_args_fun = fun build_add_webdav_storage_prepare_args_fun/2,
 
-            data_spec_random_coverage = 10
+            data_spec_random_coverage = 15
         }).
 
 
