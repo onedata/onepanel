@@ -105,12 +105,26 @@ build_add_webdav_storage_data_spec(MemRef, posix, correct_args) ->
             {<<"endpoint">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"endpoint">>))}
         ],
         optional = [
+            <<"storagePathType">>,
+            <<"verifyServerCertificate">>,
+            <<"connectionPoolSize">>,
+            <<"maximumUploadSize">>,
+            <<"timeout">>,
+            <<"archiveStorage">>
         ],
         correct_values = #{
             <<"type">> => [<<"webdav">>],
-            <<"endpoint">> => [<<"http://dev-volume-webdav-krakow.default">>]
-        },
+            <<"endpoint">> => [?WEBDAV_ENDPOINT],
+            <<"storagePathType">> => [<<"canonical">>],
+            <<"verifyServerCertificate">> => [<<"true">>, <<"false">>],
+            <<"connectionPoolSize">> => [1, 10, 100],
+            <<"maximumUploadSize">> => [0, 1024],
+            <<"timeout">> => [?STORAGE_TIMEOUT],
+            <<"archiveStorage">> => [true, false]
+            },
         bad_values = [
+            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
+            {<<"storagePathType">>, <<"flat">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"canonical">>])}
         ]
     };
 build_add_webdav_storage_data_spec(MemRef, posix, bad_args) ->
@@ -121,9 +135,13 @@ build_add_webdav_storage_data_spec(MemRef, posix, bad_args) ->
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
             {<<"endpoint">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"endpoint">>))}
         ],
+        optional = [
+            <<"rangeWriteSupport">>
+        ],
         correct_values = #{
             <<"type">> => [<<"webdav">>],
-            <<"endpoint">> => [<<"http://dev-zle.default">>]
+            <<"endpoint">> => [<<"http://dev-zle.default">>],
+            <<"rangeWriteSupport">> => [<<"none">>, <<"moddav">>]
         }
     }.
 
@@ -137,18 +155,21 @@ build_add_webdav_storage_data_spec(MemRef, posix, bad_args) ->
 build_add_webdav_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
     fun(#api_test_ctx{data = Data}) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
-        DataWithCredentials = Data#{
-            <<"verifyServerCertificate">> => <<"false">>,
-            <<"rangeWriteSupport">> => <<"sabredav">>,
-            <<"credentials">> => <<"tester:testing">>,
+
+        %% Webdav storage that onenv creates, requires credentials even though swagger marks them as optional.
+        %% Therefore, we need to inject them to each request body.
+        %% Also, sabredav support is expected, to enable write on storage.
+        DataWithSupportAndCredentials = Data#{
+            <<"rangeWriteSupport">> => maps:get(<<"rangeWriteSupport">>, Data, <<"sabredav">>),
+            <<"credentials">> => ?WEBDAV_BASIC_CREDENTIALS,
             <<"credentialsType">> => <<"basic">>
         },
-        RequestBody = case maps:is_key(<<"skipStorageDetection">>, DataWithCredentials) of
+        RequestBody = case maps:is_key(<<"skipStorageDetection">>, DataWithSupportAndCredentials) of
             true -> #{
                 StorageName => Data
             };
             false -> #{
-                StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, DataWithCredentials)
+                StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, DataWithSupportAndCredentials)
             }
         end,
         #rest_args{
@@ -158,15 +179,6 @@ build_add_webdav_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
             body = json_utils:encode(RequestBody)}
     end.
 
-
-
-%%nulldevice <testować to?>:
-%%[o] latencyMin
-%%[o] latencyMax
-%%[o] timeoutProbability
-%%[o] filter
-%%[o] simulatedFilesystemParameters
-%%[o] simulatedFilesystemGrowSpeed
 
 %%%===================================================================
 %%% SetUp and TearDown functions
