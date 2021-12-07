@@ -85,7 +85,9 @@ add_webdav_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
             skip_storage_detection = SkipStorageDetection,
 
             data_spec_fun = fun build_add_webdav_storage_data_spec/3,
-            prepare_args_fun = fun build_add_webdav_storage_prepare_args_fun/2
+            prepare_args_fun = fun build_add_webdav_storage_prepare_args_fun/2,
+
+            data_spec_random_coverage = 10
         }).
 
 
@@ -110,7 +112,8 @@ build_add_webdav_storage_data_spec(MemRef, posix, correct_args) ->
             <<"connectionPoolSize">>,
             <<"maximumUploadSize">>,
             <<"timeout">>,
-            <<"archiveStorage">>
+            <<"archiveStorage">>,
+            <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"webdav">>],
@@ -120,11 +123,23 @@ build_add_webdav_storage_data_spec(MemRef, posix, correct_args) ->
             <<"connectionPoolSize">> => [1, 10, 100],
             <<"maximumUploadSize">> => [0, 1024],
             <<"timeout">> => [?STORAGE_TIMEOUT],
-            <<"archiveStorage">> => [true, false]
+            <<"archiveStorage">> => [true, false],
+            <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS]
             },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
-            {<<"storagePathType">>, <<"flat">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"canonical">>])}
+            {<<"endpoint">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"endpoint">>))},
+            {<<"storagePathType">>, <<"flat">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"canonical">>])},
+            {<<"verifyServerCertificate">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"verifyServerCertificate">>))},
+            {<<"connectionPoolSize">>, <<"not_an_interger">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"connectionPoolSize">>))},
+            {<<"maximumUploadSize">>, <<"not_an_interger">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumUploadSize">>))},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(write))},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
+            {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"qosParameters._">>))},
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))}
         ]
     };
 build_add_webdav_storage_data_spec(MemRef, posix, bad_args) ->
@@ -140,7 +155,7 @@ build_add_webdav_storage_data_spec(MemRef, posix, bad_args) ->
         ],
         correct_values = #{
             <<"type">> => [<<"webdav">>],
-            <<"endpoint">> => [<<"http://dev-zle.default">>],
+            <<"endpoint">> => [<<"http://incorrect.endpoint">>],
             <<"rangeWriteSupport">> => [<<"none">>, <<"moddav">>]
         }
     }.
@@ -183,6 +198,7 @@ build_add_webdav_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
+
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
