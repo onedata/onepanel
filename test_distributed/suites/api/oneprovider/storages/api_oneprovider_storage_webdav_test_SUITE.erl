@@ -7,6 +7,19 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% This file provides tests concerning provider WebDAV storage API (REST).
+%%%
+%%% The following parameters (or their values) are not tested in this suite:
+%%% * credentialsType    - there are 4 possible values [none, basic, token, oauth2], but only
+%%%                        basic option is tested due to webdav storage that onenv creates
+%%% * oauth2IdP          - this option can be tested, when credentialsType=oauth2
+%%% * onedataAccessToken - this option can be tested, when credentialsType=oauth2
+%%%                        and LumaDB feed is used to register storage
+%%% * autorizationHeader - can be tested only when onedataAccessToken is used
+%%% * fileMode           - works only on imported storages
+%%% * fileMode           - works only on imported storages
+%%% * rangeWriteSupport  - there are 3 possible values [none, moddav, sabredav], but only
+%%%                        sabredav option is tested due to webdav storage that onenv creates
+%%%
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_oneprovider_storage_webdav_test_SUITE).
@@ -89,6 +102,7 @@ add_webdav_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
 
             data_spec_random_coverage = 15
         }).
+
 
 
 %% @private
