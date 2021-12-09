@@ -16,7 +16,7 @@
 %%%                        and LumaDB feed is used to register storage
 %%% * autorizationHeader - can be tested only when onedataAccessToken is used
 %%% * fileMode           - works only on imported storages
-%%% * fileMode           - works only on imported storages
+%%% * dirMode           - works only on imported storages
 %%% * rangeWriteSupport  - there are 3 possible values [none, moddav, sabredav], but only
 %%%                        sabredav option is tested due to webdav storage that onenv creates
 %%%
@@ -93,7 +93,7 @@ add_bad_storage_and_skip_detection_test(_Config) ->
 add_webdav_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
     api_oneprovider_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
-            storage_type = posix,
+            storage_type = webdav,
             args_correctness = ArgsCorrectness,
             skip_storage_detection = SkipStorageDetection,
 
@@ -112,7 +112,7 @@ add_webdav_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
     api_oneprovider_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
-build_add_webdav_storage_data_spec(MemRef, posix, correct_args) ->
+build_add_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
     #data_spec{
@@ -156,7 +156,7 @@ build_add_webdav_storage_data_spec(MemRef, posix, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))}
         ]
     };
-build_add_webdav_storage_data_spec(MemRef, posix, bad_args) ->
+build_add_webdav_storage_data_spec(MemRef, webdav, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
     #data_spec{
