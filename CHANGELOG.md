@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha24
+
 ### 21.02.0-alpha23
 
 -   **VFS-8288** It is now possible to specify requested resources and
