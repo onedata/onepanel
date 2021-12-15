@@ -56,7 +56,6 @@ all() -> [
 
 
 add_correct_storage_and_perform_detection_test(_Config) ->
-
     add_ceph_storage_test_base(correct_args, false).
 
 
@@ -88,7 +87,7 @@ add_ceph_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
             data_spec_fun = fun build_add_ceph_storage_data_spec/3,
             prepare_args_fun = fun build_add_ceph_storage_prepare_args_fun/2,
 
-            data_spec_random_coverage = 50
+            data_spec_random_coverage = 60
         }).
 
 
@@ -134,6 +133,7 @@ build_add_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
         bad_values = [
             {<<"skipStorageDetection">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"skipStorageDetection">>))},
             {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
+            {<<"blockSize">>, <<"blockSize_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
             {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
