@@ -33,7 +33,7 @@
 ]).
 
 -export([
-    localceph_storage_fails_without_ceph/1,
+    embeddedceph_storage_fails_without_ceph/1,
     ceph_is_deployed/1,
     monitor_is_added/1,
     manager_is_added/1,
@@ -58,7 +58,7 @@
 -define(LOOPDEVICE_SIZE, 500 * 1024 * 1024).
 
 -define(POOL_PARAMS, #{
-    type => <<"localceph">>,
+    type => <<"embeddedceph">>,
     clusterName => <<"ceph">>,
     poolName => <<"onedata">>,
     storagePathType => <<"flat">>,
@@ -69,7 +69,7 @@
 
 all() ->
     ?ALL([
-        localceph_storage_fails_without_ceph,
+        embeddedceph_storage_fails_without_ceph,
         ceph_is_deployed,
         monitor_is_added,
         manager_is_added,
@@ -87,7 +87,7 @@ all() ->
 %%%===================================================================
 
 
-localceph_storage_fails_without_ceph(_Config) ->
+embeddedceph_storage_fails_without_ceph(_Config) ->
     [PanelNode | _] = oct_background:get_provider_panels(krakow),
 
     ?assertMatch({error, _}, onepanel_test_utils:attempt_service_action(
@@ -245,7 +245,7 @@ storage_is_added_with_pool(Config) ->
     onepanel_test_utils:assert_values(StorageDetails, [
         {id, StorageId},
         {name, ?POOL_NAME},
-        {type, ?LOCAL_CEPH_STORAGE_TYPE},
+        {type, ?EMBEDDED_CEPH_STORAGE_TYPE},
         {copiesNumber, 2},
         {minCopiesNumber, 2}
     ]).
@@ -282,7 +282,7 @@ storage_update_modifies_pool(Config) ->
     Changes = #{
         id => StorageId,
         storage => #{
-            type => ?LOCAL_CEPH_STORAGE_TYPE,
+            type => ?EMBEDDED_CEPH_STORAGE_TYPE,
             name => ?POOL_NAME,
             copiesNumber => 1,
             minCopiesNumber => 1,
@@ -294,7 +294,7 @@ storage_update_modifies_pool(Config) ->
     onepanel_test_utils:assert_values(StorageDetails, [
         {id, StorageId},
         {name, ?POOL_NAME},
-        {type, ?LOCAL_CEPH_STORAGE_TYPE},
+        {type, ?EMBEDDED_CEPH_STORAGE_TYPE},
         {copiesNumber, 1},
         {minCopiesNumber, 1},
         {timeout, integer_to_binary(NewTimeout)}

@@ -167,7 +167,7 @@ get_steps(get_storages, Ctx) ->
 get_steps(update_storage, Ctx) ->
     #{id := Id, storage := Changes} = Ctx,
     Current = op_worker_storage:get(Id),
-    case matches_local_ceph_pool(Current) of
+    case matches_embedded_ceph_pool(Current) of
         true ->
             [
                 #steps{service = ?SERVICE_CEPH, action = modify_pool,
@@ -448,7 +448,7 @@ synchronize_clock_upon_start(_) ->
 -spec add_storage(Ctx :: service:step_ctx()) ->
     {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
 add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
-    Type == ?LOCAL_CEPH_STORAGE_TYPE ->
+    Type == ?EMBEDDED_CEPH_STORAGE_TYPE ->
     case hosts:all(?SERVICE_CEPH_OSD) of
         [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
         _ -> ok
@@ -477,7 +477,7 @@ add_storage(#{params := _, name := _} = Ctx) ->
     | [op_worker_storage:id()].
 get_storages(#{id := Id}) ->
     Details = op_worker_storage:get(Id),
-    case matches_local_ceph_pool(Details) of
+    case matches_embedded_ceph_pool(Details) of
         true -> service_ceph:decorate_storage_details(Details);
         false -> Details
     end;
@@ -506,7 +506,7 @@ remove_storage(#{id := Id}) ->
     {ok, Node} = nodes:any(name()),
     #{name := Name} = Details = op_worker_storage:get(Id),
     op_worker_storage:remove(Node, Id),
-    case matches_local_ceph_pool(Details) of
+    case matches_embedded_ceph_pool(Details) of
         true ->
             service_utils:throw_on_error(service:apply_sync(
                 ?SERVICE_CEPH, delete_pool, #{name => Name}
@@ -854,18 +854,18 @@ env_write_and_set(Variable, Value) ->
 %% @private
 %% @doc
 %% Checks if a storage using cephrados helper has a corresponding pool
-%% in the local Ceph cluster.
+%% in the embedded Ceph cluster.
 %% @end
 %%-------------------------------------------------------------------
--spec matches_local_ceph_pool
+-spec matches_embedded_ceph_pool
     (op_worker_storage:storage_details() | op_worker_storage:id()) -> boolean().
-matches_local_ceph_pool(#{type := Type, name := Name, clusterName := ClusterName}) when
-    Type == ?LOCAL_CEPH_STORAGE_TYPE; % when checking against op_worker output
+matches_embedded_ceph_pool(#{type := Type, name := Name, clusterName := ClusterName}) when
+    Type == ?EMBEDDED_CEPH_STORAGE_TYPE; % when checking against op_worker output
     Type == ?CEPH_STORAGE_HELPER_NAME % when checking user input
 ->
     service:exists(?SERVICE_CEPH)
         andalso ceph:get_cluster_name() == ClusterName
         andalso ceph_pool:exists(Name);
 
-matches_local_ceph_pool(#{}) ->
+matches_embedded_ceph_pool(#{}) ->
     false.

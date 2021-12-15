@@ -35,7 +35,7 @@
     <<"cephrados">>,
     <<"glusterfs">>,
     <<"http">>,
-    <<"localceph">>,
+    <<"embeddedceph">>,
     <<"nulldevice">>,
     <<"posix">>,
     <<"s3">>,
