@@ -128,7 +128,6 @@ build_add_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             <<"blockSize">> => [1024],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            %% TODO: VFS-7621 add flat path type to tests
             <<"storagePathType">> => [<<"flat">>],
             <<"archiveStorage">> => [true, false]
         },
