@@ -128,6 +128,7 @@ build_add_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             <<"storagePathType">> => [<<"flat">>],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
         },
         bad_values = [

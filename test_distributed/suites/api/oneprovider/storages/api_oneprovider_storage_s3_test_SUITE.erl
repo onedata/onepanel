@@ -131,6 +131,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"signatureVersion">> => ?S3_ALLOWED_SIGNATURE_VERSIONS,
             <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE],
             <<"maximumCanonicalObjectSize">> => [?STORAGE_DETECTION_FILE_SIZE],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
         },
         bad_values = [
