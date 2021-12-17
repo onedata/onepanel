@@ -127,7 +127,7 @@ update(OpNode, Id, NewParams) ->
     Name = maps:get(name, NewParams, CurrentName),
 
     VerificationParams = case maps:get(type, PlainValueNewParams) of
-        ?LOCAL_CEPH_STORAGE_TYPE ->
+        ?EMBEDDED_CEPH_STORAGE_TYPE ->
             maps:merge(PlainValueNewParams, service_ceph:make_storage_params(Name));
         _ ->
             PlainValueNewParams

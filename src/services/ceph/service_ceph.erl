@@ -13,13 +13,13 @@
 %%% each of the mgr, mon, osd models have 'instances' map in
 %%% the #service.ctx.
 %%%
-%%% The local Ceph cluster is used to create storages baked by
-%%% its pools. It is done by creating a storage with type "localceph",
+%%% The embedded Ceph cluster is used to create storages baked by
+%%% its pools. It is done by creating a storage with type "embeddedceph",
 %%% which triggers creation of Ceph pool with name equal to the storage
 %%% and an op_worker storage of type "cephrados".
 %%% When listing the storage, its name and clusterName arg
 %%% are used to detect corresponding local pool and the storage&pool details
-%%% are returned to the user as "localceph" type storage model.
+%%% are returned to the user as "embeddedceph" type storage model.
 %%% @end
 %%%--------------------------------------------------------------------
 
@@ -308,7 +308,7 @@ decorate_storage_details(#{type := ?CEPH_STORAGE_HELPER_NAME, name := Name} = St
         {error, _} ->
             Storage;
         Pool ->
-            maps:merge(Storage#{type => ?LOCAL_CEPH_STORAGE_TYPE}, Pool)
+            maps:merge(Storage#{type => ?EMBEDDED_CEPH_STORAGE_TYPE}, Pool)
     end;
 
 decorate_storage_details(Storage) ->
