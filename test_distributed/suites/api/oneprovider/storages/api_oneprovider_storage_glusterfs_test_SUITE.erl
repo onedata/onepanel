@@ -9,6 +9,16 @@
 %%% This file provides tests concerning provider glusterfs storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
+%%% @doc
+%%% This file provides tests concerning provider GlusterFS storage API (REST).
+%%%
+%%% The following parameters (or their values) are not tested in this suite:
+%%% * transport    - there are 4 possible values [none, basic, token, oauth2], but only
+%%%
+
+%%%
+%%% @end
+%%%-------------------------------------------------------------------
 -module(api_oneprovider_storage_glusterfs_test_SUITE).
 -author("Piotr Duleba").
 
@@ -38,10 +48,10 @@
 
 groups() -> [
     {all_tests, [parallel], [
-        add_correct_storage_and_perform_detection_test
-%%        add_correct_storage_and_skip_detection_test,
-%%        add_bad_storage_and_perform_detection_test,
-%%        add_bad_storage_and_skip_detection_test
+        add_correct_storage_and_perform_detection_test,
+        add_correct_storage_and_skip_detection_test,
+        add_bad_storage_and_perform_detection_test,
+        add_bad_storage_and_skip_detection_test
     ]}
 ].
 
@@ -56,7 +66,7 @@ all() -> [
 
 
 add_correct_storage_and_perform_detection_test(_Config) ->
-    ok.
+    add_glusterfs_storage_test_base(correct_args, false).
 
 
 add_correct_storage_and_skip_detection_test(_Config) ->
@@ -87,7 +97,7 @@ add_glusterfs_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
             data_spec_fun = fun build_add_glusterfs_storage_data_spec/3,
             prepare_args_fun = fun build_add_glusterfs_storage_prepare_args_fun/2,
 
-            data_spec_random_coverage = 60
+            data_spec_random_coverage = 40
         }).
 
 
@@ -115,41 +125,38 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"xlatorOptions">>,
             <<"timeout">>,
             <<"qosParameters">>,
-            <<"storagePathType">>
-%%            <<"archiveStorage">>
+            <<"storagePathType">>,
+            <<"archiveStorage">>
         ],
         correct_values = #{
             <<"type">> => [<<"glusterfs">>],
             <<"volume">> => [<<"test">>],
             <<"hostname">> => [<<"dev-volume-gluster-krakow.default">>],
-
             <<"port">> => [<<"24007">>],
             <<"transport">> => [<<"tcp">>],
             <<"mountPoint">> => [<<"">>],
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
-
-
-
-
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            <<"storagePathType">> => [<<"canonical">>]
+            <<"storagePathType">> => [<<"canonical">>],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-%%            <<"archiveStorage">> => [true, false]
+            <<"archiveStorage">> => [true, false]
         },
         bad_values = [
-%%            {<<"skipStorageDetection">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"skipStorageDetection">>))},
-%%            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
-%%            {<<"blockSize">>, <<"blockSize_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
-%%            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
-%%            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
-%%            %% TODO: VFS-7641 add records for badly formatted QoS
-%%            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
-%%            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
-%%            {<<"storagePathType">>, <<"canonical">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"flat">>])},
-%%            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
-%%            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
+            {<<"skipStorageDetection">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"skipStorageDetection">>))},
+            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
+            {<<"port">>, <<"port_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"port">>))},
+            {<<"transport">>, <<"bad_transport">>,
+                ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"transport">>), [<<"tcp">>, <<"rdma">>, <<"socket">>])},
+            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
+            {<<"storagePathType">>, <<"flat">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"canonical">>])},
+            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
         ]
     };
 build_add_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
@@ -158,19 +165,17 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
     #data_spec{
         required = [
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
-            {<<"monitorHostname">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"monitorHostname">>))},
-            {<<"clusterName">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"clusterName">>))},
-            {<<"poolName">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"poolName">>))},
-            {<<"username">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"username">>))},
-            {<<"key">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"key">>))}
+            {<<"volume">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"volume">>))},
+            {<<"hostname">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))}
+        ],
+        optional =  [
+            <<"transport">>
         ],
         correct_values = #{
-            <<"type">> => [<<"cephrados">>],
-            <<"monitorHostname">> => [<<"incorrect-monitor-hostname">>],
-            <<"clusterName">> => [<<"incorrect-cluster0name">>],
-            <<"poolName">> => [<<"incorrect-pool-name">>],
-            <<"username">> => [<<"incorrect-username">>],
-            <<"key">> => [<<"incorrect-key">>]
+            <<"type">> => [<<"glusterfs">>],
+            <<"volume">> => [<<"bad-volume">>],
+            <<"hostname">> => [<<"bad-hostname">>],
+            <<"transport">> => [<<"rdma">>, <<"socket">>]
         }
     }.
 
