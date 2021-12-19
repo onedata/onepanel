@@ -30,12 +30,11 @@
 -define(SERVICE_CEPH_MGR, ceph_mgr).
 -define(SERVICE_CEPH_MON, ceph_mon).
 
-% storage helper name used for storages deployed as cephrados or localceph
+% storage helper name used for storages deployed as cephrados or embeddedceph
 -define(CEPH_STORAGE_HELPER_NAME, <<"cephrados">>).
 
-% TODO VFS-8658 rename all occurences of "localceph" -> "embedded ceph"
-% storage type used in Onepanel REST API to indicate storage supported by a local Ceph pool
--define(LOCAL_CEPH_STORAGE_TYPE, <<"localceph">>).
+% storage type used in Onepanel REST API to indicate storage supported by a embedded Ceph pool
+-define(EMBEDDED_CEPH_STORAGE_TYPE, <<"embeddedceph">>).
 
 -define(DNS_CHECK_TIMESTAMP_KEY, dns_check_attempt_timestamp).
 -define(DNS_CHECK_CACHE_KEY, dns_check).
