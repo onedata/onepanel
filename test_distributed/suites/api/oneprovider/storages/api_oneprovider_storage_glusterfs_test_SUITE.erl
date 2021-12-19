@@ -9,16 +9,6 @@
 %%% This file provides tests concerning provider glusterfs storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
-%%% @doc
-%%% This file provides tests concerning provider GlusterFS storage API (REST).
-%%%
-%%% The following parameters (or their values) are not tested in this suite:
-%%% * transport    - there are 4 possible values [none, basic, token, oauth2], but only
-%%%
-
-%%%
-%%% @end
-%%%-------------------------------------------------------------------
 -module(api_oneprovider_storage_glusterfs_test_SUITE).
 -author("Piotr Duleba").
 
@@ -116,7 +106,6 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
             {<<"volume">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"volume">>))},
             {<<"hostname">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))}
-
         ],
         optional = [
             <<"port">>,
@@ -130,10 +119,10 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
         ],
         correct_values = #{
             <<"type">> => [<<"glusterfs">>],
-            <<"volume">> => [<<"test">>],
-            <<"hostname">> => [<<"dev-volume-gluster-krakow.default">>],
-            <<"port">> => [<<"24007">>],
-            <<"transport">> => [<<"tcp">>],
+            <<"volume">> => [?GLUSTERFS_VOLUME],
+            <<"hostname">> => [?GLUSTERFS_HOSTNAME],
+            <<"port">> => [?GLUSTERFS_PORT],
+            <<"transport">> => [?GLUSTERFS_TRANSPORT],
             <<"mountPoint">> => [<<"">>],
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
@@ -148,6 +137,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             {<<"port">>, <<"port_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"port">>))},
             {<<"transport">>, <<"bad_transport">>,
                 ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"transport">>), [<<"tcp">>, <<"rdma">>, <<"socket">>])},
+            {<<"xlatorOptions">>, 132, ?ERROR_BAD_VALUE_ATOM(?STORAGE_DATA_KEY(StorageName, <<"xlatorOptions">>))},
             {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
@@ -168,14 +158,16 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
             {<<"volume">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"volume">>))},
             {<<"hostname">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))}
         ],
-        optional =  [
-            <<"transport">>
+        optional = [
+            <<"transport">>,
+            <<"mountPoint">>
         ],
         correct_values = #{
             <<"type">> => [<<"glusterfs">>],
             <<"volume">> => [<<"bad-volume">>],
             <<"hostname">> => [<<"bad-hostname">>],
-            <<"transport">> => [<<"rdma">>, <<"socket">>]
+            <<"transport">> => [<<"rdma">>, <<"socket">>],
+            <<"mountPoint">> => [<<"/bad/mountpoint">>]
         }
     }.
 
