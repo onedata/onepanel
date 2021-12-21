@@ -2409,8 +2409,9 @@ glusterfs_model() ->
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
-        %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}}
+        %% logical file name is changed. **Note that 'flat' paths are
+        %% not allowed on this type of storage.**
+        storagePathType => {{enum, string, [<<"canonical">>]}, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
