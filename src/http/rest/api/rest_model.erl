@@ -2831,7 +2831,7 @@ nfs_model() ->
         %% imported storages.
         readonly => {boolean, optional},
         %% The hostname (IP address or FQDN) of NFS server.
-        hostname => string,
+        host => {string, optional},
         %% The NFS protocol version. Allowed values are 3 (default) and 4
         %% (experimental).
         version => {integer, {optional, 3}},
@@ -2845,7 +2845,7 @@ nfs_model() ->
         readAhead => {integer, {optional, 0}},
         %% The number of automatic reconnect attempts to the server. Setting
         %% `-1` enables infinite number of reconnects.
-        autorReconnect => {integer, {optional, 1}},
+        autoReconnect => {integer, {optional, 1}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
         %% directory structure, however each rename operation will require
@@ -2916,7 +2916,7 @@ nfs_modify_model() ->
         %% NFS storage.
         type => {discriminator, <<"nfs">>},
         %% The hostname (IP address or FQDN) of NFS server.
-        hostname => {string, optional},
+        host => {string, optional},
         %% The NFS protocol version. Allowed values are 3 (default) and 4
         %% (experimental).
         version => {integer, optional},
