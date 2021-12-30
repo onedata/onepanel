@@ -227,6 +227,7 @@ service_op_worker_add_storage_test(Config) ->
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
     XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
+    NFS = kv_utils:get([storages, nfs, someNFS], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
@@ -318,6 +319,15 @@ service_op_worker_add_storage_test(Config) ->
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
             },
+            <<"someNFS">> => #{
+                type => <<"nfs">>,
+                host => onepanel_utils:get_converted(host, NFS, binary),
+                version => onepanel_utils:get_converted(version, NFS, binary),
+                volume => <<"data">>,
+                storagePathType => <<"canonical">>,
+                qosParameters => #{},
+                lumaFeed => <<"auto">>
+            },
             <<"someNullDevice">> => #{
                 type => <<"nulldevice">>,
                 name => <<"someNullDevice">>,
@@ -387,6 +397,10 @@ service_op_worker_update_storage_test(Config) ->
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
             url => <<"root://domain.invalid:1094/data/">>
+        },
+        <<"someNFS">> => #{
+            type => <<"nfs">>,
+            connectionPoolSize => <<"20">>
         },
         <<"someNullDevice">> => #{
             type => <<"nulldevice">>,
