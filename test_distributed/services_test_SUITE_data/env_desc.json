@@ -64,12 +64,8 @@
           "type": "xrootd",
           "name": "someXRootD",
           "storagePathType": "canonical"
-        },
-        {
-          "type": "nfs",
-          "name": "someNFS",
-          "storagePathType": "canonical"
         }
+
       ]
     }
   },
