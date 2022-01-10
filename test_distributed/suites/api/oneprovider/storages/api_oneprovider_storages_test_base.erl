@@ -23,7 +23,7 @@
     add_storage_test_base/1
 ]).
 
--type storage_type() :: cephrados | glusterfs | http | embeddedceph | nulldvice | posix | s3 | swift | webdav | xrootd.
+-type storage_type() :: cephrados | glusterfs | http | embeddedceph | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
 -type args_correctness() :: bad_args | correct_args.
 -type skip_storage_detection() :: boolean().
 -type add_storage_test_spec() :: #add_storage_test_spec{}.

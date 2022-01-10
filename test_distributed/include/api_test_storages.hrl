@@ -36,6 +36,7 @@
     <<"embeddedceph">>,
     <<"glusterfs">>,
     <<"http">>,
+    <<"nfs">>,
     <<"nulldevice">>,
     <<"posix">>,
     <<"s3">>,
