@@ -65,7 +65,7 @@
  {<<"observer_cli">>,{pkg,<<"observer_cli">>,<<"1.6.2">>},1},
  {<<"onenv_ct">>,
   {git,"ssh://git@git.onedata.org:7999/vfs/onenv-ct.git",
-       {ref,"0ad11b954d608c1bf4d54253aabf8da84bc93ca3"}},
+       {ref,"a04e85f5ffc9d3cd358a5f3466507590e10c3745"}},
   0},
  {<<"parse_trans">>,{pkg,<<"parse_trans">>,<<"3.3.1">>},2},
  {<<"ranch">>,

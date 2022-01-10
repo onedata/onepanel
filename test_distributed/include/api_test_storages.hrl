@@ -33,9 +33,9 @@
 -define(ATTEMPTS, 60).
 -define(STORAGE_TYPES, [
     <<"cephrados">>,
+    <<"embeddedceph">>,
     <<"glusterfs">>,
     <<"http">>,
-    <<"localceph">>,
     <<"nulldevice">>,
     <<"posix">>,
     <<"s3">>,

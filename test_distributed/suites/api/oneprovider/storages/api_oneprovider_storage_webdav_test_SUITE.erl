@@ -100,7 +100,7 @@ add_webdav_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
             data_spec_fun = fun build_add_webdav_storage_data_spec/3,
             prepare_args_fun = fun build_add_webdav_storage_prepare_args_fun/2,
 
-            data_spec_random_coverage = 15
+            data_spec_random_coverage = 10
         }).
 
 
@@ -137,6 +137,7 @@ build_add_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
             <<"connectionPoolSize">> => [1, 10, 100],
             <<"maximumUploadSize">> => [0, 1024],
             <<"timeout">> => [?STORAGE_TIMEOUT],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS]
             },

@@ -117,6 +117,7 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             %% TODO: VFS-7621 add flat path type to tests
             <<"storagePathType">> => [<<"canonical">>],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
         },
         bad_values = [
