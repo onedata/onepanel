@@ -4,6 +4,12 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha25
+
+-   **VFS-8658** Rename "localceph" storage to "embeded ceph".
+-   **VFS-8483** Added direct NFS v3 storage helper.
+
+
 ### 21.02.0-alpha24
 
 ### 21.02.0-alpha23
