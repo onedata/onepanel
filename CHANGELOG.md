@@ -4,6 +4,11 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.16
+
+-   **VFS-8704** Web GUI: Introduced more formatting-related functions
+    and better UX of privacy policy editor in Onezone admin panel.
+
 ### 20.02.15
 
 -   **VFS-8482** Added dedicated page for privacy policy content.
