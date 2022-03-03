@@ -2831,7 +2831,7 @@ nfs_model() ->
         %% imported storages.
         readonly => {boolean, optional},
         %% The hostname (IP address or FQDN) of NFS server.
-        host => {string, optional},
+        host => string,
         %% The NFS protocol version. Allowed values are 3 (default) and 4
         %% (experimental).
         version => {integer, {optional, 3}},
