@@ -39,7 +39,7 @@
 %% Evaluates a function from a given module with provided arguments.
 %%
 %% rpc-calling this function rather than the target function directly
-%% adds node information to the result (otherwise rpc:multicall
+%% adds node information to the result (otherwise rpc:multicall    @codetag-tracker-ignore
 %% looses information about which nodes returned which result).
 %% In case of error logs it and returns an error-tuple or #exception.
 %% @end
@@ -52,9 +52,9 @@ apply(Module, Function, Args) ->
     catch
         throw:{error, _} = Reason ->
             {node(), Reason};
-        Type:Reason ->
+        Type:Reason:Stacktrace ->
             ?error_stacktrace("Unexpected error executing ~tp:~tp/~B~nError: ~tp:~tp",
-                [Module, Function, erlang:length(Args), Type, Reason]),
+                [Module, Function, erlang:length(Args), Type, Reason], Stacktrace),
             {node(), {error, #exception{
                 % do not store stacktrace not to pollute logs since it's logged here
                 type = Type, value = Reason, stacktrace = []}}}
@@ -92,7 +92,7 @@ call(Nodes, Module, Function, Args) ->
     Args :: [term()], timeout()) -> results().
 call(NodeOrNodes, Module, Function, Args, Timeout) ->
     Nodes = utils:ensure_list(NodeOrNodes),
-    {Values, _} = rpc:multicall(
+    {Values, _} = utils:rpc_multicall(
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
 

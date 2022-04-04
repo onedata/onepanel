@@ -41,6 +41,9 @@
 -define(INIT_SCRIPT, "couchbase-server").
 -define(CLI, "LC_ALL=en_US.UTF-8 /opt/couchbase/bin/couchbase-cli").
 
+-define(REBALANCE_ATTEMPTS, 3).
+-define(REBALANCE_ATTEMPT_INTERVAL, timer:seconds(10)).
+
 %%%===================================================================
 %%% Service behaviour callbacks
 %%%===================================================================
@@ -212,8 +215,7 @@ wait_for_init(Ctx) ->
     catch throw:attempts_limit_exceeded ->
         % Couchbase sometimes dies silently. Restart it once in such case
         % to reduce impact of this issue.
-        ?warning("Timed out when waiting for the couchbase server to come up. "
-            "Attempting restart..."),
+        ?warning("Timed out when waiting for the couchbase server to come up. Attempting restart..."),
         service_cli:restart(name()),
 
         onepanel_utils:wait_until(?MODULE, status, [Ctx],
@@ -251,7 +253,7 @@ init_cluster(Ctx) ->
         onepanel_utils:get_basic_auth_header(User, Password),
         #{?HDR_CONTENT_TYPE => "application/x-www-form-urlencoded"}
     ),
-    Body = str_utils:format("memoryQuota=~B", [ServerQuota]),
+    Body = {form, [{<<"memoryQuota">>, integer_to_binary(ServerQuota)}]},
 
     {ok, ?HTTP_200_OK, _, _} = http_client:post(
         Url, Headers, Body,
@@ -313,11 +315,8 @@ rebalance_cluster(_Ctx) ->
     Host = hosts:self(),
     Port = onepanel_env:typed_get(couchbase_admin_port, list),
 
-    Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
-    onepanel_shell:ensure_success(
-        Cmd ++ ["-p", Password],
-        Cmd ++ ["-p", "*****"]
-    ),
+    ?info("Rebalancing the couchbase cluster..."),
+    rebalance_cluster_with_attempts(Host, Port, User, Password, ?REBALANCE_ATTEMPTS),
 
     % Couchbase reports healthy status before it's ready to serve requests.
     % This delay provides additional margin of error before starting workers.
@@ -327,6 +326,32 @@ rebalance_cluster(_Ctx) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% @private
+-spec rebalance_cluster_with_attempts(string(), string(), string(), string(), non_neg_integer()) ->
+    ok | no_return().
+rebalance_cluster_with_attempts(Host, Port, User, Password, AttemptsLeft) ->
+    Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
+    try
+        onepanel_shell:ensure_success(
+            Cmd ++ ["-p", Password],
+            Cmd ++ ["-p", "*****"]
+        ),
+        ?info("Successfully rebalanced the couchbase cluster")
+    catch _:_ ->
+        % error logging is done internally
+        CurrentAttemptsLeft = AttemptsLeft - 1,
+        case CurrentAttemptsLeft of
+            0 ->
+                ?error("Failed to rebalance the couchbase cluster - no attempts left"),
+                error(failed_to_rebalance_couchbase_cluster);
+            _ ->
+                ?info("Retrying couchbase cluster rebalance - ~B attempts left...", [CurrentAttemptsLeft]),
+                timer:sleep(?REBALANCE_ATTEMPT_INTERVAL),
+                rebalance_cluster_with_attempts(Host, Port, User, Password, CurrentAttemptsLeft)
+        end
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private @doc

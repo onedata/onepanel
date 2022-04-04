@@ -18,6 +18,7 @@
 -include("http/gui_paths.hrl").
 -include_lib("gui/include/gui.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -define(PORT, application:get_env(onepanel, rest_port, 443)).
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_https_acceptors, 100)).
@@ -150,7 +151,7 @@ merge_routes(AllRoutes) ->
 common_response_headers(_Req) ->
     case rest_handler:allowed_origin() of
         undefined -> #{};
-        Origin -> #{<<"access-control-allow-origin">> => Origin}
+        Origin -> #{?HDR_ACCESS_CONTROL_ALLOW_ORIGIN => Origin}
     end.
 
 
@@ -230,7 +231,7 @@ maybe_trust_test_ca() ->
         true ->
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             CaFile = filename:basename(CAPath),
-            TargetCaFile = filename:join(oz_plugin:get_cacerts_dir(), CaFile),
+            TargetCaFile = filename:join(onepanel_env:get(cacerts_dir), CaFile),
             file:copy(CAPath, TargetCaFile),
             ?warning("Added '~s' to trusted certificates. Use only for test purposes.", [
                 CaFile

@@ -222,7 +222,8 @@ service_op_worker_add_storage_test(Config) ->
     Ceph = kv_utils:get([storages, ceph, someCeph], Config),
     CephRados = kv_utils:get([storages, cephrados, someCephRados], Config),
     S3 = kv_utils:get([storages, s3, someS3], Config),
-    Swift = kv_utils:get([storages, swift, someSwift], Config),
+    % @TODO VFS-8296 swift helper is currently not tested
+    % Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
     XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
@@ -269,19 +270,20 @@ service_op_worker_add_storage_test(Config) ->
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
             },
-            <<"someSwift">> => #{
-                type => <<"swift">>,
-                username => onepanel_utils:get_converted(user_name, Swift, binary),
-                password => onepanel_utils:get_converted(password, Swift, binary),
-                authUrl => onepanel_utils:join(["http://",
-                    onepanel_utils:get_converted(host_name, Swift, binary), ":",
-                    onepanel_utils:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
-                tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
-                containerName => <<"swift">>,
-                storagePathType => <<"flat">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
+            % @TODO VFS-8296 swift helper is currently not tested
+%%            <<"someSwift">> => #{
+%%                type => <<"swift">>,
+%%                username => onepanel_utils:get_converted(user_name, Swift, binary),
+%%                password => onepanel_utils:get_converted(password, Swift, binary),
+%%                authUrl => onepanel_utils:join(["http://",
+%%                    onepanel_utils:get_converted(host_name, Swift, binary), ":",
+%%                    onepanel_utils:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
+%%                tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
+%%                containerName => <<"swift">>,
+%%                storagePathType => <<"flat">>,
+%%                qosParameters => #{},
+%%                lumaFeed => <<"auto">>
+%%            },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
                 volume => <<"data">>,
@@ -334,7 +336,9 @@ service_op_worker_add_storage_test(Config) ->
             }
         }
     }),
-    assert_expected_result(service:get_module(op_worker), add_storage, [Node], ok, Results).
+
+    {_ResponseMap, ErrorOccurred} = parse_add_storages_results(Results),
+    ?assertEqual(ErrorOccurred, false).
 
 
 service_op_worker_update_storage_test(Config) ->
@@ -363,11 +367,12 @@ service_op_worker_update_storage_test(Config) ->
             type => <<"s3">>,
             bucketName => <<"onedataNew">>
         },
-        <<"someSwift">> => #{
-            type => <<"swift">>,
-            tenantName => <<"changedTenant">>,
-            containerName => <<"swift2">>
-        },
+        % @TODO VFS-8296 swift helper is currently not tested
+%%        <<"someSwift">> => #{
+%%            type => <<"swift">>,
+%%            tenantName => <<"changedTenant">>,
+%%            containerName => <<"swift2">>
+%%        },
         <<"someGluster">> => #{
             type => <<"glusterfs">>,
             transport => <<"http">>,
@@ -626,7 +631,7 @@ services_stop_start_test(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
@@ -672,7 +677,7 @@ end_per_testcase(_Case, _Config) ->
 
 end_per_suite(_Config) ->
     ssl:stop(),
-    hackney:stop().
+    application:stop(hackney).
 
 
 %%%===================================================================
@@ -755,6 +760,25 @@ get_storages(Config) ->
         Details
     end, Ids).
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Parses result from add_storages steps to storage map and searches for any error occurred during adding storages.
+%% @end
+%%--------------------------------------------------------------------
+-spec parse_add_storages_results(list()) -> map().
+parse_add_storages_results(ActionResults) ->
+    lists:foldl(fun(StepResult, {AccMap, AccErrorOccurred}) ->
+        case StepResult of
+            {step_end, _, add_storage, {[{_, {StorageName, {error, Reason}}}], []}}->
+                {AccMap#{StorageName => #{<<"error">> => errors:to_json({error, Reason})}}, true};
+            {step_end, _, add_storage, {[{_, {StorageName, {ok, StorageId}}}], []}} ->
+                {AccMap#{StorageName => #{<<"id">> => StorageId}}, AccErrorOccurred};
+            _ ->
+                {AccMap, AccErrorOccurred}
+        end
+    end, {#{}, false}, ActionResults).
 
 %%--------------------------------------------------------------------
 %% @private

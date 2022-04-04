@@ -15,6 +15,7 @@
 -include("api_test_runner.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -52,7 +53,7 @@ all() -> [
 %%%===================================================================
 
 
-get_storages_ids(Config) ->
+get_storages_ids(_Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     StoragesIds = opw_test_rpc:get_storages(krakow),
@@ -61,7 +62,7 @@ get_storages_ids(Config) ->
         <<"ids">> => StoragesIds
     },
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get storage ids using /provider/storages rest endpoint">>,
             type = rest,
@@ -88,8 +89,9 @@ get_storages_ids(Config) ->
     ])).
 
 
-add_s3_storage(Config) ->
+add_s3_storage(_Config) ->
     % todo: VFS-6717 delete s3 storage after test
+    MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
@@ -97,7 +99,7 @@ add_s3_storage(Config) ->
 
     RequestBody = ?S3_STORAGE_SPEC,
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Add s3 storage using /provider/storages rest endpoint">>,
             type = rest,
@@ -118,23 +120,27 @@ add_s3_storage(Config) ->
             prepare_args_fun = fun(_) -> #rest_args{
                 method = post,
                 path = <<"provider/storages">>,
-                headers = #{<<"content-type">> => <<"application/json">>},
+                headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
                 body = json_utils:encode(RequestBody)}
             end,
-            verify_fun = build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody),
-            validate_result_fun = api_test_validate:http_204_no_content()
+            verify_fun = build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody),
+            validate_result_fun = api_test_validate:http_200_ok(
+                fun(Body) ->
+                    AddedStorageId = kv_utils:get([?S3_STORAGE_NAME, <<"id">>], Body),
+                    api_test_memory:set(MemRef, storage_id, AddedStorageId)
+                end
+            )
         }
     ])).
 
 
 %% @private
-build_add_s3_storage_verify_fun(StorageIdsBeforeAdd, RequestBody) ->
+build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody) ->
     fun
         (expected_success, _) ->
             StorageIdsAfterAdd = opw_test_rpc:get_storages(krakow),
 
-            % todo: VFS-6716 get NewStorageId from HTTP response
-            [NewStorageID] = ?assertMatch([_], lists:subtract(StorageIdsAfterAdd, StorageIdsBeforeAdd)),
+            NewStorageID = api_test_memory:get(MemRef, storage_id),
             StorageDetails = opw_test_rpc:storage_describe(krakow, NewStorageID),
             ExpectedScheme = maps:get(<<"scheme">>, StorageDetails),
             ExpectedHostname = maps:get(<<"hostname">>, StorageDetails),
@@ -156,7 +162,7 @@ add_request_match_response(RequestBody, StorageDetails) ->
     maps_utils:is_submap(RequestMap, StorageDetails) and (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
 
 
-get_s3_storage(Config) ->
+get_s3_storage(_Config) ->
     % todo: VFS-6717 add s3 storage before, and delete after test
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
@@ -164,7 +170,7 @@ get_s3_storage(Config) ->
     [StorageName | _] = maps:keys(?S3_STORAGE_SPEC),
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get s3 storage details using /provider/storages/{storage_id} rest endpoint">>,
             type = rest,
@@ -200,14 +206,14 @@ get_s3_storage(Config) ->
     ])).
 
 
-delete_s3_storage(Config) ->
+delete_s3_storage(_Config) ->
     % todo: VFS-6717 add s3 storage before test
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
     StorageId = api_test_utils:get_storage_id_by_name(krakow, ?S3_STORAGE_NAME),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Delete s3 storage using /provider/storages/{storage_id} rest endpoint">>,
             type = rest,

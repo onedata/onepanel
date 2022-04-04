@@ -32,7 +32,7 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 
--export([run_tests/2]).
+-export([run_tests/1]).
 
 -type scenario_type() :: rest.
 -type target_nodes() :: [node()].
@@ -84,12 +84,15 @@
     scenario_spec/0, scenario_template/0, suite_spec/0
 ]).
 
--type config() :: proplists:proplist().
-
 -define(NO_DATA, undefined).
 
 % Time caveat is required in temporary tokens, a default one is added if there isn't any
 -define(DEFAULT_TEMP_CAVEAT_TTL, 36000).
+
+-define(REQUIRED_KEYS(Required),  lists:map(fun(
+    {Key, _Error}) -> Key;
+    (Key)-> Key
+end, Required)).
 
 
 %%%===================================================================
@@ -97,14 +100,14 @@
 %%%===================================================================
 
 
--spec run_tests(config(), [scenario_spec() | suite_spec()]) ->
+-spec run_tests([scenario_spec() | suite_spec()]) ->
     boolean().
-run_tests(Config, Specs) ->
+run_tests(Specs) ->
     lists:foldl(fun
         (#scenario_spec{} = ScenarioSpec, AllTestsPassed) ->
-            AllTestsPassed and run_suite(Config, scenario_spec_to_suite_spec(ScenarioSpec));
+            AllTestsPassed and run_suite(scenario_spec_to_suite_spec(ScenarioSpec));
         (#suite_spec{} = SuiteSpec, AllTestsPassed) ->
-            AllTestsPassed and run_suite(Config, SuiteSpec)
+            AllTestsPassed and run_suite(SuiteSpec)
     end, true, Specs).
 
 
@@ -114,27 +117,27 @@ run_tests(Config, Specs) ->
 
 
 %% @private
-run_suite(Config, #suite_spec{
+run_suite(#suite_spec{
     client_spec = ClientSpecWithPlaceholders,
     target_nodes = PanelNodes
 } = SuiteSpec0) ->
     try
         ClientSpec = replace_client_placeholders_with_valid_clients(
-            ClientSpecWithPlaceholders, PanelNodes, Config
+            ClientSpecWithPlaceholders, PanelNodes
         ),
         SuiteSpec = SuiteSpec0#suite_spec{client_spec = ClientSpec},
 
-        run_invalid_clients_test_cases(Config, unauthorized, SuiteSpec)
-        and run_invalid_clients_test_cases(Config, forbidden, SuiteSpec)
-        and run_malformed_data_test_cases(Config, SuiteSpec)
-        and run_missing_required_data_test_cases(Config, SuiteSpec)
-        and run_expected_success_test_cases(Config, SuiteSpec)
+        run_invalid_clients_test_cases(unauthorized, SuiteSpec)
+        and run_invalid_clients_test_cases(forbidden, SuiteSpec)
+        and run_malformed_data_test_cases(SuiteSpec)
+        and run_missing_required_data_test_cases(SuiteSpec)
+        and run_expected_success_test_cases(SuiteSpec)
     catch
         throw:fail ->
             false;
-        Type:Reason ->
+        Type:Reason:Stacktrace ->
             ct:pal("Unexpected error while running test suite ~p:~p ~p", [
-                Type, Reason, erlang:get_stacktrace()
+                Type, Reason, Stacktrace
             ]),
             false
     end.
@@ -145,47 +148,47 @@ replace_client_placeholders_with_valid_clients(#client_spec{
     correct = CorrectClientsAndPlaceholders,
     unauthorized = UnauthorizedClientsAndPlaceholders,
     forbidden = ForbiddenClientsAndPlaceholders
-}, PanelNodes, Config) ->
+}, PanelNodes) ->
     #client_spec{
         correct = replace_client_placeholders(
-            CorrectClientsAndPlaceholders, PanelNodes, Config
+            CorrectClientsAndPlaceholders, PanelNodes
         ),
         unauthorized = replace_client_placeholders(
-            UnauthorizedClientsAndPlaceholders, PanelNodes, Config
+            UnauthorizedClientsAndPlaceholders, PanelNodes
         ),
         forbidden = replace_client_placeholders(
-            ForbiddenClientsAndPlaceholders, PanelNodes, Config
+            ForbiddenClientsAndPlaceholders, PanelNodes
         )
     }.
 
 
 %% @private
-replace_client_placeholders(ClientsAndPlaceholders, PanelNodes, Config) ->
+replace_client_placeholders(ClientsAndPlaceholders, PanelNodes) ->
     lists:map(fun
         ({ClientOrPlaceholder, {error, _} = Error}) ->
-            {get_or_create_client(ClientOrPlaceholder, PanelNodes, Config), Error};
+            {get_or_create_client(ClientOrPlaceholder, PanelNodes), Error};
         (ClientOrPlaceholder) ->
-            get_or_create_client(ClientOrPlaceholder, PanelNodes, Config)
+            get_or_create_client(ClientOrPlaceholder, PanelNodes)
     end, ClientsAndPlaceholders).
 
 
 %% @private
-get_or_create_client(guest, _PanelNodes, _Config) ->
+get_or_create_client(guest, _PanelNodes) ->
     ?API_GUEST;
 
-get_or_create_client(user, _PanelNodes, Config) ->
-    OzNode = ?OZ_NODE(Config),
+get_or_create_client(user, _PanelNodes) ->
+    OzNode = hd(oct_background:get_zone_nodes()),
 
     UserId = ozw_test_rpc:create_user(),
     Token = create_oz_temp_token(OzNode, UserId),
 
     #api_client{role = user, token = Token};
 
-get_or_create_client(member, PanelNodes, Config) ->
-    get_or_create_client({member, privileges:cluster_member()}, PanelNodes, Config);
+get_or_create_client(member, PanelNodes) ->
+    get_or_create_client({member, privileges:cluster_member()}, PanelNodes);
 
-get_or_create_client({member, Privileges}, _PanelNodes, Config) ->
-    OzNode = ?OZ_NODE(Config),
+get_or_create_client({member, Privileges}, _PanelNodes) ->
+    OzNode = hd(oct_background:get_zone_nodes()),
     UserId = ozw_test_rpc:create_user(),
 
     lists:foreach(fun(PanelNode) ->
@@ -198,12 +201,12 @@ get_or_create_client({member, Privileges}, _PanelNodes, Config) ->
 
     #api_client{role = member, privileges = Privileges, token = Token};
 
-get_or_create_client(peer, PanelNodes, _Config) ->
+get_or_create_client(peer, PanelNodes) ->
     Node = lists_utils:random_element(PanelNodes),
     Token = panel_test_rpc:create_invite_token(Node),
     #api_client{role = peer, token = Token};
 
-get_or_create_client(root, PanelNodes, _Config) ->
+get_or_create_client(root, PanelNodes) ->
     Username = ?LOCAL_USERNAME,
     Password = ?ONENV_EMERGENCY_PASSPHRASE,
 
@@ -219,12 +222,12 @@ get_or_create_client(root, PanelNodes, _Config) ->
         token = Token
     };
 
-get_or_create_client(#api_client{} = ApiClient, _PanelNodes, _Config) ->
+get_or_create_client(#api_client{} = ApiClient, _PanelNodes) ->
     ApiClient.
 
 
 %% @private
-run_invalid_clients_test_cases(Config, InvalidClientsType, #suite_spec{
+run_invalid_clients_test_cases(InvalidClientsType, #suite_spec{
     target_nodes = TargetNodes,
 
     setup_fun = SetupFun,
@@ -245,7 +248,7 @@ run_invalid_clients_test_cases(Config, InvalidClientsType, #suite_spec{
         ),
         run_exp_error_testcase(
             TargetNode, InvalidClient, DataSet, ExpError,
-            VerifyFun, ScenarioTemplate, Config
+            VerifyFun, ScenarioTemplate
         )
     end,
 
@@ -282,7 +285,7 @@ get_scenario_specific_error_for_invalid_clients(forbidden, Client) ->
 
 
 %% @private
-run_malformed_data_test_cases(Config, #suite_spec{
+run_malformed_data_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -292,7 +295,8 @@ run_malformed_data_test_cases(Config, #suite_spec{
 
     scenario_templates = ScenarioTemplates,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+    data_spec_random_coverage = DataSpecRandomCoverage
 }) ->
     TestCaseFun = fun
         (_TargetNode, _Client, ?NO_DATA, _) ->
@@ -313,14 +317,14 @@ run_malformed_data_test_cases(Config, #suite_spec{
                     run_exp_error_testcase(
                         TargetNode, Client, DataSet,
                         get_expected_malformed_data_error(Error, ScenarioType, TestCaseCtx),
-                        VerifyFun, ScenarioTemplate, Config
+                        VerifyFun, ScenarioTemplate
                     )
             end
     end,
 
     SetupFun(),
     TestsPassed = run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, bad_data_sets(DataSpec),
+        ScenarioTemplates, TargetNodes, CorrectClients, bad_data_sets(DataSpec, DataSpecRandomCoverage),
         TestCaseFun
     ),
     TeardownFun(),
@@ -346,14 +350,14 @@ get_expected_malformed_data_error({_ScenarioType, {error_fun, ErrorFun}}, _, Tes
 
 
 %% @private
-run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = undefined}) ->
+run_missing_required_data_test_cases(#suite_spec{data_spec = undefined}) ->
     true;
-run_missing_required_data_test_cases(_Config, #suite_spec{data_spec = #data_spec{
+run_missing_required_data_test_cases(#suite_spec{data_spec = #data_spec{
     required = [],
     at_least_one = []
 }}) ->
     true;
-run_missing_required_data_test_cases(Config, #suite_spec{
+run_missing_required_data_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -371,9 +375,13 @@ run_missing_required_data_test_cases(Config, #suite_spec{
     RequiredDataSets = required_data_sets(DataSpec),
     RequiredDataSet = hd(RequiredDataSets),
 
-    MissingRequiredParamsDataSetsAndErrors = lists:map(fun(RequiredParam) ->
-        {maps:remove(RequiredParam, RequiredDataSet), ?ERROR_MISSING_REQUIRED_VALUE(RequiredParam)}
+    MissingRequiredParamsDataSetsAndErrors = lists:map(fun
+        ({RequiredParam, CustomError}) ->
+            {maps:remove(RequiredParam, RequiredDataSet), CustomError};
+        (RequiredParam) ->
+            {maps:remove(RequiredParam, RequiredDataSet), ?ERROR_MISSING_REQUIRED_VALUE(RequiredParam)}
     end, RequiredParams),
+
     MissingAtLeastOneParamsDataSetAndError = case AtLeastOneParams of
         [] ->
             [];
@@ -390,7 +398,7 @@ run_missing_required_data_test_cases(Config, #suite_spec{
     TestCaseFun = fun(TargetNode, Client, {DataSet, MissingParamError}, ScenarioTemplate) ->
         run_exp_error_testcase(
             TargetNode, Client, DataSet, MissingParamError,
-            VerifyFun, ScenarioTemplate, Config
+            VerifyFun, ScenarioTemplate
         )
     end,
 
@@ -405,7 +413,7 @@ run_missing_required_data_test_cases(Config, #suite_spec{
 
 
 %% @private
-run_expected_success_test_cases(Config, #suite_spec{
+run_expected_success_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -416,9 +424,10 @@ run_expected_success_test_cases(Config, #suite_spec{
     scenario_templates = ScenarioTemplates,
     randomly_select_scenarios = true,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+    data_spec_random_coverage = DataSpecRandomCoverage
 }) ->
-    CorrectDataSets = correct_data_sets(DataSpec),
+    CorrectDataSets = correct_data_sets(DataSpec, DataSpecRandomCoverage),
 
     lists:foldl(fun(Client, OuterAcc) ->
         CorrectDataSetsNum = length(CorrectDataSets),
@@ -441,14 +450,14 @@ run_expected_success_test_cases(Config, #suite_spec{
 
             SetupFun(),
             TestCasePassed = run_exp_success_testcase(
-                TargetNode, Client, DataSet, VerifyFun, Scenario, Config
+                TargetNode, Client, DataSet, VerifyFun, Scenario
             ),
             TeardownFun(),
 
             InnerAcc and TestCasePassed
         end, true, ScenarioPerDataSet)
     end, true, CorrectClients);
-run_expected_success_test_cases(Config, #suite_spec{
+run_expected_success_test_cases(#suite_spec{
     target_nodes = TargetNodes,
     client_spec = #client_spec{correct = CorrectClients},
 
@@ -459,12 +468,13 @@ run_expected_success_test_cases(Config, #suite_spec{
     scenario_templates = ScenarioTemplates,
     randomly_select_scenarios = false,
 
-    data_spec = DataSpec
+    data_spec = DataSpec,
+    data_spec_random_coverage = DataSpecRandomCoverage
 }) ->
     TestCaseFun = fun(TargetNode, Client, DataSet, ScenarioTemplate) ->
         SetupFun(),
         TestCasePassed = run_exp_success_testcase(
-            TargetNode, Client, DataSet, VerifyFun, ScenarioTemplate, Config
+            TargetNode, Client, DataSet, VerifyFun, ScenarioTemplate
         ),
         TeardownFun(),
 
@@ -472,7 +482,7 @@ run_expected_success_test_cases(Config, #suite_spec{
     end,
 
     run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, correct_data_sets(DataSpec),
+        ScenarioTemplates, TargetNodes, CorrectClients, correct_data_sets(DataSpec, DataSpecRandomCoverage),
         TestCaseFun
     ).
 
@@ -496,8 +506,9 @@ run_exp_error_testcase(
     TargetNode, Client, DataSet, ExpError, VerifyFun, #scenario_template{
         name = ScenarioName,
         type = ScenarioType,
-        prepare_args_fun = PrepareArgsFun
-    }, Config
+        prepare_args_fun = PrepareArgsFun,
+        test_proxied_onepanel_rest_endpoint = TestProxiedRestEndpoint
+    }
 ) ->
     TestCaseCtx = build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet),
 
@@ -505,12 +516,12 @@ run_exp_error_testcase(
         skip ->
             true;
         Args ->
-            RequestResult = make_request(Config, TargetNode, Client, Args),
+            RequestResult = make_request(TargetNode, Client, TestProxiedRestEndpoint, Args),
             try
                 validate_error_result(ScenarioType, ExpError, RequestResult),
                 VerifyFun(expected_failure, TestCaseCtx)
-            catch T:R ->
-                log_failure(ScenarioName, TestCaseCtx, Args, ExpError, RequestResult, T, R),
+            catch T:R:Stacktrace ->
+                log_failure(ScenarioName, TestCaseCtx, Args, ExpError, RequestResult, T, R, Stacktrace),
                 false
             end
     end.
@@ -521,19 +532,20 @@ run_exp_success_testcase(TargetNode, Client, DataSet, VerifyFun, #scenario_templ
     name = ScenarioName,
     type = ScenarioType,
     prepare_args_fun = PrepareArgsFun,
-    validate_result_fun = ValidateResultFun
-}, Config) ->
+    validate_result_fun = ValidateResultFun,
+    test_proxied_onepanel_rest_endpoint = TestProxiedRestEndpoint
+}) ->
     TestCaseCtx = build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet),
     case PrepareArgsFun(TestCaseCtx) of
         skip ->
             true;
         Args ->
-            Result = make_request(Config, TargetNode, Client, Args),
+            Result = make_request(TargetNode, Client, TestProxiedRestEndpoint, Args),
             try
                 ValidateResultFun(TestCaseCtx, Result),
                 VerifyFun(expected_success, TestCaseCtx)
-            catch T:R ->
-                log_failure(ScenarioName, TestCaseCtx, Args, success, Result, T, R),
+            catch T:R:Stacktrace ->
+                log_failure(ScenarioName, TestCaseCtx, Args, success, Result, T, R, Stacktrace),
                 false
             end
     end.
@@ -551,7 +563,7 @@ validate_error_result(rest, ExpError, {ok, RespCode, _RespHeaders, RespBody}) ->
 log_failure(ScenarioName, #api_test_ctx{
     node = TargetNode,
     client = Client
-}, Args, Expected, Got, ErrType, ErrReason) ->
+}, Args, Expected, Got, ErrType, ErrReason, Stacktrace) ->
     ct:pal(
         "~s test case failed:~n"
         "Node: ~p~n"
@@ -569,7 +581,7 @@ log_failure(ScenarioName, #api_test_ctx{
             Expected,
             Got,
             ErrType, ErrReason,
-            erlang:get_stacktrace()
+            Stacktrace
         ]
     ).
 
@@ -580,9 +592,9 @@ log_failure(ScenarioName, #api_test_ctx{
 
 
 % Returns data sets that are correct
-correct_data_sets(undefined) ->
+correct_data_sets(undefined, _DataSpecRandomCoverage) ->
     [?NO_DATA];
-correct_data_sets(DataSpec) ->
+correct_data_sets(DataSpec, DataSpecRandomCoverage) ->
     RequiredDataSets = required_data_sets(DataSpec),
 
     AllRequiredParamsDataSet = case RequiredDataSets of
@@ -593,7 +605,9 @@ correct_data_sets(DataSpec) ->
         maps:merge(AllRequiredParamsDataSet, OptionalDataSet)
     end, optional_data_sets(DataSpec)),
 
-    RequiredDataSets ++ AllRequiredWithOptionalDataSets.
+    AllDataSets = RequiredDataSets ++ AllRequiredWithOptionalDataSets,
+    SelectedDatasetsSize = round(DataSpecRandomCoverage/100 * length(AllDataSets)),
+    lists_utils:random_sublist(AllDataSets, SelectedDatasetsSize, SelectedDatasetsSize).
 
 
 % Generates all combinations of "required" params and one "at_least_one" param
@@ -613,7 +627,7 @@ required_data_sets(DataSpec) ->
     RequiredWithValues = lists:map(
         fun(Key) ->
             [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
-        end, Required
+        end, ?REQUIRED_KEYS(Required)
     ),
     RequiredCombinations = lists:foldl(
         fun(ValuesForKey, Acc) ->
@@ -655,24 +669,28 @@ optional_data_sets(#data_spec{optional = Optional} = DataSpec) ->
     lists:delete(#{}, OptionalParamsCombinations).
 
 
+
 % Generates combinations of bad data sets by adding wrong values to
 % correct data set (one set with correct values for all params).
-bad_data_sets(undefined) ->
+bad_data_sets(undefined, _DataSpecRandomCoverage) ->
     [?NO_DATA];
 bad_data_sets(#data_spec{
     required = Required,
     at_least_one = AtLeastOne,
     optional = Optional,
     bad_values = BadValues
-} = DataSpec) ->
+} = DataSpec, DataSpecRandomCoverage) ->
+
     AllCorrect = lists:foldl(fun(Param, Acc) ->
         Acc#{Param => hd(get_correct_value(Param, DataSpec))}
-    end, #{}, Required ++ AtLeastOne ++ Optional),
+    end, #{}, ?REQUIRED_KEYS(Required) ++ AtLeastOne ++ Optional),
 
-    lists:map(fun({Param, InvalidValue, ExpError}) ->
+    AllDataSets = lists:map(fun({Param, InvalidValue, ExpError}) ->
         Data = AllCorrect#{Param => InvalidValue},
         {Data, Param, ExpError}
-    end, BadValues).
+    end, BadValues),
+    SelectedDataSetsSize = round(DataSpecRandomCoverage/100 * length(AllDataSets)),
+    lists_utils:random_sublist(AllDataSets, SelectedDataSetsSize, SelectedDataSetsSize).
 
 
 % Converts correct value spec into a value
@@ -709,7 +727,7 @@ create_oz_temp_token(OzNode, UserId) ->
 -spec obtain_local_token(node(), http_client:headers()) -> binary().
 obtain_local_token(Node, BasicAuthHeaders) ->
     LoginURL = get_onepanel_endpoint(Node, "login"),
-    {ok, _, #{<<"set-cookie">> := CookieHeader}, _} = ?assertMatch(
+    {ok, _, #{?HDR_SET_COOKIE := CookieHeader}, _} = ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
         make_rest_request(Node, post, LoginURL, BasicAuthHeaders, <<>>)
     ),
@@ -719,7 +737,7 @@ obtain_local_token(Node, BasicAuthHeaders) ->
     {SessionCookieKey, SessionCookie} = proplists:lookup(SessionCookieKey, Cookies),
 
     PreauthorizeURL = get_onepanel_endpoint(Node, "gui-preauthorize"),
-    CookieAuthHeaders = #{<<"cookie">> => <<SessionCookieKey/binary, "=", SessionCookie/binary>>},
+    CookieAuthHeaders = #{?HDR_COOKIE => <<SessionCookieKey/binary, "=", SessionCookie/binary>>},
 
     {ok, _, _, #{<<"token">> := Token}} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
@@ -743,7 +761,10 @@ scenario_spec_to_suite_spec(#scenario_spec{
     prepare_args_fun = PrepareArgsFun,
     validate_result_fun = ValidateResultFun,
 
-    data_spec = DataSpec
+    data_spec_random_coverage = DataSpecRandomCoverage,
+    data_spec = DataSpec,
+
+    test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
 }) ->
     #suite_spec{
         target_nodes = TargetNodes,
@@ -757,9 +778,14 @@ scenario_spec_to_suite_spec(#scenario_spec{
             name = ScenarioName,
             type = ScenarioType,
             prepare_args_fun = PrepareArgsFun,
-            validate_result_fun = ValidateResultFun
+            validate_result_fun = ValidateResultFun,
+            data_spec_random_coverage = DataSpecRandomCoverage,
+            test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
         }],
         randomly_select_scenarios = false,
+
+        test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint,
+        data_spec_random_coverage = DataSpecRandomCoverage,
 
         data_spec = DataSpec
     }.
@@ -779,15 +805,15 @@ build_test_ctx(ScenarioName, ScenarioType, TargetNode, Client, DataSet) ->
 
 
 %% @private
--spec make_request(config(), node(), api_client(), rest_args()) ->
+-spec make_request(node(), api_client(), boolean(), rest_args()) ->
     {ok, Result :: term()} | {error, term()}.
-make_request(_Config, Node, Client, #rest_args{
+make_request(Node, Client, TestProxiedRestEndpoint, #rest_args{
     method = Method,
     path = Path,
     headers = Headers,
     body = Body
 }) ->
-    URL = get_onepanel_rest_endpoint(Node, Path),
+    URL = get_onepanel_rest_endpoint(Node, Path, TestProxiedRestEndpoint),
     HeadersWithAuth = maps:merge(Headers, get_rest_auth_headers(Client)),
     make_rest_request(Node, Method, URL, HeadersWithAuth, Body).
 
@@ -822,11 +848,11 @@ get_rest_auth_headers(#api_client{basic_credentials = BasicCredentials, token = 
     {error, term()}.
 make_rest_request(Node, Method, URL, Headers, Body) ->
     CaCerts = panel_test_rpc:get_cert_chain_ders(Node),
-    Opts = [{ssl_options, [{cacerts, CaCerts}]}, {recv_timeout, 10000}],
+    Opts = [{ssl_options, [{cacerts, CaCerts}]}, {recv_timeout, 20000}],
 
     case http_client:request(Method, URL, Headers, Body, Opts) of
         {ok, RespCode, RespHeaders, RespBody} ->
-            case maps:get(<<"content-type">>, RespHeaders, undefined) of
+            case maps:get(?HDR_CONTENT_TYPE, RespHeaders, undefined) of
                 <<"application/json">> ->
                     {ok, RespCode, RespHeaders, json_utils:decode(RespBody)};
                 _ ->
@@ -846,16 +872,17 @@ get_onepanel_endpoint(Node, ResourcePath) ->
 
 
 %% @private
--spec get_onepanel_rest_endpoint(node(), ResourcePath :: string() | binary()) ->
+-spec get_onepanel_rest_endpoint(node(), ResourcePath :: string() | binary(), boolean()) ->
     URL :: binary().
-get_onepanel_rest_endpoint(Node, ResourcePath) ->
+get_onepanel_rest_endpoint(Node, ResourcePath, TestProxiedRestEndpoint) ->
     {ok, Domain} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain),
 
-    % Randomly select between testing direct request or proxy one via
-    % Onezone/Oneprovider.
-    Port = case rand:uniform(2) of
-        1 -> <<>>;
-        2 -> <<":9443">>
+    Port = case TestProxiedRestEndpoint of
+        true ->
+            % randomly select between testing direct request or proxied via Onezone/Oneprovider
+            lists_utils:random_element([<<>>, <<":9443">>]);
+        false ->
+            <<":9443">>
     end,
 
     str_utils:join_as_binaries(

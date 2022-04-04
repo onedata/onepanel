@@ -60,6 +60,12 @@
     {?API_USER_BAD_TOKEN, ?ERROR_BAD_TOKEN}
 ]).
 
+-define(INVALID_API_CLIENTS, [
+    ?API_ROOT_BAD_PASSPHRASE,
+    ?API_ROOT_BAD_USERNAME,
+    ?API_USER_BAD_TOKEN
+]).
+
 -record(client_spec, {
     correct = [] :: [api_test_runner:api_client_or_placeholder()],
     unauthorized = [] :: [
@@ -73,7 +79,7 @@
 }).
 
 -record(data_spec, {
-    required = [] :: [Key :: binary()],
+    required = [] :: [Key :: binary() | {Key :: binary(), erorrs:error()}],
     optional = [] :: [Key :: binary()],
     at_least_one = [] :: [Key :: binary()],
     correct_values = #{} :: #{Key :: binary() => Values :: [binary()]},
@@ -108,7 +114,15 @@
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
     validate_result_fun :: api_test_runner:validate_call_result_fun(),
 
-    data_spec = undefined :: undefined | api_test_runner:data_spec()
+    data_spec = undefined :: undefined | api_test_runner:data_spec(),
+
+    % When enabled, REST requests to onepanel will be made randomly
+    % on the native onepanel endpoint (port 9443), or via the proxy hosted by op-worker/oz-worker.
+    % When disabled, only the native endpoint will be tested (use for tests on undeployed environment)
+    test_proxied_onepanel_rest_endpoint = true :: boolean(),
+
+    % Percentage of all data sets to be tested.
+    data_spec_random_coverage = 100 :: 1..100
 }).
 
 % Template used to create scenario_spec(). It contains scenario specific data
@@ -118,7 +132,9 @@
     name :: binary(),
     type :: api_test_runner:scenario_type(),
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
-    validate_result_fun :: api_test_runner:validate_call_result_fun()
+    validate_result_fun :: api_test_runner:validate_call_result_fun(),
+    test_proxied_onepanel_rest_endpoint = true :: boolean(),
+    data_spec_random_coverage  = 100 :: 1..100
 }).
 
 % Record used to group scenarios having common parameters like target nodes,
@@ -145,19 +161,16 @@
     % - client2 makes call with data2 on provider1 using scenario B
     randomly_select_scenarios = false,
 
+    test_proxied_onepanel_rest_endpoint = true :: boolean(),
+
+    data_spec_random_coverage  = 100 :: 1..100,
+
     data_spec = undefined :: undefined | api_test_runner:data_spec()
 }).
 
 -define(SCENARIO_NAME, atom_to_binary(?FUNCTION_NAME, utf8)).
 
 -define(REST_ERROR(__ERROR), #{<<"error">> => errors:to_json(__ERROR)}).
-
--define(OZ_NODE(__CONFIG), lists_utils:random_element(
-    test_config:get_all_oz_worker_nodes(__CONFIG)
-)).
--define(OP_NODE(__CONFIG), lists_utils:random_element(test_config:get_provider_nodes(
-    __CONFIG, hd(test_config:get_providers(__CONFIG))
-))).
 
 -define(REST_PATH_PREFIX, "/api/v3/onepanel/").
 

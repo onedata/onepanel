@@ -43,6 +43,18 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
+        %% Check cluster health
+        {<<"/health">>, #rest_req{
+            method = 'GET',
+            b_gri = #b_gri{
+                type = onp_panel,
+                id = undefined,
+                aspect = health,
+                scope = public
+            },
+            produces = [<<"application/json">>]
+        }},
+
         %% Get test image
         {<<"/test_image">>, #rest_req{
             method = 'GET',

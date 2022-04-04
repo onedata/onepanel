@@ -120,7 +120,7 @@ set_test_envs(Nodes) ->
 -spec set_test_envs(Nodes :: [node()], TestEnvs :: proplists:proplist()) -> ok.
 set_test_envs(Nodes, TestEnvs) ->
     lists:foreach(fun({Key, Value}) ->
-        rpc:multicall(Nodes, onepanel_env, set, [Key, Value])
+        utils:rpc_multicall(Nodes, onepanel_env, set, [Key, Value])
     end, TestEnvs).
 
 
@@ -133,7 +133,7 @@ mock_start(Config) ->
     Nodes = ?config(all_nodes, Config),
     lists:foreach(fun(App) ->
         {Results, []} = ?assertMatch({_, []},
-            rpc:multicall(Nodes, application, start, [App])),
+            utils:rpc_multicall(Nodes, application, start, [App])),
         ?assert(lists:all(fun(Result) -> Result =:= ok end, Results))
     end, [tools, meck]),
     Config.
@@ -143,7 +143,7 @@ mock_start(Config) ->
 %% @doc Checks whether the tuple list contains specified fields.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_fields(KeyValue :: [tuple()] | map() , Fields :: [binary()]) -> ok.
+-spec assert_fields(KeyValue :: [tuple()] | map(), Fields :: [binary()]) -> ok.
 assert_fields(Map = #{}, ExpectedFields) ->
     assert_fields(maps:to_list(Map), ExpectedFields);
 assert_fields(TupleList, ExpectedFields) ->
@@ -151,8 +151,7 @@ assert_fields(TupleList, ExpectedFields) ->
         case lists:keymember(Field, 1, TupleList) of
             true -> ok;
             false ->
-                ct:pal("Key ~p missing in body ~p", [Field, TupleList]),
-                ?assert(false)
+                ct:fail("Key ~p missing in body ~p", [Field, TupleList])
         end
     end, ExpectedFields).
 
@@ -226,21 +225,19 @@ service_action(Node, Service, Action) ->
     Action :: atom(), Ctx :: service:step_ctx()) ->
     service_executor:results() | no_return().
 service_action(Node, Service, Action, Ctx) ->
-    case rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
+    case panel_test_rpc:call(Node, service, apply_sync, [Service, Action, Ctx]) of
         Results when is_list(Results) ->
             case service_utils:results_contain_error(Results) of
                 {true, Error} ->
-                    ct:pal("Service action ~tp:~tp on node ~tp failed.~n"
+                    ct:fail("Service action ~tp:~tp on node ~tp failed.~n"
                         "Error: ~tp~nCtx: ~tp~nSteps history: ~tp",
-                        [Service, Action, Node, Error, Ctx, Results]),
-                    ?assert(false);
+                        [Service, Action, Node, Error, Ctx, Results]);
                 false ->
                     Results
             end;
         Error ->
-            ct:pal("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",
-                [Service, Action, Node, Ctx, Error]),
-            ?assert(false)
+            ct:fail("Service action ~tp:~tp on node ~tp failed to start.~nCtx: ~tp~nError: ~tp",
+                [Service, Action, Node, Ctx, Error])
     end.
 
 
@@ -253,7 +250,7 @@ service_action(Node, Service, Action, Ctx) ->
     Action :: atom(), Ctx :: service:step_ctx()) -> ok | {error, _}.
 attempt_service_action(Node, Service, Action, Ctx) ->
     Self = self(),
-    rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
+    panel_test_rpc:call(Node, service, apply, [Service, Action, Ctx, Self]).
 
 
 %%--------------------------------------------------------------------

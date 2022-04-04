@@ -111,7 +111,7 @@ service_action_error_test(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
 
