@@ -305,7 +305,10 @@ api_oneprovider_storage_s3:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script: *run-ct-onenv-tests
+  - script:
+      <<: *run-ct-onenv-tests
+      scripts:
+      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
@@ -334,7 +337,10 @@ api_oneprovider_storage_webdav:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script: *run-ct-onenv-tests
+  - script:
+      <<: *run-ct-onenv-tests
+      scripts:
+      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
@@ -856,7 +862,10 @@ api_oneprovider_storage_ceph:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script: *run-ct-onenv-tests
+  - script:
+      <<: *run-ct-onenv-tests
+      scripts:
+      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
@@ -917,7 +926,10 @@ api_oneprovider_storage_posix:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script: *run-ct-onenv-tests
+  - script:
+      <<: *run-ct-onenv-tests
+      scripts:
+      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
