@@ -308,7 +308,7 @@ api_oneprovider_storage_s3:
   - script:
       <<: *run-ct-onenv-tests
       scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
@@ -340,7 +340,7 @@ api_oneprovider_storage_webdav:
   - script:
       <<: *run-ct-onenv-tests
       scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
@@ -865,7 +865,7 @@ api_oneprovider_storage_ceph:
   - script:
       <<: *run-ct-onenv-tests
       scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
@@ -929,7 +929,7 @@ api_oneprovider_storage_posix:
   - script:
       <<: *run-ct-onenv-tests
       scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
