@@ -1,6 +1,21 @@
 ---
 version: 2
 plan:
+  key: VFS-OPF
+plan-permissions:
+- users:
+  - plgdutka
+  groups:
+  - plggveildev
+  permissions:
+  - view
+  - edit
+  - build
+  - clone
+  - admin
+---
+version: 2
+plan:
   project-key: VFS
   key: OPF
   name: onepanel
@@ -34,34 +49,34 @@ stages:
     manual: false
     final: false
     jobs:
-    - rest_service
+    - _Codetag Tracker
+    - _Dialyze
+    - _Unit Test
+    - api_common_emergency_passphrase
     - api_common_emergency_passphrase_not_deployed
-    - rest_ceph
-    - rest_clusters
+    - api_common_internal
+    - api_oneprovider_provider
+    - api_oneprovider_spaces_basic
+    - api_oneprovider_storage_ceph
+    - api_oneprovider_storage_posix
     - api_oneprovider_storage_s3
     - api_oneprovider_storage_webdav
-    - api_oneprovider_provider
-    - Dialyze
-    - Codetag Tracker
-    - api_onezone_user_management
-    - services
-    - rest_letsencrypt
-    - api_common_internal
-    - rest_onezone
-    - rest_onepanel
-    - model
-    - api_oneprovider_spaces_basic
-    - Unit Test
-    - service
     - api_oneprovider_storages
+    - api_onezone_service_configuration
+    - api_onezone_user_management
     - embedded_ceph
+    - model
+    - rest_ceph
+    - rest_clusters
+    - rest_letsencrypt
+    - rest_onepanel
     - rest_onepanel_user
     - rest_oneprovider
-    - api_oneprovider_storage_ceph
-    - api_onezone_service_configuration
-    - api_oneprovider_storage_posix
-    - api_common_emergency_passphrase
+    - rest_onezone
+    - rest_service
+    - service
     - service_onepanel
+    - services
 - Coverage report:
     manual: false
     final: false
@@ -121,278 +136,27 @@ Build:
   - system.docker.executable
   - onedata
   artifact-subscriptions: []
-api_common_emergency_passphrase_not_deployed:
-  key: ACEPND
-  other: &common-opts
-    clean-working-dir: true
-    all-other-apps:
-      custom:
-        auto: {}
-        buildHangingConfig.enabled: 'false'
+_Codetag Tracker:
+  key: CT
   tasks:
-  - script: *clear-env
-  - script: &restart-minikube
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - sudo ${HOME}/restart_minikube.sh
-      description: Restart minikube
+# Checkout Task for default repository will be added implicitly during Specs import
   - script: &unpack
       interpreter: BINSH_OR_CMDEXE
       scripts:
       - tar -xzmf onepanel.tar.gz
       description: Unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: &download-artifacts
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - |-
-        cd onepanel
-        one-env/onenv pull_artifacts --hostname ${bamboo.artifactRepoHostname} --port ${bamboo.artifactRepoPort} --path .. branchConfig.yaml
-      description: Download artifacts
-  - script: &run-ct-onenv-tests
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - ./ct_onenv.py --suite suites/api/common/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-      description: Run CT onenv tests
-      working-dir: onepanel
-  final-tasks:
-  - test-parser: &parse-test-results
-      type: junit
-      ignore-time: 'false'
-      test-results: onepanel/test_distributed/logs/*/surefire.xml
-      description: Parse test results
-  - script: &save-cover-results
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - |-
-        mkdir -p cover_ct
-        cp test_distributed/logs/ct_run.*/*cover* cover_ct
-        cp test_distributed/logs/ct_run.*/*COVER* cover_ct
-        tar -czf cover_ct_${bamboo.shortJobName}.tar.gz cover_ct/
-      working-dir: onepanel
-      description: Save cover results
-  - script: &pack-test-logs
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - tar -mczf ct_logs_${bamboo.shortJobName}.tar.gz onepanel/test_distributed/logs/
-      description: Pack test logs
   - script:
-      <<: *clear-env
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - ./make.py -r ${bamboo.agentWorkingDirectory} codetag-tracker BRANCH=${bamboo.planRepository.branchName}
       working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
-    pattern: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
-    shared: true
-    required: false
-  requirements: &minikube
-  - minikube
+      description: Codetag Tracker
+  final-tasks:
+  - script: *clear-env
+  requirements: *requirements
   artifact-subscriptions: &artifact-onepanel
   - artifact: onepanel.tar.gz
-rest_service:
-  key: RS
-  other: &common-opts-clover
-    clean-working-dir: true
-    all-other-apps:
-      custom:
-        auto: {}
-        clover:
-          useLocalLicenseKey: 'true'
-        buildHangingConfig.enabled: 'false'
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script: &run-ct
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - ./ct_run.py --cover -s rest_service_test_SUITE
-      working-dir: onepanel
-      description: Run CT
-  final-tasks:
-  - test-parser: &parse-test-results
-      type: junit
-      ignore-time: 'false'
-      test-results: onepanel/test_distributed/logs/*/surefire.xml
-      description: Parse test results
-  - script: &save-cover-results
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - |-
-        mkdir -p cover_ct
-        cp test_distributed/logs/ct_run.*/*cover* cover_ct
-        cp test_distributed/logs/ct_run.*/*COVER* cover_ct
-        tar -czf cover_ct_${bamboo.shortJobName}.tar.gz cover_ct/
-      working-dir: onepanel
-      description: Save cover results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_rest_service.tar.gz
-    pattern: ct_logs_rest_service.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-rest_ceph:
-  key: RESTCEPH
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s ${bamboo.shortJobName}_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_rest_ceph.tar.gz
-    pattern: ct_logs_rest_ceph.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-rest_clusters:
-  key: RCLUSTER
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s ${bamboo.shortJobName}_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_rest_clusters.tar.gz
-    pattern: ct_logs_rest_clusters.tar.gz
-    shared: false
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-api_oneprovider_storage_s3:
-  key: APSS
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_oneprovider_storage_s3.tar.gz
-    pattern: ct_logs_api_oneprovider_storage_s3.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_oneprovider_storage_s3.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_oneprovider_storage_s3.tar.gz
-    shared: true
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-api_oneprovider_storage_webdav:
-  key: AOSW
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_oneprovider_storage_webdav.tar.gz
-    pattern: ct_logs_api_oneprovider_storage_webdav.tar.gz
-    shared: false
-    required: false
-  - name: cover_ct_api_oneprovider_storage_webdav.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_oneprovider_storage_webdav.tar.gz
-    shared: false
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-api_oneprovider_provider:
-  key: APIOPPROVIDER
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_oneprovider_provider.tar.gz
-    pattern: ct_logs_api_oneprovider_provider.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_oneprovider_provider.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_oneprovider_provider.tar.gz
-    shared: true
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-Dialyze:
+_Dialyze:
   key: DO
   tasks:
 # Checkout Task for default repository will be added implicitly during Specs import
@@ -414,262 +178,20 @@ Dialyze:
   - script: *clear-env
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
-Codetag Tracker:
-  key: CT
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      interpreter: BINSH_OR_CMDEXE
-      scripts:
-      - ./make.py -r ${bamboo.agentWorkingDirectory} codetag-tracker BRANCH=${bamboo.planRepository.branchName}
-      working-dir: onepanel
-      description: Codetag Tracker
-  final-tasks:
-  - script: *clear-env
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-api_onezone_user_management:
-  key: AP
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/onezone/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_onezone_user_management.tar.gz
-    pattern: ct_logs_api_onezone_user_management.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_onezone_user_management.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_onezone_user_management.tar.gz
-    shared: true
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-services:
-  key: SERS
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s services_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_services.tar.gz
-    pattern: ct_logs_services.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-rest_letsencrypt:
-  key: LE
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s rest_letsencrypt_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_rest_letsencrypt.tar.gz
-    pattern: ct_logs_rest_letsencrypt.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-api_common_internal:
-  key: ACI
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/common/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_common_internal.tar.gz
-    pattern: ct_logs_api_common_internal.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_common_internal.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_common_internal.tar.gz
-    shared: true
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-rest_onezone:
-  key: RESZ
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s ${bamboo.shortJobName}_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_rest_onezone.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-rest_onepanel:
-  key: RO
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s ${bamboo.shortJobName}_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_rest_onepanel.tar.gz
-    pattern: ct_logs_rest_onepanel.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-model:
-  key: MOD
-  other: *common-opts-clover
-  tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s model_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script: *clear-env
-  artifacts:
-  - name: ct_logs_model.tar.gz
-    pattern: ct_logs_model.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
-  requirements: *requirements
-  artifact-subscriptions: *artifact-onepanel
-api_oneprovider_spaces_basic:
-  key: SPAC
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_oneprovider_spaces_basic.tar.gz
-    pattern: ct_logs_api_oneprovider_spaces_basic.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_oneprovider_spaces_basic.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_oneprovider_spaces_basic.tar.gz
-    shared: true
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-Unit Test:
+_Unit Test:
   key: UTOP
-  other: *common-opts-clover
+  other: &common-opts
+    clean-working-dir: true
+    all-other-apps:
+      custom:
+        auto: {}
+        buildHangingConfig.enabled: 'false'
   tasks:
 # Checkout Task for default repository will be added implicitly during Specs import
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
-      - |
-        tar -xzmf onepanel.tar.gz
+      - tar -xzmf onepanel.tar.gz
       description: Unpack
   - script:
       interpreter: BINSH_OR_CMDEXE
@@ -708,35 +230,73 @@ Unit Test:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
-service:
-  key: SER
-  other: *common-opts-clover
+api_common_emergency_passphrase:
+  key: ACEP
+  other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
-  - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s service_test_SUITE
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
   - script: *clear-env
+  - script: &restart-minikube
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - sudo ${HOME}/restart_minikube.sh
+      description: Restart minikube      
+  - script: *unpack
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: &download-artifacts
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - |-
+        cd onepanel
+        one-env/onenv pull_artifacts --hostname ${bamboo.artifactRepoHostname} --port ${bamboo.artifactRepoPort} --path .. branchConfig.yaml
+      description: Download artifacts
+  - script: &run-ct-onenv-common-tests
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - ./ct_onenv.py --suite suites/api/common/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      description: Run CT onenv common tests
+      working-dir: onepanel
+  final-tasks:
+  - test-parser: &parse-test-results
+      type: junit
+      ignore-time: 'false'
+      test-results: onepanel/test_distributed/logs/*/surefire.xml
+      description: Parse test results
+  - script: &save-cover-results
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - |-
+        mkdir -p cover_ct
+        cp test_distributed/logs/ct_run.*/*cover* cover_ct
+        cp test_distributed/logs/ct_run.*/*COVER* cover_ct
+        tar -czf cover_ct_${bamboo.shortJobName}.tar.gz cover_ct/
+      working-dir: onepanel
+      description: Save cover results
+  - script: &pack-test-logs
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - tar -mczf ct_logs_${bamboo.shortJobName}.tar.gz onepanel/test_distributed/logs/
+      description: Pack test logs
+  - script: &clear-env-and-working-dir
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - curl ${bamboo.OnedataFinalTasksURL} | bash -
+      description: Clear env
+      working-dir: onepanel
   artifacts:
-  - name: ct_logs_service.tar.gz
-    pattern: ct_logs_service.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
     shared: false
     required: false
-  requirements: *requirements
+  - name: cover_ct_api_common_emergency_passphrase.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: &minikube
+  - minikube
   artifact-subscriptions: *artifact-onepanel
-api_oneprovider_storages:
-  key: STOR
+api_common_emergency_passphrase_not_deployed:
+  key: ACEPND
   other: *common-opts
   tasks:
   - script: *clear-env
@@ -744,31 +304,26 @@ api_oneprovider_storages:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+  - script: *run-ct-onenv-common-tests
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_api_oneprovider_storages.tar.gz
-    pattern: ct_logs_api_oneprovider_storages.tar.gz
-    shared: true
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
     required: false
-  - name: cover_ct_api_oneprovider_storages.tar.gz
+  - name: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
     location: onepanel
-    pattern: cover_ct_api_oneprovider_storages.tar.gz
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
     shared: true
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
-embedded_ceph:
-  key: EM
+api_common_internal:
+  key: ACI
   other: *common-opts
   tasks:
   - script: *clear-env
@@ -776,82 +331,82 @@ embedded_ceph:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite ${bamboo.shortJobName}_test_SUITE --path-to-sources ..
+  - script: *run-ct-onenv-common-tests
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_embedded_ceph.tar.gz
-    pattern: ct_logs_embedded_ceph.tar.gz
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
     shared: false
     required: false
-  - name: cover_ct_embedded_ceph.tar.gz
+  - name: cover_ct_api_common_internal.tar.gz
     location: onepanel
-    pattern: cover_ct_embedded_ceph.tar.gz
-    shared: false
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
-rest_onepanel_user:
-  key: ROU
-  other: *common-opts-clover
+api_oneprovider_provider:
+  key: APIOPPROVIDER
+  other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *clear-env
+  - script: *restart-minikube
   - script: *unpack
-  - script:
-      <<: *run-ct
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: &run-ct-onenv-oneprovider-tests
+      interpreter: BINSH_OR_CMDEXE
       scripts:
-      - ./ct_run.py --cover -s rest_onepanel_user_test_SUITE
+      - ./ct_onenv.py --suite suites/api/oneprovider/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      description: Run CT onenv oneprovider tests
+      working-dir: onepanel
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script: *clear-env
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_rest_onepanel_user.tar.gz
-    pattern: ct_logs_rest_onepanel_user.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
     shared: false
     required: false
-  requirements: *requirements
+  - name: cover_ct_api_oneprovider_provider.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
-rest_oneprovider:
-  key: ROP
-  other: *common-opts-clover
+api_oneprovider_spaces_basic:
+  key: SPAC
+  other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *clear-env
+  - script: *restart-minikube
   - script: *unpack
-  - script:
-      <<: *run-ct
-      scripts:
-      - ./ct_run.py --cover -s ${bamboo.shortJobName}_test_SUITE
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: *run-ct-onenv-oneprovider-tests
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script: *clear-env
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_rest_oneprovider.tar.gz
-    pattern: ct_logs_rest_oneprovider.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
-    location: onepanel
-    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
     shared: false
     required: false
-  requirements: *requirements
+  - name: cover_ct_api_oneprovider_spaces_basic.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
 api_oneprovider_storage_ceph:
   key: APC
@@ -862,57 +417,25 @@ api_oneprovider_storage_ceph:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
+  - script: &run-ct-onenv-oneprovider-storages-tests
+      interpreter: BINSH_OR_CMDEXE
       scripts:
       - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      description: Run CT onenv oneprovider storages tests
+      working-dir: onepanel
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_api_oneprovider_storage_ceph.tar.gz
-    pattern: ct_logs_api_oneprovider_storage_ceph.tar.gz
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
     shared: false
     required: false
   - name: cover_ct_api_oneprovider_storage_ceph.tar.gz
     location: onepanel
-    pattern: cover_ct_api_oneprovider_storage_ceph.tar.gz
-    shared: false
-    required: false
-  requirements: *minikube
-  artifact-subscriptions: *artifact-onepanel
-api_onezone_service_configuration:
-  key: ASC
-  other: *common-opts
-  tasks:
-  - script: *clear-env
-  - script: *restart-minikube
-  - script: *unpack
-# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
-  - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/onezone/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
-  final-tasks:
-  - test-parser: *parse-test-results
-  - script: *save-cover-results
-  - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
-  artifacts:
-  - name: ct_logs_api_onezone_service_configuration.tar.gz
-    pattern: ct_logs_api_onezone_service_configuration.tar.gz
-    shared: true
-    required: false
-  - name: cover_ct_api_onezone_service_configuration.tar.gz
-    location: onepanel
-    pattern: cover_ct_api_onezone_service_configuration.tar.gz
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
     shared: true
     required: false
   requirements: *minikube
@@ -926,31 +449,26 @@ api_oneprovider_storage_posix:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      - ./ct_onenv.py --suite suites/api/oneprovider/storages/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+  - script: *run-ct-onenv-oneprovider-storages-tests
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_api_oneprovider_storage_posix.tar.gz
-    pattern: ct_logs_api_oneprovider_storage_posix.tar.gz
-    shared: true
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
     required: false
   - name: cover_ct_api_oneprovider_storage_posix.tar.gz
     location: onepanel
-    pattern: cover_ct_api_oneprovider_storage_posix.tar.gz
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
     shared: true
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
-api_common_emergency_passphrase:
-  key: ACEP
+api_oneprovider_storage_s3:
+  key: APSS
   other: *common-opts
   tasks:
   - script: *clear-env
@@ -958,59 +476,467 @@ api_common_emergency_passphrase:
   - script: *unpack
 # com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
   - script: *download-artifacts
-  - script:
-      <<: *run-ct-onenv-tests
-      scripts:
-      -  ./ct_onenv.py --suite suites/api/common/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+  - script: *run-ct-onenv-oneprovider-storages-tests
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
-  - script:
-      <<: *clear-env
-      working-dir: onepanel
+  - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_api_common_emergency_passphrase.tar.gz
-    pattern: ct_logs_api_common_emergency_passphrase.tar.gz
-    shared: true
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
     required: false
-  - name: cover_ct_api_common_emergency_passphrase.tar.gz
+  - name: cover_ct_api_oneprovider_storage_s3.tar.gz
     location: onepanel
-    pattern: cover_ct_api_common_emergency_passphrase.tar.gz
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
     shared: true
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
-service_onepanel:
-  key: SO
-  other: *common-opts-clover
+api_oneprovider_storage_webdav:
+  key: AOSW
+  other: *common-opts
+  tasks:
+  - script: *clear-env
+  - script: *restart-minikube
+  - script: *unpack
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: *run-ct-onenv-oneprovider-storages-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env-and-working-dir
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_api_oneprovider_storage_webdav.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *minikube
+  artifact-subscriptions: *artifact-onepanel
+api_oneprovider_storages:
+  key: STOR
+  other: *common-opts
+  tasks:
+  - script: *clear-env
+  - script: *restart-minikube
+  - script: *unpack
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: *run-ct-onenv-oneprovider-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env-and-working-dir
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_api_oneprovider_storages.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *minikube
+  artifact-subscriptions: *artifact-onepanel
+api_onezone_service_configuration:
+  key: ASC
+  other: *common-opts
+  tasks:
+  - script: *clear-env
+  - script: *restart-minikube
+  - script: *unpack
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: &run-ct-onenv-onezone-tests
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - ./ct_onenv.py --suite suites/api/onezone/${bamboo.shortJobName}_test_SUITE --cover --path-to-sources ..
+      description: Run CT onenv onezone tests
+      working-dir: onepanel
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env-and-working-dir
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_api_onezone_service_configuration.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *minikube
+  artifact-subscriptions: *artifact-onepanel
+api_onezone_user_management:
+  key: AP
+  other: *common-opts
+  tasks:
+  - script: *clear-env
+  - script: *restart-minikube
+  - script: *unpack
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: *run-ct-onenv-onezone-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env-and-working-dir
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_api_onezone_user_management.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *minikube
+  artifact-subscriptions: *artifact-onepanel
+embedded_ceph:
+  key: EM
+  other: *common-opts
+  tasks:
+  - script: *clear-env
+  - script: *restart-minikube
+  - script: *unpack
+# com.atlassian.bamboo.plugins.vcs:task.vcs.checkout is disabled. This state is not supported at YAML
+  - script: *download-artifacts
+  - script: &run-ct-onenv-tests
+      interpreter: BINSH_OR_CMDEXE
+      scripts:
+      - ./ct_onenv.py --suite ${bamboo.shortJobName}_test_SUITE --path-to-sources ..
+      description: Run CT onenv tests
+      working-dir: onepanel
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env-and-working-dir
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_embedded_ceph.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements:
+    - minikube
+    - os-agent
+  artifact-subscriptions: *artifact-onepanel
+model:
+  key: MOD
+  other: *common-opts
   tasks:
 # Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
-  - script:
-      <<: *run-ct
+  - script: &run-ct-env-up-tests
+      interpreter: BINSH_OR_CMDEXE
       scripts:
-      - ./ct_run.py --cover -s service_onepanel_test_SUITE
+      - ./ct_run.py --cover -s ${bamboo.shortJobName}_test_SUITE
+      working-dir: onepanel
+      description: Run CT env-up tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts: 
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_model.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_ceph:
+  key: RESTCEPH
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts: 
+  - name: ct_logs_rest_ceph.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_rest_ceph.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_clusters:
+  key: RCLUSTER
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
   final-tasks:
   - test-parser: *parse-test-results
   - script: *save-cover-results
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_service_onepanel.tar.gz
-    pattern: ct_logs_service_onepanel.tar.gz
-    shared: true
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
     required: false
-  - name: cover_ct_${bamboo.shortJobName}.tar.gz
+  - name: cover_ct_rest_clusters.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_letsencrypt:
+  key: LE
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
     shared: false
+    required: false
+  - name: cover_ct_rest_letsencrypt.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_onepanel:
+  key: RO
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_rest_onepanel.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_onepanel_user:
+  key: ROU
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_rest_onepanel_user.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_oneprovider:
+  key: ROP
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_rest_oneprovider.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_onezone:
+  key: RESZ
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_rest_onezone.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+rest_service:
+  key: RS
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_rest_service.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+service:
+  key: SER
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_service.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+service_onepanel:
+  key: SO
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_service_onepanel.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
+    required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+services:
+  key: SERS
+  other: *common-opts
+  tasks:
+# Checkout Task for default repository will be added implicitly during Specs import
+  - script: *unpack
+  - script: *run-ct-env-up-tests
+  final-tasks:
+  - test-parser: *parse-test-results
+  - script: *save-cover-results
+  - script: *pack-test-logs
+  - script: *clear-env
+  artifacts:
+  - name: ct_logs_${bamboo.shortJobName}.tar.gz
+    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+    shared: false
+    required: false
+  - name: cover_ct_services.tar.gz
+    location: onepanel
+    pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+    shared: true
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
 Coverage report:
   key: CROP
-  other: *common-opts-clover
+  other: *common-opts
   tasks:
 # Checkout Task for default repository will be added implicitly during Specs import
   - script:
@@ -1046,42 +972,56 @@ Coverage report:
     required: false
   requirements: *requirements
   artifact-subscriptions:
+  - artifact: cover_ct_api_common_emergency_passphrase.tar.gz
+  - artifact: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
+  - artifact: cover_ct_api_common_internal.tar.gz
+  - artifact: cover_ct_api_oneprovider_provider.tar.gz
+  - artifact: cover_ct_api_oneprovider_spaces_basic.tar.gz
+  - artifact: cover_ct_api_oneprovider_storage_ceph.tar.gz
+  - artifact: cover_ct_api_oneprovider_storage_posix.tar.gz
+  - artifact: cover_ct_api_oneprovider_storage_s3.tar.gz
+  - artifact: cover_ct_api_oneprovider_storage_webdav.tar.gz
+  - artifact: cover_ct_api_oneprovider_storages.tar.gz
+  - artifact: cover_ct_api_onezone_service_configuration.tar.gz
+  - artifact: cover_ct_api_onezone_user_management.tar.gz
+  - artifact: cover_ct_embedded_ceph.tar.gz
+  - artifact: cover_ct_model.tar.gz
+  - artifact: cover_ct_rest_ceph.tar.gz
+  - artifact: cover_ct_rest_clusters.tar.gz
+  - artifact: cover_ct_rest_letsencrypt.tar.gz
+  - artifact: cover_ct_rest_onepanel.tar.gz
+  - artifact: cover_ct_rest_onepanel_user.tar.gz
+  - artifact: cover_ct_rest_oneprovider.tar.gz
+  - artifact: cover_ct_rest_onezone.tar.gz
+  - artifact: cover_ct_rest_service.tar.gz
+  - artifact: cover_ct_service.tar.gz
+  - artifact: cover_ct_service_onepanel.tar.gz
+  - artifact: cover_ct_services.tar.gz
+  # - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
+  # - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
+  # - artifact: ct_logs_api_common_internal.tar.gz
+  # - artifact: ct_logs_api_oneprovider_provider.tar.gz
+  # - artifact: ct_logs_api_oneprovider_spaces_basic.tar.gz
+  # - artifact: ct_logs_api_oneprovider_storage_ceph.tar.gz
+  # - artifact: ct_logs_api_oneprovider_storage_posix.tar.gz
+  # - artifact: ct_logs_api_oneprovider_storage_s3.tar.gz
+  # - artifact: ct_logs_api_oneprovider_storage_webdav.tar.gz
+  # - artifact: ct_logs_api_oneprovider_storages.tar.gz
+  # - artifact: ct_logs_api_onezone_service_configuration.tar.gz
+  # - artifact: ct_logs_api_onezone_user_management.tar.gz
+  # - artifact: ct_logs_embedded_ceph.tar.gz
+  # - artifact: ct_logs_model.tar.gz
+  # - artifact: ct_logs_rest_ceph.tar.gz
+  # - artifact: ct_logs_rest_clusters.tar.gz
+  # - artifact: ct_logs_rest_letsencrypt.tar.gz
+  # - artifact: ct_logs_rest_onepanel.tar.gz
+  # - artifact: ct_logs_rest_onepanel_user.tar.gz
+  # - artifact: ct_logs_rest_oneprovider.tar.gz
+  # - artifact: ct_logs_rest_onezone.tar.gz
+  # - artifact: ct_logs_rest_service.tar.gz
+  # - artifact: ct_logs_service.tar.gz
+  # - artifact: ct_logs_service_onepanel.tar.gz
+  # - artifact: ct_logs_services.tar.gz
   - artifact: onepanel.tar.gz
   - artifact: cover_eunit.tar.gz
-  - artifact: ct_logs_model.tar.gz
-  - artifact: ct_logs_rest_service.tar.gz
-  - artifact: ct_logs_service.tar.gz
-  - artifact: ct_logs_services.tar.gz
-  - artifact: ct_logs_rest_onepanel_user.tar.gz
-  - artifact: ct_logs_rest_onepanel.tar.gz
-  - artifact: ct_logs_rest_oneprovider.tar.gz
-  - artifact: ct_logs_service_onepanel.tar.gz
-  - artifact: ct_logs_rest_letsencrypt.tar.gz
-  - artifact: ct_logs_rest_onezone.tar.gz
-  - artifact: ct_logs_rest_ceph.tar.gz
-  - artifact: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
-  - artifact: cover_ct_api_common_emergency_passphrase.tar.gz
-  - artifact: cover_ct_api_oneprovider_storage_posix.tar.gz
-  - artifact: cover_ct_api_onezone_service_configuration.tar.gz
-  - artifact: cover_ct_api_oneprovider_storages.tar.gz
-  - artifact: cover_ct_api_oneprovider_spaces_basic.tar.gz
-  - artifact: cover_ct_api_common_internal.tar.gz
-  - artifact: cover_ct_api_onezone_user_management.tar.gz
-  - artifact: cover_ct_api_oneprovider_provider.tar.gz
-  - artifact: cover_ct_api_oneprovider_storage_s3.tar.gz
----
-version: 2
-plan:
-  key: VFS-OPF
-plan-permissions:
-- users:
-  - plgdutka
-  groups:
-  - plggveildev
-  permissions:
-  - view
-  - edit
-  - build
-  - clone
-  - admin
 ...
