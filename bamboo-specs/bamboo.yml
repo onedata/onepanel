@@ -139,7 +139,6 @@ Build:
 _Codetag Tracker:
   key: CT
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: &unpack
       interpreter: BINSH_OR_CMDEXE
       scripts:
@@ -159,7 +158,6 @@ _Codetag Tracker:
 _Dialyze:
   key: DO
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script:
       interpreter: BINSH_OR_CMDEXE
@@ -187,7 +185,6 @@ _Unit Test:
         auto: {}
         buildHangingConfig.enabled: 'false'
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
@@ -645,7 +642,6 @@ model:
   key: MOD
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: &run-ct-env-up-tests
       interpreter: BINSH_OR_CMDEXE
@@ -674,7 +670,6 @@ rest_ceph:
   key: RESTCEPH
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -698,7 +693,6 @@ rest_clusters:
   key: RCLUSTER
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -722,7 +716,6 @@ rest_letsencrypt:
   key: LE
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -746,7 +739,6 @@ rest_onepanel:
   key: RO
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -770,7 +762,6 @@ rest_onepanel_user:
   key: ROU
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -794,7 +785,6 @@ rest_oneprovider:
   key: ROP
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -818,7 +808,6 @@ rest_onezone:
   key: RESZ
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -842,7 +831,6 @@ rest_service:
   key: RS
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -866,7 +854,6 @@ service:
   key: SER
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -890,7 +877,6 @@ service_onepanel:
   key: SO
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -914,7 +900,6 @@ services:
   key: SERS
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -938,7 +923,6 @@ Coverage report:
   key: CROP
   other: *common-opts
   tasks:
-# Checkout Task for default repository will be added implicitly during Specs import
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
@@ -997,31 +981,6 @@ Coverage report:
   - artifact: cover_ct_service.tar.gz
   - artifact: cover_ct_service_onepanel.tar.gz
   - artifact: cover_ct_services.tar.gz
-  # - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
-  # - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
-  # - artifact: ct_logs_api_common_internal.tar.gz
-  # - artifact: ct_logs_api_oneprovider_provider.tar.gz
-  # - artifact: ct_logs_api_oneprovider_spaces_basic.tar.gz
-  # - artifact: ct_logs_api_oneprovider_storage_ceph.tar.gz
-  # - artifact: ct_logs_api_oneprovider_storage_posix.tar.gz
-  # - artifact: ct_logs_api_oneprovider_storage_s3.tar.gz
-  # - artifact: ct_logs_api_oneprovider_storage_webdav.tar.gz
-  # - artifact: ct_logs_api_oneprovider_storages.tar.gz
-  # - artifact: ct_logs_api_onezone_service_configuration.tar.gz
-  # - artifact: ct_logs_api_onezone_user_management.tar.gz
-  # - artifact: ct_logs_embedded_ceph.tar.gz
-  # - artifact: ct_logs_model.tar.gz
-  # - artifact: ct_logs_rest_ceph.tar.gz
-  # - artifact: ct_logs_rest_clusters.tar.gz
-  # - artifact: ct_logs_rest_letsencrypt.tar.gz
-  # - artifact: ct_logs_rest_onepanel.tar.gz
-  # - artifact: ct_logs_rest_onepanel_user.tar.gz
-  # - artifact: ct_logs_rest_oneprovider.tar.gz
-  # - artifact: ct_logs_rest_onezone.tar.gz
-  # - artifact: ct_logs_rest_service.tar.gz
-  # - artifact: ct_logs_service.tar.gz
-  # - artifact: ct_logs_service_onepanel.tar.gz
-  # - artifact: ct_logs_services.tar.gz
   - artifact: onepanel.tar.gz
   - artifact: cover_eunit.tar.gz
 ...
