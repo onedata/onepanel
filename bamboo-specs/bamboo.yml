@@ -329,10 +329,7 @@ api_common_internal:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_common_internal.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -639,10 +636,7 @@ rest_ceph:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts: 
-  - name: ct_logs_rest_ceph.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs 
   - name: cover_ct_rest_ceph.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
