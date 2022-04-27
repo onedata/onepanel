@@ -857,7 +857,30 @@ Coverage report:
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
-      - "tar -xzmf onepanel.tar.gz\n\nif onepanel/bamboos/scripts/should-skip-coverage.sh; then\n    echo \"Skipping coverage report collection\"\nelse\n    LOG_PATH=onepanel/test_distributed/logs\n    \n    tar -xzmf cover_eunit.tar.gz\n    mkdir -p onepanel/_build/test/cover\n    mv cover_eunit/* onepanel/_build/test/cover\n    \n    mkdir tmp;\n    for archive in $(ls ct_logs_*.tar.gz)\n    do\n        cp ${archive} tmp\n        base=$(basename ${archive} .tar.gz)\n        cd tmp\n        tar -xzmf *.tar.gz\n        LOG_DIR=$(ls -dt ${LOG_PATH}/ct_run* | head -1)\n        echo $LOG_DIR\n        cp -r ${LOG_DIR} ../${LOG_DIR}_${base}\n        cd ..\n        rm -rf tmp/*\n    done\n    \n    rm -rf tmp\nfi"
+      - |-
+        tar -xzmf onepanel.tar.gz
+        if onepanel/bamboos/scripts/should-skip-coverage.sh; then
+            echo \"Skipping coverage report collection\"
+        else
+            LOG_PATH=onepanel/test_distributed/logs
+            tar -xzmf cover_eunit.tar.gz
+            mkdir -p onepanel/_build/test/cover
+            mv cover_eunit/* onepanel/_build/test/cover
+            mkdir tmp
+            for archive in $(ls ct_logs_*.tar.gz)
+            do
+                cp ${archive} tmp
+                base=$(basename ${archive} .tar.gz)
+                cd tmp
+                tar -xzmf *.tar.gz
+                LOG_DIR=$(ls -dt ${LOG_PATH}/ct_run* | head -1)
+                echo $LOG_DIR
+                cp -r ${LOG_DIR} ../${LOG_DIR}_${base}
+                cd ..
+                rm -rf tmp/*
+            done
+            rm -rf tmp
+        fi
       description: Unpack
   - script:
       interpreter: BINSH_OR_CMDEXE
