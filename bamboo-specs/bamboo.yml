@@ -140,7 +140,7 @@ _Codetag Tracker:
   key: CT
   tasks:
   # A workaround to disable the implicit checkout task
-  - checkout:       
+  - checkout: &fake-checkout       
       conditions:
       - variable:
           exists: fake.var
@@ -163,6 +163,7 @@ _Codetag Tracker:
 _Dialyze:
   key: DO
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script:
       interpreter: BINSH_OR_CMDEXE
@@ -190,6 +191,7 @@ _Unit Test:
         auto: {}
         buildHangingConfig.enabled: 'false'
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script:
       interpreter: BINSH_OR_CMDEXE
@@ -232,6 +234,7 @@ api_common_emergency_passphrase:
   key: ACEP
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: &restart-minikube
       interpreter: BINSH_OR_CMDEXE
@@ -298,6 +301,7 @@ api_common_emergency_passphrase_not_deployed:
   key: ACEPND
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -322,6 +326,7 @@ api_common_internal:
   key: ACI
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -346,6 +351,7 @@ api_oneprovider_provider:
   key: APIOPPROVIDER
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -375,6 +381,7 @@ api_oneprovider_spaces_basic:
   key: SPAC
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -399,6 +406,7 @@ api_oneprovider_storage_ceph:
   key: APC
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -428,6 +436,7 @@ api_oneprovider_storage_posix:
   key: APSP
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -452,6 +461,7 @@ api_oneprovider_storage_s3:
   key: APSS
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -476,6 +486,7 @@ api_oneprovider_storage_webdav:
   key: AOSW
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -500,6 +511,7 @@ api_oneprovider_storages:
   key: STOR
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -524,6 +536,7 @@ api_onezone_service_configuration:
   key: ASC
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -553,6 +566,7 @@ api_onezone_user_management:
   key: AP
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -577,6 +591,7 @@ embedded_ceph:
   key: EM
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *clear-env
   - script: *restart-minikube
   - script: *unpack
@@ -608,6 +623,7 @@ model:
   key: MOD
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: &run-ct-env-up-tests
       interpreter: BINSH_OR_CMDEXE
@@ -633,6 +649,7 @@ rest_ceph:
   key: RESTCEPH
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -653,6 +670,7 @@ rest_clusters:
   key: RCLUSTER
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -673,6 +691,7 @@ rest_letsencrypt:
   key: LE
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -693,6 +712,7 @@ rest_onepanel:
   key: RO
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -713,6 +733,7 @@ rest_onepanel_user:
   key: ROU
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -733,6 +754,7 @@ rest_oneprovider:
   key: ROP
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -753,6 +775,7 @@ rest_onezone:
   key: RESZ
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -773,6 +796,7 @@ rest_service:
   key: RS
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -793,6 +817,7 @@ service:
   key: SER
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -813,6 +838,7 @@ service_onepanel:
   key: SO
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -833,6 +859,7 @@ services:
   key: SERS
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script: *unpack
   - script: *run-ct-env-up-tests
   final-tasks:
@@ -853,6 +880,7 @@ Coverage report:
   key: CROP
   other: *common-opts
   tasks:
+  - checkout: *fake-checkout
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
