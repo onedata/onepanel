@@ -139,6 +139,11 @@ Build:
 _Codetag Tracker:
   key: CT
   tasks:
+  # A workaround to disable the implicit checkout task
+  - checkout:       
+      conditions:
+      - variable:
+          exists: fake.var
   - script: &unpack
       interpreter: BINSH_OR_CMDEXE
       scripts:
