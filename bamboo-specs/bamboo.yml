@@ -361,10 +361,7 @@ api_oneprovider_provider:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_provider.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -388,10 +385,7 @@ api_oneprovider_spaces_basic:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_spaces_basic.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -420,10 +414,7 @@ api_oneprovider_storage_ceph:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_storage_ceph.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -447,10 +438,7 @@ api_oneprovider_storage_posix:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_storage_posix.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -474,10 +462,7 @@ api_oneprovider_storage_s3:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_storage_s3.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -501,10 +486,7 @@ api_oneprovider_storage_webdav:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_storage_webdav.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -528,10 +510,7 @@ api_oneprovider_storages:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_oneprovider_storages.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -560,10 +539,7 @@ api_onezone_service_configuration:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_onezone_service_configuration.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -587,10 +563,7 @@ api_onezone_user_management:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_api_onezone_user_management.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -619,10 +592,7 @@ embedded_ceph:
   - script: *pack-test-logs
   - script: *clear-env-and-working-dir
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_embedded_ceph.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -649,10 +619,7 @@ model:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts: 
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_model.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -695,10 +662,7 @@ rest_clusters:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_clusters.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -718,10 +682,7 @@ rest_letsencrypt:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_letsencrypt.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -741,10 +702,7 @@ rest_onepanel:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_onepanel.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -764,10 +722,7 @@ rest_onepanel_user:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_onepanel_user.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -787,10 +742,7 @@ rest_oneprovider:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_oneprovider.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -810,10 +762,7 @@ rest_onezone:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_onezone.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -833,10 +782,7 @@ rest_service:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_rest_service.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -856,10 +802,7 @@ service:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_service.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -879,10 +822,7 @@ service_onepanel:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_service_onepanel.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
@@ -902,10 +842,7 @@ services:
   - script: *pack-test-logs
   - script: *clear-env
   artifacts:
-  - name: ct_logs_${bamboo.shortJobName}.tar.gz
-    pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-    shared: false
-    required: false
+  - *ct_logs
   - name: cover_ct_services.tar.gz
     location: onepanel
     pattern: cover_ct_${bamboo.shortJobName}.tar.gz
