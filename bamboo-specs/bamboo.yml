@@ -937,6 +937,8 @@ Coverage report:
     required: false
   requirements: *requirements
   artifact-subscriptions:
+  - artifact: onepanel.tar.gz
+  - artifact: cover_eunit.tar.gz
   - artifact: cover_ct_api_common_emergency_passphrase.tar.gz
   - artifact: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
   - artifact: cover_ct_api_common_internal.tar.gz
@@ -962,6 +964,4 @@ Coverage report:
   - artifact: cover_ct_service.tar.gz
   - artifact: cover_ct_service_onepanel.tar.gz
   - artifact: cover_ct_services.tar.gz
-  - artifact: onepanel.tar.gz
-  - artifact: cover_eunit.tar.gz
 ...
