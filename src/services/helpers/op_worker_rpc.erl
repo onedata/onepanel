@@ -117,6 +117,7 @@
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
 -export([get_helper_args/1, get_helper_args/2]).
 -export([get_helper_admin_ctx/1, get_helper_admin_ctx/2]).
+-export([redact_confidential_helper_params/2, redact_confidential_helper_params/3]).
 -export([space_logic_get_storages/1, space_logic_get_storages/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1, file_popularity_api_get_configuration/2]).
@@ -594,6 +595,14 @@ get_helper_admin_ctx(Helper) ->
 get_helper_admin_ctx(Node, Helper) ->
     ?CALL(Node, [Helper]).
 
+
+-spec redact_confidential_helper_params(binary(), map()) -> map().
+redact_confidential_helper_params(HelperName, Params) ->
+    ?CALL([HelperName, Params]).
+
+-spec redact_confidential_helper_params(node(), binary(), map()) -> map().
+redact_confidential_helper_params(Node, HelperName, Params) ->
+    ?CALL(Node, [HelperName, Params]).
 
 
 -spec space_logic_get_storages(od_space_id()) -> {ok, [op_worker_storage:id()]}.
