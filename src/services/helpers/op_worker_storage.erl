@@ -708,10 +708,10 @@ log_gathered_storage_configuration(Name, StorageType, Params) ->
     ),
     FormattedParams = lists:map(fun
         ({Key, Value}) when is_binary(Value) ->
-            str_utils:format_bin(<<"    ~s: ~s">>, [Key, Value]);
+            str_utils:format_bin("    ~s: ~s", [Key, Value]);
         ({Key, Value}) ->
-            str_utils:format_bin(<<"    ~s: ~p">>, [Key, Value])
+            str_utils:format_bin("    ~s: ~p", [Key, Value])
     end, maps:to_list(RedactedParams)),
     ?info("Gathered storage configuration for '~ts' (~ts) - parameters: ~n~s", [
-        Name, StorageType, str_utils:join_as_binaries(FormattedParams, str_utils:format_bin(<<"~n">>, []))
+        Name, StorageType, str_utils:join_as_binaries(FormattedParams, str_utils:format_bin("~n", []))
     ]).
