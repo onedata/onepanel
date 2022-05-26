@@ -81,14 +81,28 @@ add(#{name := Name, params := Params}) ->
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
 
-    Result = add(OpNode, StorageName, Params),
+    Result = try
+        add(OpNode, StorageName, StorageType, Params)
+    catch
+        _:{error, Reason} ->
+            {error, Reason};
+        Class:Reason ->
+            ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~p", [
+                StorageName, StorageType, Class, Reason
+            ]),
+            {error, storage_add_failed}
+    end,
 
     case Result of
-        ok -> ?info("Successfully added storage: \"~ts\" (~ts)",
-            [StorageName, StorageType]),
-            ok;
-        {error, Reason} ->
-            throw({error, Reason})
+        {ok, AddedStorageId} ->
+            ?notice("Successfully added storage '~ts' (~ts) with Id: '~ts'", [
+                StorageName, StorageType, AddedStorageId
+            ]);
+        {error, _} = Error ->
+            ?error("Failed to add storage '~ts' (~ts) due to ~p", [
+                StorageName, StorageType, Error
+            ]),
+            throw(Error)
     end.
 
 
@@ -321,12 +335,10 @@ can_be_removed(StorageId) ->
 %% Uses given OpNode for op_worker operations.
 %% @end
 %%--------------------------------------------------------------------
--spec add(OpNode :: node(), Name :: binary(), Params :: storage_params()) ->
-    ok | {error, Reason :: term()}.
-add(OpNode, Name, Params) ->
-    StorageType = onepanel_utils:get_converted(type, Params, binary),
-
-    ?info("Gathering storage configuration: \"~ts\" (~ts)", [Name, StorageType]),
+-spec add(OpNode :: node(), Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
+    {ok, op_worker_storage:id()} | {error, Reason :: term()}.
+add(OpNode, Name, StorageType, Params) ->
+    log_gathered_storage_configuration(Name, StorageType, Params),
 
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     Readonly = onepanel_utils:get_converted(readonly, StorageParams, boolean, false),
@@ -350,12 +362,15 @@ add(OpNode, Name, Params) ->
 
     SkipStorageDetection orelse verify_write_access(Helper, LumaFeed),
 
-    ?info("Adding storage: \"~ts\" (~ts)", [Name, StorageType]),
-    case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
-        Readonly,  normalize_numeric_qos_parameters(QosParameters)
-    ) of
-        {ok, _StorageId} -> ok;
-        {error, Reason} -> {error, Reason}
+    try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
+        _ ->
+            ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
+            op_worker_rpc:storage_create(
+                Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
+            )
+    catch
+        _ErrType:Error ->
+            Error
     end.
 
 
@@ -657,7 +672,7 @@ normalize_numeric_qos_parameters(QosParameters) ->
             json_utils:decode(Value)
         catch
             _:invalid_json -> Value
-        end 
+        end
     end, QosParameters).
 
 %% @private
@@ -679,3 +694,24 @@ join_scheme_and_hostname_args(Map) ->
     Scheme = maps:get(<<"scheme">>, Map),
     HostName = maps:get(<<"hostname">>, Map),
     maps:put(<<"hostname">>, str_utils:join_binary([Scheme, <<"://">>, HostName]), maps:remove(<<"scheme">>, Map)).
+
+
+%% @private
+-spec log_gathered_storage_configuration(Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
+    ok.
+log_gathered_storage_configuration(Name, StorageType, Params) ->
+    ParamsWithBinaryKeys = maps:fold(fun(AtomKey, Value, Acc) ->
+        Acc#{atom_to_binary(AtomKey, utf8) => Value}
+    end, #{}, Params),
+    RedactedParams = op_worker_rpc:redact_confidential_helper_params(
+        StorageType, maps:without([<<"type">>], ParamsWithBinaryKeys)
+    ),
+    FormattedParams = lists:map(fun
+        ({Key, Value}) when is_binary(Value) ->
+            str_utils:format_bin("    ~s: ~s", [Key, Value]);
+        ({Key, Value}) ->
+            str_utils:format_bin("    ~s: ~p", [Key, Value])
+    end, maps:to_list(RedactedParams)),
+    ?info("Gathered storage configuration for '~ts' (~ts) - parameters: ~n~s", [
+        Name, StorageType, str_utils:join_as_binaries(FormattedParams, str_utils:format_bin("~n", []))
+    ]).
