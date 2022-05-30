@@ -337,9 +337,8 @@ can_be_removed(StorageId) ->
 -spec add(OpNode :: node(), Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
     {ok, op_worker_storage:id()} | {error, Reason :: term()}.
 add(OpNode, Name, StorageType, Params) ->
-    ?info("Gathering storage configuration for '~ts' (~ts)~nParameters: ~p", [
-        Name, StorageType, maps:without([type], Params)
-    ]),
+    log_gathered_storage_configuration(Name, StorageType, Params),
+
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     Readonly = onepanel_utils:get_converted(readonly, StorageParams, boolean, false),
     % if skipStorageDetection is not defined, set it to the same value as Readonly
@@ -365,12 +364,9 @@ add(OpNode, Name, StorageType, Params) ->
     try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
         _ ->
             ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
-            case op_worker_rpc:storage_create(Name, Helper, LumaConfig, ImportedStorage,
-                Readonly, normalize_numeric_qos_parameters(QosParameters)
-            ) of
-                {ok, StorageId} -> {ok, StorageId};
-                {error, Reason} -> {error, Reason}
-            end
+            op_worker_rpc:storage_create(
+                Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
+            )
     catch
         _ErrType:Error ->
             Error
@@ -697,3 +693,24 @@ join_scheme_and_hostname_args(Map) ->
     Scheme = maps:get(<<"scheme">>, Map),
     HostName = maps:get(<<"hostname">>, Map),
     maps:put(<<"hostname">>, str_utils:join_binary([Scheme, <<"://">>, HostName]), maps:remove(<<"scheme">>, Map)).
+
+
+%% @private
+-spec log_gathered_storage_configuration(Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
+    ok.
+log_gathered_storage_configuration(Name, StorageType, Params) ->
+    ParamsWithBinaryKeys = maps_utils:map_key_value(fun(AtomKey, Value) ->
+        {atom_to_binary(AtomKey, utf8), Value}
+    end, Params),
+    RedactedParams = op_worker_rpc:redact_confidential_helper_params(
+        StorageType, maps:without([<<"type">>], ParamsWithBinaryKeys)
+    ),
+    FormattedParams = lists:map(fun
+        ({Key, Value}) when is_binary(Value) ->
+            str_utils:format_bin("    ~s: ~s", [Key, Value]);
+        ({Key, Value}) ->
+            str_utils:format_bin("    ~s: ~p", [Key, Value])
+    end, maps:to_list(RedactedParams)),
+    ?info("Gathered storage configuration for '~ts' (~ts) - parameters: ~n~s", [
+        Name, StorageType, str_utils:join_as_binaries(FormattedParams, str_utils:format_bin("~n", []))
+    ]).
