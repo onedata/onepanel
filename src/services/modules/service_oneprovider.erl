@@ -440,7 +440,9 @@ get_identity_token() ->
 
 -spec resolve_registration_token(service:step_ctx()) -> ok | no_return().
 resolve_registration_token(Ctx) ->
-    RegistrationToken = case kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>) of
+    TokenProvisionMethod = kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>),
+    ?info("Registration token provision method is set to '~s'", [TokenProvisionMethod]),
+    RegistrationToken = case TokenProvisionMethod of
         <<"inline">> ->
             case kv_utils:find(oneprovider_token, Ctx) of
                 {ok, Token} ->
@@ -473,10 +475,13 @@ resolve_registration_token(Ctx) ->
             end
     end,
 
+    OnezoneDomain = onezone_tokens:read_domain(RegistrationToken),
+    ?notice("Resolved a registration token issued by Onezone at ~s", [OnezoneDomain]),
+
     {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
         ServiceCtx#{
             oneprovider_token => RegistrationToken,
-            onezone_domain => onezone_tokens:read_domain(RegistrationToken)
+            onezone_domain => OnezoneDomain
         }
     end),
     ok.

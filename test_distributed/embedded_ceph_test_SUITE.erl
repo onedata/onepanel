@@ -321,7 +321,7 @@ init_per_suite(Config) ->
     MemRef = api_test_memory:init(),
     ConfigWithMemory = [{mem_ref, MemRef} | Config],
     oct_background:init_per_suite(ConfigWithMemory, #onenv_test_config{
-        onenv_scenario = "1op-3nodes"
+        onenv_scenario = "1op-3nodes-embedded-ceph"
     }).
 
 
