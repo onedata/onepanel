@@ -1,5 +1,5 @@
 # Name of the scenario to run
-scenario: "scenario-1oz-1op"
+scenario: "scenario-1oz-1op-embedded-ceph"
 
 # Path or list of paths in which look for sources (can be either relative to
 # cwd or absolute path)
