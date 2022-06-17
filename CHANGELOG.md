@@ -4,6 +4,12 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.17
+
+-   **VFS-9415** Improved display of sensitive storage config details in
+    Onepanel GUI to show censored values instead of hiding them
+    completely.
+
 ### 20.02.16
 
 -   **VFS-8704** Web GUI: Introduced more formatting-related functions
