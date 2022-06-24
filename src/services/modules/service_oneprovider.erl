@@ -670,8 +670,12 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     assert_storage_exists(Node, StorageId),
     SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
     Token = onepanel_utils:get_converted(token, Ctx, binary),
+    SupportOpts = #{
+        accounting_enabled => maps:get(accounting_enabled, Ctx),
+        dir_stats_enabled => maps:get(dir_stats_enabled, Ctx)
+    },
 
-    case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
+    case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportOpts) of
         {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
         Error -> throw(Error)
     end.
@@ -721,6 +725,8 @@ get_space_details(#{id := SpaceId}) ->
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
     StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
+    {ok, SupportOpts} = op_worker_rpc:get_space_support_opts(Node, SpaceId),
+
     maps_utils:remove_undefined(#{
         id => SpaceId,
         importedStorage => ImportedStorage,
@@ -729,7 +735,9 @@ get_space_details(#{id := SpaceId}) ->
         spaceOccupancy => CurrentSize,
         storageId => StorageId,
         storageImport => StorageImportDetails,
-        supportingProviders => Providers
+        supportingProviders => Providers,
+        accountingEnabled => maps:get(accounting_enabled, SupportOpts),
+        dirStatsEnabled => maps:get(dir_stats_enabled, SupportOpts)
     }).
 
 
@@ -743,6 +751,12 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
     AutoStorageImportConfig = maps:get(auto_storage_import_config, Ctx, #{}),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
     op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig),
+
+    update_support_opts(Node, SpaceId, maps_utils:remove_undefined(#{
+        accounting_enabled => maps:get(accounting_enabled, Ctx, undefined),
+        dir_stats_enabled => maps:get(dir_stats_enabled, Ctx, undefined)
+    })),
+
     #{id => SpaceId}.
 
 
@@ -758,6 +772,19 @@ maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
     end;
 
 maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
+
+
+%% @private
+-spec update_support_opts(node(), op_worker_rpc:od_space_id(), #{atom() => boolean()}) ->
+    ok | no_return().
+update_support_opts(OpNode, SpaceId, SupportOpts) when map_size(SupportOpts) > 0 ->
+    case op_worker_rpc:update_space_support_opts(OpNode, SpaceId, SupportOpts) of
+        ok -> ok;
+        Error -> throw(Error)
+    end;
+
+update_support_opts(_OpNode, _SpaceId, _SupportOpts) ->
+    ok.
 
 
 -spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> json_utils:json_term().

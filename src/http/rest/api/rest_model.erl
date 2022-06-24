@@ -1515,7 +1515,9 @@ space_details_model() ->
         supportingProviders => #{'_' => integer},
         storageImport => {storage_import_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
-        spaceOccupancy => integer
+        spaceOccupancy => integer,
+        accountingEnabled => boolean,
+        dirStatsEnabled => boolean
     }.
 
 %%--------------------------------------------------------------------
@@ -1550,7 +1552,9 @@ space_modify_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => {integer, optional},
-        autoStorageImportConfig => {auto_storage_import_config_model(), optional}
+        autoStorageImportConfig => {auto_storage_import_config_model(), optional},
+        accountingEnabled => {boolean, optional},
+        dirStatsEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1568,7 +1572,9 @@ space_support_request_model() ->
         size => integer,
         %% The Id of the storage resource where the space data should be stored.
         storageId => string,
-        storageImport => {storage_import_model(), optional}
+        storageImport => {storage_import_model(), optional},
+        accountingEnabled => {boolean, {optional, false}},
+        dirStatsEnabled => {boolean, {optional, false}}
     }.
 
 %%--------------------------------------------------------------------

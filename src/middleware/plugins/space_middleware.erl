@@ -124,8 +124,22 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = {As, _}}}, _) when
 validate(#onp_req{operation = get, gri = #gri{aspect = auto_storage_import_stats}, data = Data}, _) ->
     validate_period(Data),
     validate_metrics(Data);
-validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
+
+validate(#onp_req{operation = Op, gri = #gri{aspect = As}, data = Data}, _) when
     Op == create, As == support;
+    Op == update, As == support
+->
+    case Data of
+        #{accountingEnabled := true, dirStatsEnabled := false} ->
+            throw(?ERROR_BAD_DATA(
+                <<"dirStatsEnabled">>,
+                <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
+            ));
+        _ ->
+            ok
+    end;
+
+validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
     Op == create, As == force_start_auto_storage_import_scan;
@@ -141,7 +155,6 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == get, As == auto_storage_import_info;
     Op == get, As == manual_storage_import_example;
 
-    Op == update, As == support;
     Op == update, As == auto_cleaning_configuration;
     Op == update, As == file_popularity_configuration;
 
@@ -156,7 +169,10 @@ create(#onp_req{gri = #gri{aspect = support} = GRI, data = Data}) ->
         {token, token},
         {size, size},
         {storageId, storage_id},
-        {importedStorage, imported_storage}], Data),
+        {importedStorage, imported_storage},
+        {accountingEnabled, accounting_enabled},
+        {dirStatsEnabled, dir_stats_enabled}
+    ], Data),
     Ctx2 = get_storage_import_args(Data, Ctx),
 
     SpaceId = middleware_utils:result_from_service_action(
@@ -241,8 +257,12 @@ get(#onp_req{gri = #gri{id = SpaceId, aspect = manual_storage_import_example}}, 
 
 -spec update(middleware:req()) -> middleware:update_result().
 update(#onp_req{gri = #gri{id = Id, aspect = support}, data = Data}) ->
-    Ctx1 = maps:with([size, space_id] , Data#{space_id => Id}),
-    Ctx2 = get_auto_storage_import_args(Data, Ctx1),
+    Ctx1 = kv_utils:copy_found([
+        {size, size},
+        {accountingEnabled, accounting_enabled},
+        {dirStatsEnabled, dir_stats_enabled}
+    ], Data),
+    Ctx2 = get_auto_storage_import_args(Data, Ctx1#{space_id => Id}),
     middleware_utils:execute_service_action(?SERVICE_OP, modify_space, Ctx2);
 
 update(#onp_req{gri = #gri{id = Id, aspect = auto_cleaning_configuration}, data = Data}) ->

@@ -136,17 +136,19 @@
 -export([on_deregister/0, on_deregister/1]).
 -export([get_op_worker_version/0, get_op_worker_version/1]).
 -export([provider_logic_update/1, provider_logic_update/2]).
--export([support_space/3, support_space/4]).
+-export([support_space/4, support_space/5]).
 -export([revoke_space_support/1, revoke_space_support/2]).
 -export([get_spaces/0, get_spaces/1]).
 -export([supports_space/1, supports_space/2]).
 -export([get_space_details/1, get_space_details/2]).
+-export([get_space_support_opts/2]).
 -export([get_provider_details/0, get_provider_details/1]).
 -export([is_subdomain_delegated/0, is_subdomain_delegated/1]).
 -export([set_delegated_subdomain/1, set_delegated_subdomain/2]).
 -export([set_domain/1, set_domain/2]).
 -export([space_quota_current_size/1, space_quota_current_size/2]).
 -export([update_space_support_size/2, update_space_support_size/3]).
+-export([update_space_support_opts/3]).
 -export([update_subdomain_delegation_ips/0, update_subdomain_delegation_ips/1]).
 -export([force_oz_connection_start/0, force_oz_connection_start/1]).
 -export([provider_auth_save/2, provider_auth_save/3]).
@@ -730,15 +732,26 @@ provider_logic_update(Node, Data) ->
     ?CALL(Node, [Data]).
 
 
--spec support_space(storage_id(), tokens:serialized(), SupportSize :: integer()) ->
+-spec support_space(
+    storage_id(),
+    tokens:serialized(),
+    SupportSize :: integer(),
+    #{atom() => boolean()}
+) ->
     {ok, od_space_id()} | errors:error().
-support_space(StorageId, Token, SupportSize) ->
-    ?CALL([StorageId, Token, SupportSize]).
+support_space(StorageId, Token, SupportSize, SupportOpts) ->
+    ?CALL([StorageId, Token, SupportSize, SupportOpts]).
 
--spec support_space(node(), storage_id(), tokens:serialized(), SupportSize :: integer()) ->
+-spec support_space(
+    node(),
+    storage_id(),
+    tokens:serialized(),
+    SupportSize :: integer(),
+    #{atom() => boolean()}
+) ->
     {ok, od_space_id()} | errors:error().
-support_space(Node, StorageId, Token, SupportSize) ->
-    ?CALL(Node, [StorageId, Token, SupportSize]).
+support_space(Node, StorageId, Token, SupportSize, SupportOpts) ->
+    ?CALL(Node, [StorageId, Token, SupportSize, SupportOpts]).
 
 
 -spec revoke_space_support(od_space_id()) -> ok | {error, term()}.
@@ -776,6 +789,12 @@ get_space_details(SpaceId) ->
 -spec get_space_details(node(), od_space_id()) ->
     {ok, #{atom() := term()}} | {error, term()}.
 get_space_details(Node, SpaceId) ->
+    ?CALL(Node, [SpaceId]).
+
+
+-spec get_space_support_opts(node(), od_space_id()) ->
+    {ok, #{atom() := boolean()}} | {error, term()}.
+get_space_support_opts(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
@@ -843,6 +862,12 @@ update_space_support_size(SpaceId, NewSupportSize) ->
     ok | errors:error().
 update_space_support_size(Node, SpaceId, NewSupportSize) ->
     ?CALL(Node, [SpaceId, NewSupportSize]).
+
+
+-spec update_space_support_opts(node(), od_space_id(), #{atom() => boolean()}) ->
+    ok | errors:error().
+update_space_support_opts(Node, SpaceId, SupportOpts) ->
+    ?CALL(Node, [SpaceId, SupportOpts]).
 
 
 -spec update_subdomain_delegation_ips() -> ok | error.
