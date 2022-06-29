@@ -737,7 +737,8 @@ get_space_details(#{id := SpaceId}) ->
         storageImport => StorageImportDetails,
         supportingProviders => Providers,
         accountingEnabled => maps:get(accounting_enabled, SupportOpts),
-        dirStatsEnabled => maps:get(dir_stats_enabled, SupportOpts)
+        dirStatsEnabled => maps:get(dir_stats_enabled, SupportOpts),
+        dirStatsCollectingStatus => op_worker_rpc:get_space_dir_stats_collecting_status(Node, SpaceId)
     }).
 
 

@@ -1517,7 +1517,8 @@ space_details_model() ->
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer,
         accountingEnabled => boolean,
-        dirStatsEnabled => boolean
+        dirStatsEnabled => boolean,
+        dirStatsCollectingStatus => string
     }.
 
 %%--------------------------------------------------------------------

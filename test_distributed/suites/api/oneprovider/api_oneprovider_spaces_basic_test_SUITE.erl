@@ -120,9 +120,10 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
 
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
     SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize),
-    ExpResult = get_expected_space_details(
+    ExpResult0 = get_expected_space_details(
         SpaceId, SpaceName, StorageId, SupportSize, false, false
     ),
+    ExpResult1 = ExpResult0#{<<"dirStatsCollectingStatus">> => <<"disabled">>},
 
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
@@ -143,7 +144,7 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
             },
             prepare_args_fun = build_get_space_details_prepare_rest_args_fun(SpaceId),
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                ?assertEqual(ExpResult, RespBody)
+                ?assertEqual(ExpResult1, RespBody)
             end),
 
             data_spec = build_get_space_details_data_spec(OpWorkerNodes)
