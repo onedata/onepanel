@@ -6,7 +6,7 @@
  {<<"certifi">>,{pkg,<<"certifi">>,<<"2.6.1">>},2},
  {<<"compatibility_reference">>,
   {raw,"ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git",
-       {mod_ref,git,{ref,"0fd8385d8de68b8d755bd815fa798cce77fd3c56"},[]}},
+       {mod_ref,git,{ref,"bd14322ab9cb0b1bc9763e41f2ef8e29fa436574"},[]}},
   0},
  {<<"cowboy">>,
   {git,"git://github.com/ninenines/cowboy.git",
