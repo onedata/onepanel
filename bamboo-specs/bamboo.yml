@@ -85,6 +85,20 @@ stages:
 Build:
   key: JOB1
   tasks:
+  - script:
+      interpreter: SHELL
+      scripts:
+      - |-
+        if [ ${bamboo_planRepository_branch} != "develop" ]; then
+          if [ -z ${bamboo_ManualBuildTriggerReason_userName+x} ]; then
+            echo "========================================================================================="
+            echo "CAUTION: This branch (${bamboo_planRepository_branch}) should be run manually!"
+            echo "Otherwise, if build is triggered by a new commit, it fails."
+            echo "========================================================================================="
+            exit 1;
+          fi
+        fi
+      description: Trigger check    
   - checkout:
       path: onepanel
       force-clean-build: 'true'
