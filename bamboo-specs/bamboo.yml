@@ -93,7 +93,7 @@ Build:
           if [ -z ${bamboo_ManualBuildTriggerReason_userName+x} ]; then
             echo "========================================================================================="
             echo "CAUTION: This branch (${bamboo_planRepository_branch}) should be run manually!"
-            echo "Otherwise, if build is triggered by a new commit, it fails."
+            echo "Otherwise (if build is triggered by a new commit) it fails."
             echo "========================================================================================="
             exit 1;
           fi
