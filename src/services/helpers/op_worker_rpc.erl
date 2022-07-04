@@ -142,7 +142,7 @@
 -export([supports_space/1, supports_space/2]).
 -export([get_space_details/1, get_space_details/2]).
 -export([get_space_support_opts/2]).
--export([get_space_dir_stats_collecting_status/2]).
+-export([get_space_dir_stats_service_status/2]).
 -export([get_provider_details/0, get_provider_details/1]).
 -export([is_subdomain_delegated/0, is_subdomain_delegated/1]).
 -export([set_delegated_subdomain/1, set_delegated_subdomain/2]).
@@ -799,9 +799,9 @@ get_space_support_opts(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec get_space_dir_stats_collecting_status(node(), od_space_id()) ->
+-spec get_space_dir_stats_service_status(node(), od_space_id()) ->
     atom().
-get_space_dir_stats_collecting_status(Node, SpaceId) ->
+get_space_dir_stats_service_status(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 

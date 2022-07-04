@@ -1517,8 +1517,8 @@ space_details_model() ->
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer,
         accountingEnabled => boolean,
-        dirStatsEnabled => boolean,
-        dirStatsCollectingStatus => string
+        dirStatsServiceEnabled => boolean,
+        dirStatsServiceStatus => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1555,7 +1555,7 @@ space_modify_request_model() ->
         size => {integer, optional},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional},
         accountingEnabled => {boolean, optional},
-        dirStatsEnabled => {boolean, optional}
+        dirStatsServiceEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1575,7 +1575,7 @@ space_support_request_model() ->
         storageId => string,
         storageImport => {storage_import_model(), optional},
         accountingEnabled => {boolean, {optional, false}},
-        dirStatsEnabled => {boolean, {optional, false}}
+        dirStatsServiceEnabled => {boolean, {optional, false}}
     }.
 
 %%--------------------------------------------------------------------

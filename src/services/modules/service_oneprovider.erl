@@ -672,7 +672,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     Token = onepanel_utils:get_converted(token, Ctx, binary),
     SupportOpts = #{
         accounting_enabled => maps:get(accounting_enabled, Ctx),
-        dir_stats_enabled => maps:get(dir_stats_enabled, Ctx)
+        dir_stats_service_enabled => maps:get(dir_stats_service_enabled, Ctx)
     },
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportOpts) of
@@ -737,8 +737,8 @@ get_space_details(#{id := SpaceId}) ->
         storageImport => StorageImportDetails,
         supportingProviders => Providers,
         accountingEnabled => maps:get(accounting_enabled, SupportOpts),
-        dirStatsEnabled => maps:get(dir_stats_enabled, SupportOpts),
-        dirStatsCollectingStatus => op_worker_rpc:get_space_dir_stats_collecting_status(Node, SpaceId)
+        dirStatsServiceEnabled => maps:get(dir_stats_service_enabled, SupportOpts),
+        dirStatsServiceStatus => op_worker_rpc:get_space_dir_stats_service_status(Node, SpaceId)
     }).
 
 
@@ -755,7 +755,7 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
 
     update_support_opts(Node, SpaceId, maps_utils:remove_undefined(#{
         accounting_enabled => maps:get(accounting_enabled, Ctx, undefined),
-        dir_stats_enabled => maps:get(dir_stats_enabled, Ctx, undefined)
+        dir_stats_service_enabled => maps:get(dir_stats_service_enabled, Ctx, undefined)
     })),
 
     #{id => SpaceId}.

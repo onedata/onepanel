@@ -127,12 +127,15 @@ validate(#onp_req{operation = get, gri = #gri{aspect = auto_storage_import_stats
 
 validate(#onp_req{operation = Op, gri = #gri{aspect = As}, data = Data}, _) when
     Op == create, As == support;
+    % in case of update, below check can quickly refuse obvious bad requests
+    % but is not sufficient protection against possible concurrent update races.
+    % Analogous check must be made when updating document directly in op.
     Op == update, As == support
 ->
     case Data of
-        #{accountingEnabled := true, dirStatsEnabled := false} ->
+        #{accountingEnabled := true, dirStatsServiceEnabled := false} ->
             throw(?ERROR_BAD_DATA(
-                <<"dirStatsEnabled">>,
+                <<"dirStatsServiceEnabled">>,
                 <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
             ));
         _ ->
@@ -171,7 +174,7 @@ create(#onp_req{gri = #gri{aspect = support} = GRI, data = Data}) ->
         {storageId, storage_id},
         {importedStorage, imported_storage},
         {accountingEnabled, accounting_enabled},
-        {dirStatsEnabled, dir_stats_enabled}
+        {dirStatsServiceEnabled, dir_stats_service_enabled}
     ], Data),
     Ctx2 = get_storage_import_args(Data, Ctx),
 
@@ -260,7 +263,7 @@ update(#onp_req{gri = #gri{id = Id, aspect = support}, data = Data}) ->
     Ctx1 = kv_utils:copy_found([
         {size, size},
         {accountingEnabled, accounting_enabled},
-        {dirStatsEnabled, dir_stats_enabled}
+        {dirStatsServiceEnabled, dir_stats_service_enabled}
     ], Data),
     Ctx2 = get_auto_storage_import_args(Data, Ctx1#{space_id => Id}),
     middleware_utils:execute_service_action(?SERVICE_OP, modify_space, Ctx2);
