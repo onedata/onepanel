@@ -6,9 +6,6 @@ CHANGELOG
 
 ### 21.02.0-alpha26
 
--   **VFS-9415** Improved display of sensitive storage config details in
-    Onepanel GUI to show censored values instead of hiding them
-    completely.
 -   **VFS-9207** Web GUI: Enforced loading fonts from server to avoid
     incorrect local fonts in browser.
 -   **VFS-9083** Fix typo in NFS storage definition in onepanel REST
