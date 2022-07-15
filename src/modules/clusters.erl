@@ -346,8 +346,8 @@ get_members_count({rpc, Auth}, UsersOrGroups, DirectOrEffective) ->
 %% @private
 -spec create_invite_token_for_admin(rest_handler:zone_credentials()) ->
     {ok, tokens:serialized()} | {error, _}.
-create_invite_token_for_admin({rpc, Auth}) ->
-    case oz_worker_rpc:cluster_logic_create_invite_token_for_admin(Auth, get_id()) of
+create_invite_token_for_admin({rpc, ?ROOT}) ->
+    case oz_worker_rpc:cluster_logic_create_invite_token_to_onezone_for_admin() of
         {ok, Token} -> tokens:serialize(Token);
         Error -> Error
     end;
