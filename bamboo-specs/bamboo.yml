@@ -98,7 +98,7 @@ Build:
             exit 1;
           fi
         fi
-      description: Trigger check    
+      description: Trigger check
   - checkout:
       path: onepanel
       force-clean-build: 'true'
