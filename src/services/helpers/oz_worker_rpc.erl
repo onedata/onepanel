@@ -283,6 +283,9 @@ cluster_logic_get_eff_groups(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
+% @TODO VFS-9647 Support direct addition of arbitrary users to Onezone
+% cluster when Entity management GUI in Onezone panel is implemented
+% (this mechanism will be then obsolete)
 -spec cluster_logic_create_invite_token_to_onezone_for_admin() ->
     {ok, tokens:token()} | {error, term()}.
 cluster_logic_create_invite_token_to_onezone_for_admin() ->
