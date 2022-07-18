@@ -71,7 +71,7 @@
 -export([get_eff_clusters_by_user_auth/1, get_eff_clusters_by_user_auth/2]).
 -export([cluster_logic_get_users/2, cluster_logic_get_eff_users/2]).
 -export([cluster_logic_get_groups/2, cluster_logic_get_eff_groups/2]).
--export([cluster_logic_create_invite_token_for_admin/2]).
+-export([cluster_logic_create_invite_token_to_onezone_for_admin/0]).
 -export([reconcile_dns_config/0, reconcile_dns_config/1]).
 -export([dns_config_get_ns_hosts/0, dns_config_get_ns_hosts/1]).
 -export([gui_message_exists/1, gui_message_exists/2]).
@@ -283,10 +283,13 @@ cluster_logic_get_eff_groups(Auth, ClusterId) ->
     ?CALL([Auth, ClusterId]).
 
 
--spec cluster_logic_create_invite_token_for_admin(aai:auth(), od_cluster_id()) ->
+% @TODO VFS-9647 Support direct addition of arbitrary users to Onezone
+% cluster when Entity management GUI in Onezone panel is implemented
+% (this mechanism will be then obsolete)
+-spec cluster_logic_create_invite_token_to_onezone_for_admin() ->
     {ok, tokens:token()} | {error, term()}.
-cluster_logic_create_invite_token_for_admin(Auth, ClusterId) ->
-    ?CALL([Auth, ClusterId]).
+cluster_logic_create_invite_token_to_onezone_for_admin() ->
+    ?CALL([]).
 
 
 -spec reconcile_dns_config() -> ok.
