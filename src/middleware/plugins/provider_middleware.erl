@@ -27,6 +27,7 @@
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([operation_supported/3, required_availability/3, fetch_entity/1,
@@ -197,6 +198,9 @@ create(#onp_req{gri = #gri{aspect = instance}, data = Data}) ->
     middleware_utils:execute_service_action(?SERVICE_OP, register, Ctx);
 
 create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
+    ?notice("Received cluster configuration request with the following batch config:~n~p", [
+        Data
+    ]),
     DbHosts = middleware_utils:get_hosts([cluster, databases, nodes], Data),
     CmHosts = middleware_utils:get_hosts([cluster, managers, nodes], Data),
     [MainCmHost] = middleware_utils:get_hosts([cluster, managers, mainNode], Data),
