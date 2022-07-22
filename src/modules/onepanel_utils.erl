@@ -115,7 +115,7 @@ wait_until(Module, Function, Args, Expected, Attempts, Delay) ->
 %%--------------------------------------------------------------------
 -spec gen_uuid() -> uuid().
 gen_uuid() ->
-    http_utils:base64url_encode(crypto:strong_rand_bytes(?UUID_LEN)).
+    str_utils:rand_hex(?UUID_LEN div 2).
 
 
 %%--------------------------------------------------------------------
