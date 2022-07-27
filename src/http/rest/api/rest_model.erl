@@ -1574,8 +1574,8 @@ space_support_request_model() ->
         %% The Id of the storage resource where the space data should be stored.
         storageId => string,
         storageImport => {storage_import_model(), optional},
-        accountingEnabled => {boolean, {optional, false}},
-        dirStatsServiceEnabled => {boolean, {optional, false}}
+        accountingEnabled => {boolean, optional},
+        dirStatsServiceEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------

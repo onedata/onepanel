@@ -125,28 +125,12 @@ validate(#onp_req{operation = get, gri = #gri{aspect = auto_storage_import_stats
     validate_period(Data),
     validate_metrics(Data);
 
-validate(#onp_req{operation = Op, gri = #gri{aspect = As}, data = Data}, _) when
-    Op == create, As == support;
-    % in case of update, below check can quickly refuse obvious bad requests
-    % but is not sufficient protection against possible concurrent update races.
-    % Analogous check must be made when updating document directly in op.
-    Op == update, As == support
-->
-    case Data of
-        #{accountingEnabled := true, dirStatsServiceEnabled := false} ->
-            throw(?ERROR_BAD_DATA(
-                <<"dirStatsServiceEnabled">>,
-                <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
-            ));
-        _ ->
-            ok
-    end;
-
 validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
     Op == create, As == start_auto_cleaning;
     Op == create, As == cancel_auto_cleaning;
     Op == create, As == force_start_auto_storage_import_scan;
     Op == create, As == force_stop_auto_storage_import_scan;
+    Op == create, As == support;
 
     Op == get, As == instance;
     Op == get, As == list;
@@ -160,6 +144,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = As}}, _) when
 
     Op == update, As == auto_cleaning_configuration;
     Op == update, As == file_popularity_configuration;
+    Op == update, As == support;
 
     Op == delete, As == support
 ->

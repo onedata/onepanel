@@ -17,6 +17,7 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/headers.hrl").
+-include_lib("ctool/include/space_support/support_parameters.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -551,7 +552,7 @@ get_space_details_with_rpc(SpaceId) ->
     [StorageId] = opw_test_rpc:get_space_local_storages(krakow, SpaceId),
     IsImportedStorage = opw_test_rpc:is_storage_imported(krakow, StorageId),
     AutocleaningStatus = opw_test_rpc:get_autocleaning_status(krakow, SpaceId),
-    SpaceSupportOpts = opw_test_rpc:get_space_support_opts(krakow, SpaceId),
+    SpaceSupportParameters = opw_test_rpc:get_space_support_parameters(krakow, SpaceId),
 
     #{
         <<"id">> => SpaceId,
@@ -561,8 +562,8 @@ get_space_details_with_rpc(SpaceId) ->
         <<"supportingProviders">> => maps:get(providers, SpaceDoc),
         <<"importedStorage">> => IsImportedStorage,
         <<"spaceOccupancy">> => maps:get(spaceOccupancy, AutocleaningStatus),
-        <<"accountingEnabled">> => maps:get(accounting_enabled, SpaceSupportOpts),
-        <<"dirStatsServiceEnabled">> => maps:get(dir_stats_service_enabled, SpaceSupportOpts)
+        <<"accountingEnabled">> => SpaceSupportParameters#support_parameters.accounting_enabled,
+        <<"dirStatsServiceEnabled">> => SpaceSupportParameters#support_parameters.dir_stats_service_enabled
     }.
 
 
