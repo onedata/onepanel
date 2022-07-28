@@ -46,7 +46,7 @@ get-deps: config
 
 .PHONY: upgrade
 upgrade: config
-	$(REBAR) upgrade
+	$(REBAR) upgrade --all
 
 .PHONY: compile
 compile: config
