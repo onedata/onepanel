@@ -60,6 +60,12 @@ all() -> [
 ].
 
 
+-define(ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, ?ERROR_BAD_DATA(
+    <<"dirStatsServiceEnabled">>,
+    <<"Dir stats service must be enabled if accounting is enabled">>
+)).
+
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -243,9 +249,8 @@ build_support_space_data_spec(StorageId, OpWorkerNodes) ->
             {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
             {<<"storageId">>, <<"inexistientStorageId">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>), HostNames)},
             {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
-            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_BAD_DATA(
-                <<"dirStatsServiceEnabled">>,
-                <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+                ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)}
         ]
@@ -373,9 +378,8 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
             {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
             {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
             {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
-            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_BAD_DATA(
-                <<"dirStatsServiceEnabled">>,
-                <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+                ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
             {bad_id, <<"inexistentSpaceId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
