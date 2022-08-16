@@ -26,10 +26,10 @@
 -include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
+-include_lib("ctool/include/space_support/support_parameters.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
-
 -include("http/rest.hrl").
 
 -define(DETAILS_PERSISTENCE, provider_details).
@@ -670,12 +670,12 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     assert_storage_exists(Node, StorageId),
     SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
     Token = onepanel_utils:get_converted(token, Ctx, binary),
-    SupportOpts = #{
-        accounting_enabled => maps:get(accounting_enabled, Ctx),
-        dir_stats_service_enabled => maps:get(dir_stats_service_enabled, Ctx)
+    SupportParameters = #support_parameters{
+        accounting_enabled = maps:get(accounting_enabled, Ctx, undefined),
+        dir_stats_service_enabled = maps:get(dir_stats_service_enabled, Ctx, undefined)
     },
 
-    case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportOpts) of
+    case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportParameters) of
         {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
         Error -> throw(Error)
     end.
@@ -725,7 +725,7 @@ get_space_details(#{id := SpaceId}) ->
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
     StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
-    {ok, SupportOpts} = op_worker_rpc:get_space_support_opts(Node, SpaceId),
+    {ok, SupportParameters} = op_worker_rpc:get_space_support_parameters(Node, SpaceId),
 
     maps_utils:remove_undefined(#{
         id => SpaceId,
@@ -736,9 +736,11 @@ get_space_details(#{id := SpaceId}) ->
         storageId => StorageId,
         storageImport => StorageImportDetails,
         supportingProviders => Providers,
-        accountingEnabled => maps:get(accounting_enabled, SupportOpts),
-        dirStatsServiceEnabled => maps:get(dir_stats_service_enabled, SupportOpts),
-        dirStatsServiceStatus => op_worker_rpc:get_space_dir_stats_service_status(Node, SpaceId)
+        accountingEnabled => SupportParameters#support_parameters.accounting_enabled,
+        dirStatsServiceEnabled => SupportParameters#support_parameters.dir_stats_service_enabled,
+        dirStatsServiceStatus => str_utils:to_binary(
+            SupportParameters#support_parameters.dir_stats_service_status
+        )
     }).
 
 
@@ -753,10 +755,10 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
     op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig),
 
-    update_support_opts(Node, SpaceId, maps_utils:remove_undefined(#{
-        accounting_enabled => maps:get(accounting_enabled, Ctx, undefined),
-        dir_stats_service_enabled => maps:get(dir_stats_service_enabled, Ctx, undefined)
-    })),
+    maybe_update_support_parameters(Node, SpaceId, #support_parameters{
+        accounting_enabled = maps:get(accounting_enabled, Ctx, undefined),
+        dir_stats_service_enabled = maps:get(dir_stats_service_enabled, Ctx, undefined)
+    }),
 
     #{id => SpaceId}.
 
@@ -776,16 +778,23 @@ maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
 
 
 %% @private
--spec update_support_opts(node(), op_worker_rpc:od_space_id(), #{atom() => boolean()}) ->
+-spec maybe_update_support_parameters(
+    node(),
+    op_worker_rpc:od_space_id(),
+    support_parameters:record()
+) ->
     ok | no_return().
-update_support_opts(OpNode, SpaceId, SupportOpts) when map_size(SupportOpts) > 0 ->
-    case op_worker_rpc:update_space_support_opts(OpNode, SpaceId, SupportOpts) of
+maybe_update_support_parameters(_OpNode, _SpaceId, #support_parameters{
+    accounting_enabled = undefined,
+    dir_stats_service_enabled = undefined
+}) ->
+    ok;
+
+maybe_update_support_parameters(OpNode, SpaceId, SupportParameters) ->
+    case op_worker_rpc:update_space_support_parameters(OpNode, SpaceId, SupportParameters) of
         ok -> ok;
         Error -> throw(Error)
-    end;
-
-update_support_opts(_OpNode, _SpaceId, _SupportOpts) ->
-    ok.
+    end.
 
 
 -spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> json_utils:json_term().
