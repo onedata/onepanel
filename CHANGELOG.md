@@ -4,6 +4,14 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha27
+
+-   **VFS-9637** Web GUI: Improved and unified look of audit log
+    browsers.
+-   **VFS-9418** Added accountingEnabled and dirStatsServiceEnabled
+    settings for space support.
+-   **VFS-8903** Web GUI: Upgraded EmberJS to v3.4.
+
 ### 21.02.0-alpha26
 
 -   **VFS-9207** Web GUI: Enforced loading fonts from server to avoid
