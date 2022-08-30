@@ -105,7 +105,7 @@ get_nodes() ->
 get_steps(add_nodes, #{new_hosts := NewHosts} = Ctx) ->
     case get_hosts() of
         [] ->
-            {ok, Ctx2} = kv_utils:rename_entry(new_hosts, hosts, Ctx),
+            {ok, Ctx2} = kv_utils:move(new_hosts, hosts, Ctx),
             [#steps{action = deploy, ctx = Ctx2}];
         [ExistingHost | _] ->
             Ctx2 = Ctx#{name => name(), reference_host => ExistingHost},
