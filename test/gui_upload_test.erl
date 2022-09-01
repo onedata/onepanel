@@ -58,7 +58,7 @@ existing_gui_is_not_uploaded() ->
 
 prepare() ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
 
     meck:new([https_listener, gui, onepanel_app, clusters], [passthrough]),
     meck:expect(onepanel, get_build_and_version, fun() -> {"build", "release"} end),

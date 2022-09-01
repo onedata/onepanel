@@ -134,7 +134,7 @@ sed(Pattern, Replacement, Path) ->
 %%--------------------------------------------------------------------
 -spec mktemp() -> Path :: string().
 mktemp() ->
-    lib:nonl(os:cmd("mktemp")).
+    string:trim(os:cmd("mktemp")).
 
 
 %%--------------------------------------------------------------------

@@ -50,7 +50,7 @@
     emergency_passphrase_change_request_model/0,
     emergency_passphrase_status_model/0,
     error_model/0,
-    error_error_model/0,
+    error_details_model/0,
     gui_message_model/0,
     host_model/0,
     host_add_request_model/0,
@@ -103,6 +103,7 @@
     space_support_request_model/0,
     storage_create_details_model/0,
     storage_create_request_model/0,
+    storage_create_response_model/0,
     storage_get_details_model/0,
     storage_import_model/0,
     storage_modify_details_model/0,
@@ -132,19 +133,22 @@
     cephrados_model/0,
     cephrados_credentials_model/0,
     cephrados_modify_model/0,
+    embeddedceph_model/0,
+    embeddedceph_modify_model/0,
     glusterfs_model/0,
     glusterfs_credentials_model/0,
     glusterfs_modify_model/0,
     http_model/0,
     http_credentials_model/0,
     http_modify_model/0,
-    localceph_model/0,
-    localceph_modify_model/0,
     loopdevice_model/0,
     luma_idp_entitlement_scheme_model/0,
     luma_idp_user_scheme_model/0,
     luma_onedata_group_scheme_model/0,
     luma_onedata_user_scheme_model/0,
+    nfs_model/0,
+    nfs_credentials_model/0,
+    nfs_modify_model/0,
     nulldevice_model/0,
     nulldevice_credentials_model/0,
     nulldevice_modify_model/0,
@@ -695,15 +699,15 @@ emergency_passphrase_status_model() ->
 -spec error_model() -> onepanel_parser:object_spec().
 error_model() ->
     #{
-        error => {error_error_model(), optional}
+        error => error_details_model()
     }.
 
 %%--------------------------------------------------------------------
 %% @doc Object describing an error.
 %% @end
 %%--------------------------------------------------------------------
--spec error_error_model() -> onepanel_parser:object_spec().
-error_error_model() ->
+-spec error_details_model() -> onepanel_parser:object_spec().
+error_details_model() ->
     #{
         %% String identifying the error type. Does not change between error
         %% instances.
@@ -823,7 +827,7 @@ luma_onedata_user_model() ->
 %%--------------------------------------------------------------------
 -spec luma_storage_credentials_model() -> onepanel_parser:multi_spec().
 luma_storage_credentials_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model(), xrootd_credentials_model(), http_credentials_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_credentials_model(), s3_credentials_model(), ceph_credentials_model(), cephrados_credentials_model(), swift_credentials_model(), glusterfs_credentials_model(), nulldevice_credentials_model(), webdav_credentials_model(), xrootd_credentials_model(), nfs_credentials_model(), http_credentials_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Credentials identifying user on the local storage resources.
@@ -1511,7 +1515,10 @@ space_details_model() ->
         supportingProviders => #{'_' => integer},
         storageImport => {storage_import_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
-        spaceOccupancy => integer
+        spaceOccupancy => integer,
+        accountingEnabled => boolean,
+        dirStatsServiceEnabled => boolean,
+        dirStatsServiceStatus => string
     }.
 
 %%--------------------------------------------------------------------
@@ -1546,7 +1553,9 @@ space_modify_request_model() ->
         %% The storage space size in bytes that provider is willing to assign to
         %% the space.
         size => {integer, optional},
-        autoStorageImportConfig => {auto_storage_import_config_model(), optional}
+        autoStorageImportConfig => {auto_storage_import_config_model(), optional},
+        accountingEnabled => {boolean, optional},
+        dirStatsServiceEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1564,7 +1573,9 @@ space_support_request_model() ->
         size => integer,
         %% The Id of the storage resource where the space data should be stored.
         storageId => string,
-        storageImport => {storage_import_model(), optional}
+        storageImport => {storage_import_model(), optional},
+        accountingEnabled => {boolean, optional},
+        dirStatsServiceEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1573,7 +1584,7 @@ space_support_request_model() ->
 %%--------------------------------------------------------------------
 -spec storage_create_details_model() -> onepanel_parser:multi_spec().
 storage_create_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model(), http_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), cephrados_model(), embeddedceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model(), nfs_model(), http_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The configuration details required to add storage resources.
@@ -1583,13 +1594,18 @@ storage_create_details_model() ->
 storage_create_request_model() ->
     #{'_' => storage_create_details_model()}.
 
+-spec storage_create_response_model() -> onepanel_parser:object_spec().
+storage_create_response_model() ->
+    #{
+    }.
+
 %%--------------------------------------------------------------------
 %% @doc The storage configuration.
 %% @end
 %%--------------------------------------------------------------------
 -spec storage_get_details_model() -> onepanel_parser:multi_spec().
 storage_get_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), localceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_model(), s3_model(), ceph_model(), cephrados_model(), embeddedceph_model(), swift_model(), glusterfs_model(), nulldevice_model(), webdav_model(), xrootd_model(), nfs_model(), http_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc Configuration of the storage import within the space.
@@ -1621,7 +1637,7 @@ storage_import_model() ->
 %%--------------------------------------------------------------------
 -spec storage_modify_details_model() -> onepanel_parser:multi_spec().
 storage_modify_details_model() ->
-    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), localceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model(), xrootd_modify_model(), http_modify_model()])}.
+    {subclasses, onepanel_parser:prepare_subclasses([posix_modify_model(), s3_modify_model(), ceph_modify_model(), cephrados_modify_model(), embeddedceph_modify_model(), swift_modify_model(), glusterfs_modify_model(), nulldevice_modify_model(), webdav_modify_model(), xrootd_modify_model(), nfs_modify_model(), http_modify_model()])}.
 
 %%--------------------------------------------------------------------
 %% @doc The storage parameters to be changed. Should be a single-valued
@@ -1966,6 +1982,8 @@ ceph_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2063,6 +2081,8 @@ ceph_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2121,6 +2141,8 @@ cephrados_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2196,6 +2218,8 @@ cephrados_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2217,6 +2241,123 @@ cephrados_modify_model() ->
         clusterName => {string, optional},
         %% The Ceph pool name.
         poolName => {string, optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Configuration of a Ceph (librados) storage backed by a Ceph pool created
+%% in the embedded Ceph cluster.
+%% @end
+%%--------------------------------------------------------------------
+-spec embeddedceph_model() -> onepanel_parser:object_spec().
+embeddedceph_model() ->
+    #{
+        %% The type of storage.  `type =
+        %% \&quot;embeddedceph\&quot;`  Embedded Ceph cluster that has been
+        %% deployed during deployment of Oneprovider. For more information on
+        %% embedded Ceph deployment please see
+        %% [here](https://onedata.org/#/home/documentation/stable/doc/administering_onedata/ceph_cluster_deployment.html).
+        type => {discriminator, <<"embeddedceph">>},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
+        %% Desired number of object replicas in the pool. When below this number
+        %% the pool still may be used in 'degraded' mode. Defaults to
+        %% `2` if there are at least 2 OSDs, `1` otherwise.
+        copiesNumber => {integer, optional},
+        %% Minimum number of object replicas in the pool. Below this threshold
+        %% any I/O for the pool is disabled. Must be lower or equal to
+        %% 'copiesNumber'. Defaults to `min(2, copiesNumber)`
+        %% if there are at least 2 OSDs, `1` otherwise.
+        minCopiesNumber => {integer, optional},
+        %% Storage block size in bytes.
+        blockSize => {integer, optional},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed.
+        storagePathType => {{enum, string, [<<"flat">>]}, {optional, <<"flat">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Modifiable fields of a Ceph storage backed by a local pool.
+%% @end
+%%--------------------------------------------------------------------
+-spec embeddedceph_modify_model() -> onepanel_parser:object_spec().
+embeddedceph_modify_model() ->
+    #{
+        %% Desired number of object replicas in the pool. When below this number
+        %% the pool still may be used in 'degraded' mode. Defaults to
+        %% `2` if there are at least 2 OSDs, `1` otherwise.
+        copiesNumber => {integer, optional},
+        %% Minimum number of object replicas in the pool. Below this threshold
+        %% any I/O for the pool is disabled. Must be lower or equal to
+        %% 'copiesNumber'. Defaults to `min(2, copiesNumber)`
+        %% if there are at least 2 OSDs, `1` otherwise.
+        minCopiesNumber => {integer, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
+        %% The type of storage.  `type =
+        %% \&quot;embeddedceph\&quot;`  Embedded Ceph cluster that has been
+        %% deployed during deployment of Oneprovider. For more information on
+        %% embedded Ceph deployment please see
+        %% [here](https://onedata.org/#/home/documentation/stable/doc/administering_onedata/ceph_cluster_deployment.html).
+        type => {discriminator, <<"embeddedceph">>}
     }.
 
 %%--------------------------------------------------------------------
@@ -2250,6 +2391,8 @@ glusterfs_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2276,8 +2419,9 @@ glusterfs_model() ->
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
-        %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}}
+        %% logical file name is changed. **Note that 'flat' paths are
+        %% not allowed on this type of storage.**
+        storagePathType => {{enum, string, [<<"canonical">>]}, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -2327,6 +2471,8 @@ glusterfs_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2386,6 +2532,8 @@ http_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2430,6 +2578,11 @@ http_model() ->
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
         connectionPoolSize => {integer, {optional, 150}},
+        %% Defines the maximum number of requests performed in a single HTTP
+        %% session. After the limit is reached, 'Connection: close'
+        %% header is sent to the server. When set to 0 (default), number of
+        %% requests per session is unlimited, unless imposed by the server.
+        maxRequestsPerSession => {integer, {optional, 0}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2509,6 +2662,8 @@ http_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2543,121 +2698,15 @@ http_modify_model() ->
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
         connectionPoolSize => {integer, optional},
+        %% Defines the maximum number of requests performed in a single HTTP
+        %% session. After the limit is reached, 'Connection: close'
+        %% header is sent to the server. When set to 0 (default), number of
+        %% requests per session is unlimited, unless imposed by the server.
+        maxRequestsPerSession => {integer, optional},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
         fileMode => {string, optional}
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc Configuration of a Ceph (librados) storage backed by a Ceph pool created
-%% in the local Ceph cluster.
-%% @end
-%%--------------------------------------------------------------------
--spec localceph_model() -> onepanel_parser:object_spec().
-localceph_model() ->
-    #{
-        %% The type of storage.  `type = \&quot;localceph\&quot;`
-        %% Local Ceph cluster that has been deployed during deployment of
-        %% Oneprovider. For more information on local Ceph deployment please see
-        %% [here](https://onedata.org/#/home/documentation/stable/doc/administering_onedata/ceph_cluster_deployment.html).
-        type => {discriminator, <<"localceph">>},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
-        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
-        %% used to populate the LUMA DB. For more info please read:
-        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
-        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
-        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
-        %% `external`.
-        lumaFeedUrl => {string, optional},
-        %% API key checked by external service used as feed for LUMA DB.
-        %% Relevant only if lumaFeed equals `external`.
-        lumaFeedApiKey => {string, optional},
-        %% Map with key-value pairs used for describing storage QoS parameters.
-        qosParameters => {#{'_' => string}, {optional, #{}}},
-        %% Defines whether storage contains existing data to be imported.
-        importedStorage => {boolean, optional},
-        %% Defines whether the storage is readonly. If enabled, Oneprovider will
-        %% block any operation that writes, modifies or deletes data on the
-        %% storage. Such storage can only be used to import data into the space.
-        %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly. This option is available only for
-        %% imported storages.
-        readonly => {boolean, optional},
-        %% Desired number of object replicas in the pool. When below this number
-        %% the pool still may be used in 'degraded' mode. Defaults to
-        %% `2` if there are at least 2 OSDs, `1` otherwise.
-        copiesNumber => {integer, optional},
-        %% Minimum number of object replicas in the pool. Below this threshold
-        %% any I/O for the pool is disabled. Must be lower or equal to
-        %% 'copiesNumber'. Defaults to `min(2, copiesNumber)`
-        %% if there are at least 2 OSDs, `1` otherwise.
-        minCopiesNumber => {integer, optional},
-        %% Storage block size in bytes.
-        blockSize => {integer, optional},
-        %% Determines how the logical file paths will be mapped on the storage.
-        %% 'canonical' paths reflect the logical file names and
-        %% directory structure, however each rename operation will require
-        %% renaming the files on the storage. 'flat' paths are based on
-        %% unique file UUID's and do not require on-storage rename when
-        %% logical file name is changed.
-        storagePathType => {{enum, string, [<<"flat">>]}, {optional, <<"flat">>}}
-    }.
-
-%%--------------------------------------------------------------------
-%% @doc Modifiable fields of a Ceph storage backed by a local pool.
-%% @end
-%%--------------------------------------------------------------------
--spec localceph_modify_model() -> onepanel_parser:object_spec().
-localceph_modify_model() ->
-    #{
-        %% Desired number of object replicas in the pool. When below this number
-        %% the pool still may be used in 'degraded' mode. Defaults to
-        %% `2` if there are at least 2 OSDs, `1` otherwise.
-        copiesNumber => {integer, optional},
-        %% Minimum number of object replicas in the pool. Below this threshold
-        %% any I/O for the pool is disabled. Must be lower or equal to
-        %% 'copiesNumber'. Defaults to `min(2, copiesNumber)`
-        %% if there are at least 2 OSDs, `1` otherwise.
-        minCopiesNumber => {integer, optional},
-        %% Storage operation timeout in milliseconds.
-        timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
-        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
-        %% used to populate the LUMA DB. For more info please read:
-        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
-        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
-        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
-        %% `external`.
-        lumaFeedUrl => {string, optional},
-        %% API key checked by external service used as feed for LUMA DB.
-        %% Relevant only if lumaFeed equals `external`.
-        lumaFeedApiKey => {string, optional},
-        %% Map with key-value pairs used for describing storage QoS parameters.
-        %% Overrides all previously set parameters.
-        qosParameters => {#{'_' => string}, optional},
-        %% Defines whether storage contains existing data to be imported.
-        importedStorage => {boolean, optional},
-        %% Defines whether the storage is readonly. If enabled, Oneprovider will
-        %% block any operation that writes, modifies or deletes data on the
-        %% storage. Such storage can only be used to import data into the space.
-        %% Mandatory to ensure proper behaviour if the backend storage is
-        %% actually configured as readonly. This option is available only for
-        %% imported storages.
-        readonly => {boolean, optional},
-        %% The type of storage.  `type = \&quot;localceph\&quot;`
-        %% Local Ceph cluster that has been deployed during deployment of
-        %% Oneprovider. For more information on local Ceph deployment please see
-        %% [here](https://onedata.org/#/home/documentation/stable/doc/administering_onedata/ceph_cluster_deployment.html).
-        type => {discriminator, <<"localceph">>}
     }.
 
 %%--------------------------------------------------------------------
@@ -2750,6 +2799,148 @@ luma_onedata_user_scheme_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The NFS storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec nfs_model() -> onepanel_parser:object_spec().
+nfs_model() ->
+    #{
+        %% The type of storage.  `type = \&quot;nfs\&quot;`  NFS
+        %% storage.
+        type => {discriminator, <<"nfs">>},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, {optional, <<"auto">>}},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        qosParameters => {#{'_' => string}, {optional, #{}}},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
+        %% The hostname (IP address or FQDN) of NFS server.
+        host => string,
+        %% The NFS protocol version. Allowed values are 3 (default) and 4
+        %% (experimental).
+        version => {integer, {optional, 3}},
+        %% The name of the NFS volume (export).
+        volume => string,
+        %% The size of NFS connection pool.
+        connectionPoolSize => {integer, {optional, 10}},
+        %% Enables directory caching.
+        dirCache => {boolean, {optional, true}},
+        %% The size of readahead in bytes.
+        readAhead => {integer, {optional, 0}},
+        %% The number of automatic reconnect attempts to the server. Setting
+        %% `-1` enables infinite number of reconnects.
+        autoReconnect => {integer, {optional, 1}},
+        %% Determines how the logical file paths will be mapped on the storage.
+        %% 'canonical' paths reflect the logical file names and
+        %% directory structure, however each rename operation will require
+        %% renaming the files on the storage. 'flat' paths are based on
+        %% unique file UUID's and do not require on-storage rename when
+        %% logical file name is changed. **Note that 'flat' paths are
+        %% not allowed on this type of storage.**
+        storagePathType => {{enum, string, [<<"canonical">>]}, {optional, <<"canonical">>}}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Credentials on the NFS storage.
+%% @end
+%%--------------------------------------------------------------------
+-spec nfs_credentials_model() -> onepanel_parser:object_spec().
+nfs_credentials_model() ->
+    #{
+        %% User identifier.
+        uid => {integer, optional},
+        %% Group identifier.
+        gid => {integer, optional},
+        %% Type of the storage. Must be given explicitly and must match the
+        %% actual type of subject storage - this redundancy is needed due to
+        %% limitations of OpenAPI polymorphism.
+        type => {discriminator, <<"nfs">>}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The NFS storage configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec nfs_modify_model() -> onepanel_parser:object_spec().
+nfs_modify_model() ->
+    #{
+        %% The name of storage.
+        name => {string, optional},
+        %% Storage operation timeout in milliseconds.
+        timeout => {integer, optional},
+        %% If true, detecting whether storage is directly accessible by the
+        %% Oneclient will not be performed. This option should be set to true on
+        %% readonly storages.
+        skipStorageDetection => {boolean, optional},
+        %% Type of feed for LUMA DB. Feed is a source of user/group mappings
+        %% used to populate the LUMA DB. For more info please read:
+        %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
+        lumaFeed => {{enum, string, [<<"auto">>, <<"local">>, <<"external">>]}, optional},
+        %% URL of external feed for LUMA DB. Relevant only if lumaFeed equals
+        %% `external`.
+        lumaFeedUrl => {string, optional},
+        %% API key checked by external service used as feed for LUMA DB.
+        %% Relevant only if lumaFeed equals `external`.
+        lumaFeedApiKey => {string, optional},
+        %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
+        qosParameters => {#{'_' => string}, optional},
+        %% Defines whether storage contains existing data to be imported.
+        importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
+        %% Defines whether the storage is readonly. If enabled, Oneprovider will
+        %% block any operation that writes, modifies or deletes data on the
+        %% storage. Such storage can only be used to import data into the space.
+        %% Mandatory to ensure proper behaviour if the backend storage is
+        %% actually configured as readonly. This option is available only for
+        %% imported storages.
+        readonly => {boolean, optional},
+        %% The type of storage.  `type = \&quot;nfs\&quot;`
+        %% NFS storage.
+        type => {discriminator, <<"nfs">>},
+        %% The hostname (IP address or FQDN) of NFS server.
+        host => {string, optional},
+        %% The NFS protocol version. Allowed values are 3 (default) and 4
+        %% (experimental).
+        version => {integer, optional},
+        %% The name of the NFS volume (export).
+        volume => {string, optional},
+        %% The size of NFS connection pool.
+        connectionPoolSize => {integer, optional},
+        %% Enables directory caching.
+        dirCache => {boolean, optional},
+        %% The size of readahead in bytes.
+        readAhead => {integer, optional},
+        %% The number of automatic reconnect attempts to the server. Setting
+        %% `-1` enables infinite number of reconnects.
+        autoReconnect => {integer, optional}
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The Null Device storage configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -2783,6 +2974,8 @@ nulldevice_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2816,8 +3009,11 @@ nulldevice_model() ->
         %% (`2` and `3`) in the root of the filesystem, each
         %% of these directories will have 2 subdirectories (`0` and
         %% `1`) and 2 files (`2` and `3`) and each
-        %% of these subdirectories has only a single file (`0`).
-        %% Default empty string disables the simulated filesystem feature.
+        %% of these subdirectories has only a single file (`0`). In
+        %% order to specify the size of generated files, a size in bytes needs
+        %% to be added as the last component of the parameter specification, for
+        %% example `2-2:2-2:0-1:1048576`. Default empty string
+        %% disables the simulated filesystem feature.
         simulatedFilesystemParameters => {string, optional},
         %% Determines the simulated filesystem grow rate. Default 0.0 value will
         %% cause all the files and directories defined by the
@@ -2875,6 +3071,8 @@ nulldevice_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -2908,8 +3106,11 @@ nulldevice_modify_model() ->
         %% (`2` and `3`) in the root of the filesystem, each
         %% of these directories will have 2 subdirectories (`0` and
         %% `1`) and 2 files (`2` and `3`) and each
-        %% of these subdirectories has only a single file (`0`).
-        %% Default empty string disables the simulated filesystem feature.
+        %% of these subdirectories has only a single file (`0`). In
+        %% order to specify the size of generated files, a size in bytes needs
+        %% to be added as the last component of the parameter specification, for
+        %% example `2-2:2-2:0-1:1048576`. Default empty string
+        %% disables the simulated filesystem feature.
         simulatedFilesystemParameters => {string, optional},
         %% Determines the simulated filesystem grow rate. Default 0.0 value will
         %% cause all the files and directories defined by the
@@ -3013,6 +3214,8 @@ posix_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3028,8 +3231,9 @@ posix_model() ->
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
-        %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}},
+        %% logical file name is changed. **Note that 'flat' paths are
+        %% not allowed on this type of storage.**
+        storagePathType => {{enum, string, [<<"canonical">>]}, {optional, <<"canonical">>}},
         %% UID of the user on whose behalf operations in the admin context will
         %% be performed on the storage.
         rootUid => {integer, {optional, 0}},
@@ -3085,6 +3289,8 @@ posix_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3139,6 +3345,8 @@ s3_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3154,8 +3362,8 @@ s3_model() ->
         hostname => string,
         %% The storage bucket name.
         bucketName => string,
-        %% The version of signature used to sign requests. One of: 2, 4.
-        %% Default: 4.
+        %% The version of signature used to sign requests. Only version 4 is
+        %% supported.
         signatureVersion => {integer, {optional, 4}},
         %% Storage block size in bytes. In case the block size is `0`
         %% and `canonical` path type is selected, each file is stored
@@ -3231,6 +3439,8 @@ s3_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3251,8 +3461,8 @@ s3_modify_model() ->
         accessKey => {string, optional},
         %% The secret key to the S3 storage.
         secretKey => {string, optional},
-        %% The version of signature used to sign requests. One of: 2, 4.
-        %% Default: 4.
+        %% The version of signature used to sign requests. Only version 4 is
+        %% supported.
         signatureVersion => {integer, optional},
         %% Defines the maximum size for objects, which can be modified on the S3
         %% storage in `canonical` path mode. In this mode, entire file
@@ -3301,6 +3511,8 @@ swift_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3376,6 +3588,8 @@ swift_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3431,6 +3645,8 @@ webdav_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3500,8 +3716,9 @@ webdav_model() ->
         %% directory structure, however each rename operation will require
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
-        %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}}
+        %% logical file name is changed. **Note that 'flat' paths are
+        %% not allowed on this type of storage.**
+        storagePathType => {{enum, string, [<<"canonical">>]}, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -3570,6 +3787,8 @@ webdav_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3656,6 +3875,8 @@ xrootd_model() ->
         qosParameters => {#{'_' => string}, {optional, #{}}},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.
@@ -3747,6 +3968,8 @@ xrootd_modify_model() ->
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
+        %% Defines whether storage supports long-term dataset archiving.
+        archiveStorage => {boolean, optional},
         %% Defines whether the storage is readonly. If enabled, Oneprovider will
         %% block any operation that writes, modifies or deletes data on the
         %% storage. Such storage can only be used to import data into the space.

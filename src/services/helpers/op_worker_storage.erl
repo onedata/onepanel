@@ -55,7 +55,7 @@
 -type helper() :: op_worker_rpc:helper().
 % @formatter:on
 
--export_type([id/0, storage_params/0, storage_details/0, storages_map/0,
+-export_type([id/0, name/0, storage_params/0, storage_details/0, storages_map/0,
     qos_parameters/0, helper_args/0, user_ctx/0]).
 
 -define(EXEC_AND_THROW_ON_ERROR(Fun, Args),
@@ -75,7 +75,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec add(Ctx :: #{name := name(), params := storage_params()}) ->
-    ok | no_return().
+    {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
 add(#{name := Name, params := Params}) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
@@ -86,13 +86,12 @@ add(#{name := Name, params := Params}) ->
     catch
         _:{error, Reason} ->
             {error, Reason};
-        Class:Reason ->
+        Class:Reason:Stacktrace ->
             ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~p", [
                 StorageName, StorageType, Class, Reason
-            ]),
+            ], Stacktrace),
             {error, storage_add_failed}
     end,
-
     case Result of
         {ok, AddedStorageId} ->
             ?notice("Successfully added storage '~ts' (~ts) with Id: '~ts'", [
@@ -101,9 +100,9 @@ add(#{name := Name, params := Params}) ->
         {error, _} = Error ->
             ?error("Failed to add storage '~ts' (~ts) due to ~p", [
                 StorageName, StorageType, Error
-            ]),
-            throw(Error)
-    end.
+            ])
+    end,
+    {StorageName, Result}.
 
 
 %%--------------------------------------------------------------------
@@ -128,7 +127,7 @@ update(OpNode, Id, NewParams) ->
     Name = maps:get(name, NewParams, CurrentName),
 
     VerificationParams = case maps:get(type, PlainValueNewParams) of
-        ?LOCAL_CEPH_STORAGE_TYPE ->
+        ?EMBEDDED_CEPH_STORAGE_TYPE ->
             maps:merge(PlainValueNewParams, service_ceph:make_storage_params(Name));
         _ ->
             PlainValueNewParams
@@ -345,12 +344,14 @@ add(OpNode, Name, StorageType, Params) ->
     % if skipStorageDetection is not defined, set it to the same value as Readonly
     SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, StorageParams, boolean, Readonly),
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
+    ArchiveStorage = onepanel_utils:get_converted(archiveStorage, StorageParams, boolean, false),
 
     % ensure all params are in the config map
     StorageParams2 = StorageParams#{
         readonly => Readonly,
         skipStorageDetection => SkipStorageDetection,
-        importedStorage => ImportedStorage
+        importedStorage => ImportedStorage,
+        archiveStorage => ArchiveStorage
     },
     UserCtx = make_user_ctx(OpNode, StorageType, StorageParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, StorageParams2),
@@ -359,8 +360,6 @@ add(OpNode, Name, StorageType, Params) ->
 
     LumaConfig = make_luma_config(OpNode, StorageParams2),
     LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
-
-    SkipStorageDetection orelse verify_write_access(Helper, LumaFeed),
 
     try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
         _ ->
@@ -700,9 +699,9 @@ join_scheme_and_hostname_args(Map) ->
 -spec log_gathered_storage_configuration(Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
     ok.
 log_gathered_storage_configuration(Name, StorageType, Params) ->
-    ParamsWithBinaryKeys = maps:fold(fun(AtomKey, Value, Acc) ->
-        Acc#{atom_to_binary(AtomKey, utf8) => Value}
-    end, #{}, Params),
+    ParamsWithBinaryKeys = maps_utils:map_key_value(fun(AtomKey, Value) ->
+        {atom_to_binary(AtomKey, utf8), Value}
+    end, Params),
     RedactedParams = op_worker_rpc:redact_confidential_helper_params(
         StorageType, maps:without([<<"type">>], ParamsWithBinaryKeys)
     ),

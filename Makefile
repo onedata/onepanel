@@ -12,7 +12,7 @@ GIT_URL := $(shell if [ "${GIT_URL}" = "file:/" ]; then echo 'ssh://git@git.oned
 ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL}; else echo ${ONEDATA_GIT_URL}; fi)
 export ONEDATA_GIT_URL
 
-RELEASE         ?= 2002
+RELEASE         ?= 2102
 PKG_REVISION    ?= $(shell git describe --tags --always)
 PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
 PKG_BUILD       := 1
@@ -94,12 +94,12 @@ submodules:
 .PHONY: eunit
 eunit: config
 	$(REBAR) do eunit skip_deps=true --suite=${SUITES}
-## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
+	## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
 	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
 
 eunit-with-cover: config
 	$(REBAR) do eunit skip_deps=true --suite=${SUITES}, cover
-## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
+	## Rename all tests in order to remove duplicated names (add _(++i) suffix to each test)
 	@for tout in `find test -name "TEST-*.xml"`; do awk '/testcase/{gsub("_[0-9]+\"", "_" ++i "\"")}1' $$tout > $$tout.tmp; mv $$tout.tmp $$tout; done
 
 .PHONY: coverage
@@ -127,7 +127,10 @@ relclean:
 
 # Dialyzes the project.
 dialyzer: config
-	$(REBAR) dialyzer
+	@./bamboos/scripts/run-with-surefire-report.py \
+		--test-name Dialyze \
+		--report-path test/dialyzer_results/TEST-dialyzer.xml \
+		$(REBAR) dialyzer
 
 ##
 ## Packaging targets
@@ -166,4 +169,7 @@ pkgclean:
 	rm -rf package
 
 codetag-tracker:
-	@echo "Skipping codetag-tracker for release version 20.02.*"
+	@./bamboos/scripts/run-with-surefire-report.py \
+		--test-name CodetagTracker \
+		--report-path test/codetag_tracker_results/TEST-codetag_tracker.xml \
+		./bamboos/scripts/codetag-tracker.sh --branch=${BRANCH} --excluded-dirs=node_package

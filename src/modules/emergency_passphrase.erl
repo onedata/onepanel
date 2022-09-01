@@ -20,7 +20,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([is_set/0, get_hash/0]).
+-export([is_set/0, unset/0, get_hash/0]).
 -export([set/1, change/2]).
 -export([verify/1]).
 -export([migrate_from_users/0]).
@@ -52,6 +52,15 @@ is_set() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc Unsets emergency passphrase.
+%% @end
+%%--------------------------------------------------------------------
+-spec unset() -> ok | no_return().
+unset() ->
+    onepanel_kv:delete(?KV_EMERGENCY_PASSPHRASE).
+
+
+%%--------------------------------------------------------------------
 %% @doc Returns hashed emergency passphrase.
 %% @end
 %%--------------------------------------------------------------------
@@ -71,9 +80,14 @@ change(OldPassphrase, NewPassphrase) ->
     case not is_set() orelse verify(OldPassphrase) of
         true -> set(NewPassphrase);
         false ->
-            ?info("Attempt to change emergency passphrase failed due to " ++
-            "incorrect previous passphrase given"),
-            ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)
+            case OldPassphrase == undefined of
+                true ->
+                    ?ERROR_MISSING_REQUIRED_VALUE(<<"currentPassphrase">>);
+                false ->
+                    ?info("Attempt to change emergency passphrase failed due to " ++
+                    "incorrect previous passphrase given"),
+                    ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)
+            end
     end.
 
 

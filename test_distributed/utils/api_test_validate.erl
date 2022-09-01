@@ -13,6 +13,7 @@
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 
@@ -21,7 +22,8 @@
 -export([
     http_200_ok/1,
     http_201_created/3,
-    http_204_no_content/0
+    http_204_no_content/0,
+    http_400_bad_request/1
 ]).
 
 
@@ -51,4 +53,16 @@ http_204_no_content() ->
     fun(_, {ok, RespCode, _, Body}) ->
         ?assertEqual(?HTTP_204_NO_CONTENT, RespCode),
         ?assertEqual(#{}, Body)
+    end.
+
+
+http_400_bad_request(ExpectedError) when is_tuple(ExpectedError) ->
+    fun(_, {ok, RespCode, _, Body}) ->
+        ?assertEqual(?HTTP_400_BAD_REQUEST, RespCode),
+        ?assertEqual(?REST_ERROR(ExpectedError), Body)
+    end;
+http_400_bad_request(VerifyFun) ->
+    fun(_, {ok, RespCode, _, Body}) ->
+        ?assertEqual(?HTTP_400_BAD_REQUEST, RespCode),
+        VerifyFun(Body)
     end.

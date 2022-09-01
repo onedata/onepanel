@@ -7,6 +7,15 @@
   },
   "os_configs": {
     "cfg1": {
+      "__currently_disabled_storages": {
+        "__reason": "Due to TODO VFS-8296, swift helper is currently not tested",
+        "storages": {
+          "type": "swift",
+          "name": "someSwift",
+          "container": "swift",
+          "storagePathType": "flat"
+        }
+      },
       "storages": [
         {
           "type": "posix",
@@ -38,12 +47,6 @@
           "disable_iam_mock": false
         },
         {
-          "type": "swift",
-          "name": "someSwift",
-          "container": "swift",
-          "storagePathType": "flat"
-        },
-        {
           "type": "glusterfs",
           "name": "someGlusterfs",
           "volume": "data",
@@ -68,7 +71,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:20.02.17-f2fa01b",
+      "image": "docker.onedata.org/onezone-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -96,7 +99,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:20.02.17-203a8af",
+      "image": "docker.onedata.org/oneprovider-dev:develop",
       "onepanel": {
         "node1": {
           "vm.args": {

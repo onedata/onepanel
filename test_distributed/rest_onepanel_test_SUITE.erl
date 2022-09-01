@@ -209,7 +209,7 @@ passphrase_update_requires_previous_passphrase(Config) ->
     )),
     onepanel_test_rest:assert_body(JsonBody,
         #{<<"error">> => errors:to_json(?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS))}),
-    ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
+    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
         }
@@ -333,7 +333,7 @@ delete_as_admin_should_fail_if_node_is_used(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 

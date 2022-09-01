@@ -260,7 +260,7 @@ get_should_return_provider_info_test(Config) ->
 
 init_per_suite(Config) ->
     ssl:start(),
-    hackney:start(),
+    application:ensure_all_started(hackney),
     Posthook = fun onepanel_test_utils:init/1,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
@@ -280,14 +280,14 @@ init_per_testcase(_Case, Config) ->
         fun(_) -> true end),
 
 
-    {_, []} = rpc:multicall(OpNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OpNodes, service, save, [#service{
         name = op_worker, hosts = OpHosts}]),
-    {_, []} = rpc:multicall(OzNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OzNodes, service, save, [#service{
         name = oz_worker, hosts = OzHosts}]),
     % models required for cluster data caching to work
-    {_, []} = rpc:multicall(OpNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OpNodes, service, save, [#service{
         name = oneprovider, ctx = #{registered => true}}]),
-    {_, []} = rpc:multicall(OzNodes, service, save, [#service{
+    {_, []} = utils:rpc_multicall(OzNodes, service, save, [#service{
         name = onezone}]),
 
     test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain,

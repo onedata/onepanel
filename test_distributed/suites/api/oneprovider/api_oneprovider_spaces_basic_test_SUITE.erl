@@ -16,6 +16,8 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
+-include_lib("ctool/include/space_support/support_parameters.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -58,28 +60,34 @@ all() -> [
 ].
 
 
+-define(ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, ?ERROR_BAD_DATA(
+    <<"dirStatsServiceEnabled">>,
+    <<"Dir stats service must be enabled if accounting is enabled">>
+)).
+
+
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 
-get_space_ids_test(Config) ->
-    get_space_ids_test_base(Config, []),
+get_space_ids_test(_Config) ->
+    get_space_ids_test_base([]),
 
     FirstSpaceId = create_and_support_space(),
-    get_space_ids_test_base(Config, [FirstSpaceId]),
+    get_space_ids_test_base([FirstSpaceId]),
 
     ManySpacesId = [create_and_support_space() || _ <- lists:seq(1, 5)],
-    get_space_ids_test_base(Config, [FirstSpaceId | ManySpacesId]).
+    get_space_ids_test_base([FirstSpaceId | ManySpacesId]).
 
 
 %% @private
-get_space_ids_test_base(Config, ExpSpaceIds) ->
+get_space_ids_test_base(ExpSpaceIds) ->
     ProviderId = oct_background:get_provider_id(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
     SortedExpSpaceIds = lists:sort(ExpSpaceIds),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get space ids using /provider/spaces rest endpoint">>,
             type = rest,
@@ -106,22 +114,25 @@ get_space_ids_test_base(Config, ExpSpaceIds) ->
     ])).
 
 
-get_space_details_test(Config) ->
-    get_space_details_test_base(Config, <<"posix-space">>, ?STORAGE_NAME, 10000000),
-    get_space_details_test_base(Config, <<"null-space">>, <<"IdealNullStorage">>, 20000000).
+get_space_details_test(_Config) ->
+    get_space_details_test_base(<<"posix-space">>, ?STORAGE_NAME, 10000000),
+    get_space_details_test_base(<<"null-space">>, <<"IdealNullStorage">>, 20000000).
 
 
 %% @private
-get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
+get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
     SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize),
-    ExpResult = get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize),
+    ExpResult0 = get_expected_space_details(
+        SpaceId, SpaceName, StorageId, SupportSize, false, false
+    ),
+    ExpResult1 = ExpResult0#{<<"dirStatsServiceStatus">> => <<"disabled">>},
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get space details using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
@@ -140,7 +151,7 @@ get_space_details_test_base(Config, SpaceName, StorageName, SupportSize) ->
             },
             prepare_args_fun = build_get_space_details_prepare_rest_args_fun(SpaceId),
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                ?assertEqual(ExpResult, RespBody)
+                ?assertEqual(ExpResult1, RespBody)
             end),
 
             data_spec = build_get_space_details_data_spec(OpWorkerNodes)
@@ -167,7 +178,7 @@ build_get_space_details_prepare_rest_args_fun(SpaceId) ->
     end.
 
 
-support_space_test(Config) ->
+support_space_test(_Config) ->
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
@@ -176,7 +187,7 @@ support_space_test(Config) ->
     SpaceName = str_utils:rand_hex(12),
     StorageId = api_test_utils:get_storage_id_by_name(krakow, ?STORAGE_NAME),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Support space using /provider/spaces rest endpoint">>,
             type = rest,
@@ -224,17 +235,24 @@ build_support_space_data_spec(StorageId, OpWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
         required = [<<"size">>, <<"storageId">>, <<"token">>],
+        optional = [<<"accountingEnabled">>, <<"dirStatsServiceEnabled">>],
         correct_values = #{
             <<"size">> => [?SUPPORT_SIZE, 5 * ?SUPPORT_SIZE],
             <<"storageId">> => [StorageId],
-            <<"token">> => [token_placeholder]
+            <<"token">> => [token_placeholder],
+            <<"accountingEnabled">> => [false, true_with_dir_stats_service_enabled],
+            <<"dirStatsServiceEnabled">> => [false, true]
         },
         bad_values = [
             {<<"size">>, -?SUPPORT_SIZE, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
             {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
             {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
             {<<"storageId">>, <<"inexistientStorageId">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>), HostNames)},
-            {<<"token">>, <<"badToken">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOKEN(<<"token">>, ?ERROR_BAD_TOKEN), HostNames)}
+            {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+                ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
+            )},
+            {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)}
         ]
     }.
 
@@ -244,29 +262,37 @@ build_support_space_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         Token = api_test_memory:get(MemRef, support_token),
 
-        RequestMap = case maps:get(<<"token">>, Data, undefined) of
+        RequestMap1 = case maps:get(<<"token">>, Data, undefined) of
             token_placeholder -> maps:put(<<"token">>, Token, Data);
             _ -> Data
         end,
+        RequestMap2 = replace_accounting_related_placeholders(RequestMap1),
 
         #rest_args{
             method = post,
             path = <<"provider/spaces">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
-            body = json_utils:encode(RequestMap)}
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+            body = json_utils:encode(RequestMap2)}
     end.
 
 
 %% @private
 build_support_space_verify_fun(MemRef) ->
     fun
-        (expected_success, #api_test_ctx{data = Data}) ->
-            SpaceId = api_test_memory:get(MemRef, space_id),
-            SpaceName = api_test_memory:get(MemRef, space_name),
-            StorageId = maps:get(<<"storageId">>, Data),
-            SupportSize = maps:get(<<"size">>, Data),
+        (expected_success, #api_test_ctx{data = Data0}) ->
+            Data1 = replace_accounting_related_placeholders(Data0),
 
-            ExpectedSpaceDetails = get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize),
+            SpaceId = api_test_memory:get(MemRef, space_id),
+            ExpSpaceName = api_test_memory:get(MemRef, space_name),
+            ExpStorageId = maps:get(<<"storageId">>, Data1),
+            ExpSupportSize = maps:get(<<"size">>, Data1),
+            ExpAccountingEnabled = maps:get(<<"accountingEnabled">>, Data1, false),
+            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, false),
+
+            ExpectedSpaceDetails = get_expected_space_details(
+                SpaceId, ExpSpaceName, ExpStorageId, ExpSupportSize,
+                ExpAccountingEnabled, ExpDirStatsEnabled
+            ),
             SpaceDetails = get_space_details_with_rpc(SpaceId),
 
             ?assertEqual(ExpectedSpaceDetails, SpaceDetails),
@@ -280,7 +306,7 @@ build_support_space_verify_fun(MemRef) ->
     end.
 
 
-modify_space_support_test(Config) ->
+modify_space_support_test(_Config) ->
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
@@ -290,7 +316,7 @@ modify_space_support_test(Config) ->
     SpaceName = str_utils:rand_hex(12),
     SupportSize = ?SUPPORT_SIZE,
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Modify space support using /provider/spaces rest endpoint">>,
             type = rest,
@@ -337,9 +363,11 @@ build_modify_space_support_setup_fun(MemRef, SpaceName, SupportSize, StorageId) 
 build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
-        optional = [<<"size">>],
+        optional = [<<"size">>, <<"accountingEnabled">>, <<"dirStatsServiceEnabled">>],
         correct_values = #{
-            <<"size">> => [SupportSize, ?SUPPORT_SIZE div 2, 200 * SupportSize]
+            <<"size">> => [SupportSize, ?SUPPORT_SIZE div 2, 200 * SupportSize],
+            <<"accountingEnabled">> => [false, true_with_dir_stats_service_enabled],
+            <<"dirStatsServiceEnabled">> => [false, true]
         },
         bad_values = [
             % support size is checked on two levels:
@@ -349,6 +377,11 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
             {<<"size">>, -?SUPPORT_SIZE, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, 0), HostNames)},
             {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
             {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
+            {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+                ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
+            )},
+            {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
             {bad_id, <<"inexistentSpaceId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]
     }.
@@ -358,13 +391,14 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
 build_modify_space_support_prepare_rest_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         SpaceId = api_test_memory:get(MemRef, space_id),
-        {Id, LeftoverData} = api_test_utils:maybe_substitute_bad_id(SpaceId, Data),
+        {Id, LeftoverData1} = api_test_utils:maybe_substitute_bad_id(SpaceId, Data),
+        LeftoverData2 = replace_accounting_related_placeholders(LeftoverData1),
 
         #rest_args{
             method = patch,
             path = <<"provider/spaces/", Id/binary>>,
-            headers = #{<<"content-type">> => <<"application/json">>},
-            body = json_utils:encode(LeftoverData)
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+            body = json_utils:encode(LeftoverData2)
         }
     end.
 
@@ -372,14 +406,21 @@ build_modify_space_support_prepare_rest_args_fun(MemRef) ->
 %% @private
 build_modify_space_support_verify_fun(MemRef) ->
     fun
-        (expected_success, #api_test_ctx{data = Data}) ->
-            SpaceId = api_test_memory:get(MemRef, space_id),
-            SpaceName = api_test_memory:get(MemRef, space_name),
-            StorageId = api_test_memory:get(MemRef, storage_id),
-            SupportSize = api_test_memory:get(MemRef, support_size),
+        (expected_success, #api_test_ctx{data = Data0}) ->
+            Data1 = replace_accounting_related_placeholders(Data0),
 
-            ExpectedSpaceSupportSize = maps:get(<<"size">>, Data, SupportSize),
-            ExpectedSpaceDetails = get_expected_space_details(SpaceId, SpaceName, StorageId, ExpectedSpaceSupportSize),
+            SpaceId = api_test_memory:get(MemRef, space_id),
+            ExpSpaceName = api_test_memory:get(MemRef, space_name),
+            ExpStorageId = api_test_memory:get(MemRef, storage_id),
+            ExpAccountingEnabled = maps:get(<<"accountingEnabled">>, Data1, false),
+            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, false),
+            SupportSize = api_test_memory:get(MemRef, support_size),
+            ExpSpaceSupportSize = maps:get(<<"size">>, Data1, SupportSize),
+
+            ExpectedSpaceDetails = get_expected_space_details(
+                SpaceId, ExpSpaceName, ExpStorageId, ExpSpaceSupportSize,
+                ExpAccountingEnabled, ExpDirStatsEnabled
+            ),
 
             % TODO VFS-6780 - currently, supporting providers are calculated asynchronously
             % (effective relation) and the information with updated support size might come with a delay.
@@ -396,13 +437,13 @@ build_modify_space_support_verify_fun(MemRef) ->
     end.
 
 
-revoke_space_support_test(Config) ->
+revoke_space_support_test(_Config) ->
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
     OpWorkerNodes = oct_background:get_provider_nodes(krakow),
     OpPanelNodes = oct_background:get_provider_panels(krakow),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
@@ -463,11 +504,10 @@ build_revoke_space_support_prepare_rest_args_fun(MemRef) ->
 build_revoke_space_support_verify_fun(MemRef) ->
     fun(ExpectedResult, _) ->
         SpaceId = api_test_memory:get(MemRef, space_id),
-        SupportedSpaces = opw_test_rpc:get_spaces(krakow),
 
         case ExpectedResult of
-            expected_success -> ?assertNot(lists:member(SpaceId, SupportedSpaces));
-            expected_failure -> ?assert(lists:member(SpaceId, SupportedSpaces))
+            expected_success -> ?assertNot(lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS);
+            expected_failure -> ?assert(lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS)
         end,
         true
     end.
@@ -479,8 +519,16 @@ build_revoke_space_support_verify_fun(MemRef) ->
 
 
 %% @private
--spec get_expected_space_details(binary(), binary(), binary(), binary()) -> map().
-get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize) ->
+-spec get_expected_space_details(binary(), binary(), binary(), binary(), boolean(), boolean()) ->
+    json_utils:json_map().
+get_expected_space_details(
+    SpaceId,
+    SpaceName,
+    StorageId,
+    SupportSize,
+    AccountingEnabled,
+    DirStatsEnabled
+) ->
     [ProviderId] = opw_test_rpc:get_space_providers(krakow, SpaceId),
     SupportingProviders = #{
         ProviderId => SupportSize
@@ -493,7 +541,9 @@ get_expected_space_details(SpaceId, SpaceName, StorageId, SupportSize) ->
         <<"localStorages">> => [StorageId],
         <<"supportingProviders">> => SupportingProviders,
         <<"importedStorage">> => false,
-        <<"spaceOccupancy">> => 0
+        <<"spaceOccupancy">> => 0,
+        <<"accountingEnabled">> => AccountingEnabled,
+        <<"dirStatsServiceEnabled">> => DirStatsEnabled
     }.
 
 
@@ -506,6 +556,7 @@ get_space_details_with_rpc(SpaceId) ->
     [StorageId] = opw_test_rpc:get_space_local_storages(krakow, SpaceId),
     IsImportedStorage = opw_test_rpc:is_storage_imported(krakow, StorageId),
     AutocleaningStatus = opw_test_rpc:get_autocleaning_status(krakow, SpaceId),
+    SpaceSupportParameters = opw_test_rpc:get_space_support_parameters(krakow, SpaceId),
 
     #{
         <<"id">> => SpaceId,
@@ -514,7 +565,9 @@ get_space_details_with_rpc(SpaceId) ->
         <<"localStorages">> => [StorageId],
         <<"supportingProviders">> => maps:get(providers, SpaceDoc),
         <<"importedStorage">> => IsImportedStorage,
-        <<"spaceOccupancy">> => maps:get(spaceOccupancy, AutocleaningStatus)
+        <<"spaceOccupancy">> => maps:get(spaceOccupancy, AutocleaningStatus),
+        <<"accountingEnabled">> => SpaceSupportParameters#support_parameters.accounting_enabled,
+        <<"dirStatsServiceEnabled">> => SpaceSupportParameters#support_parameters.dir_stats_service_enabled
     }.
 
 
@@ -557,6 +610,19 @@ unsupport_all_spaces() ->
 delete_all_spaces() ->
     SpacesId = ozw_test_rpc:list_spaces(),
     [ozw_test_rpc:delete_space(X) || X <- SpacesId].
+
+
+%% @private
+-spec replace_accounting_related_placeholders(json_utils:json_map()) ->
+    json_utils:json_map().
+replace_accounting_related_placeholders(Data = #{<<"accountingEnabled">> := true_with_dir_stats_service_enabled}) ->
+    Data#{<<"accountingEnabled">> => true, <<"dirStatsServiceEnabled">> => true};
+
+replace_accounting_related_placeholders(Data = #{<<"accountingEnabled">> := true_with_dir_stats_service_disabled}) ->
+    Data#{<<"accountingEnabled">> => true, <<"dirStatsServiceEnabled">> => false};
+
+replace_accounting_related_placeholders(Data) ->
+    Data.
 
 
 %%%===================================================================

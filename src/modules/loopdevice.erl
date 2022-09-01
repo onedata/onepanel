@@ -26,6 +26,7 @@
 -export([list_loopdevices/1]).
 
 -define(QUOTE(Var), onepanel_shell:quote(Var)).
+-define(LOCK_ID, <<"get_highest_loopdevice_number_lock_id">>).
 
 
 %%%===================================================================
@@ -125,12 +126,41 @@ fallocate(Path, Size) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc Creates loopdevice from file.
+%% Sometimes losetup fails to dynamically create loop device.
+%% Therefore, in case of error device has to be created manually.
 %% @end
 %%--------------------------------------------------------------------
 -spec losetup(Path :: binary()) -> device_path().
 losetup(Path) ->
-    onepanel_shell:get_success_output(["losetup",
-        "--find", % use first available device path
-        "--show", % print the assigned device path
-        ?QUOTE(Path)
-    ]).
+    global:set_lock({?LOCK_ID, self()}),
+    DevicePath = try
+        onepanel_shell:get_success_output(["losetup",
+            "--find", % use first available device path
+            "--show", % print the assigned device path
+            ?QUOTE(Path)
+        ])
+    catch
+        _Error:_Reason ->
+            NewLoopDeviceNumber = integer_to_list(get_highest_loopdevice_number() + 1),
+            NewLoopDevice = "/dev/loop" ++ NewLoopDeviceNumber,
+            onepanel_shell:get_success_output(["mknod", ?QUOTE(NewLoopDevice), "b", "7", ?QUOTE(NewLoopDeviceNumber)]),
+            onepanel_shell:get_success_output([
+                "losetup", "--show",
+                ?QUOTE(NewLoopDevice),
+                ?QUOTE(Path)
+            ])
+    end,
+    global:del_lock({?LOCK_ID, self()}),
+    DevicePath.
+
+
+-spec get_highest_loopdevice_number() -> integer().
+get_highest_loopdevice_number() ->
+    try
+        BinaryResponse = onepanel_shell:get_success_output(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]),
+        binary_to_integer(BinaryResponse)
+    catch
+        _:_ -> 1
+    end.
+
+

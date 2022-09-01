@@ -26,10 +26,10 @@
 -include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/onedata.hrl").
+-include_lib("ctool/include/space_support/support_parameters.hrl").
 -include_lib("ctool/include/oz/oz_spaces.hrl").
 -include_lib("ctool/include/oz/oz_users.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
-
 -include("http/rest.hrl").
 
 -define(DETAILS_PERSISTENCE, provider_details).
@@ -84,7 +84,7 @@
 -export([get_details_by_graph_sync/0, get_details_by_rest/0]).
 
 %% API
--export([check_oz_availability/1, mark_configured/0,
+-export([resolve_registration_token/1, check_oz_availability/1, mark_configured/0,
     register/1, unregister/0, is_registered/1, is_registered/0,
     modify_details/1, get_details/0, get_oz_domain/0,
     support_space/1, revoke_space_support/1, get_spaces/0, is_space_supported/1,
@@ -176,7 +176,7 @@ get_steps(deploy, Ctx) ->
             % If provider is already registered the deployment request
             % should not override Let's Encrypt config
 
-            % TODO remove this check when some time passes since introducing manage_restart
+            % NOTE: remove this check when some time passes since introducing manage_restart
             true -> maps:remove(letsencrypt_enabled, LeCtx);
             _ -> LeCtx
         end,
@@ -264,33 +264,19 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_OPW, action = status}
     ];
 
-get_steps(register, #{hosts := _, onezone_domain := _, oneprovider_token := _} = Ctx) ->
+get_steps(register, #{hosts := _Hosts}) ->
     [
-        #step{ctx = Ctx, function = check_oz_availability,
-            attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #step{ctx = Ctx, function = register, hosts = [hosts:self()]},
-        #step{ctx = Ctx, function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
+        #step{function = resolve_registration_token, hosts = [hosts:self()]},
+        #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
+        #step{function = register, hosts = [hosts:self()]},
+        #step{function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
         % explicitly fail on connection problems before executing further steps
-        #step{ctx = Ctx, function = check_oz_connection, args = [],
+        #step{function = check_oz_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #steps{ctx = Ctx, action = set_cluster_ips}
+        #steps{action = set_cluster_ips}
     ];
-get_steps(register, Ctx0) ->
-    Ctx1 = case maps:is_key(hosts, Ctx0) of
-        false -> Ctx0#{hosts => hosts:all(?SERVICE_OPW)};
-        true -> Ctx0
-    end,
-    Ctx2 = case maps:is_key(oneprovider_token, Ctx1) of
-        false -> Ctx1#{oneprovider_token => resolve_registration_token(Ctx1)};
-        true -> Ctx1
-    end,
-    % the domain is read from the token, which can be given either directly or
-    % from a file that may appear with a delay
-    Ctx3 = case maps:is_key(onezone_domain, Ctx2) of
-        false -> Ctx2#{onezone_domain => onezone_tokens:read_domain(maps:get(oneprovider_token, Ctx2))};
-        true -> Ctx2
-    end,
-    get_steps(register, Ctx3);
+get_steps(register, Ctx) ->
+    get_steps(register, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
 get_steps(unregister, _Ctx) ->
     [#step{function = unregister, selection = any, args = []}];
@@ -452,15 +438,69 @@ get_identity_token() ->
 %%% Step functions
 %%%===================================================================
 
+-spec resolve_registration_token(service:step_ctx()) -> ok | no_return().
+resolve_registration_token(Ctx) ->
+    TokenProvisionMethod = kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>),
+    ?info("Registration token provision method is set to '~s'", [TokenProvisionMethod]),
+    RegistrationToken = case TokenProvisionMethod of
+        <<"inline">> ->
+            case kv_utils:find(oneprovider_token, Ctx) of
+                {ok, Token} ->
+                    sanitize_registration_token(Token);
+                error ->
+                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
+            end;
+        <<"fromFile">> ->
+            case kv_utils:find(oneprovider_token_file, Ctx) of
+                {ok, FilePath} ->
+                    Attempts = onepanel_env:get(op_worker_wait_for_registration_token_file_attempts),
+                    Delay = onepanel_env:get(op_worker_wait_for_registration_token_file_delay),
+                    try
+                        onepanel_utils:wait_until(
+                            ?MODULE, await_registration_token_from_file, [FilePath],
+                            successful_result, Attempts, Delay
+                        )
+                    catch throw:attempts_limit_exceeded ->
+                        ?error(
+                            "Registration failed - timeout waiting for a suitable registration "
+                            "token to be present in file ~s", [FilePath]
+                        ),
+                        throw(?ERROR_BAD_DATA(
+                            <<"tokenFile">>,
+                            <<"timeout waiting for a suitable registration token to be present in the file">>
+                        ))
+                    end;
+                error ->
+                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
+            end
+    end,
+
+    OnezoneDomain = onezone_tokens:read_domain(RegistrationToken),
+    ?notice("Resolved a registration token issued by Onezone at ~s", [OnezoneDomain]),
+
+    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
+        ServiceCtx#{
+            oneprovider_token => RegistrationToken,
+            onezone_domain => OnezoneDomain
+        }
+    end),
+    ok.
+
+
 %%--------------------------------------------------------------------
 %% @doc Checks if onezone is available at given address
 %% @end
 %%--------------------------------------------------------------------
 -spec check_oz_availability(Ctx :: service:step_ctx()) -> ok | no_return().
-check_oz_availability(Ctx) ->
+check_oz_availability(_Ctx) ->
     Protocol = onepanel_env:get(oz_worker_nagios_protocol),
     Port = onepanel_env:get(oz_worker_nagios_port),
-    OzDomain = maps:get(onezone_domain, Ctx),
+
+    % The domain is not stored in the step ctx, which is established at the beginning
+    % of the deployment process when it's not known yet. Instead, read from the
+    % context stored in db which has been updated in resolve_registration_token/1.
+    OzDomain = onepanel_utils:get_converted(onezone_domain, service:get_ctx(name()), binary),
+
     Url = onepanel_utils:join([Protocol, "://", OzDomain, ":", Port, "/nagios"]),
     Opts = case Protocol of
         "https" ->
@@ -509,7 +549,12 @@ check_oz_connection() ->
 register(Ctx) ->
     {ok, OpwNode} = nodes:any(?SERVICE_OPW),
 
-    OnezoneDomain = maps:get(onezone_domain, Ctx),
+    % The token and domain are not stored in the step ctx, which is established at the beginning
+    % of the deployment process when they are not known yet. Instead, read from the
+    % context stored in db which has been updated in resolve_registration_token/1.
+    OnezoneDomain = onepanel_utils:get_converted(onezone_domain, service:get_ctx(name()), binary),
+    RegistrationToken = onepanel_utils:get_converted(oneprovider_token, service:get_ctx(name()), binary),
+
     DomainParams = case onepanel_utils:get_converted(oneprovider_subdomain_delegation, Ctx, boolean, false) of
         true ->
             Subdomain = onepanel_utils:get_converted(oneprovider_subdomain, Ctx, binary),
@@ -528,7 +573,7 @@ register(Ctx) ->
     end,
 
     Params = DomainParams#{
-        <<"token">> => onepanel_utils:get_converted(oneprovider_token, Ctx, binary),
+        <<"token">> => RegistrationToken,
         <<"name">> => onepanel_utils:get_converted(oneprovider_name, Ctx, binary),
         <<"adminEmail">> => onepanel_utils:get_converted(oneprovider_admin_email, Ctx, binary),
         <<"latitude">> => onepanel_utils:get_converted(oneprovider_geo_latitude, Ctx, float, 0.0),
@@ -555,7 +600,7 @@ unregister() ->
     op_worker_rpc:on_deregister(),
     onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
     {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
-        maps:without([cluster, onezone_domain, ?DETAILS_PERSISTENCE],
+        maps:without([cluster, onezone_domain, oneprovider_token, ?DETAILS_PERSISTENCE],
             ServiceCtx#{registered => false})
     end),
     ok.
@@ -595,12 +640,12 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:?ERROR_UNREGISTERED_ONEPROVIDER = Error ->
-            erlang:raise(Type, Error, erlang:get_stacktrace());
-        Type:Error ->
+        Type:?ERROR_UNREGISTERED_ONEPROVIDER:Stacktrace ->
+            erlang:raise(Type, ?ERROR_UNREGISTERED_ONEPROVIDER, Stacktrace);
+        Type:Error:Stacktrace ->
             case service:get_ctx(name()) of
                 #{?DETAILS_PERSISTENCE := Cached} -> Cached;
-                _ -> erlang:raise(Type, Error, erlang:get_stacktrace())
+                _ -> erlang:raise(Type, Error, Stacktrace)
             end
     end.
 
@@ -625,8 +670,12 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     assert_storage_exists(Node, StorageId),
     SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
     Token = onepanel_utils:get_converted(token, Ctx, binary),
+    SupportParameters = #support_parameters{
+        accounting_enabled = maps:get(accounting_enabled, Ctx, undefined),
+        dir_stats_service_enabled = maps:get(dir_stats_service_enabled, Ctx, undefined)
+    },
 
-    case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
+    case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportParameters) of
         {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
         Error -> throw(Error)
     end.
@@ -676,6 +725,8 @@ get_space_details(#{id := SpaceId}) ->
     ImportedStorage = op_worker_storage:is_imported_storage(Node, StorageId),
     StorageImportDetails = op_worker_storage_import:get_storage_import_details(Node, SpaceId),
     CurrentSize = op_worker_rpc:space_quota_current_size(Node, SpaceId),
+    {ok, SupportParameters} = op_worker_rpc:get_space_support_parameters(Node, SpaceId),
+
     maps_utils:remove_undefined(#{
         id => SpaceId,
         importedStorage => ImportedStorage,
@@ -684,7 +735,12 @@ get_space_details(#{id := SpaceId}) ->
         spaceOccupancy => CurrentSize,
         storageId => StorageId,
         storageImport => StorageImportDetails,
-        supportingProviders => Providers
+        supportingProviders => Providers,
+        accountingEnabled => SupportParameters#support_parameters.accounting_enabled,
+        dirStatsServiceEnabled => SupportParameters#support_parameters.dir_stats_service_enabled,
+        dirStatsServiceStatus => str_utils:to_binary(
+            SupportParameters#support_parameters.dir_stats_service_status
+        )
     }).
 
 
@@ -698,6 +754,12 @@ modify_space(#{space_id := SpaceId} = Ctx) ->
     AutoStorageImportConfig = maps:get(auto_storage_import_config, Ctx, #{}),
     ok = maybe_update_support_size(Node, SpaceId, Ctx),
     op_worker_storage_import:maybe_reconfigure_storage_import(Node, SpaceId, AutoStorageImportConfig),
+
+    maybe_update_support_parameters(Node, SpaceId, #support_parameters{
+        accounting_enabled = maps:get(accounting_enabled, Ctx, undefined),
+        dir_stats_service_enabled = maps:get(dir_stats_service_enabled, Ctx, undefined)
+    }),
+
     #{id => SpaceId}.
 
 
@@ -713,6 +775,26 @@ maybe_update_support_size(OpNode, SpaceId, #{size := SupportSize}) ->
     end;
 
 maybe_update_support_size(_OpNode, _SpaceId, _Ctx) -> ok.
+
+
+%% @private
+-spec maybe_update_support_parameters(
+    node(),
+    op_worker_rpc:od_space_id(),
+    support_parameters:record()
+) ->
+    ok | no_return().
+maybe_update_support_parameters(_OpNode, _SpaceId, #support_parameters{
+    accounting_enabled = undefined,
+    dir_stats_service_enabled = undefined
+}) ->
+    ok;
+
+maybe_update_support_parameters(OpNode, SpaceId, SupportParameters) ->
+    case op_worker_rpc:update_space_support_parameters(OpNode, SpaceId, SupportParameters) of
+        ok -> ok;
+        Error -> throw(Error)
+    end.
 
 
 -spec get_auto_storage_import_stats(Ctx :: service:step_ctx()) -> json_utils:json_term().
@@ -1021,57 +1103,21 @@ await_registration_token_from_file(FilePath) ->
         Token = sanitize_registration_token(FileBody),
         ?info("Successfully retrieved registration token from file ~s", [FilePath]),
         Token
-    catch Class:Reason ->
+    catch Class:Reason:Stacktrace ->
         utils:throttle(60, fun() ->
             ?notice(
                 "No suitable Oneprovider registration token found in file '~s', retrying...~n"
                 "Last error was: ~w:~w", [FilePath, Class, Reason]
             )
         end),
-        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", [Class, Reason]),
+        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", 
+            [Class, Reason], Stacktrace),
         throw(attempt_failed)
     end.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-%% @private
--spec resolve_registration_token(service:step_ctx()) -> tokens:serialized() | no_return().
-resolve_registration_token(Ctx) ->
-    case kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>) of
-        <<"inline">> ->
-            case kv_utils:find(oneprovider_token, Ctx) of
-                {ok, Token} ->
-                    sanitize_registration_token(Token);
-                error ->
-                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
-            end;
-        <<"fromFile">> ->
-            case kv_utils:find(oneprovider_token_file, Ctx) of
-                {ok, FilePath} ->
-                    Attempts = onepanel_env:get(op_worker_wait_for_registration_token_file_attempts),
-                    Delay = onepanel_env:get(op_worker_wait_for_registration_token_file_delay),
-                    try
-                        onepanel_utils:wait_until(
-                            ?MODULE, await_registration_token_from_file, [FilePath],
-                            successful_result, Attempts, Delay
-                        )
-                    catch throw:attempts_limit_exceeded ->
-                        ?error(
-                            "Registration failed - timeout waiting for a suitable registration "
-                            "token to be present in file ~s", [FilePath]
-                        ),
-                        throw(?ERROR_BAD_DATA(
-                            <<"tokenFile">>,
-                            <<"timeout waiting for a suitable registration token to be present in the file">>
-                        ))
-                    end;
-                error ->
-                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
-            end
-    end.
-
 
 %% @private
 -spec sanitize_registration_token(binary()) -> tokens:serialized() | no_return().
@@ -1083,8 +1129,9 @@ sanitize_registration_token(Token) ->
     catch
         throw:{error, _} = Error ->
             Error;
-        Class:Reason ->
-            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p", [Class, Reason]),
+        Class:Reason:Stacktrace ->
+            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p", 
+                [Class, Reason], Stacktrace),
             throw(?ERROR_BAD_DATA(<<"token">>))
     end.
 
@@ -1100,11 +1147,10 @@ sanitize_registration_token(Token) ->
     tokens:serialized(), OnezoneDomain :: binary()) -> ok.
 on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
     OpwNodes = nodes:all(?SERVICE_OPW),
+    OppNodes = nodes:all(?SERVICE_PANEL),
     OnezoneDomainStr = unicode:characters_to_list(OnezoneDomain),
-    ok = onepanel_env:set_remote(OpwNodes, oz_domain,
-        OnezoneDomainStr, ?SERVICE_OPW),
-    ok = onepanel_env:write([?SERVICE_OPW, oz_domain],
-        OnezoneDomainStr, ?SERVICE_OPW),
+    ok = onepanel_env:set_remote(OpwNodes, oz_domain, OnezoneDomainStr, ?SERVICE_OPW),
+    onepanel_env:write(OppNodes, [?SERVICE_OPW, oz_domain], OnezoneDomainStr, ?SERVICE_OPW),
     ok = op_worker_rpc:provider_auth_save(OpwNode, ProviderId, RootToken),
     ?info("Oneprovider registered in Onezone ~ts", [OnezoneDomain]),
 
@@ -1129,10 +1175,11 @@ schedule_periodic_onezone_connection_check() ->
                 try
                     set_up_in_onezone(),
                     onepanel_cron:remove_job(?FUNCTION_NAME)
-                catch Class:Reason ->
+                catch Class:Reason:Stacktrace ->
                     ?error_stacktrace(
                         "Unexpected error when running procedures upon Onezone connection - ~w:~p",
-                        [Class, Reason]
+                        [Class, Reason],
+                        Stacktrace
                     )
                 end;
             false ->

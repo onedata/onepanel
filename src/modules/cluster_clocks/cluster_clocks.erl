@@ -100,8 +100,9 @@ run_on_master(Fun) ->
         Self when node() =:= Self ->
             try
                 Fun()
-            catch Class:Reason ->
-                ?error_stacktrace("Unexpected error in ~p - ~w:~p", [?MODULE, Class, Reason]),
+            catch Class:Reason:Stacktrace ->
+                ?error_stacktrace("Unexpected error in ~p - ~w:~p", 
+                    [?MODULE, Class, Reason], Stacktrace),
                 false
             end;
         MasterNode ->
@@ -134,8 +135,8 @@ run_periodic_sync(PrepareClusterClockSync) ->
                 end,
                 WasSuccessful
         end
-    catch Class:Reason ->
-        ?error_stacktrace("Error while running periodic clock sync: ~w:~p", [Class, Reason]),
+    catch Class:Reason:Stacktrace ->
+        ?error_stacktrace("Error while running periodic clock sync: ~w:~p", [Class, Reason], Stacktrace),
         false
     end.
 
@@ -170,5 +171,5 @@ get_master_node() ->
 -spec abort_periodic_sync() -> ok.
 abort_periodic_sync() ->
     % remove any previous periodic sync jobs across the cluster
-    rpc:multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
+    utils:rpc_multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
     ok.

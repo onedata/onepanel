@@ -17,6 +17,7 @@
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -47,7 +48,7 @@ all() -> [
 %%%===================================================================
 
 
-create_user_test(Config) ->
+create_user_test(_Config) ->
     MemRef = api_test_memory:init(),
 
     OzPanelNodes = oct_background:get_zone_panels(),
@@ -55,7 +56,7 @@ create_user_test(Config) ->
 
     GroupIds = [ozw_test_rpc:create_group(str_utils:rand_hex(6)) || _ <- lists:seq(1, 3)],
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Add zone user using /zone/users endpoint">>,
             type = rest,
@@ -94,7 +95,6 @@ create_user_test(Config) ->
 build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     TooShortPassword = <<"abcdefg">>,
-    TooLongFullname = str_utils:rand_hex(52),
     TooShortFullname = <<"a">>,
     #data_spec{
         required = [<<"username">>, <<"password">>],
@@ -111,7 +111,7 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
             {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"fullName">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"fullName">>, TooShortFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
-            {<<"fullName">>, TooLongFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"fullName">>, ?TOO_LONG_NAME, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"groups">>, [<<>>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
             {<<"groups">>, [<<"inexistentGroupId">>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]
@@ -135,7 +135,7 @@ build_create_user_prepare_args_fun(MemRef) ->
         #rest_args{
             method = post,
             path = <<"zone/users">>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestData)}
     end.
 
@@ -170,12 +170,12 @@ is_user_member_of_groups(UserId, GroupIds) ->
     end, GroupIds).
 
 
-get_user_details_test(Config) ->
+get_user_details_test(_Config) ->
     MemRef = api_test_memory:init(),
     OzPanelNodes = oct_background:get_zone_panels(),
     OzWorkerNodes = oct_background:get_zone_nodes(),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get Onezone user details using /zone/users rest endpoint">>,
             type = rest,
@@ -248,7 +248,7 @@ build_get_user_details_prepare_rest_args_fun(MemRef) ->
     end.
 
 
-set_user_password_test(Config) ->
+set_user_password_test(_Config) ->
     MemRef = api_test_memory:init(),
     OzPanelNodes = oct_background:get_zone_panels(),
     OzWorkerNodes = oct_background:get_zone_nodes(),
@@ -262,7 +262,7 @@ set_user_password_test(Config) ->
     api_test_memory:set(MemRef, old_password, Password),
     api_test_memory:set(MemRef, user_name, Username),
 
-    ?assert(api_test_runner:run_tests(Config, [
+    ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Set Onezone user password using /zone/users rest endpoint">>,
             type = rest,
@@ -340,7 +340,7 @@ build_set_user_password_prepare_rest_args_fun(MemRef) ->
         #rest_args{
             method = patch,
             path = <<"zone/users/", Id/binary>>,
-            headers = #{<<"content-type">> => <<"application/json">>},
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestData)
         }
     end.

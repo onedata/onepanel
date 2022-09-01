@@ -59,9 +59,9 @@ start(_StartType, _StartArgs) ->
                 Error
         end
     catch
-        _:Reason ->
+        _:Reason:Stacktrace ->
             ?error_stacktrace("Cannot start onepanel application due to: ~p",
-                [Reason]),
+                [Reason], Stacktrace),
             {error, Reason}
     end.
 
