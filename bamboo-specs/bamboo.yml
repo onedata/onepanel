@@ -170,6 +170,11 @@ _Codetag Tracker:
       working-dir: onepanel
       description: Codetag Tracker
   final-tasks:
+  - test-parser:
+      type: junit
+      ignore-time: 'false'
+      test-results: onepanel/test/codetag_tracker_results/TEST-*.xml
+      description: Parse test results
   - script: *clear-env
   requirements: *requirements
   artifact-subscriptions: &artifact-onepanel
@@ -186,6 +191,11 @@ _Dialyze:
       working-dir: onepanel
       description: Dialyze
   final-tasks:
+  - test-parser:
+      type: junit
+      ignore-time: 'false'
+      test-results: onepanel/test/dialyzer_results/TEST-*.xml
+      description: Parse test results
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
