@@ -75,6 +75,7 @@ stages:
     final: false
     jobs:
     - Coverage report
+
 Build:
   key: JOB1
   tasks:
@@ -143,6 +144,7 @@ Build:
   - system.docker.executable
   - onedata
   artifact-subscriptions: []
+
 _Codetag Tracker:
   key: CT
   tasks:
@@ -163,7 +165,7 @@ _Codetag Tracker:
       working-dir: onepanel
       description: Codetag Tracker
   final-tasks:
-  - test-parser:
+  - test-parser: &parse-test-results
       type: junit
       ignore-time: 'false'
       test-results: onepanel/test/codetag_tracker_results/TEST-*.xml
@@ -172,6 +174,7 @@ _Codetag Tracker:
   requirements: *requirements
   artifact-subscriptions: &artifact-onepanel
   - artifact: onepanel.tar.gz
+
 _Dialyze:
   key: DO
   tasks:
@@ -185,10 +188,8 @@ _Dialyze:
       description: Dialyze
   final-tasks:
   - test-parser:
-      type: junit
-      ignore-time: 'false'
-      test-results: onepanel/test/dialyzer_results/TEST-*.xml
-      description: Parse test results
+      <<: *parse-test-results
+      test-results: oz_worker/test/dialyzer_results/TEST-*.xml
   - script:
       interpreter: BINSH_OR_CMDEXE
       scripts:
@@ -199,6 +200,7 @@ _Dialyze:
   - script: *clear-env
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 _Unit Test:
   key: UTOP
   other: &common-opts
@@ -234,10 +236,8 @@ _Unit Test:
       working-dir: onepanel
       description: Save cover results
   - test-parser:
-      type: junit
-      ignore-time: 'false'
-      test-results: onepanel/test/eunit_results/TEST-*.xml
-      description: Parse test results
+      <<: *parse-test-results
+      test-results: oz_worker/test/eunit_results/TEST-*.xml
   - script: *clear-env
   artifacts:
   - name: cover_eunit.tar.gz
@@ -247,6 +247,7 @@ _Unit Test:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 api_common_internal:
   key: ACEP
   other: *common-opts
@@ -274,11 +275,9 @@ api_common_internal:
       description: Run CT onenv common tests
       working-dir: onepanel
   final-tasks:
-  - test-parser: &parse-test-results
-      type: junit
-      ignore-time: 'false'
+  - test-parser:
+      <<: *parse-test-results
       test-results: onepanel/test_distributed/logs/*/surefire.xml
-      description: Parse test results
   - script: &save-cover-results
       interpreter: BINSH_OR_CMDEXE
       scripts:
@@ -314,6 +313,7 @@ api_common_internal:
   requirements: &minikube
   - minikube
   artifact-subscriptions: *artifact-onepanel
+
 api_oneprovider_provider:
   key: APIOPPROVIDER
   other: *common-opts
@@ -344,6 +344,7 @@ api_oneprovider_provider:
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
+
 api_oneprovider_spaces_basic:
   key: SPAC
   other: *common-opts
@@ -369,6 +370,7 @@ api_oneprovider_spaces_basic:
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
+
 api_oneprovider_storages:
   key: STOR
   other: *common-opts
@@ -394,6 +396,7 @@ api_oneprovider_storages:
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
+
 api_onezone_service_configuration:
   key: ASC
   other: *common-opts
@@ -424,6 +427,7 @@ api_onezone_service_configuration:
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
+
 api_onezone_user_management:
   key: AP
   other: *common-opts
@@ -449,6 +453,7 @@ api_onezone_user_management:
     required: false
   requirements: *minikube
   artifact-subscriptions: *artifact-onepanel
+
 model:
   key: MOD
   other: *common-opts
@@ -475,6 +480,7 @@ model:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_ceph:
   key: RESTCEPH
   other: *common-opts
@@ -496,6 +502,7 @@ rest_ceph:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_clusters:
   key: RCLUSTER
   other: *common-opts
@@ -517,6 +524,7 @@ rest_clusters:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_letsencrypt:
   key: LE
   other: *common-opts
@@ -538,6 +546,7 @@ rest_letsencrypt:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_onepanel:
   key: RO
   other: *common-opts
@@ -559,6 +568,7 @@ rest_onepanel:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_onepanel_user:
   key: ROU
   other: *common-opts
@@ -580,6 +590,7 @@ rest_onepanel_user:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_oneprovider:
   key: ROP
   other: *common-opts
@@ -601,6 +612,7 @@ rest_oneprovider:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_onezone:
   key: RESZ
   other: *common-opts
@@ -622,6 +634,7 @@ rest_onezone:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 rest_service:
   key: RS
   other: *common-opts
@@ -643,6 +656,7 @@ rest_service:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 service:
   key: SER
   other: *common-opts
@@ -664,6 +678,7 @@ service:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 service_onepanel:
   key: SO
   other: *common-opts
@@ -685,6 +700,7 @@ service_onepanel:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 services:
   key: SERS
   other: *common-opts
@@ -706,6 +722,7 @@ services:
     required: false
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
+
 Coverage report:
   key: CROP
   other: *common-opts
