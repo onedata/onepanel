@@ -127,7 +127,7 @@ Build:
           - |-
             ./onepanel/bamboos/artifacts/push_artifact.py --hostname ${bamboo.artifactRepoHostname} --port ${bamboo.artifactRepoPort} \
                 --username ${bamboo.artifactRepoUsername} --branch ${bamboo.planRepository.branchName} --plan ${bamboo.planRepository.name} \
-                --artifact onepanel.tar.gz
+                --artifact-name onepanel.tar.gz
         description: Push artifact
   final-tasks:
     - script: &clear-env
