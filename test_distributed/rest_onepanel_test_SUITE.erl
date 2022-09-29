@@ -106,7 +106,7 @@ method_should_return_unauthorized_error(Config) ->
 
 api_caveats_should_restrict_available_endpoints(Config) ->
     Caveat = #cv_api{whitelist = [
-        {?OP_PANEL, get, #gri_pattern{type = 'onp_panel', id='*', aspect = 'cookie'}}
+        {?OP_PANEL, get, ?GRI_PATTERN(onp_panel, <<"*">>, <<"cookie">>)}
     ]},
     Token = onepanel_test_rest:construct_token([Caveat]),
     ?assertMatch({ok, ?HTTP_200_OK, _, _},
