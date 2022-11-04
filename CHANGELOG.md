@@ -121,6 +121,12 @@ CHANGELOG
     Fixed inability to open share hosted by Oneprovider 19.02.x using
     Onezone 20.02.x.
 
+### 20.02.19
+
+-   **VFS-9730** Improve handling of api caveats related to API
+    operations concerning other components than Onezone - in some cases,
+    tokens with such caveats could be treated as invalid.
+
 ### 20.02.18
 
 ### 20.02.17
