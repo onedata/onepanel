@@ -4,6 +4,10 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-alpha28
+
+-   **VFS-9531** Web GUI: Improved UX of the automation stores browser.
+
 ### 21.02.0-alpha27
 
 -   **VFS-9637** Web GUI: Improved and unified look of audit log
