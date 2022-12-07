@@ -287,7 +287,7 @@ build_support_space_verify_fun(MemRef) ->
             ExpStorageId = maps:get(<<"storageId">>, Data1),
             ExpSupportSize = maps:get(<<"size">>, Data1),
             ExpAccountingEnabled = maps:get(<<"accountingEnabled">>, Data1, false),
-            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, false),
+            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, true),
 
             ExpectedSpaceDetails = get_expected_space_details(
                 SpaceId, ExpSpaceName, ExpStorageId, ExpSupportSize,
