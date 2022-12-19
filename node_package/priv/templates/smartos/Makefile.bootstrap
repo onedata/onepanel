@@ -6,7 +6,7 @@ export
 
 bootstrap:
 	mkdir -p $(PKG_ID)/smartos
-	cd $(PKG_ID)/smartos && ../node_package/rebar -v create \
+	cd $(PKG_ID)/smartos && ../node_package/rebar3 -v create \
                               template_dir=../node_package/priv/templates \
                               template_vars=../$(PKG_VARS_CONFIG) template=smartos
 	$(MAKE) -C $(PKG_ID) -f smartos/Makefile

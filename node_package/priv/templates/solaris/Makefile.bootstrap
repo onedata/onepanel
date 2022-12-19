@@ -6,7 +6,7 @@ export
 
 bootstrap:
 	mkdir -p $(PKG_ID)/solaris
-	cd $(PKG_ID)/solaris && ../node_package/rebar -v create \
+	cd $(PKG_ID)/solaris && ../node_package/rebar3 -v create \
                               template_dir=../node_package/priv/templates \
                               template_vars=../$(PKG_VARS_CONFIG) template=solaris
 	$(MAKE) -C $(PKG_ID) -f solaris/Makefile
