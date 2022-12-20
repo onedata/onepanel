@@ -4,6 +4,15 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.0-rc1
+
+-   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
+    remove from cluster members.
+-   **VFS-10235** Changed default value of `accountingEnabled` parameter
+    to `true` when requesting space support.
+-   **VFS-10234** Web GUI: Changed default space support options to have
+    directory size statistics aggregation turned on.
+
 ### 21.02.0-alpha28
 
 -   **VFS-9531** Web GUI: Improved UX of the automation stores browser.
