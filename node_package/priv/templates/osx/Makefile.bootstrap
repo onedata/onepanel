@@ -5,7 +5,7 @@
 export
 
 bootstrap:
-	$(PKG_ID)/node_package/rebar3 -v create \
+	$(PKG_ID)/node_package/rebar -v create \
 			template_dir=$(PKG_ID)/node_package/priv/templates \
 			template_vars=$(PKG_ID)/$(PKG_VARS_CONFIG) template=osx
 	make -f Makefile
