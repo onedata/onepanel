@@ -154,7 +154,7 @@ package/$(PKG_ID).tar.gz:
 	     echo "$${vsn}" > $${dep}/priv/vsn.git; \
 	     sed -i'' "s/{vsn,\\s*git}/{vsn, \"$${vsn}\"}/" $${dep}/src/*.app.src 2>/dev/null || true; \
 	done
-	tar -C package -czf package/$(PKG_ID).tar.gz $(PKG_ID)
+	tar -C package -czvf package/$(PKG_ID).tar.gz $(PKG_ID)
 
 dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
