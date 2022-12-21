@@ -160,6 +160,7 @@ dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
 
 package: check_distribution package/$(PKG_ID).tar.gz
+	@echo "====== make package ====="
 	${MAKE} -C package -f $(PKG_ID)/node_package/Makefile
 
 pkgclean:
