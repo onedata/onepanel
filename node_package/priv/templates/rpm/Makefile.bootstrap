@@ -8,7 +8,6 @@ TEMPLATE_DIR := $(PKG_ID)/node_package/priv/templates
 RPM_TEMPLATE_DIR := $(TEMPLATE_DIR)/rpm
 
 bootstrap: $(RPM_TEMPLATE_DIR)/rpm.template
-	sleep 3600000
 	$(PKG_ID)/node_package/rebar -v create \
 					template_dir=$(PKG_ID)/node_package/priv/templates \
 					template_vars=$(PKG_ID)/$(PKG_VARS_CONFIG) template=rpm
