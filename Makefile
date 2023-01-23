@@ -127,7 +127,10 @@ relclean:
 
 # Dialyzes the project.
 dialyzer: config
-	$(REBAR) dialyzer
+	@./bamboos/scripts/run-with-surefire-report.py \
+		--test-name Dialyze \
+		--report-path test/dialyzer_results/TEST-dialyzer.xml \
+		$(REBAR) dialyzer
 
 ##
 ## Packaging targets
@@ -168,4 +171,7 @@ pkgclean:
 	rm -rf package
 
 codetag-tracker:
-	./bamboos/scripts/codetag-tracker.sh --branch=${BRANCH} --excluded-dirs=node_package
+	@./bamboos/scripts/run-with-surefire-report.py \
+		--test-name CodetagTracker \
+		--report-path test/codetag_tracker_results/TEST-codetag_tracker.xml \
+		./bamboos/scripts/codetag-tracker.sh --branch=${BRANCH} --excluded-dirs=node_package

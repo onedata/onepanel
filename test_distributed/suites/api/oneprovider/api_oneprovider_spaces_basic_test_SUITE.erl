@@ -17,6 +17,7 @@
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/headers.hrl").
+-include_lib("ctool/include/space_support/support_parameters.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -57,6 +58,12 @@ all() -> [
 
     revoke_space_support_test
 ].
+
+
+-define(ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, ?ERROR_BAD_DATA(
+    <<"dirStatsServiceEnabled">>,
+    <<"Dir stats service must be enabled if accounting is enabled">>
+)).
 
 
 %%%===================================================================
@@ -242,9 +249,8 @@ build_support_space_data_spec(StorageId, OpWorkerNodes) ->
             {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
             {<<"storageId">>, <<"inexistientStorageId">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>), HostNames)},
             {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
-            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_BAD_DATA(
-                <<"dirStatsServiceEnabled">>,
-                <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+                ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)}
         ]
@@ -281,7 +287,7 @@ build_support_space_verify_fun(MemRef) ->
             ExpStorageId = maps:get(<<"storageId">>, Data1),
             ExpSupportSize = maps:get(<<"size">>, Data1),
             ExpAccountingEnabled = maps:get(<<"accountingEnabled">>, Data1, false),
-            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, false),
+            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, true),
 
             ExpectedSpaceDetails = get_expected_space_details(
                 SpaceId, ExpSpaceName, ExpStorageId, ExpSupportSize,
@@ -372,9 +378,8 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
             {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
             {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
             {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
-            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_BAD_DATA(
-                <<"dirStatsServiceEnabled">>,
-                <<"Collecting directory statistics can not be disabled when accounting is enabled.">>
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+                ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
             {bad_id, <<"inexistentSpaceId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
@@ -551,7 +556,7 @@ get_space_details_with_rpc(SpaceId) ->
     [StorageId] = opw_test_rpc:get_space_local_storages(krakow, SpaceId),
     IsImportedStorage = opw_test_rpc:is_storage_imported(krakow, StorageId),
     AutocleaningStatus = opw_test_rpc:get_autocleaning_status(krakow, SpaceId),
-    SpaceSupportOpts = opw_test_rpc:get_space_support_opts(krakow, SpaceId),
+    SpaceSupportParameters = opw_test_rpc:get_space_support_parameters(krakow, SpaceId),
 
     #{
         <<"id">> => SpaceId,
@@ -561,8 +566,8 @@ get_space_details_with_rpc(SpaceId) ->
         <<"supportingProviders">> => maps:get(providers, SpaceDoc),
         <<"importedStorage">> => IsImportedStorage,
         <<"spaceOccupancy">> => maps:get(spaceOccupancy, AutocleaningStatus),
-        <<"accountingEnabled">> => maps:get(accounting_enabled, SpaceSupportOpts),
-        <<"dirStatsServiceEnabled">> => maps:get(dir_stats_service_enabled, SpaceSupportOpts)
+        <<"accountingEnabled">> => SpaceSupportParameters#support_parameters.accounting_enabled,
+        <<"dirStatsServiceEnabled">> => SpaceSupportParameters#support_parameters.dir_stats_service_enabled
     }.
 
 

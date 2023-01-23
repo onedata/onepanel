@@ -1516,9 +1516,17 @@ space_details_model() ->
         storageImport => {storage_import_model(), optional},
         %% Amount of storage [b] used by data from given space on that storage.
         spaceOccupancy => integer,
+        %% Indicates if accounting is enabled. The accounting mechanism utilizes
+        %% directory  statistics to keep track of quota usage within a space for
+        %% the corresponding  supporting provider.
         accountingEnabled => boolean,
+        %% Indicates if the directory statistics service is enabled.  The
+        %% service gathers statistics concerning logical and physical directory
+        %% size, file count and update times. It cannot be disabled if
+        %% accounting is enabled.
         dirStatsServiceEnabled => boolean,
-        dirStatsServiceStatus => string
+        %% Current status of directory statistics service.
+        dirStatsServiceStatus => {enum, string, [<<"initializing">>, <<"enabled">>, <<"stopping">>, <<"disabled">>]}
     }.
 
 %%--------------------------------------------------------------------
@@ -1554,7 +1562,14 @@ space_modify_request_model() ->
         %% the space.
         size => {integer, optional},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional},
+        %% Indicates if accounting is enabled. The accounting mechanism utilizes
+        %% directory  statistics to keep track of quota usage within a space for
+        %% the corresponding  supporting provider.
         accountingEnabled => {boolean, optional},
+        %% Indicates if the directory statistics service is enabled.  The
+        %% service gathers statistics concerning logical and physical directory
+        %% size, file count and update times. It cannot be disabled if
+        %% accounting is enabled.
         dirStatsServiceEnabled => {boolean, optional}
     }.
 
@@ -1574,8 +1589,15 @@ space_support_request_model() ->
         %% The Id of the storage resource where the space data should be stored.
         storageId => string,
         storageImport => {storage_import_model(), optional},
-        accountingEnabled => {boolean, {optional, false}},
-        dirStatsServiceEnabled => {boolean, {optional, false}}
+        %% Indicates if accounting is enabled. The accounting mechanism utilizes
+        %% directory  statistics to keep track of quota usage within a space for
+        %% the corresponding  supporting provider.
+        accountingEnabled => {boolean, optional},
+        %% Indicates if the directory statistics service is enabled.  The
+        %% service gathers statistics concerning logical and physical directory
+        %% size, file count and update times. It cannot be disabled if
+        %% accounting is enabled.
+        dirStatsServiceEnabled => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -1625,8 +1647,8 @@ storage_import_model() ->
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
         %% supported. For more info please read:
-        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
-        %% /File-registration
+        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
+        %% registration
         mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.

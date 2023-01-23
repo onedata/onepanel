@@ -95,7 +95,6 @@ create_user_test(_Config) ->
 build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     TooShortPassword = <<"abcdefg">>,
-    TooLongFullname = str_utils:rand_hex(52),
     TooShortFullname = <<"a">>,
     #data_spec{
         required = [<<"username">>, <<"password">>],
@@ -112,7 +111,7 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
             {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"fullName">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"fullName">>, TooShortFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
-            {<<"fullName">>, TooLongFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"fullName">>, ?TOO_LONG_NAME, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"groups">>, [<<>>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
             {<<"groups">>, [<<"inexistentGroupId">>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]

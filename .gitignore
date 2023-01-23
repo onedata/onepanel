@@ -10,6 +10,8 @@ package
 
 test_coverage
 test/eunit_results
+test/dialyzer_results
+test/codetag_tracker_results
 test_distributed/logs
 test_distributed/cover_tmp.spec
 
