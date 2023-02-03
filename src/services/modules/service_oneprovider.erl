@@ -623,12 +623,19 @@ format_cluster_ips(Ctx) ->
 support_space(#{storage_id := StorageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
-    SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
+    SupportSize = onepanel_utils:get_converted(size, Ctx, integer),
     Token = onepanel_utils:get_converted(token, Ctx, binary),
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize) of
-        {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
-        Error -> throw(Error)
+        {ok, SpaceId} ->
+            #{name := SpaceName} = get_space_details(#{id => SpaceId}),
+            #{name := StorageName} = op_worker_storage:get(StorageId),
+            ?notice("New space has been supported: '~s' (~s) with ~s quota on storage '~s' (~s)", [
+                SpaceName, SpaceId, str_utils:format_byte_size(SupportSize), StorageName, StorageId
+            ]),
+            configure_space(Node, SpaceId, StorageId, Ctx);
+        Error ->
+            throw(Error)
     end.
 
 
