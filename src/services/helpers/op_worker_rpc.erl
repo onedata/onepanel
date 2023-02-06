@@ -1053,11 +1053,11 @@ storage_import_get_manual_example(Node, SpaceId) ->
     ?CALL(Node, [SpaceId]).
 
 
--spec restart_rtransfer_link() -> ok | {error, not_running}.
+-spec restart_rtransfer_link() -> ok.
 restart_rtransfer_link() ->
     ?CALL([]).
 
--spec restart_rtransfer_link(node()) -> ok | {error, not_running}.
+-spec restart_rtransfer_link(node()) -> ok.
 restart_rtransfer_link(Node) ->
     ?CALL(Node, []).
 

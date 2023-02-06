@@ -668,7 +668,7 @@ format_cluster_ips(Ctx) ->
 support_space(#{storage_id := StorageId} = Ctx) ->
     {ok, Node} = nodes:any(?SERVICE_OPW),
     assert_storage_exists(Node, StorageId),
-    SupportSize = onepanel_utils:get_converted(size, Ctx, binary),
+    SupportSize = onepanel_utils:get_converted(size, Ctx, integer),
     Token = onepanel_utils:get_converted(token, Ctx, binary),
     SupportParameters = #support_parameters{
         accounting_enabled = maps:get(accounting_enabled, Ctx, undefined),
@@ -676,8 +676,15 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     },
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportParameters) of
-        {ok, SpaceId} -> configure_space(Node, SpaceId, StorageId, Ctx);
-        Error -> throw(Error)
+        {ok, SpaceId} ->
+            #{name := SpaceName} = get_space_details(#{id => SpaceId}),
+            #{name := StorageName} = op_worker_storage:get(StorageId),
+            ?notice("New space has been supported: '~s' (~s) with ~s quota on storage '~s' (~s)", [
+                SpaceName, SpaceId, str_utils:format_byte_size(SupportSize), StorageName, StorageId
+            ]),
+            configure_space(Node, SpaceId, StorageId, Ctx);
+        Error ->
+            throw(Error)
     end.
 
 
@@ -1110,7 +1117,7 @@ await_registration_token_from_file(FilePath) ->
                 "Last error was: ~w:~w", [FilePath, Class, Reason]
             )
         end),
-        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p", 
+        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p",
             [Class, Reason], Stacktrace),
         throw(attempt_failed)
     end.
@@ -1130,7 +1137,7 @@ sanitize_registration_token(Token) ->
         throw:{error, _} = Error ->
             Error;
         Class:Reason:Stacktrace ->
-            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p", 
+            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p",
                 [Class, Reason], Stacktrace),
             throw(?ERROR_BAD_DATA(<<"token">>))
     end.
