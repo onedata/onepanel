@@ -3043,7 +3043,13 @@ nulldevice_model() ->
         %% immediately. For example value of 0.01 will increase the number of
         %% the visible filesystem entries by 1 file per 100 seconds, while 100.0
         %% will increase it by 100 files per second.
-        simulatedFilesystemGrowSpeed => {float, optional}
+        simulatedFilesystemGrowSpeed => {float, optional},
+        %% Enables data verification for `read` and `write`
+        %% operations. Read operations will always return a predictable pattern
+        %% of characters based on `offset` and `size`, and
+        %% `write` operations will fail with I/O error, if the input
+        %% data does not match the pattern at a given `offset`.
+        enableDataVerification => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -3140,7 +3146,13 @@ nulldevice_modify_model() ->
         %% immediately. For example value of 0.01 will increase the number of
         %% the visible filesystem entries by 1 file per 100 seconds, while 100.0
         %% will increase it by 100 files per second.
-        simulatedFilesystemGrowSpeed => {float, optional}
+        simulatedFilesystemGrowSpeed => {float, optional},
+        %% Enables data verification for `read` and `write`
+        %% operations. Read operations will always return a predictable pattern
+        %% of characters based on `offset` and `size`, and
+        %% `write` operations will fail with I/O error, if the input
+        %% data does not match the pattern at a given `offset`.
+        enableDataVerification => {boolean, optional}
     }.
 
 %%--------------------------------------------------------------------
