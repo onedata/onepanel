@@ -23,7 +23,7 @@
 
 token_quote_test_() ->
     lists:map(fun({Token, QuotedToken}) ->
-        ?_assertEqual(QuotedToken, onepanel_shell:quote(Token))
+        ?_assertEqual(QuotedToken, shell_utils:quote(Token))
     end, [
         {<<"token">>, <<"'token'">>},
         {<<"white space">>, <<"'white space'">>},

@@ -39,8 +39,8 @@
 -spec generate_csr_and_key(Domain :: string()) ->
     {ok, CSR :: pem(), Key :: pem()} | error.
 generate_csr_and_key(Domain) ->
-    KeyFile = onepanel_shell:mktemp(),
-    CSRFile = onepanel_shell:mktemp(),
+    KeyFile = shell_utils:mktemp(),
+    CSRFile = shell_utils:mktemp(),
 
     try
         os:cmd([

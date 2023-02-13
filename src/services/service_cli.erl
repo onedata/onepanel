@@ -34,7 +34,7 @@ start(Service, SystemLimits) ->
         (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
         (_, _, Acc) -> Acc
     end, Tokens, SystemLimits),
-    onepanel_shell:ensure_success(Tokens2),
+    shell_utils:ensure_success(Tokens2),
     ?info("Service ~s started", [Service]).
 
 
@@ -45,7 +45,7 @@ start(Service, SystemLimits) ->
 -spec stop(service:name()) -> ok | no_return().
 stop(Service) ->
     Tokens = [get_script(Service), "stop"],
-    case onepanel_shell:execute(Tokens) of
+    case shell_utils:execute(Tokens) of
         {0, _, _} ->
             ?info("Service ~s stopped", [Service]),
             ok;
@@ -63,7 +63,7 @@ stop(Service) ->
 -spec restart(service:name()) -> ok | no_return().
 restart(Service) ->
     Tokens = [get_script(Service), "restart"],
-    onepanel_shell:ensure_success(Tokens).
+    shell_utils:ensure_success(Tokens).
 
 
 %%--------------------------------------------------------------------
@@ -75,7 +75,7 @@ restart(Service) ->
 -spec status(service:name(), Command :: status | ping) -> running | stopped | missing.
 status(Service, Command) ->
     Tokens = [get_script(Service), Command],
-    case onepanel_shell:execute(Tokens) of
+    case shell_utils:execute(Tokens) of
         {0, _, _} -> running;
         {127, _, _} -> missing;
         {_, _, _} -> stopped
@@ -96,7 +96,7 @@ status(Service, Command) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_script(Service :: service:name()) ->
-    onepanel_shell:token() | no_return().
+    shell_utils:token() | no_return().
 get_script(Service) ->
     EnvName = list_to_atom(atom_to_list(Service) ++ "_cmd"),
     onepanel_env:get(EnvName).

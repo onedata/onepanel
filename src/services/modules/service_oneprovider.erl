@@ -1117,8 +1117,7 @@ await_registration_token_from_file(FilePath) ->
                 "Last error was: ~w:~w", [FilePath, Class, Reason]
             )
         end),
-        ?debug_stacktrace("Reading registration token from file failed due to ~w:~p",
-            [Class, Reason], Stacktrace),
+        ?debug_exception("Reading registration token from file failed", Class, Reason, Stacktrace),
         throw(attempt_failed)
     end.
 
@@ -1137,8 +1136,7 @@ sanitize_registration_token(Token) ->
         throw:{error, _} = Error ->
             Error;
         Class:Reason:Stacktrace ->
-            ?debug_stacktrace("Registration token sanitization failed due to ~w:~p",
-                [Class, Reason], Stacktrace),
+            ?debug_exception("Registration token sanitization failed", Class, Reason, Stacktrace),
             throw(?ERROR_BAD_DATA(<<"token">>))
     end.
 
