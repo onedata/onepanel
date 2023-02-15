@@ -97,10 +97,12 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
         Result = erlang:apply(Module, Function, Args),
         Validator(Result)
     catch
-        _:Reason:Stacktrace ->
+        Class:Reason:Stacktrace ->
             timer:sleep(Delay),
-            ?debug_stacktrace("Call ~p:~p(~p) returned unexpected result: ~p."
-            " Retrying...", [Module, Function, Args, Reason], Stacktrace),
+            ?debug_exception(
+                "The call ~p:~p(~p) crashed with exception. Retrying...", [Module, Function, Args],
+                Class, Reason, Stacktrace
+            ),
             wait_until(Module, Function, Args, {validator, Validator},
                 Attempts - 1, Delay)
     end;

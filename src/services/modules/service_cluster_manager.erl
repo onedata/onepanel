@@ -211,7 +211,7 @@ configure(#{main_host := MainHost, hosts := Hosts,
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", Cookie, VmArgsFile),
 
-    onepanel_shell:sed("WAIT_FOR_PROCESS=.*",
+    shell_utils:sed("WAIT_FOR_PROCESS=.*",
         "WAIT_FOR_PROCESS=" ++ Process, EnvFile),
 
     service:add_host(name(), Host).

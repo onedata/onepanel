@@ -30,7 +30,7 @@
 %%--------------------------------------------------------------------
 -spec get_devices() -> [device_desc()].
 get_devices() ->
-    Output = onepanel_shell:get_success_output(["lsblk",
+    Output = shell_utils:get_success_output(["lsblk",
         "-J", % JSON output
         "-b", % size in bytes
         "-p"  % full paths to device files
@@ -58,13 +58,13 @@ filter_unavailable(Disks) ->
 %%--------------------------------------------------------------------
 -spec mount(Device :: binary(), Mountpoint :: binary()) -> ok | no_return().
 mount(Device, Mountpoint) ->
-    onepanel_shell:ensure_success(["mount", Device, Mountpoint]).
+    shell_utils:ensure_success(["mount", Device, Mountpoint]).
 
 
 -spec is_blockdevice(Path :: binary()) -> boolean().
 is_blockdevice(Path) ->
-    PathToken = onepanel_shell:quote(Path),
-    {Code, _, _} = onepanel_shell:execute(["test", "-b", PathToken]),
+    PathToken = shell_utils:quote(Path),
+    {Code, _, _} = shell_utils:execute(["test", "-b", PathToken]),
     Code == 0.
 
 

@@ -20,7 +20,7 @@
 -export([enable_logical_volume/1, disable_volume_group/1, remove_volume_group/1,
     scan_volume_groups/0]).
 
--define(QUOTE(Tokens), lists:map(fun onepanel_shell:quote/1, Tokens)).
+-define(QUOTE(Tokens), lists:map(fun shell_utils:quote/1, Tokens)).
 
 %%%===================================================================
 %%% Public API
@@ -33,7 +33,7 @@
 %%--------------------------------------------------------------------
 -spec create_physical_volume(device()) -> ok.
 create_physical_volume(Device) ->
-    onepanel_shell:ensure_success(?QUOTE(["pvcreate", Device])).
+    shell_utils:ensure_success(?QUOTE(["pvcreate", Device])).
 
 
 %%--------------------------------------------------------------------
@@ -42,7 +42,7 @@ create_physical_volume(Device) ->
 %%--------------------------------------------------------------------
 -spec remove_physical_volume(device()) -> ok.
 remove_physical_volume(Device) ->
-    onepanel_shell:ensure_success(?QUOTE(["pvremove", "-y", Device])).
+    shell_utils:ensure_success(?QUOTE(["pvremove", "-y", Device])).
 
 
 %%--------------------------------------------------------------------
@@ -51,7 +51,7 @@ remove_physical_volume(Device) ->
 %%--------------------------------------------------------------------
 -spec create_volume_group(GroupName :: binary(), [device()]) -> ok.
 create_volume_group(GroupName, PhysicalVolumes) ->
-    onepanel_shell:ensure_success(?QUOTE(
+    shell_utils:ensure_success(?QUOTE(
         ["vgcreate", GroupName | PhysicalVolumes]
     )).
 
@@ -62,12 +62,12 @@ create_volume_group(GroupName, PhysicalVolumes) ->
 %%--------------------------------------------------------------------
 -spec disable_volume_group(GroupName :: binary()) -> ok.
 disable_volume_group(GroupName) ->
-    onepanel_shell:ensure_success(?QUOTE(["vgchange", "-a", "n", GroupName])).
+    shell_utils:ensure_success(?QUOTE(["vgchange", "-a", "n", GroupName])).
 
 
 -spec remove_volume_group(GroupName :: binary()) -> ok.
 remove_volume_group(GroupName) ->
-    onepanel_shell:ensure_success(?QUOTE(["vgremove", "-f", GroupName])).
+    shell_utils:ensure_success(?QUOTE(["vgremove", "-f", GroupName])).
 
 
 %%--------------------------------------------------------------------
@@ -76,7 +76,7 @@ remove_volume_group(GroupName) ->
 %%--------------------------------------------------------------------
 -spec create_logical_volume(VolumeName :: binary(), GroupName :: binary()) -> ok.
 create_logical_volume(VolumeName, GroupName) ->
-    onepanel_shell:ensure_success(?QUOTE(
+    shell_utils:ensure_success(?QUOTE(
         ["lvcreate", "-l", "100%FREE", "-n", VolumeName, GroupName]
     )).
 
@@ -87,7 +87,7 @@ create_logical_volume(VolumeName, GroupName) ->
 %%--------------------------------------------------------------------
 -spec enable_logical_volume(GroupVolume :: binary()) -> ok.
 enable_logical_volume(GroupVolume) ->
-    onepanel_shell:ensure_success(?QUOTE(["lvchange", "-a", "y", GroupVolume])).
+    shell_utils:ensure_success(?QUOTE(["lvchange", "-a", "y", GroupVolume])).
 
 
 %%--------------------------------------------------------------------
@@ -95,6 +95,6 @@ enable_logical_volume(GroupVolume) ->
 %% @end
 %%--------------------------------------------------------------------
 scan_volume_groups() ->
-    onepanel_shell:ensure_success(["vgscan", "--mknodes"]).
+    shell_utils:ensure_success(["vgscan", "--mknodes"]).
 
 
