@@ -6,11 +6,10 @@ CHANGELOG
 
 ### 21.02.0-rc2
 
--   **VFS-9999** Web GUI: Added space details popovers with space
-    information in various views.
--   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
-    remove from cluster members.
--   **VFS-9129** Web GUI: Upgraded EmberJS to v3.8.
+-   **VFS-10502** Added option to null device enabling verification of
+    whether read data matches written data based on offset and size of
+    request, which can be used to test for instance transfer data
+    consistency.
 -   **VFS-10312** Web GUI: Changed name conflict and disambiguation
     separator from `#` to `@`.
 -   **VFS-10261** Web GUI: Fixed auto-cleaning reports not loading on
@@ -19,6 +18,11 @@ CHANGELOG
     to `true` when requesting space support.
 -   **VFS-10234** Web GUI: Changed default space support options to have
     directory size statistics aggregation turned on.
+-   **VFS-9999** Web GUI: Added space details popovers with space
+    information in various views.
+-   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
+    remove from cluster members.
+-   **VFS-9129** Web GUI: Upgraded EmberJS to v3.8.
 
 ### 21.02.0-alpha28
 
