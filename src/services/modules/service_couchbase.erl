@@ -132,7 +132,7 @@ get_steps(status, _Ctx) ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(_Ctx) ->
-    onepanel_shell:sed("-community", "", "/etc/init.d/" ++ ?INIT_SCRIPT).
+    shell_utils:sed("-community", "", "/etc/init.d/" ++ ?INIT_SCRIPT).
 
 
 %%--------------------------------------------------------------------
@@ -264,7 +264,7 @@ init_cluster(Ctx) ->
         str_utils:format("--cluster-init-username=~ts", [User]),
         str_utils:format("--cluster-init-ramsize=~B", [ServerQuota])
     ],
-    onepanel_shell:ensure_success(
+    shell_utils:ensure_success(
         Cmd ++ ["--cluster-init-password=" ++ Password],
         Cmd ++ ["--cluster-init-password=*****"]),
 
@@ -296,7 +296,7 @@ join_cluster(#{cluster_host := ClusterHost}) ->
             "--server-add=" ++ Host ++ ":" ++ Port,
             "--server-add-username=" ++ User
     ],
-    onepanel_shell:ensure_success(
+    shell_utils:ensure_success(
         Cmd ++ ["--server-add-password=" ++ Password],
         Cmd ++ ["--server-add-password=*****"]
     ),
@@ -333,7 +333,7 @@ rebalance_cluster(_Ctx) ->
 rebalance_cluster_with_attempts(Host, Port, User, Password, AttemptsLeft) ->
     Cmd = [?CLI, "rebalance", "-c", Host ++ ":" ++ Port, "-u", User],
     try
-        onepanel_shell:ensure_success(
+        shell_utils:ensure_success(
             Cmd ++ ["-p", Password],
             Cmd ++ ["-p", "*****"]
         ),
@@ -366,7 +366,7 @@ create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
         "-u", User, "--bucket=" ++ Bucket,
         str_utils:format("--bucket-ramsize=~B", [BucketQuota]),
         "--bucket-eviction-policy=fullEviction", "--wait"],
-    onepanel_shell:ensure_success(
+    shell_utils:ensure_success(
         Cmd ++ ["-p", Password],
         Cmd ++ ["-p", "****"]
     ).

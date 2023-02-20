@@ -175,7 +175,7 @@ status(#{id := Id}) ->
     #{ip := Ip} = get_instance(Id),
     DataDir = ceph:get_data_dir(mon, Id),
     StartedBy = ceph_cli:mon_start_cmd(Id, DataDir, Ip),
-    case onepanel_shell:process_exists(StartedBy) of
+    case shell_utils:process_exists(StartedBy) of
         true -> healthy;
         false -> stopped
     end.

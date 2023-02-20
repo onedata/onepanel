@@ -338,7 +338,7 @@ stop(#{uuid := UUID} = Ctx) ->
 -spec status(#{id := id()}) -> service:status().
 status(#{id := Id}) ->
     StartedBy = ceph_cli:osd_start_cmd(Id),
-    case onepanel_shell:process_exists(StartedBy) of
+    case shell_utils:process_exists(StartedBy) of
         true -> healthy;
         false -> stopped
     end.
