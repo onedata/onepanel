@@ -70,7 +70,7 @@ is_ip(Value) ->
 %%--------------------------------------------------------------------
 -spec hostname_ips() -> [inet:ip4_address()].
 hostname_ips() ->
-    {_, Result, _} = onepanel_shell:execute(["hostname", "-i"]),
+    {_, Result, _} = shell_utils:execute(["hostname", "-i"]),
     Words = string:split(Result, " ", all),
     % filter out IPv6 addresses
     lists:filtermap(fun(Word) ->

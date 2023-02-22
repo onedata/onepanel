@@ -25,7 +25,7 @@
 -export([ensure_loopdevice/2, detach_loopdevice/1]).
 -export([list_loopdevices/1]).
 
--define(QUOTE(Var), onepanel_shell:quote(Var)).
+-define(QUOTE(Var), shell_utils:quote(Var)).
 -define(LOCK_ID, <<"get_highest_loopdevice_number_lock_id">>).
 
 
@@ -51,7 +51,7 @@ ensure_loopdevice(Path, Size) ->
 
 -spec detach_loopdevice(device_path()) -> ok.
 detach_loopdevice(Device) ->
-    onepanel_shell:ensure_success(["losetup", "-d", ?QUOTE(Device)]).
+    shell_utils:ensure_success(["losetup", "-d", ?QUOTE(Device)]).
 
 
 %%--------------------------------------------------------------------
@@ -64,7 +64,7 @@ list_loopdevices(Path) ->
     % may incorrectly list loop devices set up in other containers
     case filelib:is_regular(Path) of
         true ->
-            Output = onepanel_shell:get_success_output(["losetup",
+            Output = shell_utils:get_success_output(["losetup",
                 "--list", "-J", % JSON output
                 "-j", % show devices associated with file
                 ?QUOTE(Path)]),
@@ -108,7 +108,7 @@ ensure_file(Path, Size) ->
 -spec fallocate(Path :: binary(), Size :: bytes()) -> ok.
 fallocate(Path, Size) ->
     ok = filelib:ensure_dir(Path),
-    onepanel_shell:ensure_success(["fallocate",
+    shell_utils:ensure_success(["fallocate",
         "--posix", % never fail, fall back to writing zeros
         "-l", Size, ?QUOTE(Path)]),
 
@@ -134,7 +134,7 @@ fallocate(Path, Size) ->
 losetup(Path) ->
     global:set_lock({?LOCK_ID, self()}),
     DevicePath = try
-        onepanel_shell:get_success_output(["losetup",
+        shell_utils:get_success_output(["losetup",
             "--find", % use first available device path
             "--show", % print the assigned device path
             ?QUOTE(Path)
@@ -143,8 +143,8 @@ losetup(Path) ->
         _Error:_Reason ->
             NewLoopDeviceNumber = integer_to_list(get_highest_loopdevice_number() + 1),
             NewLoopDevice = "/dev/loop" ++ NewLoopDeviceNumber,
-            onepanel_shell:get_success_output(["mknod", ?QUOTE(NewLoopDevice), "b", "7", ?QUOTE(NewLoopDeviceNumber)]),
-            onepanel_shell:get_success_output([
+            shell_utils:get_success_output(["mknod", ?QUOTE(NewLoopDevice), "b", "7", ?QUOTE(NewLoopDeviceNumber)]),
+            shell_utils:get_success_output([
                 "losetup", "--show",
                 ?QUOTE(NewLoopDevice),
                 ?QUOTE(Path)
@@ -157,7 +157,7 @@ losetup(Path) ->
 -spec get_highest_loopdevice_number() -> integer().
 get_highest_loopdevice_number() ->
     try
-        BinaryResponse = onepanel_shell:get_success_output(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]),
+        BinaryResponse = shell_utils:get_success_output(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]),
         binary_to_integer(BinaryResponse)
     catch
         _:_ -> 1
