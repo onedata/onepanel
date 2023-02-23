@@ -11,7 +11,6 @@ bootstrap: $(DEB_TEMPLATE_DIR)/deb.template
 	cd $(PKG_ID)/debian && ../node_package/rebar -v create \
                               template_dir=../node_package/priv/templates \
                               template_vars=../$(PKG_VARS_CONFIG) template=deb
-	#sleep 360000
 	make -C $(PKG_ID) -f debian/Makefile
 
 DYNAMIC_PARAMS := ,{version, \"$(PKG_VERSION)\"}\
