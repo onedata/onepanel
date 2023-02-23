@@ -22,7 +22,7 @@
 {cover_enabled, true}.
 
 {dialyzer, [
-    {warnings, [error_handling, race_conditions, unknown]},
+    {warnings, [error_handling, unknown]},
     {plt_extra_apps, [
         mnesia, ssl, ctool, ranch, cowboy, onenv_ct, yamerl, xmerl, jiffy,
         base64url, ssl_verify_fun, macaroons
