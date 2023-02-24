@@ -71,7 +71,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:develop",
+      "image": "docker.onedata.org/onezone-dev:VFS-9622-switch-to-ubuntu-focal-in-distribution-dockers", "fixme": "develop",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -99,7 +99,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:develop",
+      "image": "docker.onedata.org/oneprovider-dev:VFS-9622-switch-to-ubuntu-focal-in-distribution-dockers", "fixme": "develop",
       "onepanel": {
         "node1": {
           "vm.args": {
