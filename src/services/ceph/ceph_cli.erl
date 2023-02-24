@@ -73,7 +73,7 @@ status() ->
 -spec health() -> {ok, #{binary() => binary()}} | ?ERROR_TIMEOUT.
 health() ->
     % timeout may occur if monitors do not have quorum
-    case ?TIMEOUT(onepanel_shell, get_success_output, [?CEPH(["health"])]) of
+    case ?TIMEOUT(shell_utils, get_success_output, [?CEPH(["health"])]) of
         {done, JSON} -> {ok, json_utils:decode(JSON)};
         {error, timeout} -> ?ERROR_TIMEOUT
     end.
@@ -96,7 +96,7 @@ stop_with_timeout(StartCommand) ->
     TimeoutSeconds = onepanel_env:get(ceph_stop_timeout) div 1000,
     shell_utils:pkill(StartCommand, 'TERM'),
     try
-        onepanel_utils:wait_until(onepanel_shell, process_exists, [StartCommand],
+        onepanel_utils:wait_until(shell_utils, process_exists, [StartCommand],
             {validator, fun(Exists) -> false = Exists end},
             TimeoutSeconds, 1000),
         ok

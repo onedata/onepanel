@@ -133,14 +133,14 @@ fallocate(Path, Size) ->
 -spec losetup(Path :: binary()) -> device_path().
 losetup(Path) ->
     global:set_lock({?LOCK_ID, self()}),
-    DevicePath = try
-        shell_utils:get_success_output(["losetup",
-            "--find", % use first available device path
-            "--show", % print the assigned device path
-            ?QUOTE(Path)
-        ])
-    catch
-        _Error:_Reason ->
+    DevicePath = case shell_utils:execute(["losetup",
+        "--find", % use first available device path
+        "--show", % print the assigned device path
+        ?QUOTE(Path)
+    ]) of
+        {0, Path, _} ->
+            Path;
+        _Failure ->
             NewLoopDeviceNumber = integer_to_list(get_highest_loopdevice_number() + 1),
             NewLoopDevice = "/dev/loop" ++ NewLoopDeviceNumber,
             shell_utils:get_success_output(["mknod", ?QUOTE(NewLoopDevice), "b", "7", ?QUOTE(NewLoopDeviceNumber)]),
@@ -156,11 +156,11 @@ losetup(Path) ->
 
 -spec get_highest_loopdevice_number() -> integer().
 get_highest_loopdevice_number() ->
-    try
-        BinaryResponse = shell_utils:get_success_output(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]),
-        binary_to_integer(BinaryResponse)
-    catch
-        _:_ -> 1
+    case shell_utils:execute(["ls /dev | grep loop | sed 's/^loop//' | sort -n | tail -1"]) of
+        {0, BinaryResponse, _} ->
+            binary_to_integer(BinaryResponse);
+        _Failure ->
+            1
     end.
 
 
