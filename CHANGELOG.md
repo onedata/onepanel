@@ -4,6 +4,11 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 20.02.20
+
+-   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
+    remove from cluster members.
+
 ### 20.02.19
 
 -   **VFS-9730** Improve handling of api caveats related to API
