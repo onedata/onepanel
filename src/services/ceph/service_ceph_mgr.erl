@@ -214,7 +214,7 @@ create_keyring(#{id := Id}) ->
         {osd, <<"allow *">>},
         {mds, <<"allow *">>}
     ]),
-    % The keyring content MUST HAVE newline at the end, which is stripped by onepanel_shell
+    % The keyring content MUST HAVE newline at the end, which is stripped by shell_utils
     ValidKeyring = str_utils:ensure_suffix(KeyringContent, "\n"),
 
     ok = filelib:ensure_dir(KeyringPath),

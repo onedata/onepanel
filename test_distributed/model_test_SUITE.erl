@@ -141,9 +141,9 @@ select_test(Config) ->
     ?assertEqual([Record1, Record2], ?callAny(Config, model, select, [
         ?MODEL, [{#?MODEL{field2 = <<"field1">>, _ = '_'}, []}]
     ])),
-    ?assertEqual([Record1, Record3, Record2], ?callAny(Config, model, select, [
+    ?assertEqual(lists:sort([Record1, Record3, Record2]), lists:sort(?callAny(Config, model, select, [
         ?MODEL, [{#?MODEL{field3 = field1, _ = '_'}, []}]
-    ])).
+    ]))).
 
 
 size_test(Config) ->

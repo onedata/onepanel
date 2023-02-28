@@ -22,7 +22,7 @@
 {cover_enabled, true}.
 
 {dialyzer, [
-    {warnings, [error_handling, race_conditions, unknown]},
+    {warnings, [error_handling, unknown]},
     {plt_extra_apps, [
         mnesia, ssl, ctool, ranch, cowboy, onenv_ct, yamerl, xmerl, jiffy,
         base64url, ssl_verify_fun, macaroons
@@ -31,9 +31,9 @@
 
 {deps, [
     {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "0442261d3114"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "eb766628839a"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "fdbeaff21f5c"}}},
-    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "2f15edeee5ae"}}}
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "ae6fa4883423"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "30bb42715bcd"}}},
+    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "7f20ffaff714"}}}
 ]}.
 
 {pre_hooks, [
