@@ -125,6 +125,11 @@ CHANGELOG
     Fixed inability to open share hosted by Oneprovider 19.02.x using
     Onezone 20.02.x.
 
+### 20.02.20
+
+-   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
+    remove from cluster members.
+
 ### 20.02.19
 
 -   **VFS-9730** Improve handling of api caveats related to API
