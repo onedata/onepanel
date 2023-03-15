@@ -64,7 +64,6 @@ stages:
         - api_oneprovider_storages
         - api_onezone_service_configuration
         - api_onezone_user_management
-        - embedded_ceph
         - model
         - rest_ceph
         - rest_clusters
@@ -409,14 +408,6 @@ api_onezone_user_management:
     - <<: *cover_ct
       name: cover_ct_api_onezone_user_management.tar.gz
 
-embedded_ceph:
-  <<: *ct-onenv-job
-  key: EM
-  artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_embedded_ceph.tar.gz
-
 model: &ct-job
   key: MOD
   other: *common-opts
@@ -600,7 +591,6 @@ Coverage report:
     - artifact: cover_ct_api_oneprovider_storages.tar.gz
     - artifact: cover_ct_api_onezone_service_configuration.tar.gz
     - artifact: cover_ct_api_onezone_user_management.tar.gz
-    - artifact: cover_ct_embedded_ceph.tar.gz
     - artifact: cover_ct_model.tar.gz
     - artifact: cover_ct_rest_ceph.tar.gz
     - artifact: cover_ct_rest_clusters.tar.gz
