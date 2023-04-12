@@ -107,6 +107,9 @@
 % Export for eunit tests
 -export([set_up_onepanel_in_onezone/0]).
 
+-define(DEFAULT_ACCOUNTING_ENABLED, false).
+-define(DEFAULT_DIR_STATS_ENABLED, true).
+
 %%%===================================================================
 %%% Service behaviour callbacks
 %%%===================================================================
@@ -670,10 +673,11 @@ support_space(#{storage_id := StorageId} = Ctx) ->
     assert_storage_exists(Node, StorageId),
     SupportSize = onepanel_utils:get_converted(size, Ctx, integer),
     Token = onepanel_utils:get_converted(token, Ctx, binary),
-    SupportParameters = #support_parameters{
-        accounting_enabled = maps:get(accounting_enabled, Ctx, undefined),
-        dir_stats_service_enabled = maps:get(dir_stats_service_enabled, Ctx, undefined)
-    },
+    SupportParameters = sanitize_support_parameters(#support_parameters{
+        accounting_enabled = maps:get(accounting_enabled, Ctx, ?DEFAULT_ACCOUNTING_ENABLED),
+        dir_stats_service_enabled = maps:get(dir_stats_service_enabled, Ctx, ?DEFAULT_DIR_STATS_ENABLED),
+        dir_stats_service_status = disabled
+    }),
 
     case op_worker_rpc:support_space(StorageId, Token, SupportSize, SupportParameters) of
         {ok, SpaceId} ->
@@ -1504,4 +1508,14 @@ upload_onepanel_gui() ->
             catch _:_ ->
                 {error, {unexpected_gui_upload_result, FailureResult}}
             end
+    end.
+
+
+%% @private
+-spec sanitize_support_parameters(support_parameters:record()) ->
+    support_parameters:record() | no_return().
+sanitize_support_parameters(SupportParameters) ->
+    case support_parameters:sanitize(SupportParameters) of
+        {ok, SanitizedSupportParameters} -> SanitizedSupportParameters;
+        {error, _} = Error -> throw(Error)
     end.
