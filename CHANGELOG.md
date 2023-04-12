@@ -4,6 +4,29 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.1
+
+-   **VFS-10502** Added option to null device enabling verification of
+    whether read data matches written data based on offset and size of
+    request, which can be used to test for instance transfer data
+    consistency.
+-   **VFS-10312** Web GUI: Changed name conflict and disambiguation
+    separator from `#` to `@`.
+-   **VFS-10261** Web GUI: Fixed auto-cleaning reports not loading on
+    large screens.
+-   **VFS-10235** Changed default value of `accountingEnabled` parameter
+    to `true` when requesting space support.
+-   **VFS-10234** Web GUI: Changed default space support options to have
+    directory size statistics aggregation turned on.
+-   **VFS-10126** Web GUI: Added Space Marketplace - space
+    configuration, spaces browser and membership requests resolver
+    views.
+-   **VFS-9999** Web GUI: Added space details popovers with space
+    information in various views.
+-   **VFS-9622** Upgraded the base image for release dockers from Ubuntu
+    18.04 to Ubuntu 20.04.
+-   **VFS-9129** Web GUI: Upgraded EmberJS to v3.8.
+
 ### 21.02.0-alpha28
 
 -   **VFS-9531** Web GUI: Improved UX of the automation stores browser.
