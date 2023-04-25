@@ -4,131 +4,66 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
-### 21.02.0-alpha28
+### 21.02.1
 
--   **VFS-9531** Web GUI: Improved UX of the automation stores browser.
-
-### 21.02.0-alpha27
-
+-   **VFS-10502** Added option to null device enabling verification of
+    whether read data matches written data based on offset and size of
+    request, which can be used to test for instance transfer data
+    consistency.
+-   **VFS-10312** Web GUI: Changed name conflict and disambiguation
+    separator from `#` to `@`.
+-   **VFS-10261** Web GUI: Fixed auto-cleaning reports not loading on
+    large screens.
+-   **VFS-10235** Changed default value of `accountingEnabled` parameter
+    to `true` when requesting space support.
+-   **VFS-10234** Web GUI: Changed default space support options to have
+    directory size statistics aggregation turned on.
+-   **VFS-10126** Web GUI: Added Space Marketplace - space
+    configuration, spaces browser and membership requests resolver
+    views.
+-   **VFS-9999** Web GUI: Added space details popovers with space
+    information in various views.
+-   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
+    remove from cluster members.
 -   **VFS-9637** Web GUI: Improved and unified look of audit log
     browsers.
+-   **VFS-9622** Upgraded the base image for release dockers from Ubuntu
+    18.04 to Ubuntu 20.04.
+-   **VFS-9531** Web GUI: Improved UX of the automation stores browser.
 -   **VFS-9418** Added accountingEnabled and dirStatsServiceEnabled
     settings for space support.
--   **VFS-8903** Web GUI: Upgraded EmberJS to v3.4.
-
-### 21.02.0-alpha26
-
 -   **VFS-9207** Web GUI: Enforced loading fonts from server to avoid
     incorrect local fonts in browser.
+-   **VFS-9129** Web GUI: Upgraded EmberJS to v3.8.
 -   **VFS-9083** Fix typo in NFS storage definition in onepanel REST
     interface definition.
-
-### 21.02.0-alpha25
-
+-   **VFS-8903** Web GUI: Upgraded EmberJS to v3.4.
 -   **VFS-8658** Rename "localceph" storage to "embeded ceph".
 -   **VFS-8483** Added direct NFS v3 storage helper.
-
-
-### 21.02.0-alpha24
-
-### 21.02.0-alpha23
-
 -   **VFS-8288** It is now possible to specify requested resources and
     resource limits on the lambda and task level for OpenFaaS functions.
--   **VFS-8172** Add \`/health\` endpoints to REST APIs of all services.
+-   **VFS-8172** Add `/health` endpoints to REST APIs of all services.
 -   **VFS-8073** Upgrade folly, wangle and proxygen libraries to version
     2021.01.04.00.
--   **VFS-7633** UX improvements in web GUI concerning navigation
-    between files, datasets and archives using hyperlinks.
-
-### 21.02.0-alpha22
-
-### 21.02.0-alpha21
-
-### 21.02.0-alpha20
-
-### 21.02.0-alpha19
-
-### 21.02.0-alpha18
-
 -   **VFS-8065** Fixed null device helper setup in GUI, where the
     simulated filesystem parameters can include as a last component a
     file size for the simulated files.
-
-### 21.02.0-alpha17
-
 -   **VFS-8018** Added HTTP storage driver option to limit on the client
     side maximum number of requests per single session, after which the
     session is closed and reconnected.
-
-### 21.02.0-alpha16
-
-### 21.02.0-alpha15
-
 -   **VFS-7747** Upgrade the codebase to Erlang OTP 24.
-
-### 21.02.0-alpha14
-
 -   **VFS-7738** Fixed issues with navigation between datasets, archives
     and archive files browsers.
-
-### 21.02.0-alpha13
-
-### 21.02.0-alpha12
-
-### 21.02.0-alpha11
-
 -   **VFS-7663** Changed background image of sign-in page in Onezone and
     Onepanel.
+-   **VFS-7633** UX improvements in web GUI concerning navigation
+    between files, datasets and archives using hyperlinks.
 -   **VFS-7589** Added StorageRouter and BufferedStorage helpers to
     handling of aggregate storages such as archive storage.
-
-### 21.02.0-alpha10
-
-### 21.02.0-alpha9
-
-### 21.02.0-alpha8
-
 -   **VFS-7510** Add API for browsing dataset structures, separately for
     datasets in attached and detached state. The datasets can be listed
     using batches of requested size, with desired starting point and
     offset.
-
-### 21.02.0-alpha7
-
-### 21.02.0-alpha6
-
-### 21.02.0-alpha5
-
--   **VFS-7294** Added publicly available REST endpoints for fetching
-    information and data of shared files/directories. The data-related
-    endpoints are offered by Onezone, which redirects to a suitable
-    Oneprovider so that a guest user does not need any knowledge of the
-    environment to access the data. Improved the Web GUI\'s shares view
-    to present the public endpoints in an easy-to-use manner.
-
-### 21.02.0-alpha4
-
-### 21.02.0-alpha3
-
--   **VFS-6638** Fixed handling duplicate clusters states on clusters
-    list in GUI.
-
-### 21.02.0-alpha2
-
--   **VFS-7280** Fixed page reload after Let\'s Encrypt certificate
-    generation via Onepanel GUI.
--   **VFS-7165** Add a workaround for Erlang\'s SSL implementation that
-    would not reload server certificate chain when it is changed (e.g.
-    after Let\'s Encrypt certificate regeneration).
--   **VFS-6566** Improved UX and fixed minor issues in share views.
-    Fixed inability to open share hosted by Oneprovider 19.02.x using
-    Onezone 20.02.x.
-
-### 20.02.20
-
--   **VFS-9795** Web GUI: Fixed user logout from Onezone GUI after
-    remove from cluster members.
 
 ### 20.02.19
 
