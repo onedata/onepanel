@@ -212,6 +212,24 @@
         {cron_period, 1000}, % 1 second
 
         %% ===================================================================
+        %% DB disk usage monitor configuration
+        %% ===================================================================
+
+        {db_root_dir, "/opt/couchbase"},
+
+        %% How ofter the db disk usage check on all couchbase nodes in the cluster is performed.
+        {db_disk_usage_check_interval_seconds, 600},  % 10 minutes
+
+        %% A threshold that, if exceeded, will result in a warning
+        {db_disk_usage_warning_threshold, 0.45},
+
+        %% A threshold that, if exceeded, will result in an alert
+        {db_disk_usage_alert_threshold, 0.75},
+
+        %% A threshold that, if exceeded, will result in halting processing any requests
+        {db_disk_usage_emergency_threshold, 0.9},
+
+        %% ===================================================================
         %% Let's Encrypt configuration
         %% ===================================================================
 
