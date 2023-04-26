@@ -20,3 +20,6 @@
 # The recommended time correction options (enable time warp and clock correction)
 +C multi_time_warp
 +c
+
+# Allow usage of maybe expression in code
+-enable-feature maybe_expr
