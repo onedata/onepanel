@@ -64,6 +64,7 @@ stages:
         - api_oneprovider_storages
         - api_onezone_service_configuration
         - api_onezone_user_management
+        - db_disk_usage_monitor
         - model
         - rest_ceph
         - rest_clusters

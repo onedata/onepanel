@@ -12,6 +12,7 @@
 -module(db_disk_usage_monitor_test_SUITE).
 -author("Bartosz Walkowicz").
 
+-include("api_test_runner.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -21,11 +22,13 @@
 -export([init_per_suite/1, end_per_suite/1]).
 
 -export([
-    db_disk_usage_periodic_check_test/1
+    db_disk_usage_periodic_check_test/1,
+    panel_rest_block_test/1
 ]).
 
 all() -> [
-    db_disk_usage_periodic_check_test
+    db_disk_usage_periodic_check_test,
+    panel_rest_block_test
 ].
 
 -define(rpc(__PANEL_SELECTOR, __EXPRESSION), panel_test_rpc:call(__PANEL_SELECTOR, fun() ->
@@ -60,6 +63,51 @@ db_disk_usage_periodic_check_test(_Config) ->
     assert_service_circuit_breaker_status(disabled, TargetPanelNodes),
     timer:sleep(timer:seconds(2)),
     assert_service_circuit_breaker_status(disabled, TargetPanelNodes).
+
+
+panel_rest_block_test(_Config) ->
+    TargetPanelNodes = get_panel_nodes(),
+    TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
+
+    set_panel_env(TargetPanelNodes, db_disk_usage_check_interval_seconds, 1),
+    set_panel_env(TargetPanelNodes, db_disk_usage_emergency_threshold, 0.001),
+
+    ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
+
+    timer:sleep(timer:seconds(2)),
+    assert_service_circuit_breaker_status(enabled, TargetPanelNodes),
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"REST call returns 503 when circuit breaker is enabled">>,
+            type = rest,
+            target_nodes = TargetPanelNodes,
+            client_spec = #client_spec{forbidden = [
+                {Client, ?ERROR_SERVICE_UNAVAILABLE} || Client <- [root, member, guest, peer]
+            ]},
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"test_image">>
+            } end
+        }
+    ])),
+
+    set_panel_env(TargetPanelNodes, db_disk_usage_emergency_threshold, 0.9),
+
+    timer:sleep(timer:seconds(2)),
+    assert_service_circuit_breaker_status(disabled, TargetPanelNodes),
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"REST call works when circuit breaker is disabled">>,
+            type = rest,
+            target_nodes = TargetPanelNodes,
+            client_spec = #client_spec{correct = [root, member, guest, peer]},
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"test_image">>
+            } end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(_) -> ok end)
+        }
+    ])).
 
 
 %%%===================================================================
