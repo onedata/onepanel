@@ -408,6 +408,14 @@ api_onezone_user_management:
     - <<: *cover_ct
       name: cover_ct_api_onezone_user_management.tar.gz
 
+db_disk_usage_monitor:
+  <<: *ct-onenv-job
+  key: DBDISKMONITOR
+  artifacts:
+    - *ct_logs
+    - <<: *cover_ct
+      name: cover_ct_db_disk_usage_monitor.tar.gz
+
 model: &ct-job
   key: MOD
   other: *common-opts
@@ -591,6 +599,7 @@ Coverage report:
     - artifact: cover_ct_api_oneprovider_storages.tar.gz
     - artifact: cover_ct_api_onezone_service_configuration.tar.gz
     - artifact: cover_ct_api_onezone_user_management.tar.gz
+    - artifact: cover_ct_db_disk_usage_monitor.tar.gz
     - artifact: cover_ct_model.tar.gz
     - artifact: cover_ct_rest_ceph.tar.gz
     - artifact: cover_ct_rest_clusters.tar.gz

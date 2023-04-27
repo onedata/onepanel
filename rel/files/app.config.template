@@ -78,6 +78,9 @@
 
         {cluster_type, {{release_type}}},
 
+        % If enabled, then panel should stop accepting requests
+        {service_circuit_breaker, disabled},
+
         %% ===================================================================
         %% Ports
         %% ===================================================================

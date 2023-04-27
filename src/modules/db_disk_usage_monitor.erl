@@ -13,7 +13,6 @@
 -module(db_disk_usage_monitor).
 -author("Bartosz Walkowicz").
 
-
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
