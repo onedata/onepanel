@@ -22,6 +22,14 @@
     run_periodic_check/0
 ]).
 
+-ifdef(TEST).
+%% Export for unit testing
+-export([
+    parse_du_cmd_output/1,
+    parse_df_cmd_output/1
+]).
+-endif.
+
 -record(usage_info, {
     db_root_dir_size :: non_neg_integer(),
     available_disk_size :: non_neg_integer(),
