@@ -42,40 +42,41 @@ end)).
 
 
 db_disk_usage_periodic_check_test(_Config) ->
-    TargetPanelNodes = get_panel_nodes(),
+    TargetPanelNodes = get_panel_nodes_of_random_cluster(),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
-    assert_service_circuit_breaker_status(disabled, TargetPanelNodes),
-
     set_panel_env(TargetPanelNodes, db_disk_usage_check_interval_seconds, 1),
-    set_panel_env(TargetPanelNodes, db_disk_usage_emergency_threshold, 0.001),
-
+    set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
 
     timer:sleep(timer:seconds(2)),
-    assert_service_circuit_breaker_status(enabled, TargetPanelNodes),
-    timer:sleep(timer:seconds(2)),
-    assert_service_circuit_breaker_status(enabled, TargetPanelNodes),
+    assert_service_circuit_breaker_state(closed, TargetPanelNodes),
 
-    set_panel_env(TargetPanelNodes, db_disk_usage_emergency_threshold, 0.9),
+    set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.001),
 
     timer:sleep(timer:seconds(2)),
-    assert_service_circuit_breaker_status(disabled, TargetPanelNodes),
+    assert_service_circuit_breaker_state(open, TargetPanelNodes),
     timer:sleep(timer:seconds(2)),
-    assert_service_circuit_breaker_status(disabled, TargetPanelNodes).
+    assert_service_circuit_breaker_state(open, TargetPanelNodes),
+
+    set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
+
+    timer:sleep(timer:seconds(2)),
+    assert_service_circuit_breaker_state(closed, TargetPanelNodes),
+    timer:sleep(timer:seconds(2)),
+    assert_service_circuit_breaker_state(closed, TargetPanelNodes).
 
 
 panel_rest_block_test(_Config) ->
-    TargetPanelNodes = get_panel_nodes(),
+    TargetPanelNodes = get_panel_nodes_of_random_cluster(),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
     set_panel_env(TargetPanelNodes, db_disk_usage_check_interval_seconds, 1),
-    set_panel_env(TargetPanelNodes, db_disk_usage_emergency_threshold, 0.001),
-
+    set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.001),
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
 
     timer:sleep(timer:seconds(2)),
-    assert_service_circuit_breaker_status(enabled, TargetPanelNodes),
+    assert_service_circuit_breaker_state(open, TargetPanelNodes),
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"REST call returns 503 when circuit breaker is enabled">>,
@@ -91,10 +92,10 @@ panel_rest_block_test(_Config) ->
         }
     ])),
 
-    set_panel_env(TargetPanelNodes, db_disk_usage_emergency_threshold, 0.9),
+    set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
 
     timer:sleep(timer:seconds(2)),
-    assert_service_circuit_breaker_status(disabled, TargetPanelNodes),
+    assert_service_circuit_breaker_state(closed, TargetPanelNodes),
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"REST call works when circuit breaker is disabled">>,
@@ -131,7 +132,7 @@ end_per_suite(_Config) ->
 
 
 %% @private
-get_panel_nodes() ->
+get_panel_nodes_of_random_cluster() ->
     case rand:uniform(2) of
         1 -> oct_background:get_zone_panels();
         2 -> oct_background:get_provider_panels(krakow)
@@ -139,15 +140,15 @@ get_panel_nodes() ->
 
 
 %% @private
-assert_service_circuit_breaker_status(ExpStatus, Nodes) ->
+assert_service_circuit_breaker_state(ExpStatus, Nodes) ->
     lists:foreach(fun(Node) ->
-        ?assertEqual(ExpStatus, get_panel_env(Node, service_circuit_breaker))
+        ?assertEqual(ExpStatus, get_panel_env(Node, service_circuit_breaker_state, closed))
     end, Nodes).
 
 
 %% @private
-get_panel_env(Node, Env) ->
-    ?rpc(Node, onepanel_env:get(Env, ?APP_NAME)).
+get_panel_env(Node, Env, Default) ->
+    ?rpc(Node, onepanel_env:get(Env, ?APP_NAME, Default)).
 
 
 %% @private

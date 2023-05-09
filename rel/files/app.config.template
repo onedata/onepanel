@@ -78,9 +78,6 @@
 
         {cluster_type, {{release_type}}},
 
-        % If enabled, then panel should stop accepting requests
-        {service_circuit_breaker, disabled},
-
         %% ===================================================================
         %% Ports
         %% ===================================================================
@@ -230,7 +227,7 @@
         {db_disk_usage_alert_threshold, 0.75},
 
         %% A threshold that, if exceeded, will result in halting processing any requests
-        {db_disk_usage_emergency_threshold, 0.9},
+        {db_disk_usage_circuit_breaker_activation_threshold, 0.9},
 
         %% ===================================================================
         %% Let's Encrypt configuration

@@ -22,11 +22,12 @@
     run_periodic_check/0
 ]).
 
--type usage_info() :: #{
-    db_root_dir_size := non_neg_integer(),
-    available_disk_size := non_neg_integer(),
-    usage := float()  %% [0..1]
-}.
+-record(usage_info, {
+    db_root_dir_size :: non_neg_integer(),
+    available_disk_size :: non_neg_integer(),
+    usage :: float()  %% [0..1]
+}).
+-type usage_info() :: #usage_info{}.
 
 
 -define(ROOT_DIR, application:get_env(?APP_NAME, db_root_dir, "/opt/couchbase")).
@@ -38,7 +39,9 @@
 
 -define(WARNING_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_warning_threshold, 0.45)).
 -define(ALERT_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_alert_threshold, 0.75)).
--define(EMERGENCY_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_emergency_threshold, 0.9)).
+-define(CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD, application:get_env(
+    ?APP_NAME, db_disk_usage_circuit_breaker_activation_threshold, 0.9
+)).
 
 -define(CMD_OUTPUT_TRIM_THRESHOLD, 997).
 
@@ -77,8 +80,6 @@ run_on_master(Fun) ->
             end;
         MasterNode ->
             case rpc:call(MasterNode, ?MODULE, ?FUNCTION_NAME, [Fun]) of
-                % all internal functions in this module return a boolean -
-                % crash in case of any problems with RPC
                 Result when is_boolean(Result) -> Result
             end
     end.
@@ -113,7 +114,8 @@ run_periodic_check() ->
 
         Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
         Results = erpc:multicall(Nodes, fun check_usage_on_host/0),
-        handle_offenders(group_offenders(lists:zip(Hosts, Results))),
+        CircuitBreakerState = onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed),
+        handle_offenders(CircuitBreakerState, group_offenders(lists:zip(Hosts, Results))),
 
         true
     catch Class:Reason:Stacktrace ->
@@ -123,72 +125,59 @@ run_periodic_check() ->
 
 
 %% @private
--spec check_usage_on_host() -> {ok, usage_info()} | {error, term()}.
+-spec check_usage_on_host() -> usage_info() | no_return().
 check_usage_on_host() ->
-    maybe
-        {ok, DBRootDirSize} ?= get_db_root_dir_size(),
-        {ok, AvailableDiskSize} ?= get_available_disk_size(),
+    DBRootDirSize = get_db_root_dir_size(),
+    AvailableDiskSize = get_available_disk_size(),
 
-        UsageInfo = #{
-            db_root_dir_size => DBRootDirSize,
-            available_disk_size => AvailableDiskSize,
-            usage => DBRootDirSize / (DBRootDirSize + AvailableDiskSize)
-        },
-        {ok, UsageInfo}
-    end.
+    #usage_info{
+        db_root_dir_size = DBRootDirSize,
+        available_disk_size = AvailableDiskSize,
+        usage = DBRootDirSize / (DBRootDirSize + AvailableDiskSize)
+    }.
 
 
 %% @private
--spec get_db_root_dir_size() -> {ok, non_neg_integer()} | {error, cmd_du_failed}.
+-spec get_db_root_dir_size() -> non_neg_integer() | no_return().
 get_db_root_dir_size() ->
-    DuCmd = "du --bytes --summarize " ++ ?ROOT_DIR,
-    DuOutput = os:cmd(DuCmd),
-
-    case re:run(DuOutput, "^(?P<size>\\d+)\t.*$", [{capture, [size], list}]) of
-        {match, [SizeStr]} ->
-            {ok, list_to_integer(SizeStr)};
-        nomatch ->
-            log_cmd_failure(DuCmd, DuOutput),
-            {error, cmd_du_failed}
-    end.
+    DuCmd = ["du", "--bytes", "--summarize", ?ROOT_DIR],
+    parse_du_cmd_output(shell_utils:get_success_output(DuCmd)).
 
 
 %% @private
--spec get_available_disk_size() -> {ok, non_neg_integer()} | {error, cmd_df_failed}.
+-spec parse_du_cmd_output(binary()) -> non_neg_integer() | no_return().
+parse_du_cmd_output(DuOutput) ->
+    {match, [SizeStr]} = re:run(DuOutput, "^(?P<size>\\d+)\t.*$", [{capture, [size], list}]),
+    list_to_integer(SizeStr).
+
+
+%% @private
+-spec get_available_disk_size() -> non_neg_integer() | no_return().
 get_available_disk_size() ->
-    DfCmd = "df --block-size 1 --output=avail " ++ ?ROOT_DIR,
-    DfOutput = os:cmd(DfCmd),
-
-    case re:run(DfOutput, "^\s*Avail\n(?P<size>\\d+)\n$", [{capture, [size], list}]) of
-        {match, [SizeStr]} ->
-            {ok, list_to_integer(SizeStr)};
-        nomatch ->
-            log_cmd_failure(DfCmd, DfOutput),
-            {error, cmd_df_failed}
-    end.
+    DfCmd = ["df", "--block-size", "1", "--output=avail", ?ROOT_DIR],
+    parse_df_cmd_output(shell_utils:get_success_output(DfCmd)).
 
 
 %% @private
--spec log_cmd_failure(string(), string()) -> ok.
-log_cmd_failure(Cmd, CmdOutput) ->
-    ?warning("Calling '~s' failed with:~n~s", [
-        Cmd, string:slice(CmdOutput, 0, ?CMD_OUTPUT_TRIM_THRESHOLD)
-    ]).
+-spec parse_df_cmd_output(binary()) -> non_neg_integer() | no_return().
+parse_df_cmd_output(DfOutput) ->
+    {match, [SizeStr]} = re:run(DfOutput, "^\s*Avail\n(?P<size>\\d+)$", [{capture, [size], list}]),
+    list_to_integer(SizeStr).
 
 
 %% @private
--spec group_offenders([{service:host(), {ok, {ok, usage_info()} | {error, term()}} | term()}]) ->
+-spec group_offenders([{service:host(), {ok, usage_info()} | term()}]) ->
     #{atom() => [{service:host(), usage_info()}]}.
 group_offenders(ResultPerHost) ->
-    Thresholds = [
-        {emergency_threshold, ?EMERGENCY_THRESHOLD},
+    ThresholdsByPriority = [
+        {circuit_breaker_activation_threshold, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD},
         {alert_threshold, ?ALERT_THRESHOLD},
         {warning_threshold, ?WARNING_THRESHOLD}
     ],
 
     lists:foldl(fun
-        ({Host, {ok, {ok, UsageInfo = #{usage := Usage}}}}, Acc) ->
-            case find_exceeded_threshold(Usage, Thresholds) of
+        ({Host, {ok, UsageInfo = #usage_info{usage = Usage}}}, Acc) ->
+            case find_first_exceeded_threshold(Usage, ThresholdsByPriority) of
                 {ok, ThresholdKey} ->
                     Offender = {Host, UsageInfo},
 
@@ -199,76 +188,79 @@ group_offenders(ResultPerHost) ->
                     Acc
             end;
 
-        ({Host, {ok, ErrorReason}}, Acc) ->
-            ?warning("Failed to check db usage:~s", [?autoformat([Host, ErrorReason])]),
-            Acc;
-
         ({Host, ErrorReason}, Acc) ->
-            ?warning("Failed to check db usage:~s", [?autoformat([Host, ErrorReason])]),
+            ?error("Failed to check db usage:~s", [?autoformat([Host, ErrorReason])]),
             Acc
     end, #{}, ResultPerHost).
 
 
 %% @private
--spec find_exceeded_threshold(float(), [{atom(), float()}]) -> {ok, atom()} | error.
-find_exceeded_threshold(_Usage, []) ->
+-spec find_first_exceeded_threshold(float(), [{atom(), float()}]) -> {ok, atom()} | error.
+find_first_exceeded_threshold(_Usage, []) ->
     error;
-find_exceeded_threshold(Usage, [{ThresholdKey, ThresholdValue} | _]) when Usage >= ThresholdValue ->
+find_first_exceeded_threshold(Usage, [{ThresholdKey, ThresholdValue} | _]) when Usage >= ThresholdValue ->
     {ok, ThresholdKey};
-find_exceeded_threshold(Usage, [_ | Thresholds]) ->
-    find_exceeded_threshold(Usage, Thresholds).
+find_first_exceeded_threshold(Usage, [_ | ThresholdsByPriority]) ->
+    find_first_exceeded_threshold(Usage, ThresholdsByPriority).
 
 
 %% @private
--spec handle_offenders(#{atom() => [{service:host(), usage_info()}]}) -> ok.
-handle_offenders(OffendersPerThreshold) ->
-    CircuitBreakerStatus = onepanel_env:get(service_circuit_breaker, ?APP_NAME, disabled),
+-spec handle_offenders(open | closed, #{atom() => [{service:host(), usage_info()}]}) ->
+    ok.
+handle_offenders(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
+    ok;
 
-    case {maps:is_key(emergency_threshold, OffendersPerThreshold), CircuitBreakerStatus} of
-        {true, disabled} ->
-            ?emergency("Services will stop processing requests due to exhaused db disk space!~s", [
-                format_offenders(maps:get(emergency_threshold, OffendersPerThreshold))
-            ]),
-            set_service_circuit_breaker_status(enabled);
-        {true, enabled} ->
-            % service_circuit_breaker must have been enabled on previous check
-            ok;
-        {false, enabled} ->
-            ?info("Services will start processing requests again"),
-            set_service_circuit_breaker_status(disabled),
-            issue_eventual_warnings_or_alerts(OffendersPerThreshold);
-        {false, disabled} ->
-            issue_eventual_warnings_or_alerts(OffendersPerThreshold)
-    end.
-
-
-%% @private
--spec issue_eventual_warnings_or_alerts(#{atom() => [{service:host(), usage_info()}]}) -> ok.
-issue_eventual_warnings_or_alerts(OffendersPerThreshold = #{warning_threshold := Offenders}) ->
-    ?warning("DB disk usage exceeded safe thresholds.~s", [format_offenders(Offenders)]),
-    issue_eventual_warnings_or_alerts(maps:remove(warning_threshold, OffendersPerThreshold));
-
-issue_eventual_warnings_or_alerts(OffendersPerThreshold = #{alert_threshold := Offenders}) ->
-    ?alert("Services may stop processing requests soon due to high levels of DB disk usage!~s", [
+handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
+    ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~s", [
         format_offenders(Offenders)
     ]),
-    issue_eventual_warnings_or_alerts(maps:remove(alert_threshold, OffendersPerThreshold));
+    handle_offenders(CircuitBreakerState, maps:remove(warning_threshold, OffendersPerThreshold));
 
-issue_eventual_warnings_or_alerts(_) ->
-    ok.
+handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
+    ?alert(
+        "DB disk usage is very high. Provide more space for the DB as soon as possible. "
+        "When the usage reaches ~p%, all services will stop processing requests to prevent database corruption.~s",
+        [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD * 100, format_offenders(Offenders)]
+    ),
+    handle_offenders(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
+
+handle_offenders(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
+    ?emergency(
+        "DB disk space is nearly exhausted! All services will now stop processing requests until the problem is resolved.~s",
+        [format_offenders(Offenders)]
+    ),
+    set_service_circuit_breaker_state(open);
+
+handle_offenders(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
+    % service_circuit_breaker must have been opened on previous check
+    ok;
+
+handle_offenders(open, OffendersPerThreshold) ->
+    ?notice("DB disk space is no longer near exhaustion. All services will now resume processing requests."),
+
+    set_service_circuit_breaker_state(closed),
+    handle_offenders(closed, OffendersPerThreshold).
 
 
 %% @private
 -spec format_offenders([{service:host(), usage_info()}]) -> binary().
 format_offenders(Offenders) ->
     str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
-        ?autoformat([Host, UsageInfo])
+        str_utils:format(
+            "~n~n> Host: ~s~n> DB root directory size: ~s~n> Available disk size: ~s~n> Usage percent: ~p%",
+            [
+                Host,
+                str_utils:format_byte_size(UsageInfo#usage_info.db_root_dir_size),
+                str_utils:format_byte_size(UsageInfo#usage_info.available_disk_size),
+                100 * UsageInfo#usage_info.usage
+            ]
+        )
     end, Offenders)).
 
 
 %% @private
--spec set_service_circuit_breaker_status(enabled | disabled) -> ok.
-set_service_circuit_breaker_status(Status) ->
+-spec set_service_circuit_breaker_state(open | closed) -> ok.
+set_service_circuit_breaker_state(State) ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
-    onepanel_env:set(PanelNodes, service_circuit_breaker, Status, ?APP_NAME),
+    onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME),
     ok.

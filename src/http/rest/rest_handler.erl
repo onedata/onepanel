@@ -73,8 +73,8 @@ init(Req, Opts) ->
         rest_req = maps:get(Method, Opts, undefined),
         allowed_methods = maps:keys(Opts)
     },
-    case onepanel_env:get(service_circuit_breaker, ?APP_NAME, disabled) of
-        enabled ->
+    case onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed) of
+        open ->
             Req1 = cowboy_req:reply(
                 errors:to_http_code(?ERROR_SERVICE_UNAVAILABLE),
                 #{?HDR_CONTENT_TYPE => <<"application/json">>},
@@ -82,9 +82,9 @@ init(Req, Opts) ->
                 Req
             ),
             {ok, Req1, State};
-        disabled when Method == 'OPTIONS' ->
+        closed when Method == 'OPTIONS' ->
             handle_options(Req, State);
-        disabled ->
+        closed ->
             {cowboy_rest, Req, State}
     end.
 
