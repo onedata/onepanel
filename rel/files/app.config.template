@@ -218,7 +218,7 @@
         {db_root_dir, "/opt/couchbase"},
 
         %% How ofter the db disk usage check on all couchbase nodes in the cluster is performed.
-        {db_disk_usage_check_interval_seconds, 600},  % 10 minutes
+        {db_disk_usage_check_interval_seconds, 300},  % 5 minutes
 
         %% A threshold that, if exceeded, will result in a warning
         {db_disk_usage_warning_threshold, 0.45},

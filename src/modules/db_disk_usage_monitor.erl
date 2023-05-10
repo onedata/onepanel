@@ -9,7 +9,6 @@
 %%% This module handles monitoring of DB disk usage across the cluster.
 %%% @end
 %%%--------------------------------------------------------------------
--feature(maybe_expr, enable).
 -module(db_disk_usage_monitor).
 -author("Bartosz Walkowicz").
 
@@ -84,9 +83,12 @@ restart_periodic_check() ->
 -spec abort_periodic_check() -> ok.
 abort_periodic_check() ->
     % remove any previous periodic check jobs across the cluster
-    {_, BadNodes} = utils:rpc_multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
-    ?error("Failed to remove ~p cron job on nodes ~p", [?CRON_JOB_NAME, BadNodes]),
-    ok.
+    case utils:rpc_multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]) of
+        {_, []} ->
+            ok;
+        {_, BadNodes} ->
+            ?error("Failed to remove ~p cron job on nodes~s", [?CRON_JOB_NAME, ?autoformat(BadNodes)])
+    end.
 
 
 %% @private
@@ -203,7 +205,7 @@ handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{warning
 handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
     ?alert(
         "DB disk usage is very high. Provide more space for the DB as soon as possible. "
-        "When the usage reaches ~p%, all services will stop processing requests to prevent database corruption.~s",
+        "When the usage reaches ~.2f%, all services will stop processing requests to prevent database corruption.~s",
         [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD * 100, format_offenders(Offenders)]
     ),
     handle_offenders(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
@@ -231,7 +233,10 @@ handle_offenders(open, OffendersPerThreshold) ->
 format_offenders(Offenders) ->
     str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
         str_utils:format(
-            "~n~n> Host: ~s~n> DB root directory size: ~s~n> Available disk size: ~s~n> Usage percent: ~p%",
+            "~n~n> Host: ~s"
+            "~n> DB root directory size: ~s"
+            "~n> Available disk size: ~s"
+            "~n> Usage percent: ~.2f%",
             [
                 Host,
                 str_utils:format_byte_size(UsageInfo#usage_info.db_root_dir_size),
