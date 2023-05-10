@@ -18,7 +18,6 @@
 
 -export([
     restart_periodic_check/0,
-    run_on_master/1,
     run_periodic_check/0
 ]).
 
@@ -61,7 +60,7 @@
 
 -spec restart_periodic_check() -> ok | no_return().
 restart_periodic_check() ->
-    true = run_on_master(fun() ->
+    true = service_onepanel:run_on_master_node(fun() ->
         % ensure the previous periodic sync job is aborted
         abort_periodic_check(),
 
@@ -76,40 +75,17 @@ restart_periodic_check() ->
     ok.
 
 
--spec run_on_master(fun(() -> boolean())) -> boolean() | no_return().
-run_on_master(Fun) ->
-    case get_master_node() of
-        Self when node() =:= Self ->
-            try
-                Fun()
-            catch Class:Reason:Stacktrace ->
-                ?error_exception(Class, Reason, Stacktrace),
-                false
-            end;
-        MasterNode ->
-            case rpc:call(MasterNode, ?MODULE, ?FUNCTION_NAME, [Fun]) of
-                Result when is_boolean(Result) -> Result
-            end
-    end.
-
-
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 
 %% @private
--spec get_master_node() -> node().
-get_master_node() ->
-    % @TODO VFS-6085 rework the master choice when onepanel cluster is resizeable
-    hd(lists:sort(service_onepanel:get_nodes())).
-
-
-%% @private
 -spec abort_periodic_check() -> ok.
 abort_periodic_check() ->
     % remove any previous periodic check jobs across the cluster
-    utils:rpc_multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
+    {_, BadNodes} = utils:rpc_multicall(service_onepanel:get_nodes(), onepanel_cron, remove_job, [?CRON_JOB_NAME]),
+    ?error("Failed to remove ~p cron job on nodes ~p", [?CRON_JOB_NAME, BadNodes]),
     ok.
 
 

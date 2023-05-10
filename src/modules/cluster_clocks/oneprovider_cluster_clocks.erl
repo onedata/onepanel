@@ -127,7 +127,7 @@ fetch_zone_time() ->
 %%--------------------------------------------------------------------
 -spec is_master_synchronized_with_onezone() -> boolean().
 is_master_synchronized_with_onezone() ->
-    cluster_clocks:run_on_master(fun global_clock:is_synchronized/0).
+    service_onepanel:run_on_master_node(fun global_clock:is_synchronized/0).
 
 
 %% @private
