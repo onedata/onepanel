@@ -99,7 +99,7 @@ run_periodic_check() ->
         ?debug("Running periodic db disk usage check for hosts: ~p", [Hosts]),
 
         Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
-        Results = erpc:multicall(Nodes, fun check_usage_on_host/0),
+        Results = utils:erpc_multicall(Nodes, fun check_usage_on_host/0),
         CircuitBreakerState = onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed),
         handle_offenders(CircuitBreakerState, group_offenders(lists:zip(Hosts, Results))),
 
