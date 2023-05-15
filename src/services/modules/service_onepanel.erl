@@ -58,10 +58,13 @@
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
 %% API
--export([set_cookie/1, fetch_and_set_cookie/1, configure/1, check_connection/1,
+-export([
+    run_on_master_node/1,
+    set_cookie/1, fetch_and_set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
-    available_for_clustering/0, is_host_used/1]).
+    available_for_clustering/0, is_host_used/1
+]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -205,6 +208,23 @@ get_steps(Function, _Ctx) when
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+-spec run_on_master_node(fun(() -> boolean())) -> boolean() | no_return().
+run_on_master_node(Fun) ->
+    % @TODO VFS-6085 rework the master choice when onepanel cluster is resizeable
+    case hd(lists:sort(get_nodes())) of
+        Self when node() =:= Self ->
+            try
+                Fun()
+            catch Class:Reason:Stacktrace ->
+                ?error_exception(Class, Reason, Stacktrace),
+                false
+            end;
+        MasterNode ->
+            case rpc:call(MasterNode, ?MODULE, ?FUNCTION_NAME, [Fun]) of
+                Result when is_boolean(Result) -> Result
+            end
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc Sets the node cookie.

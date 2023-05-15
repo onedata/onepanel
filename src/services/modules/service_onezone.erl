@@ -49,6 +49,7 @@
 
 %% Steps
 -export([init_periodic_clock_sync/0]).
+-export([init_periodic_db_disk_usage_check/0]).
 -export([set_up_onepanel_in_onezone/0]).
 -export([mark_configured/1, format_cluster_ips/1]).
 -export([get_gui_message/1, update_gui_message/1]).
@@ -125,6 +126,7 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
         S#step{function = init_periodic_clock_sync, selection = any, args = []},
+        S#step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
         Ss#steps{action = set_up_onepanel_in_onezone, ctx = OzwCtx},
         Ss#steps{action = add_users, ctx = OzwCtx},
         Ss#steps{action = migrate_users, ctx = OzwCtx},
@@ -175,6 +177,7 @@ get_steps(manage_restart, Ctx) ->
             % no intermediate steps required during resumption
             #steps{service = ?SERVICE_OZW, action = finalize_resume},
             #step{function = init_periodic_clock_sync, selection = any, args = []},
+            #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #steps{action = migrate_users,
                 condition = fun(_) -> onepanel_user:any_user_exists() end},
             #steps{service = ?SERVICE_LE, action = resume,
@@ -268,6 +271,11 @@ mark_configured(_Ctx) ->
 -spec init_periodic_clock_sync() -> ok.
 init_periodic_clock_sync() ->
     onezone_cluster_clocks:restart_periodic_sync().
+
+
+-spec init_periodic_db_disk_usage_check() -> ok.
+init_periodic_db_disk_usage_check() ->
+    db_disk_usage_monitor:restart_periodic_check().
 
 
 %%--------------------------------------------------------------------

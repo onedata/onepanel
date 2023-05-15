@@ -35,7 +35,6 @@
 
 -export([synchronize_node_upon_start/1]).
 -export([restart_periodic_sync/1]).
--export([run_on_master/1]).
 -export([run_periodic_sync/1]).
 
 % cluster-specific callback run before every periodic clock sync, must return one of:
@@ -57,7 +56,7 @@
 
 -spec synchronize_node_upon_start(node()) -> ok | no_return().
 synchronize_node_upon_start(Node) ->
-    true = run_on_master(fun() ->
+    true = service_onepanel:run_on_master_node(fun() ->
         synchronize_node_with_self(Node)
     end),
     ?info("Synchronized clock on node ~p with master node upon startup", [Node]).
@@ -65,7 +64,7 @@ synchronize_node_upon_start(Node) ->
 
 -spec restart_periodic_sync(prepare_cluster_clock_sync()) -> ok | no_return().
 restart_periodic_sync(PrepareClusterClockSync) ->
-    true = run_on_master(fun() ->
+    true = service_onepanel:run_on_master_node(fun() ->
         ?info("Awaiting initial cluster-wide clock synchronization..."),
         % run the first sync action (with retries) - this must finish with success, otherwise it
         % is better if the whole calling process crashes and fails to deploy / setup cluster
@@ -92,26 +91,6 @@ restart_periodic_sync(PrepareClusterClockSync) ->
         true
     end),
     ok.
-
-
--spec run_on_master(fun(() -> boolean())) -> boolean() | no_return().
-run_on_master(Fun) ->
-    case get_master_node() of
-        Self when node() =:= Self ->
-            try
-                Fun()
-            catch Class:Reason:Stacktrace ->
-                ?error_stacktrace("Unexpected error in ~p - ~w:~p", 
-                    [?MODULE, Class, Reason], Stacktrace),
-                false
-            end;
-        MasterNode ->
-            case rpc:call(MasterNode, ?MODULE, ?FUNCTION_NAME, [Fun]) of
-                % all internal functions in this module return a boolean -
-                % crash in case of any problems with RPC
-                Result when is_boolean(Result) -> Result
-            end
-    end.
 
 
 -spec run_periodic_sync(prepare_cluster_clock_sync()) -> boolean().
@@ -158,13 +137,6 @@ synchronize_node_with_self(Node) ->
         ok -> true;
         error -> false
     end.
-
-
-%% @private
--spec get_master_node() -> node().
-get_master_node() ->
-    % @TODO VFS-6085 rework the master choice when onepanel cluster is resizeable
-    hd(lists:sort(service_onepanel:get_nodes())).
 
 
 %% @private

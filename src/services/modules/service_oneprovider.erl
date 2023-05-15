@@ -97,6 +97,7 @@
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([connect_and_set_up_in_onezone/1]).
+-export([init_periodic_db_disk_usage_check/0]).
 -export([store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
 -export([get_id/0, get_access_token/0, get_identity_token/0]).
@@ -198,6 +199,7 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
+        S#step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
         Ss#steps{service = ?SERVICE_CEPH, action = deploy,
             ctx = CephCtx, condition = CephCtx /= #{}},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
@@ -250,6 +252,7 @@ get_steps(manage_restart, Ctx) ->
             % the step finalize_resume (which waits for complete cluster init) can succeed.
             #step{function = connect_and_set_up_in_onezone, args = [fallback_to_async], selection = any},
             #steps{service = ?SERVICE_OPW, action = finalize_resume},
+            #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}},
@@ -1055,6 +1058,11 @@ connect_and_set_up_in_onezone(FallbackPolicy) ->
         {false, fallback_to_async} ->
             schedule_periodic_onezone_connection_check()
     end.
+
+
+-spec init_periodic_db_disk_usage_check() -> ok.
+init_periodic_db_disk_usage_check() ->
+    db_disk_usage_monitor:restart_periodic_check().
 
 
 %%--------------------------------------------------------------------
