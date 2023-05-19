@@ -178,7 +178,7 @@ _Codetag Tracker:
         test-results: onepanel/test/codetag_tracker_results/TEST-*.xml
         description: Parse test results
     - script: *clear-env
-  requirements: *requirements
+  requirements: []
   artifact-subscriptions: &artifact-onepanel
     - artifact: onepanel.tar.gz
 
