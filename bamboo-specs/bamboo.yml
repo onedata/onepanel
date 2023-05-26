@@ -287,16 +287,6 @@ api_common_emergency_passphrase: &ct-onenv-job
     - script:
         interpreter: BINSH_OR_CMDEXE
         scripts:
-          - |-
-            mkdir -p cover_ct
-            cp test_distributed/logs/ct_run.*/*cover* cover_ct
-            cp test_distributed/logs/ct_run.*/*COVER* cover_ct
-            tar -czf cover_ct_${bamboo.shortJobName}.tar.gz cover_ct/
-        working-dir: onepanel
-        description: Save cover results
-    - script:
-        interpreter: BINSH_OR_CMDEXE
-        scripts:
           - tar -mczf ct_logs_${bamboo.shortJobName}.tar.gz onepanel/test_distributed/logs/
         description: Pack test logs
     - script:
@@ -307,14 +297,9 @@ api_common_emergency_passphrase: &ct-onenv-job
         working-dir: onepanel
   artifacts:
     - &ct_logs
-      name: ct_logs_${bamboo.shortJobName}.tar.gz
-      pattern: ct_logs_${bamboo.shortJobName}.tar.gz
-      shared: false
-      required: false
-    - &cover_ct
-      name: cover_ct_api_common_emergency_passphrase.tar.gz
+      name: ct_logs_api_common_emergency_passphrase.tar.gz
       location: onepanel
-      pattern: cover_ct_${bamboo.shortJobName}.tar.gz
+      pattern: ct_logs_${bamboo.shortJobName}.tar.gz
       shared: true
       required: false
   requirements:
@@ -325,97 +310,85 @@ api_common_emergency_passphrase_not_deployed:
   <<: *ct-onenv-job
   key: ACEPND
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
 
 api_common_internal:
   <<: *ct-onenv-job
   key: ACI
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_common_internal.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_common_internal.tar.gz
 
 api_oneprovider_provider:
   <<: *ct-onenv-job
   key: APIOPPROVIDER
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_provider.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_provider.tar.gz
 
 api_oneprovider_spaces_basic:
   <<: *ct-onenv-job
   key: SPAC
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_spaces_basic.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_spaces_basic.tar.gz
 
 api_oneprovider_storage_ceph:
   <<: *ct-onenv-job
   key: APC
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_storage_ceph.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storage_ceph.tar.gz
 
 api_oneprovider_storage_posix:
   <<: *ct-onenv-job
   key: APSP
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_storage_posix.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storage_posix.tar.gz
 
 api_oneprovider_storage_s3:
   <<: *ct-onenv-job
   key: APSS
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_storage_s3.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storage_s3.tar.gz
 
 api_oneprovider_storage_webdav:
   <<: *ct-onenv-job
   key: AOSW
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_storage_webdav.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storage_webdav.tar.gz
 
 api_oneprovider_storages:
   <<: *ct-onenv-job
   key: STOR
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_oneprovider_storages.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storages.tar.gz
 
 api_onezone_service_configuration:
   <<: *ct-onenv-job
   key: ASC
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_onezone_service_configuration.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_onezone_service_configuration.tar.gz
 
 api_onezone_user_management:
   <<: *ct-onenv-job
   key: AP
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_api_onezone_user_management.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_api_onezone_user_management.tar.gz
 
 db_disk_usage_monitor:
   <<: *ct-onenv-job
   key: DBDISKMONITOR
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_db_disk_usage_monitor.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_db_disk_usage_monitor.tar.gz
 
 model: &ct-job
   key: MOD
@@ -431,9 +404,8 @@ model: &ct-job
         description: Run CT env-up tests
   final-tasks: *final-tasks
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_model.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_model.tar.gz
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
 
@@ -441,89 +413,78 @@ rest_ceph:
   <<: *ct-job
   key: RESTCEPH
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_ceph.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_ceph.tar.gz
 
 rest_clusters:
   <<: *ct-job
   key: RCLUSTER
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_clusters.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_clusters.tar.gz
 
 rest_letsencrypt:
   <<: *ct-job
   key: LE
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_letsencrypt.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_letsencrypt.tar.gz
 
 rest_onepanel:
   <<: *ct-job
   key: RO
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_onepanel.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_onepanel.tar.gz
 
 rest_onepanel_user:
   <<: *ct-job
   key: ROU
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_onepanel_user.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_onepanel_user.tar.gz
 
 rest_oneprovider:
   <<: *ct-job
   key: ROP
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_oneprovider.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_oneprovider.tar.gz
 
 rest_onezone:
   <<: *ct-job
   key: RESZ
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_onezone.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_onezone.tar.gz
 
 rest_service:
   <<: *ct-job
   key: RS
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_rest_service.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_rest_service.tar.gz
 
 service:
   <<: *ct-job
   key: SER
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_service.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_service.tar.gz
 
 service_onepanel:
   <<: *ct-job
   key: SO
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_service_onepanel.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_service_onepanel.tar.gz
 
 services:
   <<: *ct-job
   key: SERS
   artifacts:
-    - *ct_logs
-    - <<: *cover_ct
-      name: cover_ct_services.tar.gz
+    - <<: *ct_logs
+      name: ct_logs_services.tar.gz
 
 Coverage report:
   key: CROP
@@ -588,29 +549,29 @@ Coverage report:
   artifact-subscriptions:
     - artifact: onepanel.tar.gz
     - artifact: cover_eunit.tar.gz
-    - artifact: cover_ct_api_common_emergency_passphrase.tar.gz
-    - artifact: cover_ct_api_common_emergency_passphrase_not_deployed.tar.gz
-    - artifact: cover_ct_api_common_internal.tar.gz
-    - artifact: cover_ct_api_oneprovider_provider.tar.gz
-    - artifact: cover_ct_api_oneprovider_spaces_basic.tar.gz
-    - artifact: cover_ct_api_oneprovider_storage_ceph.tar.gz
-    - artifact: cover_ct_api_oneprovider_storage_posix.tar.gz
-    - artifact: cover_ct_api_oneprovider_storage_s3.tar.gz
-    - artifact: cover_ct_api_oneprovider_storage_webdav.tar.gz
-    - artifact: cover_ct_api_oneprovider_storages.tar.gz
-    - artifact: cover_ct_api_onezone_service_configuration.tar.gz
-    - artifact: cover_ct_api_onezone_user_management.tar.gz
-    - artifact: cover_ct_db_disk_usage_monitor.tar.gz
-    - artifact: cover_ct_model.tar.gz
-    - artifact: cover_ct_rest_ceph.tar.gz
-    - artifact: cover_ct_rest_clusters.tar.gz
-    - artifact: cover_ct_rest_letsencrypt.tar.gz
-    - artifact: cover_ct_rest_onepanel.tar.gz
-    - artifact: cover_ct_rest_onepanel_user.tar.gz
-    - artifact: cover_ct_rest_oneprovider.tar.gz
-    - artifact: cover_ct_rest_onezone.tar.gz
-    - artifact: cover_ct_rest_service.tar.gz
-    - artifact: cover_ct_service.tar.gz
-    - artifact: cover_ct_service_onepanel.tar.gz
-    - artifact: cover_ct_services.tar.gz
+    - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
+    - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
+    - artifact: ct_logs_api_common_internal.tar.gz
+    - artifact: ct_logs_api_oneprovider_provider.tar.gz
+    - artifact: ct_logs_api_oneprovider_spaces_basic.tar.gz
+    - artifact: ct_logs_api_oneprovider_storage_ceph.tar.gz
+    - artifact: ct_logs_api_oneprovider_storage_posix.tar.gz
+    - artifact: ct_logs_api_oneprovider_storage_s3.tar.gz
+    - artifact: ct_logs_api_oneprovider_storage_webdav.tar.gz
+    - artifact: ct_logs_api_oneprovider_storages.tar.gz
+    - artifact: ct_logs_api_onezone_service_configuration.tar.gz
+    - artifact: ct_logs_api_onezone_user_management.tar.gz
+    - artifact: ct_logs_db_disk_usage_monitor.tar.gz
+    - artifact: ct_logs_model.tar.gz
+    - artifact: ct_logs_rest_ceph.tar.gz
+    - artifact: ct_logs_rest_clusters.tar.gz
+    - artifact: ct_logs_rest_letsencrypt.tar.gz
+    - artifact: ct_logs_rest_onepanel.tar.gz
+    - artifact: ct_logs_rest_onepanel_user.tar.gz
+    - artifact: ct_logs_rest_oneprovider.tar.gz
+    - artifact: ct_logs_rest_onezone.tar.gz
+    - artifact: ct_logs_rest_service.tar.gz
+    - artifact: ct_logs_service.tar.gz
+    - artifact: ct_logs_service_onepanel.tar.gz
+    - artifact: ct_logs_services.tar.gz
 ...
