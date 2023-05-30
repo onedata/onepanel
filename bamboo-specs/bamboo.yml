@@ -298,7 +298,6 @@ api_common_emergency_passphrase: &ct-onenv-job
   artifacts:
     - &ct_logs
       name: ct_logs_api_common_emergency_passphrase.tar.gz
-      location: onepanel
       pattern: ct_logs_${bamboo.shortJobName}.tar.gz
       shared: true
       required: false
