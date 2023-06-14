@@ -4,6 +4,16 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.2
+
+-   **VFS-10875** Web GUI: Improved handling of large amount of spaces
+    and storages in Oneprovider panel GUI. Added loading progress
+    indicators.
+-   **VFS-10825** Web GUI: Fixed unnecessary scrollbars in Safari.
+-   **VFS-10411** Web GUI: Added support for incomplete infinite scroll
+    listing chunks from backend. It increases stability of file browser
+    GUI.
+
 ### 21.02.1
 
 -   **VFS-10502** Added option to null device enabling verification of
