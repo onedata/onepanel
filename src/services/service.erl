@@ -42,8 +42,7 @@
 -type name() :: ?SERVICE_OZ | ?SERVICE_OP
     | ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW
     | ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL
-    | ?SERVICE_LE | ?SERVICE_CEPH
-    | ?SERVICE_CEPH_OSD | ?SERVICE_CEPH_MON | ?SERVICE_CEPH_MGR.
+    | ?SERVICE_LE.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
@@ -58,9 +57,7 @@
 -type model_ctx() :: service_op_worker:model_ctx() | service_oz_worker:model_ctx()
 | service_oneprovider:model_ctx() | service_onezone:model_ctx()
 | service_cluster_manager:model_ctx() | service_letsencrypt:model_ctx()
-| service_couchbase:model_ctx() | service_ceph:model_ctx()
-| service_ceph_mon:model_ctx() | service_ceph_mgr:model_ctx()
-| service_ceph_osd:model_ctx().
+| service_couchbase:model_ctx().
 
 -type record() :: #service{}.
 
@@ -238,11 +235,6 @@ update_status(Service, Host, Status) ->
 %% @doc
 %% Checks if all deployed services have reported healthy status
 %% on last check.
-%% Note that Ceph services never update their stored status (so it always
-%% remains healthy) in order not to block REST requests regarding
-%% Oneprovider from execution because of Ceph health warnings.
-%% @TODO VFS-5661 Track the status and decide if Ceph status is relevant
-%% to return 503 on endpoint-by-endpoint basis
 %% @end
 %%--------------------------------------------------------------------
 -spec all_healthy() -> boolean().
@@ -495,13 +487,13 @@ register_healthcheck(Service, Ctx) ->
     ok = onepanel_cron:add_job(Name, Action, Period, Condition).
 
 
--spec deregister_healthcheck(service:name(), #{id => ceph:id(), _ => _}) -> ok.
+-spec deregister_healthcheck(service:name(), step_ctx()) -> ok.
 deregister_healthcheck(Service, Ctx) ->
     onepanel_cron:remove_job(healthcheck_name(Service, Ctx)).
 
 
 %% @private
--spec healthcheck_name(service:name(), #{id => ceph:id(), _ => _}) -> binary().
+-spec healthcheck_name(service:name(), step_ctx()) -> binary().
 healthcheck_name(Service, #{id := Id}) ->
     str_utils:format_bin("~tp (id ~tp)", [Service, Id]);
 healthcheck_name(Service, _) ->
@@ -522,10 +514,6 @@ healthcheck_name(Service, _) ->
     (?SERVICE_CM) -> service_cluster_manager:model_ctx() | {error, _};
     (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
     (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
-    (?SERVICE_CEPH) -> service_ceph:model_ctx() | {error, _};
-    (?SERVICE_CEPH_MON) -> service_ceph_mon:model_ctx() | {error, _};
-    (?SERVICE_CEPH_MGR) -> service_ceph_mgr:model_ctx() | {error, _};
-    (?SERVICE_CEPH_OSD) -> service_ceph_osd:model_ctx() | {error, _};
     % #service model is not created for service_onepanel module
     (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND | {error, _}.
 get_ctx(Service) ->

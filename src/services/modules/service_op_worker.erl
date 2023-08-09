@@ -164,21 +164,8 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
 
-get_steps(update_storage, Ctx) ->
-    #{id := Id, storage := Changes} = Ctx,
-    Current = op_worker_storage:get(Id),
-    case matches_embedded_ceph_pool(Current) of
-        true ->
-            [
-                #steps{service = ?SERVICE_CEPH, action = modify_pool,
-                    ctx = Changes#{name => maps:get(poolName, Current)}},
-                #step{function = update_storage, selection = any}
-            ];
-        false ->
-            [
-                #step{function = update_storage, selection = any}
-            ]
-    end;
+get_steps(update_storage, _Ctx) ->
+    [#step{function = update_storage, selection = any}];
 
 get_steps(Function, _Ctx) when 
     Function == remove_storage;
@@ -447,23 +434,6 @@ synchronize_clock_upon_start(_) ->
 %%--------------------------------------------------------------------
 -spec add_storage(Ctx :: service:step_ctx()) ->
     {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
-add_storage(#{params := #{type := Type} = Params, name := Name} = Ctx) when
-    Type == ?EMBEDDED_CEPH_STORAGE_TYPE ->
-    case hosts:all(?SERVICE_CEPH_OSD) of
-        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_CEPH_OSD));
-        _ -> ok
-    end,
-
-    case ceph_pool:exists(Name) of
-        true -> ok;
-        false ->
-            service_utils:throw_on_error(service:apply_sync(
-                ?SERVICE_CEPH, create_pool, Params#{name => Name}
-            ))
-    end,
-    FilledParams = maps:merge(Params, service_ceph:make_storage_params(Name)),
-    add_storage(Ctx#{params => FilledParams});
-
 add_storage(#{params := _, name := _} = Ctx) ->
     op_worker_storage:add(Ctx).
 
@@ -476,11 +446,7 @@ add_storage(#{params := _, name := _} = Ctx) ->
     op_worker_storage:storage_details()
     | [op_worker_storage:id()].
 get_storages(#{id := Id}) ->
-    Details = op_worker_storage:get(Id),
-    case matches_embedded_ceph_pool(Details) of
-        true -> service_ceph:decorate_storage_details(Details);
-        false -> Details
-    end;
+    op_worker_storage:get(Id);
 
 get_storages(_Ctx) ->
     op_worker_storage:list().
@@ -504,17 +470,7 @@ update_storage(#{id := Id, storage := Params}) ->
 -spec remove_storage(Ctx :: #{id := op_worker_storage:id(), _ => _}) -> ok | no_return().
 remove_storage(#{id := Id}) ->
     {ok, Node} = nodes:any(name()),
-    #{name := Name} = Details = op_worker_storage:get(Id),
-    op_worker_storage:remove(Node, Id),
-    case matches_embedded_ceph_pool(Details) of
-        true ->
-            service_utils:throw_on_error(service:apply_sync(
-                ?SERVICE_CEPH, delete_pool, #{name => Name}
-            )),
-            ok;
-        false ->
-            ok
-    end.
+    op_worker_storage:remove(Node, Id).
 
 
 -spec get_luma_configuration(Ctx :: service:step_ctx()) -> op_worker_rpc:luma_details().
@@ -848,24 +804,3 @@ env_write_and_set(Variable, Value) ->
     % the variable will be read on next startup
     catch onepanel_env:set_remote(Node, Variable, Value, name()),
     ok.
-
-
-%%-------------------------------------------------------------------
-%% @private
-%% @doc
-%% Checks if a storage using cephrados helper has a corresponding pool
-%% in the embedded Ceph cluster.
-%% @end
-%%-------------------------------------------------------------------
--spec matches_embedded_ceph_pool
-    (op_worker_storage:storage_details() | op_worker_storage:id()) -> boolean().
-matches_embedded_ceph_pool(#{type := Type, name := Name, clusterName := ClusterName}) when
-    Type == ?EMBEDDED_CEPH_STORAGE_TYPE; % when checking against op_worker output
-    Type == ?CEPH_STORAGE_HELPER_NAME % when checking user input
-->
-    service:exists(?SERVICE_CEPH)
-        andalso ceph:get_cluster_name() == ClusterName
-        andalso ceph_pool:exists(Name);
-
-matches_embedded_ceph_pool(#{}) ->
-    false.

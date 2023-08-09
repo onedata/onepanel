@@ -1988,7 +1988,7 @@ init_per_testcase(_Case, Config) ->
     Self = self(),
     test_utils:mock_new(Nodes, [service, service_oneprovider, op_worker_storage]),
     test_utils:mock_expect(Nodes, service, exists, fun
-        (oneprovider) -> true; (op_worker) -> true; (ceph) -> false
+        (oneprovider) -> true; (op_worker) -> true
     end),
     test_utils:mock_expect(Nodes, service, get, fun
         (oneprovider) -> {ok, #service{

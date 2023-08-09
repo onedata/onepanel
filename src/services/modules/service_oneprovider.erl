@@ -133,8 +133,7 @@ get_hosts() ->
     lists:usort(lists:append([
         service:get_hosts(?SERVICE_CB),
         service:get_hosts(?SERVICE_CM),
-        service:get_hosts(?SERVICE_OPW),
-        service:get_hosts(?SERVICE_CEPH)
+        service:get_hosts(?SERVICE_OPW)
     ])).
 
 
@@ -159,7 +158,6 @@ get_steps(deploy, Ctx) ->
     CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
     OpwCtx = kv_utils:get([cluster, ?SERVICE_OPW], Ctx),
     LeCtx = kv_utils:get([cluster, ?SERVICE_LE], Ctx),
-    CephCtx = kv_utils:get([ceph], Ctx, #{}),
     StorageCtx = kv_utils:get([cluster, storages], Ctx, #{}),
     OpCtx = kv_utils:get(name(), Ctx, #{}),
 
@@ -200,8 +198,6 @@ get_steps(deploy, Ctx) ->
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
         S#step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
-        Ss#steps{service = ?SERVICE_CEPH, action = deploy,
-            ctx = CephCtx, condition = CephCtx /= #{}},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_CLUSTER], hosts = [SelfHost]},
@@ -255,8 +251,7 @@ get_steps(manage_restart, Ctx) ->
             #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{service = ?SERVICE_LE, action = resume,
-                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}},
-            #steps{service = ?SERVICE_CEPH, action = resume}
+                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
         ];
         false ->
             ?info("Waiting for master node \"~s\" to start the Oneprovider", [MasterHost]),

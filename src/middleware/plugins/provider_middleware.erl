@@ -218,14 +218,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Data, #{hosts => DbHosts}),
 
-    {CtxWithCeph, CephHosts} = case Data of
-        #{ceph := CephData} ->
-            {CephCtx, CephHosts1} = ceph_middleware:read_ceph_args(CephData),
-            {#{ceph => CephCtx}, CephHosts1};
-        _ -> {#{}, []}
-    end,
-
-    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts ++ CephHosts),
+    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
     OpaCtx = kv_utils:copy_found([
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
@@ -266,9 +259,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         cluster_ips => ClusterIPs
     }),
 
-    CommonCtx = CtxWithCeph#{
-        cluster => ClusterCtx, ?SERVICE_OP => OpwCtx
-    },
+    CommonCtx = #{cluster => ClusterCtx, ?SERVICE_OP => OpwCtx},
 
     {ok, value, _TaskId = service:apply_async(?SERVICE_OP, deploy, CommonCtx)}.
 
