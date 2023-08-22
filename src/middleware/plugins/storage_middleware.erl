@@ -698,12 +698,16 @@ validate_storage_common_args(StorageName, StorageArgs) ->
     end.
 
 
+% used during create or update, so the data may include arbitrary parameters
 -spec validate_storage_custom_args(binary(), map()) -> ok.
 validate_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
     try
-        url_utils:infer_components(maps:get(hostname, Data))
+        case maps:find(hostname, Data) of
+            error -> ok;
+            {ok, Hostname} -> url_utils:infer_components(Hostname)
+        end
     catch
-        _:_  -> throw(?ERROR_BAD_DATA(?STORAGE_KEY(StorageName, <<"hostname">>)))
+        _:_ -> throw(?ERROR_BAD_DATA(?STORAGE_KEY(StorageName, <<"hostname">>)))
     end,
 
     SignatureVersion = maps:get(signatureVersion, Data, ?DEFAULT_S3_SIGNATURE_VERSION),

@@ -138,7 +138,7 @@ update(OpNode, Id, NewParams) ->
 
     % TODO VFS-6951 refactor storage configuration API
     {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
-    CurrentArgs = op_worker_rpc:get_helper_args(OpNode, CurrentHelper),
+    CurrentArgs = get_helper_args(StorageType, OpNode, CurrentHelper),
     CurrentAdminCtx = op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper),
     VerificationParams3 = maps:merge(CurrentArgs, VerificationParams2),
     VerificationParams4 = maps:merge(CurrentAdminCtx, VerificationParams3),
@@ -199,14 +199,21 @@ list() ->
 get(Id) ->
     {ok, Map} = op_worker_rpc:storage_describe(Id),
 
-    % In case of s3 storage we want scheme to be a part of hostname.
     DetailsMap = case maps:get(<<"type">>, Map) of
-        <<"s3">> -> join_scheme_and_hostname_args(Map);
+        <<"s3">> -> join_scheme_and_hostname_args_for_s3_storage(Map);
         _ -> Map
     end,
     onepanel_utils:convert(
         maps_utils:undefined_to_null(DetailsMap),
         {keys, atom}).
+
+
+-spec get_helper_args(binary(), node(), helper()) -> helper_args().
+get_helper_args(<<"s3">>, OpNode, Helper) ->
+    HelperArgs = op_worker_rpc:get_helper_args(OpNode, Helper),
+    join_scheme_and_hostname_args_for_s3_storage(HelperArgs);
+get_helper_args(_, OpNode, Helper) ->
+    op_worker_rpc:get_helper_args(OpNode, Helper).
 
 
 %%--------------------------------------------------------------------
@@ -686,10 +693,22 @@ exec_and_throw_on_error(Function, Args) ->
             throw(Error2)
     end.
 
-
-%% @private
--spec join_scheme_and_hostname_args(map()) -> map().
-join_scheme_and_hostname_args(Map) ->
+%%--------------------------------------------------------------------
+%% @doc
+%% Due to a questionable decision made in legacy versions, the hostname in
+%% S3 configuration (from Onepanel side) can be either a hostname (e.g. "example.com")
+%% or URL (e.g. "https://example.com:8080"). In op-worker, however, there are two
+%% fields for that: hostname and scheme. The scheme field is never modified by
+%% Onepanel, but it acknowledges that it exists, and this function reflects that.
+%% It must be used whenever information about storage config is gathered from op-worker,
+%% to translate it to the Onepanel's idea of S3 hostname.
+%%
+%% NOTE: This behaviour is retained for backward-compatibility reasons.
+%% It may be desirable to rework it when releasing a new major version.
+%% @end
+%%--------------------------------------------------------------------
+-spec join_scheme_and_hostname_args_for_s3_storage(map()) -> map().
+join_scheme_and_hostname_args_for_s3_storage(Map) ->
     Scheme = maps:get(<<"scheme">>, Map),
     HostName = maps:get(<<"hostname">>, Map),
     maps:put(<<"hostname">>, str_utils:join_binary([Scheme, <<"://">>, HostName]), maps:remove(<<"scheme">>, Map)).
