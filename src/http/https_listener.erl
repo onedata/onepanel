@@ -270,7 +270,6 @@ gui_config() ->
                 luma_db_local_feed_rest_routes:routes(),
                 file_popularity_rest_routes:routes(),
                 auto_cleaning_rest_routes:routes(),
-                ceph_rest_routes:routes(),
                 debug_rest_routes:routes()
             ]);
         onezone ->

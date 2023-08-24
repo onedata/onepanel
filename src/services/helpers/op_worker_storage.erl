@@ -114,7 +114,6 @@ add(#{name := Name, params := Params}) ->
 update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
     Id = maps:get(id, Storage),
-    CurrentName = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
     CurrentReadonly = maps:get(readonly, Storage),
     CurrentImported = maps:get(importedStorage, Storage),
@@ -124,28 +123,20 @@ update(OpNode, Id, NewParams) ->
 
     Readonly = maps:get(readonly, NewParams, CurrentReadonly),
     Imported = maps:get(importedStorage, NewParams, CurrentImported),
-    Name = maps:get(name, NewParams, CurrentName),
-
-    VerificationParams = case maps:get(type, PlainValueNewParams) of
-        ?EMBEDDED_CEPH_STORAGE_TYPE ->
-            maps:merge(PlainValueNewParams, service_ceph:make_storage_params(Name));
-        _ ->
-            PlainValueNewParams
-    end,
 
     % fill params with current configuration for the verification function
-    VerificationParams2 = maps:merge(maps:remove(qosParameters, Storage), VerificationParams),
+    VerificationParams1 = maps:merge(maps:remove(qosParameters, Storage), PlainValueNewParams),
 
     % TODO VFS-6951 refactor storage configuration API
     {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
     CurrentArgs = op_worker_rpc:get_helper_args(OpNode, CurrentHelper),
     CurrentAdminCtx = op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper),
-    VerificationParams3 = maps:merge(CurrentArgs, VerificationParams2),
-    VerificationParams4 = maps:merge(CurrentAdminCtx, VerificationParams3),
+    VerificationParams2 = maps:merge(CurrentArgs, VerificationParams1),
+    VerificationParams3 = maps:merge(CurrentAdminCtx, VerificationParams2),
 
-    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams4),
-    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams4),
-    verify_configuration(OpNode, Id, VerificationParams4, Helper),
+    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams3),
+    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams3),
+    verify_configuration(OpNode, Id, VerificationParams3, Helper),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
     % TODO VFS-6951 refactor storage configuration API

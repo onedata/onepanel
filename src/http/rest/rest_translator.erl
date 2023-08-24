@@ -106,7 +106,6 @@ make_location_header(PathTokens) ->
 
 %% @private
 -spec entity_type_to_translator(atom()) -> module().
-entity_type_to_translator(onp_ceph) -> ceph_rest_translator;
 entity_type_to_translator(onp_cluster) -> cluster_rest_translator;
 entity_type_to_translator(onp_host) -> host_rest_translator;
 entity_type_to_translator(onp_panel) -> onepanel_rest_translator;

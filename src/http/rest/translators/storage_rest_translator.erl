@@ -114,7 +114,6 @@ get_storage_model(posix) -> rest_model:posix_model();
 get_storage_model(s3) -> rest_model:s3_model();
 get_storage_model(ceph) -> rest_model:ceph_model();
 get_storage_model(cephrados) -> rest_model:cephrados_model();
-get_storage_model(embeddedceph) -> rest_model:embeddedceph_model();
 get_storage_model(swift) -> rest_model:swift_model();
 get_storage_model(glusterfs) -> rest_model:glusterfs_model();
 get_storage_model(nulldevice) -> rest_model:nulldevice_model();
