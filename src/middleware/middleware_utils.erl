@@ -152,18 +152,7 @@ format_service_configuration(SModule) ->
         null -> null;
         MasterHost -> onepanel_utils:convert(MasterHost, binary)
     end,
-    Ceph = case service:get_hosts(?SERVICE_CEPH) /= [] of
-        true -> #{
-            <<"ceph">> => maps_utils:merge([
-                service_ceph_mgr:list(),
-                service_ceph_mon:list(),
-                service_ceph_osd:list()
-            ])
-        };
-        false ->
-            #{}
-    end,
-    Ceph#{
+    #{
         <<"cluster">> => #{
             <<"master">> => MasterHostBin,
             <<"hosts">> =>

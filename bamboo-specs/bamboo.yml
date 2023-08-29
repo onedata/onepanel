@@ -66,7 +66,6 @@ stages:
         - api_onezone_user_management
         - db_disk_usage_monitor
         - model
-        - rest_ceph
         - rest_clusters
         - rest_letsencrypt
         - rest_onepanel
@@ -408,13 +407,6 @@ model: &ct-job
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
 
-rest_ceph:
-  <<: *ct-job
-  key: RESTCEPH
-  artifacts:
-    - <<: *ct_logs
-      name: ct_logs_rest_ceph.tar.gz
-
 rest_clusters:
   <<: *ct-job
   key: RCLUSTER
@@ -562,7 +554,6 @@ Coverage report:
     - artifact: ct_logs_api_onezone_user_management.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_model.tar.gz
-    - artifact: ct_logs_rest_ceph.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
     - artifact: ct_logs_rest_letsencrypt.tar.gz
     - artifact: ct_logs_rest_onepanel.tar.gz
