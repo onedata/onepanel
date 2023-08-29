@@ -4,6 +4,8 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.3
+
 ### 21.02.2
 
 -   **VFS-10875** Web GUI: Improved handling of large amount of spaces

@@ -121,7 +121,8 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
         ],
         correct_values = #{
             <<"bucketName">> => [?S3_BUCKET_NAME],
-            <<"hostname">> => [?S3_HOSTNAME],
+            % Onepanel accepts both variants (with or without the scheme)
+            <<"hostname">> => [?S3_HOSTNAME, <<"http://", (?S3_HOSTNAME)/binary>>],
             <<"accessKey">> => [?S3_KEY_ID],
             <<"secretKey">> => [?S3_ACCESS_KEY],
             <<"type">> => [<<"s3">>],
@@ -163,8 +164,9 @@ build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
         ],
         correct_values = #{
             <<"type">> => [<<"s3">>],
-            <<"hostname">> => [?S3_HOSTNAME],
-            <<"bucketName">> => [<<"unexistent_bucket">>]
+            % Onepanel accepts both variants (with or without the scheme)
+            <<"hostname">> => [?S3_HOSTNAME, <<"http://", (?S3_HOSTNAME)/binary>>],
+            <<"bucketName">> => [<<"nonexistent_bucket">>]
         }
     }.
 
