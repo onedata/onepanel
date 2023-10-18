@@ -3037,6 +3037,11 @@ s3_model() ->
         %% The version of signature used to sign requests. Only version 4 is
         %% supported.
         signatureVersion => {integer, {optional, 4}},
+        %% Enables or disables verification of the S3 server SSL certificate.
+        verifyServerCertificate => {boolean, optional},
+        %% Allows to specify a custom S3 region, which will be send with each
+        %% request to the S3 server.
+        region => {string, {optional, <<"us-east-1">>}},
         %% Storage block size in bytes. In case the block size is `0`
         %% and `canonical` path type is selected, each file is stored
         %% in a single S3 object. This value must be set to `0` to
@@ -3136,6 +3141,11 @@ s3_modify_model() ->
         %% The version of signature used to sign requests. Only version 4 is
         %% supported.
         signatureVersion => {integer, optional},
+        %% Enables or disables verification of the S3 server SSL certificate.
+        verifyServerCertificate => {boolean, optional},
+        %% Allows to specify a custom S3 region, which will be send with each
+        %% request to the S3 server.
+        region => {string, optional},
         %% Defines the maximum size for objects, which can be modified on the S3
         %% storage in `canonical` path mode. In this mode, entire file
         %% needs to be downloaded to memory, modified and uploaded back, which
