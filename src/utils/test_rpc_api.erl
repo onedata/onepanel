@@ -88,7 +88,7 @@ is_onepanel_initialized() ->
     end.
 
 
--spec add_storage(map()) -> ok | no_return().
+-spec add_storage(map()) -> {binary(), {error, _} | {ok, binary()}}.
 add_storage(Data) ->
     [{Name, Params}] = maps:to_list(onepanel_parser:parse(Data, rest_model:storage_create_request_model())),
     op_worker_storage:add(#{name => Name, params => Params}).
