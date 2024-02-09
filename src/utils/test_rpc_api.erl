@@ -25,7 +25,8 @@
     unset_emergency_passphrase/0,
     verify_emergency_passphrase/1,
     list_onepanel_deployment/0,
-    is_onepanel_initialized/0
+    is_onepanel_initialized/0,
+    add_storage/1
 ]).
 
 
@@ -85,3 +86,10 @@ is_onepanel_initialized() ->
         ok -> true;
         _ -> false
     end.
+
+
+-spec add_storage(map()) ->  {ok, binary()} | {error, term()}.
+add_storage(Data) ->
+    [{Name, Params}] = maps:to_list(onepanel_parser:parse(Data, rest_model:storage_create_request_model())),
+    {Name, Result} = op_worker_storage:add(#{name => Name, params => Params}),
+    Result.
