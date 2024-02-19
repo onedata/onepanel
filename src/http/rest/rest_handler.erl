@@ -27,7 +27,6 @@
     content_types_provided/2, is_authorized/2, delete_resource/2]).
 -export([process_request/2]).
 -export([send_response/2]).
--export([allowed_origin/0]).
 
 -type method() :: http_utils:method().
 -type binding() :: {binding, atom()}.
@@ -64,7 +63,10 @@
 %%--------------------------------------------------------------------
 -spec init(Req :: cowboy_req:req(), #{method() => #rest_req{}}) ->
     {cowboy_rest | ok, Req :: cowboy_req:req(), state()}.
-init(Req, Opts) ->
+init(InitialReq, Opts) ->
+    % The REST API accepts only basic auth and tokens (rather than session cookies) so
+    % it's safe to allow it to be called from other origins.
+    Req = http_cors:allow_origin(<<"*">>, InitialReq),
     MethodBin = cowboy_req:method(Req),
     Method = http_utils:binary_to_method(MethodBin),
     % If given method is not allowed, it is not in the map.
@@ -233,17 +235,6 @@ get_params(Req) ->
         ({Key, Value}, Acc) -> maps:put(Key, Value, Acc)
     end, #{}, Params).
 
-
-%%--------------------------------------------------------------------
-%% @doc Returns domain hosting GUI which is allowed to perform
-%% requests to the current cluster.
-%% @end
-%%--------------------------------------------------------------------
--spec allowed_origin() -> binary() | undefined.
-allowed_origin() ->
-    allowed_origin(onepanel_env:get_cluster_type()).
-
-
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -310,19 +301,12 @@ get_data(Req) ->
 -spec handle_options(cowboy_req:req(), state()) ->
     {ok, cowboy_req:req(), state()}.
 handle_options(Req, State) ->
-    case allowed_origin() of
-        undefined ->
-            % For unregistered provider or not deployed zone
-            % there is no need for OPTIONS request
-            {ok, cowboy_req:reply(?HTTP_405_METHOD_NOT_ALLOWED, Req), State};
-        Origin ->
-            {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
+    {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
-            AllowedHeaders = [?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
-            Req3 = gui_cors:options_response(Origin, AllowedMethods, AllowedHeaders, Req2),
+    AllowedHeaders = [?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
+    Req3 = http_cors:options_response(<<"*">>, AllowedMethods, AllowedHeaders, Req2),
 
-            {ok, Req3, State}
-    end.
+    {ok, Req3, State}.
 
 
 %%--------------------------------------------------------------------
@@ -372,26 +356,3 @@ method_to_operation('PUT') -> create;
 method_to_operation('GET') -> get;
 method_to_operation('PATCH') -> update;
 method_to_operation('DELETE') -> delete.
-
-
-%% @private
--spec allowed_origin(onedata:cluster_type()) -> binary() | undefined.
-allowed_origin(oneprovider) ->
-    case service_oneprovider:is_registered() of
-        true ->
-            unicode:characters_to_binary(
-                ["https://", service_oneprovider:get_oz_domain()]
-            );
-        false ->
-            undefined
-    end;
-
-allowed_origin(onezone) ->
-    case service:exists(?SERVICE_OZW) of
-        true ->
-            unicode:characters_to_binary(
-                ["https://", service_oz_worker:get_domain()]
-            );
-        false ->
-            undefined
-    end.
