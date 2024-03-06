@@ -144,18 +144,6 @@ merge_routes(AllRoutes) ->
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns headers which should be added to each response.
-%% @end
-%%--------------------------------------------------------------------
--spec common_response_headers(cowboy_req:req()) -> cowboy:http_headers().
-common_response_headers(_Req) ->
-    case rest_handler:allowed_origin() of
-        undefined -> #{};
-        Origin -> #{?HDR_ACCESS_CONTROL_ALLOW_ORIGIN => Origin}
-    end.
-
-
-%%--------------------------------------------------------------------
 %% @private @doc
 %% Deploys standalone GUI - the GUI served by onepanel and reachable on port 9443.
 %% Static GUI files are taken from GUI package tarball.
@@ -299,6 +287,5 @@ gui_config() ->
         inactivity_timeout = ?INACTIVITY_TIMEOUT,
         custom_cowboy_routes = Routes,
         dynamic_pages = DynamicPages,
-        static_root = GuiStaticRoot,
-        custom_response_headers = fun common_response_headers/1
+        static_root = GuiStaticRoot
     }.

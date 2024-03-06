@@ -576,8 +576,7 @@ get_space_details_with_rpc(SpaceId) ->
 create_space_and_support_token(SpaceName) ->
     UserId = ozw_test_rpc:create_user(),
     SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
-    Token = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
-    {ok, SerializedToken} = tokens:serialize(Token),
+    SerializedToken = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
     {SpaceId, SerializedToken}.
 
 
