@@ -99,7 +99,7 @@ perform_io_test_on_storage(StorageId) ->
     UserId = oct_background:get_user_id(joe),
     SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
     SerializedToken = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
-    opw_test_rpc:support_space(krakow, StorageId, SerializedToken, 10000000),
+    panel_test_rpc:support_space(krakow, StorageId, SerializedToken, 10000000),
     AccessToken = ozw_test_rpc:create_user_temporary_access_token(zone, UserId),
     ?assertEqual(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, SpaceName, AccessToken), ?ATTEMPTS),
     ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
