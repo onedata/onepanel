@@ -427,7 +427,7 @@ init_per_testcase(api_caveats_should_restrict_available_endpoints, Config) ->
         fun() -> <<"some-identity-token">> end),
     test_utils:mock_expect(Nodes, oz_endpoint, request, fun
         (_Auth, "/tokens/verify_access_token", post, _) ->
-            ?info("verifying access token using auth ~p", [_Auth]),
+            ?info("verifying access token using auth ~tp", [_Auth]),
             {ok, 200, #{}, json_utils:encode(#{
                 subject => aai:subject_to_json(?SUB(user, <<"userId">>)),
                 ttl => 3600

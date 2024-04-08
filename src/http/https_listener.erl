@@ -157,7 +157,7 @@ deploy_standalone_gui_files() ->
 
         file_utils:recursive_del(GuiRoot),
         ok = file_utils:move(ExtractedPath, GuiRoot),
-        ?info("Deployed standalone GUI files in ~s", [GuiRoot])
+        ?info("Deployed standalone GUI files in ~ts", [GuiRoot])
     end),
     ok.
 
@@ -191,11 +191,11 @@ maybe_generate_web_cert() ->
             ),
             file:copy(CAPath, WebChainPath),
             ?warning(
-                "Generated a new cert for domain '~s'. "
+                "Generated a new cert for domain '~ts'. "
                 "Use only for test purposes.~n"
-                "    ~s~n"
-                "    ~s~n"
-                "    ~s",
+                "    ~ts~n"
+                "    ~ts~n"
+                "    ~ts",
                 [Domain, WebKeyPath, WebCertPath, WebChainPath]
             ),
             % Do not generate new certificates upon listener restart
@@ -221,7 +221,7 @@ maybe_trust_test_ca() ->
             CaFile = filename:basename(CAPath),
             TargetCaFile = filename:join(onepanel_env:get(cacerts_dir), CaFile),
             file:copy(CAPath, TargetCaFile),
-            ?warning("Added '~s' to trusted certificates. Use only for test purposes.", [
+            ?warning("Added '~ts' to trusted certificates. Use only for test purposes.", [
                 CaFile
             ])
     end.

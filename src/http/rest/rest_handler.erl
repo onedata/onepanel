@@ -197,7 +197,7 @@ process_request(Req, #state{} = State) ->
             ErrorResp = rest_translator:error_response(Error),
             {stop, send_response(ErrorResp, Req), State};
         Type:Message:Stacktrace ->
-            ?error_stacktrace("Unexpected error in ~p:process_request - ~p:~p", [
+            ?error_stacktrace("Unexpected error in ~tp:process_request - ~tp:~tp", [
                 ?MODULE, Type, Message
             ], Stacktrace),
             ErrorResp = rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR),
@@ -254,11 +254,11 @@ handle_gri_request(#onp_req{operation = Operation, gri = GRI} = ElReq) ->
     catch
         Type:Message:Stacktrace ->
             ?error_stacktrace("Cannot translate REST result for:~n"
-            "Operation: ~p~n"
-            "GRI: ~p~n"
-            "Result: ~p~n"
+            "Operation: ~tp~n"
+            "GRI: ~tp~n"
+            "Result: ~tp~n"
             "---------~n"
-            "Error was: ~p:~p", [
+            "Error was: ~tp:~tp", [
                 Operation, GRI, Result, Type, Message
             ], Stacktrace),
             rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR)

@@ -107,7 +107,7 @@ call(NodeOrNodes, Module, Function, Args, Timeout) ->
     AllResults = Results ++
         [{BadNode, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE} || BadNode <- BadNodes],
 
-    ?debug("Call ~p:~p(~p) on nodes ~p with timeout ~p returned ~p",
+    ?debug("Call ~tp:~tp(~tp) on nodes ~tp with timeout ~tp returned ~tp",
         [Module, Function, Args, Nodes, Timeout, AllResults]),
     AllResults.
 

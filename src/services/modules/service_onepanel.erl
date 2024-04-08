@@ -261,7 +261,7 @@ fetch_and_set_cookie(#{invite_token := InviteToken, cluster_host := ClusterHost}
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
             throw(?ERROR_FORBIDDEN);
         {error, _} = Error ->
-            ?warning("Failed to connect with '~ts' to fetch cookie due to: ~p", [
+            ?warning("Failed to connect with '~ts' to fetch cookie due to: ~tp", [
                 ClusterHost, Error
             ]),
             throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(ClusterHost))

@@ -255,14 +255,14 @@ upgrade(Vsn, Vsn, _Model, Record) ->
 
 upgrade(TargetVsn, CurrentVsn, Model, _Record)
     when CurrentVsn > TargetVsn ->
-    ?emergency("Upgrade requested for model '~p' with future version ~p "
-    "(known versions up to: ~p)", [Model, CurrentVsn, TargetVsn]),
+    ?emergency("Upgrade requested for model '~tp' with future version ~tp "
+    "(known versions up to: ~tp)", [Model, CurrentVsn, TargetVsn]),
     error({upgrade_from_future, {Model, CurrentVsn, TargetVsn}});
 
 upgrade(TargetVsn, CurrentVsn, Model, Record) ->
     case Model:upgrade(CurrentVsn, Record) of
         {CurrentVsn, _} ->
-            ?critical("Upgrade function for model ~s did not increase version number", [Model]),
+            ?critical("Upgrade function for model ~ts did not increase version number", [Model]),
             error(bad_upgrade);
         {NewVersion, NewRecord} ->
             upgrade(TargetVsn, NewVersion, Model, NewRecord)

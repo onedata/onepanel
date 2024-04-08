@@ -57,12 +57,12 @@ format_steps([#step{hosts = Hosts, module = service_op_worker = Module,
         maps:put(Name, Params2, Map)
     end, #{}, Storages),
     Ctx2 = maps:put(storages, Storages2, Ctx),
-    Step = io_lib:format("Hosts: ~p~nFunction: ~p:~p~nArgs: ~p~n~n",
+    Step = io_lib:format("Hosts: ~tp~nFunction: ~tp:~tp~nArgs: ~tp~n~n",
         [Hosts, Module, Function, [Ctx2]]),
     format_steps(Steps, Log ++ Step);
 format_steps([#step{hosts = Hosts, module = Module, function = Function,
     args = Args} | Steps], Log) ->
-    Step = io_lib:format("Hosts: ~p~nFunction: ~p:~p~nArgs: ~p~n~n",
+    Step = io_lib:format("Hosts: ~tp~nFunction: ~tp:~tp~nArgs: ~tp~n~n",
         [Hosts, Module, Function, Args]),
     format_steps(Steps, Log ++ Step).
 
@@ -152,7 +152,7 @@ throw_on_error(Results) ->
     Results :: service_executor:results()) ->
     HostsResults :: service_executor:hosts_results().
 select_service_step(Module, Function, []) ->
-    ?error("Service step ~p:~p not found", [Module, Function]),
+    ?error("Service step ~tp:~tp not found", [Module, Function]),
     error({step_not_found, {Module, Function}});
 
 select_service_step(Module, Function,
@@ -283,19 +283,19 @@ get_nested_steps(#steps{condition = false}) ->
     Msg :: service_executor:result() | #action_steps_count{} | #action_begin{}.
 %% @formatter:on
 log(#action_steps_count{service = Service, action = Action, count = StepsCount}) ->
-    ?debug("Executing action ~p:~p requires ~b steps", [Service, Action, StepsCount]);
+    ?debug("Executing action ~tp:~tp requires ~b steps", [Service, Action, StepsCount]);
 log(#action_begin{service = Service, action = Action}) ->
-    ?debug("Executing action ~p:~p", [Service, Action]);
+    ?debug("Executing action ~tp:~tp", [Service, Action]);
 log(#action_end{service = Service, action = Action, result = ok}) ->
-    ?debug("Action ~p:~p completed successfully", [Service, Action]);
+    ?debug("Action ~tp:~tp completed successfully", [Service, Action]);
 log(#action_end{service = Service, action = Action, result = {error, Reason}}) ->
-    ?error("Action ~p:~p failed due to: ~tp", [Service, Action, Reason]);
+    ?error("Action ~tp:~tp failed due to: ~tp", [Service, Action, Reason]);
 log(#step_begin{module = Module, function = Function}) ->
-    ?debug("Executing step ~p:~p", [Module, Function]);
+    ?debug("Executing step ~tp:~tp", [Module, Function]);
 log(#step_end{module = Module, function = Function, good_bad_results = {_, []}}) ->
-    ?debug("Step ~p:~p completed successfully", [Module, Function]);
+    ?debug("Step ~tp:~tp completed successfully", [Module, Function]);
 log(#step_end{module = Module, function = Function, good_bad_results = {_, Errors}}) ->
-    ?error("Step ~p:~p failed~n~ts", [Module, Function, format_errors(Errors)]).
+    ?error("Step ~tp:~tp failed~n~ts", [Module, Function, format_errors(Errors)]).
 
 
 %%--------------------------------------------------------------------
