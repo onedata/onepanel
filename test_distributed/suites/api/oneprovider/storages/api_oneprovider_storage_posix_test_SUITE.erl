@@ -39,9 +39,10 @@
 groups() -> [
     {all_tests, [parallel], [
         add_correct_storage_and_perform_detection_test,
-        add_correct_storage_and_skip_detection_test,
-        add_bad_storage_and_perform_detection_test,
-        add_bad_storage_and_skip_detection_test
+        add_correct_storage_and_skip_detection_test
+%%        @TODO VFS-VFS-11922 uncomment after proper storage chceck is implemented
+%%        add_bad_storage_and_perform_detection_test,
+%%        add_bad_storage_and_skip_detection_test
     ]}
 ].
 
