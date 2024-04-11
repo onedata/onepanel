@@ -366,7 +366,8 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
         {ok, NewIP} ->
             onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             ip_utils:to_ip4_address(NewIP);
-        _ -> {ok, get_initial_ip(ServiceName)}
+        _ ->
+            {ok, get_initial_ip(ServiceName)}
     end,
 
     onepanel_env:write([name(), external_ip], IP, ServiceName),

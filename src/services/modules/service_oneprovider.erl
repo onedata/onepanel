@@ -93,10 +93,10 @@
     get_auto_cleaning_reports/1, get_auto_cleaning_report/1,
     get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1,
     force_start_auto_storage_import_scan/1, force_stop_auto_storage_import_scan/1,
-    check_oz_connection/0,
+    check_oneprovider_gs_connection/0,
     update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
--export([connect_and_set_up_in_onezone/1]).
+-export([await_onezone_connectivity_and_set_up_service/1]).
 -export([init_periodic_db_disk_usage_check/0]).
 -export([store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
@@ -246,12 +246,19 @@ get_steps(manage_restart, Ctx) ->
             % The op-worker service might require a working connection to Onezone
             % to successfully init (e.g. in case of a cluster upgrade), and only then
             % the step finalize_resume (which waits for complete cluster init) can succeed.
-            #step{function = connect_and_set_up_in_onezone, args = [fallback_to_async], selection = any},
+            #step{
+                function = await_onezone_connectivity_and_set_up_service,
+                args = [fallback_to_async],
+                selection = any
+            },
             #steps{service = ?SERVICE_OPW, action = finalize_resume},
             #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
-            #steps{service = ?SERVICE_LE, action = resume,
-                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
+            #steps{
+                service = ?SERVICE_LE,
+                action = resume,
+                ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}
+            }
         ];
         false ->
             ?info("Waiting for master node \"~ts\" to start the Oneprovider", [MasterHost]),
@@ -270,9 +277,9 @@ get_steps(register, #{hosts := _Hosts}) ->
         #step{function = resolve_registration_token, hosts = [hosts:self()]},
         #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #step{function = register, hosts = [hosts:self()]},
-        #step{function = connect_and_set_up_in_onezone, args = [no_fallback], selection = any},
+        #step{function = await_onezone_connectivity_and_set_up_service, args = [no_fallback], selection = any},
         % explicitly fail on connection problems before executing further steps
-        #step{function = check_oz_connection, args = [],
+        #step{function = check_oneprovider_gs_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #steps{action = set_cluster_ips}
     ];
@@ -289,13 +296,12 @@ get_steps(modify_details, #{hosts := Hosts}) ->
 get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
-
 get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
     Ctx2 = Ctx#{name => ?SERVICE_OPW},
     [
+        % TODO set_cluster_ips service = ?SERVICE_ONES3
         #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
-        #step{function = update_provider_ips, selection = any,
-            hosts = Hosts, args = []}
+        #step{function = update_provider_ips, selection = any, hosts = Hosts, args = []}
     ];
 get_steps(set_cluster_ips, Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
@@ -533,8 +539,8 @@ check_oz_availability(_Ctx) ->
 %% @doc Checks if Oneprovider is registered and connected to onezone
 %% @end
 %%--------------------------------------------------------------------
--spec check_oz_connection() -> ok | no_return().
-check_oz_connection() ->
+-spec check_oneprovider_gs_connection() -> ok | no_return().
+check_oneprovider_gs_connection() ->
     case service_op_worker:is_connected_to_oz() of
         true -> ok;
         false -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
@@ -834,12 +840,10 @@ get_manual_storage_import_example(#{space_id := SpaceId}) ->
 %%--------------------------------------------------------------------
 -spec update_provider_ips() -> ok.
 update_provider_ips() ->
-    case is_registered() of
-        true ->
-            % no check of results - if the provider is not connected to onezone
-            % the IPs will be sent automatically after connection is acquired
-            op_worker_rpc:update_subdomain_delegation_ips(),
-            ok;
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
+
+    case op_worker_rpc:is_subdomain_delegated(OpNode) of
+        {true, Subdomain} -> set_subdomain_delegation(OpNode, Subdomain);
         false -> ok
     end.
 
@@ -1041,8 +1045,9 @@ configure_auto_cleaning(#{space_id := SpaceId} = Ctx) ->
     [{id, SpaceId}].
 
 
--spec connect_and_set_up_in_onezone(no_fallback | fallback_to_async) -> ok | no_return().
-connect_and_set_up_in_onezone(FallbackPolicy) ->
+-spec await_onezone_connectivity_and_set_up_service(no_fallback | fallback_to_async) ->
+    ok | no_return().
+await_onezone_connectivity_and_set_up_service(FallbackPolicy) ->
     ?notice("Trying to connect to Onezone (~ts)...", [get_oz_domain()]),
     case {try_to_establish_onezone_connection(), FallbackPolicy} of
         {true, _} ->
@@ -1401,25 +1406,78 @@ get_details_by_rest() ->
 %%--------------------------------------------------------------------
 -spec modify_domain_details(OpNode :: node(), service:step_ctx()) -> ok.
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := true} = Ctx) ->
-    Subdomain = string:lowercase(onepanel_utils:get_converted(
-        oneprovider_subdomain, Ctx, binary)),
+    Subdomain = string:lowercase(onepanel_utils:get_converted(oneprovider_subdomain, Ctx, binary)),
 
     case op_worker_rpc:is_subdomain_delegated(OpNode) of
         {true, Subdomain} -> ok; % no change
-        _ ->
-            case op_worker_rpc:set_delegated_subdomain(OpNode, Subdomain) of
-                ok -> dns_check:invalidate_cache(op_worker);
-                Error -> throw(Error)
-            end
+        _ -> set_subdomain_delegation(OpNode, Subdomain)
     end;
 
 modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx) ->
-    Domain = string:lowercase(onepanel_utils:get_converted(
-        oneprovider_domain, Ctx, binary)),
-    ok = op_worker_rpc:set_domain(OpNode, Domain),
-    dns_check:invalidate_cache(op_worker);
+    Domain = string:lowercase(onepanel_utils:get_converted(oneprovider_domain, Ctx, binary)),
+    Data1 = #{<<"subdomainDelegation">> => false, <<"domain">> => Domain},
 
-modify_domain_details(_OpNode, _Ctx) -> ok.
+    OpWorkerPort = undefined, % TODO
+    Data2 = maps_utils:put_if_defined(Data1, <<"opWorkerPort">>, OpWorkerPort),
+
+    OneS3Port = undefined,  % TODO
+    Data3 = maps_utils:put_if_defined(Data2, <<"oneS3Port">>, OneS3Port),
+
+    update_domain_config(OpNode, Data3);
+
+modify_domain_details(_OpNode, _Ctx) ->
+    ok.
+
+
+%% @private
+-spec set_subdomain_delegation(node(), binary()) -> ok | no_return().
+set_subdomain_delegation(OpNode, Subdomain) ->
+    {_, OpWorkerIps} = lists:unzip(service_cluster_worker:get_hosts_ips(#{name => ?SERVICE_OPW})),
+    Data1 = #{
+        <<"subdomainDelegation">> => true,
+        <<"subdomain">> => Subdomain,
+        <<"opWorkerIpAddresses">> => encode_ips(OpWorkerIps)
+    },
+
+    OpWorkerPort = 443,  % TODO zmienna app.config w op?
+    Data2 = maps_utils:put_if_defined(Data1, <<"opWorkerPort">>, OpWorkerPort),
+
+    % TODO
+%%    Data3 = case get_ones3_net_address() of
+%%        {[], undefined} ->
+%%            Data2;
+%%        {OneS3Ips, OneS3Port} ->
+%%            Data2#{
+%%                <<"oneS3IpAddresses">> => encode_ips(OneS3Ips),
+%%                <<"oneS3Port">> => utils:undefined_to_null(OneS3Port)
+%%            }
+%%    end,
+
+    update_domain_config(OpNode, Data2).
+
+
+%% @private
+-spec encode_ips([inet:ip4_address() | binary()]) -> [binary()].
+encode_ips(Ips) -> lists:map(fun encode_ip/1, Ips).
+
+
+%% @private
+-spec encode_ip(inet:ip4_address() | binary()) -> binary().
+encode_ip(Ip) when is_binary(Ip) -> Ip;
+encode_ip(Ip) when is_tuple(Ip) -> list_to_binary(inet:ntoa(Ip)).
+
+
+%% NOTE: this operation should be performed directly by Onepanel when it has a GraphSync channel to Onezone.
+%% @private
+-spec update_domain_config(node(), json_utils:json_map()) -> ok | no_return().
+update_domain_config(OpNode, Data) ->
+    case op_worker_rpc:update_domain_config(OpNode, Data) of
+        ok ->
+            %% TODO add to dns check ones3
+            dns_check:invalidate_cache(op_worker);
+        {error, _} = Error ->
+            throw(Error)
+    end.
 
 
 %%--------------------------------------------------------------------
