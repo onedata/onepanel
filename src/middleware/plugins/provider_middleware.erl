@@ -239,6 +239,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
             mark_cluster_ips_configured => IPsConfigured
         },
         ?SERVICE_LE => LetsencryptCtx#{hosts => OpaHosts},
+        ?SERVICE_ONES3 => #{hosts => OpwHosts},  %% TODO VFS-11929 add ones3 to rest
         storages => StorageCtx2
     },
 

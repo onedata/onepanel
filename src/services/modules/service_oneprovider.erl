@@ -158,6 +158,7 @@ get_steps(deploy, Ctx) ->
     CmCtx = kv_utils:get([cluster, ?SERVICE_CM], Ctx),
     OpwCtx = kv_utils:get([cluster, ?SERVICE_OPW], Ctx),
     LeCtx = kv_utils:get([cluster, ?SERVICE_LE], Ctx),
+    OneS3Ctx = kv_utils:get([cluster, ?SERVICE_ONES3], Ctx),
     StorageCtx = kv_utils:get([cluster, storages], Ctx, #{}),
     OpCtx = kv_utils:get(name(), Ctx, #{}),
 
@@ -197,6 +198,7 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
+        Ss#steps{service = ?SERVICE_ONES3, action = create, ctx = OneS3Ctx},
         S#step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,

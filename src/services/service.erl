@@ -42,7 +42,7 @@
 -type name() :: ?SERVICE_OZ | ?SERVICE_OP
     | ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW
     | ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL
-    | ?SERVICE_LE.
+    | ?SERVICE_LE | ?SERVICE_ONES3.
 -type action() :: atom().
 -type notify() :: pid() | undefined.
 -type host() :: string().
