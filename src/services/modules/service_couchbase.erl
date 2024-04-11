@@ -1,4 +1,4 @@
-%%%--------------------------------------------------------------------
+z%%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
 %%% @copyright (C) 2016 ACK CYFRONET AGH
 %%% This software is released under the MIT license
@@ -262,6 +262,7 @@ init_cluster(Ctx) ->
 
     Cmd = [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
         str_utils:format("--cluster-init-username=~ts", [User]),
+        str_utils:format("--cluster-username=~ts", [User]),
         str_utils:format("--cluster-init-ramsize=~B", [ServerQuota])
     ],
     shell_utils:ensure_success(
