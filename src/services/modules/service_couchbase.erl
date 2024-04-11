@@ -265,8 +265,8 @@ init_cluster(Ctx) ->
         str_utils:format("--cluster-ramsize=~B", [ServerQuota])
     ],
     shell_utils:ensure_success(
-        Cmd ++ ["--cluster-init-password=" ++ Password],
-        Cmd ++ ["--cluster-init-password=*****"]),
+        Cmd ++ ["--cluster-password=" ++ Password],
+        Cmd ++ ["--cluster-password=*****"]),
 
     ClusterType = onepanel_env:get_cluster_type(),
     Buckets = kv_utils:get(ClusterType, onepanel_env:get(couchbase_buckets)),
