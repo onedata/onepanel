@@ -365,7 +365,7 @@ create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
     Cmd = [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
         "-u", User, "--bucket=" ++ Bucket,
         str_utils:format("--bucket-ramsize=~B", [BucketQuota]),
-        "--bucket-eviction-policy=fullEviction", "--wait"],
+        "--bucket-eviction-policy=fullEviction", "--bucket-type=couchbase", "--wait"],
     shell_utils:ensure_success(
         Cmd ++ ["-p", Password],
         Cmd ++ ["-p", "****"]
