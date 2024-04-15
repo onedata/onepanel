@@ -131,9 +131,10 @@ get_steps(status, _Ctx) ->
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
-get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(set_cluster_ips, #{cluster_ips := HostsToIps, name := ServiceName} = Ctx) ->
     % execute only on nodes where ip is explicitly provided
-    get_steps(set_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
+    Hosts = lists_utils:intersect(hosts:all(ServiceName), maps:keys(HostsToIps)),
+    get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
 get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
     Hosts = hosts:all(ServiceName),
@@ -363,6 +364,8 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
     Node = nodes:local(ServiceName),
 
     {ok, IP} = case kv_utils:find([cluster_ips, Host], Ctx) of
+        {ok, null} ->
+            {ok, undefined};
         {ok, NewIP} ->
             onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             ip_utils:to_ip4_address(NewIP);
