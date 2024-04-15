@@ -473,9 +473,11 @@ setup_cert_paths(ServiceName, AppName) ->
 -spec get_initial_ip(service:name()) -> inet:ip4_address().
 get_initial_ip(ServiceName) ->
     case onepanel_env:read_effective([name(), external_ip], ServiceName) of
-        {ok, {_, _, _, _} = IP} -> IP;
+        {ok, {_, _, _, _} = IP} ->
+            IP;
         {ok, IPList} when is_list(IPList) ->
             {ok, IP} = ip_utils:to_ip4_address(IPList),
             IP;
-        _ -> onepanel_ip:determine_ip()
+        _ ->
+            onepanel_ip:determine_ip(ServiceName)
     end.

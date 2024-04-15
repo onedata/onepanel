@@ -14,7 +14,10 @@
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 
--export([determine_ip/0, ip4_to_binary/1, is_ip/1, hostname_ips/0]).
+-export([determine_ip/1, ip4_to_binary/1, is_ip/1, hostname_ips/0]).
+
+-type service_with_ip() :: ?SERVICE_OZW | ?SERVICE_OPW | ?SERVICE_ONES3.
+
 
 %%%===================================================================
 %%% API
@@ -24,20 +27,22 @@
 %% @doc Attempts to determine IP of current node.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip() -> inet:ip4_address().
-determine_ip() ->
+-spec determine_ip(service_with_ip()) -> inet:ip4_address().
+determine_ip(ServiceName) ->
     % use first working method of getting IP
     lists_utils:foldl_while(fun(IpSupplier, PrevResult) ->
         try
-            {ok, IP} = IpSupplier(),
+            {ok, IP} = IpSupplier(ServiceName),
             {halt, IP}
-        catch  _:_ -> {cont, PrevResult} end
+        catch _:_ ->
+            {cont, PrevResult}
+        end
     end, undefined, [
-        fun determine_ip_by_oz/0,
-        fun determine_ip_by_domain/0,
-        fun determine_ip_by_external_service/0,
-        fun determine_ip_by_shell/0,
-        fun() -> {ok, {127, 0, 0, 1}} end
+        fun determine_ip_by_oz/1,
+        fun determine_ip_by_domain/1,
+        fun determine_ip_by_external_service/1,
+        fun determine_ip_by_shell/1,
+        fun(_) -> {ok, {127, 0, 0, 1}} end
     ]).
 
 
@@ -92,14 +97,20 @@ hostname_ips() ->
 %% Will work only in onepanel of registered oneprovider.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip_by_oz() -> {ok, inet:ip4_address()} | {error, term()}.
-determine_ip_by_oz() ->
-    case service:exists(?SERVICE_OPW)
-        andalso service_oneprovider:is_registered(#{}) of
+-spec determine_ip_by_oz(service_with_ip()) ->
+    {ok, inet:ip4_address()} | {error, no_address | not_registered}.
+determine_ip_by_oz(?SERVICE_OZW) ->
+    {error, no_address};
+determine_ip_by_oz(ServiceName) when
+    ServiceName =:= ?SERVICE_OPW;
+    ServiceName =:= ?SERVICE_ONES3
+->
+    case service_oneprovider:is_registered() of
         true ->
             {ok, IPBin} = oz_providers:check_ip_address(none),
             ip_utils:to_ip4_address(IPBin);
-        _ -> {error, not_registered}
+        _ ->
+            {error, not_registered}
     end.
 
 
@@ -113,15 +124,19 @@ determine_ip_by_oz() ->
 %% If none match, the first IP returned by DNS is used.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip_by_domain() -> {ok, inet:ip4_address()} | {error, term()}.
-determine_ip_by_domain() ->
-    Domain = case onepanel_env:get_cluster_type() of
-        oneprovider -> service_op_worker:get_domain();
-        onezone -> service_oz_worker:get_domain()
+-spec determine_ip_by_domain(service_with_ip()) ->
+    {ok, inet:ip4_address()} | {error, no_address}.
+determine_ip_by_domain(ServiceName) ->
+    Domain = case ServiceName of
+        ?SERVICE_OZW -> service_oz_worker:get_domain();
+        ?SERVICE_OPW -> service_op_worker:get_domain();
+        ?SERVICE_ONES3 -> service_ones3:get_domain()
     end,
     case inet_res:lookup(binary_to_list(Domain), in, a) of
-        [] -> {error, not_found};
-        [{_, _, _, _} = IP] -> {ok, IP};
+        [] ->
+            {error, no_address};
+        [{_, _, _, _} = IP] ->
+            {ok, IP};
         ManyIPs ->
             HostnameIPs = hostname_ips(),
             case lists_utils:intersect(HostnameIPs, ManyIPs) of
@@ -137,15 +152,16 @@ determine_ip_by_domain() ->
 %% Attempts to use external service to determine the public IP of current node.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip_by_external_service() ->
+-spec determine_ip_by_external_service(service_with_ip()) ->
     {ok, inet:ip4_address()} | {error, term()}.
-determine_ip_by_external_service() ->
+determine_ip_by_external_service(_ServiceName) ->
     URL = onepanel_env:get(ip_check_url),
     case http_client:get(URL) of
         {ok, _, _, Body} ->
             Trimmed = onepanel_utils:trim(Body, both),
             ip_utils:to_ip4_address(Trimmed);
-        Error -> Error
+        Error ->
+            Error
     end.
 
 
@@ -155,8 +171,9 @@ determine_ip_by_external_service() ->
 %% Uses shell command "hostname" to determine current IP.
 %% @end
 %%--------------------------------------------------------------------
--spec determine_ip_by_shell() -> {ok, inet:ip4_address()} | {error, term()}.
-determine_ip_by_shell() ->
+-spec determine_ip_by_shell(service_with_ip()) ->
+    {ok, inet:ip4_address()} | {error, no_address}.
+determine_ip_by_shell(_ServiceName) ->
     case hostname_ips() of
         [Head | _] -> {ok, Head};
         [] -> {error, no_address}
