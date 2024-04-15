@@ -25,7 +25,7 @@
 %% API
 -export([
     exists/0,
-    get_port/0,
+    get_domain/0, get_port/0,
     create_service/1, add_service_host/1
 ]).
 
@@ -85,6 +85,12 @@ get_steps(create, #{hosts := Hosts}) ->
 -spec exists() -> boolean().
 exists() ->
     service:exists(name()).
+
+
+-spec get_domain() -> binary().
+get_domain() ->
+    OpDomain = service_op_worker:get_domain(),
+    <<"s3.", OpDomain/binary>>.
 
 
 -spec get_port() -> undefined | inet:port_number().
