@@ -25,6 +25,7 @@
 %% API
 -export([
     exists/0,
+    get_port/0,
     create_service/1, add_service_host/1
 ]).
 
@@ -84,6 +85,11 @@ get_steps(create, #{hosts := Hosts}) ->
 -spec exists() -> boolean().
 exists() ->
     service:exists(name()).
+
+
+-spec get_port() -> undefined | inet:port_number().
+get_port() ->
+    onepanel_env:get(ones3_http_port).
 
 
 -spec create_service(service:step_ctx()) -> ok.
