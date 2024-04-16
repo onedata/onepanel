@@ -94,7 +94,8 @@
     get_auto_cleaning_status/1, start_auto_cleaning/1, cancel_auto_cleaning/1,
     force_start_auto_storage_import_scan/1, force_stop_auto_storage_import_scan/1,
     check_oneprovider_gs_connection/0,
-    update_provider_ips/0, configure_file_popularity/1, configure_auto_cleaning/1,
+    set_cluster_ips/1,
+    configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([await_onezone_connectivity_and_set_up_service/1]).
 -export([init_periodic_db_disk_usage_check/0]).
@@ -298,19 +299,13 @@ get_steps(modify_details, #{hosts := Hosts}) ->
 get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
-get_steps(set_cluster_ips, #{hosts := Hosts} = Ctx) ->
-    Ctx2 = Ctx#{name => ?SERVICE_OPW},
-    [
-        % TODO set_cluster_ips service = ?SERVICE_ONES3
-        #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
-        #step{function = update_provider_ips, selection = any, hosts = Hosts, args = []}
-    ];
-get_steps(set_cluster_ips, Ctx) ->
-    get_steps(set_cluster_ips, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
+get_steps(set_cluster_ips, _Ctx) ->
+    [#step{function = set_cluster_ips, hosts = [hosts:self()]}];
 
 get_steps(Action, _Ctx) when
     Action =:= get_spaces;
-    Action =:= get_details ->
+    Action =:= get_details
+->
     [#step{function = Action, args = [], selection = any}];
 
 get_steps(Action, Ctx) when
@@ -666,7 +661,12 @@ get_details() ->
 -spec format_cluster_ips(service:step_ctx()) ->
     #{isConfigured := boolean(), hosts := #{binary() => binary()}}.
 format_cluster_ips(Ctx) ->
-    service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OPW}).
+    Result = service_cluster_worker:get_cluster_ips(Ctx#{name => ?SERVICE_OPW}),
+
+    OpwIps = maps:get(hosts, Result),
+    OneS3Ips = service_ones3:format_hosts_ips(),
+
+    Result#{hosts => maps:merge(OpwIps, OneS3Ips)}.
 
 
 %%--------------------------------------------------------------------
@@ -835,19 +835,45 @@ get_manual_storage_import_example(#{space_id := SpaceId}) ->
     op_worker_storage_import:get_manual_example(Node, SpaceId).
 
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Notify onezone about IPs change.
-%% @end
-%%--------------------------------------------------------------------
--spec update_provider_ips() -> ok.
-update_provider_ips() ->
-    {ok, OpNode} = nodes:any(?SERVICE_OPW),
+-spec set_cluster_ips(service:step_ctx()) -> ok.
+set_cluster_ips(Ctx) ->
+    ?info("Configuring provider ips"),
 
-    case op_worker_rpc:is_subdomain_delegated(OpNode) of
-        {true, Subdomain} -> set_subdomain_delegation(OpNode, Subdomain);
-        false -> ok
+    CurrentOpwIps = maps:from_list(service_cluster_worker:get_hosts_ips(Ctx#{name => ?SERVICE_OPW})),
+    CurrentOneS3Ips = maps:from_list(service_ones3:get_hosts_ips()),
+    CurrentIps = maps_utils:undefined_to_null(maps:merge(CurrentOneS3Ips, CurrentOpwIps)),
+
+    try
+        set_services_ips(Ctx),
+
+        {ok, OpNode} = nodes:any(?SERVICE_OPW),
+        case op_worker_rpc:is_subdomain_delegated(OpNode) of
+            {true, Subdomain} -> set_subdomain_delegation(OpNode, Subdomain);
+            false -> ok
+        end
+    catch Class:Reason:Stacktrace ->
+        Error = ?examine_exception(Class, Reason, Stacktrace),
+
+        set_services_ips(Ctx#{cluster_ips => CurrentIps}),
+
+        throw(Error)
     end.
+
+
+%% @private
+-spec set_services_ips(service:step_ctx()) ->
+    ok.
+set_services_ips(Ctx) ->
+    %% TODO XD
+    false = service_utils:results_contain_error(service:apply_sync(?SERVICE_CW, set_cluster_ips, Ctx#{
+        name => ?SERVICE_OPW,
+        hosts => hosts:all(?SERVICE_OPW)
+    })),
+    false = service_utils:results_contain_error(service:apply_sync(?SERVICE_ONES3, set_cluster_ips, Ctx#{
+        hosts => hosts:all(?SERVICE_ONES3)
+    })),
+
+    ok.
 
 
 %%-------------------------------------------------------------------
@@ -1419,13 +1445,10 @@ modify_domain_details(OpNode, #{oneprovider_subdomain_delegation := false} = Ctx
     Domain = string:lowercase(onepanel_utils:get_converted(oneprovider_domain, Ctx, binary)),
     Data1 = #{<<"subdomainDelegation">> => false, <<"domain">> => Domain},
 
-    OpWorkerPort = undefined, % TODO
-    Data2 = maps_utils:put_if_defined(Data1, <<"opWorkerPort">>, OpWorkerPort),
+    OneS3Port = service_ones3:get_port(),
+    Data2 = maps_utils:put_if_defined(Data1, <<"oneS3Port">>, OneS3Port),
 
-    OneS3Port = undefined,  % TODO
-    Data3 = maps_utils:put_if_defined(Data2, <<"oneS3Port">>, OneS3Port),
-
-    update_domain_config(OpNode, Data3);
+    update_domain_config(OpNode, Data2);
 
 modify_domain_details(_OpNode, _Ctx) ->
     ok.
@@ -1441,19 +1464,17 @@ set_subdomain_delegation(OpNode, Subdomain) ->
         <<"opWorkerIpAddresses">> => encode_ips(OpWorkerIps)
     },
 
-    OpWorkerPort = 443,  % TODO zmienna app.config w op?
-    Data2 = maps_utils:put_if_defined(Data1, <<"opWorkerPort">>, OpWorkerPort),
-
-    % TODO
-%%    Data3 = case get_ones3_net_address() of
-%%        {[], undefined} ->
-%%            Data2;
-%%        {OneS3Ips, OneS3Port} ->
-%%            Data2#{
-%%                <<"oneS3IpAddresses">> => encode_ips(OneS3Ips),
-%%                <<"oneS3Port">> => utils:undefined_to_null(OneS3Port)
-%%            }
-%%    end,
+    {_, OneS3Ips} = lists:unzip(service_ones3:get_hosts_ips()),
+    OneS3Port = service_ones3:get_port(),
+    Data2 = case {OneS3Ips, OneS3Port} of
+        {[], undefined} ->
+            Data1;
+        {OneS3Ips, OneS3Port} ->
+            Data1#{
+                <<"oneS3IpAddresses">> => encode_ips(OneS3Ips),
+                <<"oneS3Port">> => utils:undefined_to_null(OneS3Port)
+            }
+    end,
 
     update_domain_config(OpNode, Data2).
 
