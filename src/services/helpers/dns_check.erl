@@ -34,7 +34,7 @@
 -define(CACHE_TTL, ?REFRESH_INTERVAL * 3). % 18 hours
 
 % Check names match expected fields in REST API.
--type check() :: domain | dnsZone.
+-type check() :: domain | dnsZone | ones3Subdomain.
 -type worker_service() :: op_worker | oz_worker.
 
 % @formatter:off
@@ -150,7 +150,7 @@ invalidate_cache(Service) ->
 -spec get_configuration() -> #{atom() := term()}.
 get_configuration() ->
     #{
-        builtInDnsServer => expect_delegation(oz_worker),
+        builtInDnsServer => expect_delegation(),
         dnsCheckAcknowledged => onepanel_deployment:is_set(?DNS_CHECK_ACKNOWLEDGED),
         dnsServers => lists:map(fun onepanel_ip:ip4_to_binary/1, get_dns_servers())
     }.
@@ -233,10 +233,19 @@ get_dns_servers() -> onepanel_env:get(dns_check_servers).
 get_checks(Service) ->
     Module = service:get_module(Service),
     Domain = Module:get_domain(),
+
     case onepanel_ip:is_ip(Domain) of
-        true -> [];
-        false ->
-            case expect_delegation(Service) of
+        true ->
+            [];
+
+        false when Service =:= op_worker ->
+            case service_ones3:exists() of
+                true -> [domain, ones3Subdomain];
+                false -> [domain]
+            end;
+
+        false when Service =:= oz_worker ->
+            case expect_delegation() of
                 true -> [domain, dnsZone];
                 false -> [domain]
             end
@@ -245,12 +254,11 @@ get_checks(Service) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Returns whether DNS zone delegation check is applicable.
+%% @doc Returns whether oz DNS zone delegation check is applicable.
 %% @end
 %%--------------------------------------------------------------------
--spec expect_delegation(worker_service()) -> boolean().
-expect_delegation(op_worker) -> false;
-expect_delegation(oz_worker) -> onepanel_env:get(dns_expect_zone_delegation).
+-spec expect_delegation() -> boolean().
+expect_delegation() -> onepanel_env:get(dns_expect_zone_delegation).
 
 
 %%--------------------------------------------------------------------
@@ -294,6 +302,18 @@ check(Service, domain) ->
         bind_records = Recommended
     };
 
+check(_Service = op_worker, ones3Subdomain) ->
+    OneS3Subdomain = service_ones3:get_domain(),
+    {_Hosts, Ips} = lists:unzip(service_ones3:get_hosts_ips()),
+    Recommended = domain_bind_records(OneS3Subdomain, Ips),
+
+    DnsServers = get_dns_servers(),
+
+    Result = onepanel_dns:check_any(Ips, [OneS3Subdomain], a, DnsServers),
+    Result#dns_check{
+        bind_records = Recommended
+    };
+
 check(_Service = oz_worker, dnsZone) ->
     Domain = service_oz_worker:get_domain(),
     {_, IPs} = lists:unzip(service_oz_worker:get_ns_hosts()),
@@ -325,7 +345,8 @@ check(_Service = oz_worker, dnsZone) ->
 -spec allow_missing_records(#dns_check{}) -> #dns_check{}.
 allow_missing_records(#dns_check{summary = missing_records} = Check) ->
     Check#dns_check{summary = ok};
-allow_missing_records(#dns_check{} = Check) -> Check.
+allow_missing_records(#dns_check{} = Check) ->
+    Check.
 
 
 %%--------------------------------------------------------------------

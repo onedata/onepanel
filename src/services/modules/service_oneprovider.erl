@@ -1496,7 +1496,6 @@ encode_ip(Ip) when is_tuple(Ip) -> list_to_binary(inet:ntoa(Ip)).
 update_domain_config(OpNode, Data) ->
     case op_worker_rpc:update_domain_config(OpNode, Data) of
         ok ->
-            %% TODO add to dns check ones3
             dns_check:invalidate_cache(op_worker);
         {error, _} = Error ->
             throw(Error)

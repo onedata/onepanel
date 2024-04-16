@@ -149,7 +149,8 @@ check(Expected, Names, Type, Servers) ->
     Servers :: inet:ip4_address() | default) -> dns_check() | error.
 check_on_server(Expected, Names, Type, ServerIP) ->
     case lookup(Names, Type, ServerIP) of
-        error -> error;
+        error ->
+            error;
         Resolved ->
             Correct = lists_utils:intersect(Resolved, Expected),
             Missing = lists_utils:subtract(Expected, Resolved),
@@ -187,7 +188,10 @@ lookup(Names, Type, DnsServerIP) ->
         end,
         Resolved = inet_res:resolve(NameStr, in, Type, Opts),
         case Resolved of
-            {error, {_Reason, _DnsMsg}} -> [];
+            {error, {_Reason, _DnsMsg}} ->
+                [];
+            {error, nxdomain} ->
+                [];
             {error, Reason} ->
                 ?warning("Error querying server ~tp for DNS check ~tp of name ~tp: ~tp",
                     [DnsServerIP, Type, NameStr, Reason]),

@@ -151,10 +151,7 @@ set_node_ip(Ctx) ->
 
     onepanel_env:write([name(), external_ip], Ip, ?SERVICE_PANEL),
     onepanel_env:set([external_ip], Ip, name()),
-
-    ok.
-%%    %% TODO??
-%%    dns_check:invalidate_cache(?SERVICE_ONES3).
+    dns_check:invalidate_cache(op_worker).
 
 
 -spec format_hosts_ips() -> #{Host :: binary() => Ip :: binary()}.
