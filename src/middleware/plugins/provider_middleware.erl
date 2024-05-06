@@ -206,7 +206,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
     [MainCmHost] = middleware_utils:get_hosts([cluster, managers, mainNode], Data),
     OpwHosts = middleware_utils:get_hosts([cluster, workers, nodes], Data),
 
-    OneS3NodesKey = [cluster, ones3, nodes],
+    OneS3NodesKey = [cluster, oneS3, nodes],
     OneS3Hosts = case kv_utils:is_key(OneS3NodesKey, Data) of
         true -> middleware_utils:get_hosts(OneS3NodesKey, Data);
         false -> []

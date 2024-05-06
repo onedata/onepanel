@@ -34,7 +34,7 @@
 -define(CACHE_TTL, ?REFRESH_INTERVAL * 3). % 18 hours
 
 % Check names match expected fields in REST API.
--type check() :: domain | dnsZone | ones3Subdomain.
+-type check() :: domain | dnsZone | oneS3Subdomain.
 -type worker_service() :: op_worker | oz_worker.
 
 % @formatter:off
@@ -240,7 +240,7 @@ get_checks(Service) ->
 
         false when Service =:= op_worker ->
             case service_ones3:exists() of
-                true -> [domain, ones3Subdomain];
+                true -> [domain, oneS3Subdomain];
                 false -> [domain]
             end;
 
@@ -302,7 +302,7 @@ check(Service, domain) ->
         bind_records = Recommended
     };
 
-check(_Service = op_worker, ones3Subdomain) ->
+check(_Service = op_worker, oneS3Subdomain) ->
     OneS3Subdomain = service_ones3:get_domain(),
     {_Hosts, Ips} = lists:unzip(service_ones3:get_hosts_ips()),
     Recommended = domain_bind_records(OneS3Subdomain, Ips),
