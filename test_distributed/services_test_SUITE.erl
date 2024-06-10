@@ -331,8 +331,7 @@ service_op_worker_add_storage_test(Config) ->
                 importedStorage => true,
                 readonly => true,
                 qosParameters => #{},
-                lumaFeed => <<"auto">>,
-                skipStorageDetection => <<"true">>
+                lumaFeed => <<"auto">>
             }
         }
     }),

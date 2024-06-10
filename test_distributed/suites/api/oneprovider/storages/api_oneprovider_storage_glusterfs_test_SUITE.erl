@@ -14,8 +14,6 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_storages.hrl").
--include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -30,18 +28,14 @@
 ]).
 
 -export([
-    add_correct_storage_and_perform_detection_test/1,
-    add_correct_storage_and_skip_detection_test/1,
-    add_bad_storage_and_perform_detection_test/1,
-    add_bad_storage_and_skip_detection_test/1
+    add_correct_storage_test/1,
+    add_bad_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
-        add_correct_storage_and_perform_detection_test,
-        add_correct_storage_and_skip_detection_test,
-        add_bad_storage_and_perform_detection_test,
-        add_bad_storage_and_skip_detection_test
+        add_correct_storage_test,
+        add_bad_storage_test
     ]}
 ].
 
@@ -55,37 +49,26 @@ all() -> [
 %%%===================================================================
 
 
-add_correct_storage_and_perform_detection_test(_Config) ->
-    add_glusterfs_storage_test_base(correct_args, false).
+add_correct_storage_test(_Config) ->
+    add_glusterfs_storage_test_base(correct_args).
 
-
-add_correct_storage_and_skip_detection_test(_Config) ->
-    add_glusterfs_storage_test_base(correct_args, true).
-
-
-add_bad_storage_and_perform_detection_test(_Config) ->
-    add_glusterfs_storage_test_base(bad_args, false).
-
-
-add_bad_storage_and_skip_detection_test(_Config) ->
-    add_glusterfs_storage_test_base(bad_args, true).
+add_bad_storage_test(_Config) ->
+    add_glusterfs_storage_test_base(bad_args).
 
 
 %% @private
 -spec add_glusterfs_storage_test_base(
-    api_oneprovider_storages_test_base:args_correctness(),
-    api_oneprovider_storages_test_base:skip_storage_detection()
+    api_oneprovider_storages_test_base:args_correctness()
 ) ->
     ok.
-add_glusterfs_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
+add_glusterfs_storage_test_base(ArgsCorrectness) ->
     api_oneprovider_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = glusterfs,
             args_correctness = ArgsCorrectness,
-            skip_storage_detection = SkipStorageDetection,
 
             data_spec_fun = fun build_add_glusterfs_storage_data_spec/3,
-            prepare_args_fun = fun build_add_glusterfs_storage_prepare_args_fun/2,
+            prepare_args_fun = fun build_add_glusterfs_storage_prepare_args_fun/1,
 
             data_spec_random_coverage = 10
         }).
@@ -132,7 +115,6 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"archiveStorage">> => [true, false]
         },
         bad_values = [
-            {<<"skipStorageDetection">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"skipStorageDetection">>))},
             {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
             {<<"port">>, <<"port_as_string">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"port">>))},
             {<<"transport">>, <<"bad_transport">>,
@@ -174,26 +156,17 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
 
 %% @private
 -spec build_add_glusterfs_storage_prepare_args_fun(
-    api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:skip_storage_detection()
+    api_test_memory:env_ref()
 ) ->
     api_test_runner:prepare_args_fun().
-build_add_glusterfs_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
+build_add_glusterfs_storage_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
-        RequestBody = case maps:is_key(<<"skipStorageDetection">>, Data) of
-            true -> #{
-                StorageName => Data
-            };
-            false -> #{
-                StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection, Data)
-            }
-        end,
         #rest_args{
             method = post,
             path = <<"provider/storages">>,
             headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-            body = json_utils:encode(RequestBody)}
+            body = json_utils:encode(#{StorageName => Data})}
     end.
 
 

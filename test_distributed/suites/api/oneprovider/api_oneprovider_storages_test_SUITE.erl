@@ -38,8 +38,7 @@
     ?S3_STORAGE_NAME => #{
         <<"type">> => <<"s3">>,
         <<"bucketName">> => <<"bucket2.iam.example.com">>,
-        <<"hostname">> => <<"https://s3.amazonaws.com:443/">>,
-        <<"skipStorageDetection">> => <<"true">>
+        <<"hostname">> => <<"https://s3.amazonaws.com:443/">>
     }
 }).
 

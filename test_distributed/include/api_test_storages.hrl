@@ -19,7 +19,6 @@
 -record(add_storage_test_spec, {
     storage_type = undefined :: api_oneprovider_storages_test_base:storage_type(),
     args_correctness = undefined :: api_oneprovider_storages_test_base:args_correctness(),
-    skip_storage_detection = undefined :: api_oneprovider_storages_test_base:skip_storage_detection(),
 
     data_spec_fun = api_oneprovider_storages_test_base:data_spec_builder(),
     prepare_args_fun = api_oneprovider_storages_test_base:prepare_args_fun_builder(),
