@@ -128,9 +128,9 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
     SpaceId = create_and_support_space(SpaceName, StorageName, SupportSize),
     ExpResult0 = get_expected_space_details(
-        SpaceId, SpaceName, StorageId, SupportSize, false, false
+        SpaceId, SpaceName, StorageId, SupportSize, false, true
     ),
-    ExpResult1 = ExpResult0#{<<"dirStatsServiceStatus">> => <<"disabled">>},
+    ExpResult1 = ExpResult0#{<<"dirStatsServiceStatus">> => <<"enabled">>},
 
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
@@ -349,7 +349,7 @@ modify_space_support_test(_Config) ->
 build_modify_space_support_setup_fun(MemRef, SpaceName, SupportSize, StorageId) ->
     fun() ->
         {SpaceId, Token} = create_space_and_support_token(SpaceName),
-        opw_test_rpc:support_space(krakow, StorageId, Token, SupportSize),
+        panel_test_rpc:support_space(krakow, StorageId, Token, SupportSize),
         SpaceDetails = get_space_details_with_rpc(SpaceId),
         api_test_memory:set(MemRef, space_id, SpaceId),
         api_test_memory:set(MemRef, space_name, SpaceName),
@@ -413,7 +413,7 @@ build_modify_space_support_verify_fun(MemRef) ->
             ExpSpaceName = api_test_memory:get(MemRef, space_name),
             ExpStorageId = api_test_memory:get(MemRef, storage_id),
             ExpAccountingEnabled = maps:get(<<"accountingEnabled">>, Data1, false),
-            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, false),
+            ExpDirStatsEnabled = maps:get(<<"dirStatsServiceEnabled">>, Data1, true),
             SupportSize = api_test_memory:get(MemRef, support_size),
             ExpSpaceSupportSize = maps:get(<<"size">>, Data1, SupportSize),
 
@@ -592,7 +592,7 @@ create_and_support_space() ->
 create_and_support_space(SpaceName, StorageName, SupportSize) ->
     {_, SerializedToken} = create_space_and_support_token( SpaceName),
     StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
-    SpaceId = opw_test_rpc:support_space(krakow, StorageId, SerializedToken, SupportSize),
+    SpaceId = panel_test_rpc:support_space(krakow, StorageId, SerializedToken, SupportSize),
     ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
     SpaceId.
 

@@ -4,6 +4,16 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.4
+
+-   **VFS-11459** Added option to set custom region in S3 storage
+    helper.
+-   **VFS-11210** Fixed a bug with S3 storage backend config
+    modification, causing wrong validation of the endpoint.
+-   **VFS-10999** Added the public "infer access token scope" endpoint,
+    which analyses the provided access token to infer the scope of data
+    access the token can be used for.
+
 ### 21.02.3
 
 ### 21.02.2
