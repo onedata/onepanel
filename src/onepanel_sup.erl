@@ -64,7 +64,7 @@ init([]) ->
         % This is because of node_package/.../runner configuration, which
         % uses onepanel_sup presence as a healthcheck for the Onepanel.
 
-        ?info("Waiting for distributed database on nodes ~p", [onepanel_db:get_nodes()]),
+        ?info("Waiting for distributed database on nodes ~tp", [onepanel_db:get_nodes()]),
         % in a new deployment this will complete immediately since the node list is empty
         ok = onepanel_db:global_wait_for_tables(),
 
@@ -86,7 +86,7 @@ init([]) ->
                     {?PROCESS_NAME, Node} ! db_upgrade_finished
                 end, Nodes -- [Self]);
             false ->
-                ?info("Waiting for node ~p to perform database upgrades (~p seconds)",
+                ?info("Waiting for node ~tp to perform database upgrades (~tp seconds)",
                     [First, ?UPGRADE_TIMEOUT div 1000]),
                 receive
                     db_upgrade_finished -> ok

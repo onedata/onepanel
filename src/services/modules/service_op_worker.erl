@@ -278,8 +278,8 @@ configure(Ctx) ->
         [rtransfer_link, transfer, send_buffer_size], name()),
     ?info("Remember to set following kernel parameters "
     "for optimal op_worker performance:~n"
-    "sysctl -w ~s=~b~n"
-    "sysctl -w ~s=~b", [
+    "sysctl -w ~ts=~b~n"
+    "sysctl -w ~ts=~b", [
         "net.core.wmem_max", 2 * RecvBuffer,
         "net.core.rmem_max", 2 * SendBuffer
     ]).

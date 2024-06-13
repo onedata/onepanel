@@ -59,7 +59,7 @@ synchronize_node_upon_start(Node) ->
     true = service_onepanel:run_on_master_node(fun() ->
         synchronize_node_with_self(Node)
     end),
-    ?info("Synchronized clock on node ~p with master node upon startup", [Node]).
+    ?info("Synchronized clock on node ~tp with master node upon startup", [Node]).
 
 
 -spec restart_periodic_sync(prepare_cluster_clock_sync()) -> ok | no_return().
@@ -106,7 +106,7 @@ run_periodic_sync(PrepareClusterClockSync) ->
                 ?info("Periodic clock sync has been aborted"),
                 false;
             {ok, Nodes} ->
-                ?debug("Running periodic clock sync for nodes: ~p", [Nodes]),
+                ?debug("Running periodic clock sync for nodes: ~tp", [Nodes]),
                 WasSuccessful = synchronize_all_nodes_with_self(Nodes),
                 case WasSuccessful of
                     true -> ?debug("Synchronized all clocks in the cluster with master node");
@@ -115,7 +115,7 @@ run_periodic_sync(PrepareClusterClockSync) ->
                 WasSuccessful
         end
     catch Class:Reason:Stacktrace ->
-        ?error_stacktrace("Error while running periodic clock sync: ~w:~p", [Class, Reason], Stacktrace),
+        ?error_stacktrace("Error while running periodic clock sync: ~w:~tp", [Class, Reason], Stacktrace),
         false
     end.
 

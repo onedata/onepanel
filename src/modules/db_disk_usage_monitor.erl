@@ -87,7 +87,7 @@ abort_periodic_check() ->
         {_, []} ->
             ok;
         {_, BadNodes} ->
-            ?error("Failed to remove ~p cron job on nodes~s", [?CRON_JOB_NAME, ?autoformat(BadNodes)])
+            ?error(?autoformat_with_msg("Failed to remove ~tp cron job on nodes", [?CRON_JOB_NAME], BadNodes))
     end.
 
 
@@ -96,7 +96,7 @@ abort_periodic_check() ->
 run_periodic_check() ->
     try
         Hosts = service_couchbase:get_hosts(),
-        ?debug("Running periodic db disk usage check for hosts: ~p", [Hosts]),
+        ?debug("Running periodic db disk usage check for hosts: ~tp", [Hosts]),
 
         Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
         Results = utils:erpc_multicall(Nodes, fun check_usage_on_host/0),
@@ -175,7 +175,7 @@ group_offenders(ResultPerHost) ->
             end;
 
         ({Host, ErrorReason}, Acc) ->
-            ?error("Failed to check db usage:~s", [?autoformat([Host, ErrorReason])]),
+            ?error(?autoformat_with_msg("Failed to check db usage:", [Host, ErrorReason])),
             Acc
     end, #{}, ResultPerHost).
 
@@ -197,7 +197,7 @@ handle_offenders(closed, OffendersPerThreshold) when map_size(OffendersPerThresh
     ok;
 
 handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
-    ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~s", [
+    ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~ts", [
         format_offenders(Offenders)
     ]),
     handle_offenders(CircuitBreakerState, maps:remove(warning_threshold, OffendersPerThreshold));
@@ -205,14 +205,14 @@ handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{warning
 handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
     ?alert(
         "DB disk usage is very high. Provide more space for the DB as soon as possible. "
-        "When the usage reaches ~.2f%, all services will stop processing requests to prevent database corruption.~s",
+        "When the usage reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts",
         [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD * 100, format_offenders(Offenders)]
     ),
     handle_offenders(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
 
 handle_offenders(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
     ?emergency(
-        "DB disk space is nearly exhausted! All services will now stop processing requests until the problem is resolved.~s",
+        "DB disk space is nearly exhausted! All services will now stop processing requests until the problem is resolved.~ts",
         [format_offenders(Offenders)]
     ),
     set_service_circuit_breaker_state(open);
@@ -233,9 +233,9 @@ handle_offenders(open, OffendersPerThreshold) ->
 format_offenders(Offenders) ->
     str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
         str_utils:format(
-            "~n~n> Host: ~s"
-            "~n> DB root directory size: ~s"
-            "~n> Available disk size: ~s"
+            "~n~n> Host: ~ts"
+            "~n> DB root directory size: ~ts"
+            "~n> Available disk size: ~ts"
             "~n> Usage percent: ~.2f%",
             [
                 Host,

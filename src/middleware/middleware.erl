@@ -126,7 +126,7 @@ handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
         % Unexpected errors are logged and internal server error is returned
         % to client instead
         Type:Reason:Stacktrace ->
-            ?error_stacktrace("Unexpected error in ~p - ~p:~p", [
+            ?error_stacktrace("Unexpected error in ~tp - ~tp:~tp", [
                 ?MODULE, Type, Reason
             ], Stacktrace),
             ?ERROR_INTERNAL_SERVER_ERROR
@@ -343,7 +343,7 @@ process_request(#req_ctx{
         {ok, #gri{type = Type, id = Id, aspect = instance}} ->
             % If an entity instance is deleted, log an information about it
             % (it's a significant operation and this information might be useful).
-            ?info("~s(~p) has been deleted by client: ~s",
+            ?info("~ts(~tp) has been deleted by client: ~ts",
                 [Type, Id, client_to_string(Client)]),
             ok;
         {Result, _} ->
@@ -361,7 +361,7 @@ process_request(#req_ctx{
 client_to_string(#client{auth = Auth}) -> client_to_string(Auth);
 client_to_string(?NOBODY) -> "nobody (unauthenticated client)";
 client_to_string(?ROOT) -> "root";
-client_to_string(?USER(Id)) -> str_utils:format("user:~s", [Id]).
+client_to_string(?USER(Id)) -> str_utils:format("user:~ts", [Id]).
 
 
 %% @private

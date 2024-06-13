@@ -34,7 +34,7 @@
 %%--------------------------------------------------------------------
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"GET">>, Req) ->
-    ApiOrigin = str_utils:format_bin("~s:~B", [
+    ApiOrigin = str_utils:format_bin("~ts:~B", [
         cowboy_req:host(Req), https_listener:port()
     ]),
     % get_id/0 throws in an unregistered Oneprovider

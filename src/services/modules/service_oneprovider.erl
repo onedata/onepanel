@@ -225,7 +225,7 @@ get_steps(manage_restart, Ctx) ->
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
         _ ->
             [FirstHost | _] = get_hosts(),
-            ?info("No master host configured, defaulting to ~p", [FirstHost]),
+            ?info("No master host configured, defaulting to ~tp", [FirstHost]),
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{master_host => FirstHost}}
             end),
@@ -254,7 +254,7 @@ get_steps(manage_restart, Ctx) ->
                 ctx = Ctx#{letsencrypt_plugin => ?SERVICE_OPW}}
         ];
         false ->
-            ?info("Waiting for master node \"~s\" to start the Oneprovider", [MasterHost]),
+            ?info("Waiting for master node \"~ts\" to start the Oneprovider", [MasterHost]),
             []
     end;
 
@@ -442,7 +442,7 @@ get_identity_token() ->
 -spec resolve_registration_token(service:step_ctx()) -> ok | no_return().
 resolve_registration_token(Ctx) ->
     TokenProvisionMethod = kv_utils:get(oneprovider_token_provision_method, Ctx, <<"inline">>),
-    ?info("Registration token provision method is set to '~s'", [TokenProvisionMethod]),
+    ?info("Registration token provision method is set to '~ts'", [TokenProvisionMethod]),
     RegistrationToken = case TokenProvisionMethod of
         <<"inline">> ->
             case kv_utils:find(oneprovider_token, Ctx) of
@@ -464,7 +464,7 @@ resolve_registration_token(Ctx) ->
                     catch throw:attempts_limit_exceeded ->
                         ?error(
                             "Registration failed - timeout waiting for a suitable registration "
-                            "token to be present in file ~s", [FilePath]
+                            "token to be present in file ~ts", [FilePath]
                         ),
                         throw(?ERROR_BAD_DATA(
                             <<"tokenFile">>,
@@ -477,7 +477,7 @@ resolve_registration_token(Ctx) ->
     end,
 
     OnezoneDomain = onezone_tokens:read_domain(RegistrationToken),
-    ?notice("Resolved a registration token issued by Onezone at ~s", [OnezoneDomain]),
+    ?notice("Resolved a registration token issued by Onezone at ~ts", [OnezoneDomain]),
 
     {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
         ServiceCtx#{
@@ -520,11 +520,11 @@ check_oz_availability(_Ctx) ->
                 "ok" ->
                     ok;
                 _ ->
-                    ?debug("Onezone availability check failed - nagios status was ~p", [Status]),
+                    ?debug("Onezone availability check failed - nagios status was ~tp", [Status]),
                     throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
             end;
         Other ->
-            ?debug("Onezone availability check failed - ~p", [Other]),
+            ?debug("Onezone availability check failed - ~tp", [Other]),
             throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
     end.
 
@@ -681,7 +681,7 @@ support_space(#{storage_id := StorageId} = Ctx) ->
         {ok, SpaceId} ->
             #{name := SpaceName} = get_space_details(#{id => SpaceId}),
             #{name := StorageName} = op_worker_storage:get(StorageId),
-            ?notice("New space has been supported: '~s' (~s) with ~s quota on storage '~s' (~s)", [
+            ?notice("New space has been supported: '~ts' (~ts) with ~ts quota on storage '~ts' (~ts)", [
                 SpaceName, SpaceId, str_utils:format_byte_size(SupportSize), StorageName, StorageId
             ]),
             configure_space(Node, SpaceId, StorageId, Ctx);
@@ -1115,12 +1115,12 @@ await_registration_token_from_file(FilePath) ->
     try
         {ok, FileBody} = file:read_file(FilePath),
         Token = sanitize_registration_token(FileBody),
-        ?info("Successfully retrieved registration token from file ~s", [FilePath]),
+        ?info("Successfully retrieved registration token from file ~ts", [FilePath]),
         Token
     catch Class:Reason:Stacktrace ->
         utils:throttle(60, fun() ->
             ?notice(
-                "No suitable Oneprovider registration token found in file '~s', retrying...~n"
+                "No suitable Oneprovider registration token found in file '~ts', retrying...~n"
                 "Last error was: ~w:~w", [FilePath, Class, Reason]
             )
         end),
@@ -1189,7 +1189,7 @@ schedule_periodic_onezone_connection_check() ->
                     onepanel_cron:remove_job(?FUNCTION_NAME)
                 catch Class:Reason:Stacktrace ->
                     ?error_stacktrace(
-                        "Unexpected error when running procedures upon Onezone connection - ~w:~p",
+                        "Unexpected error when running procedures upon Onezone connection - ~w:~tp",
                         [Class, Reason],
                         Stacktrace
                     )
@@ -1256,7 +1256,7 @@ set_up_onepanel_in_onezone() ->
             ?info("Skipping GUI upload as it is already present in Onezone"),
             ?info("Oneprovider panel service successfully set up in Onezone");
         {error, inexistent_gui_version} ->
-            ?info("Uploading GUI to Onezone (~s)", [GuiHash]),
+            ?info("Uploading GUI to Onezone (~ts)", [GuiHash]),
             case upload_onepanel_gui() of
                 ok ->
                     ?info("GUI uploaded succesfully"),
@@ -1265,7 +1265,7 @@ set_up_onepanel_in_onezone() ->
                 {error, _} = Error ->
                     ?alert(
                         "Oneprovider panel service could not be successfully set "
-                        "up in Onezone due to an error during GUI upload: ~p",
+                        "up in Onezone due to an error during GUI upload: ~tp",
                         [Error]
                     )
             end
@@ -1466,7 +1466,7 @@ update_version_info(GuiHash) ->
     {BuildVersion, AppVersion} = onepanel:get_build_and_version(),
     Result = oz_endpoint:request(
         provider,
-        str_utils:format("/clusters/~s", [clusters:get_id()]),
+        str_utils:format("/clusters/~ts", [clusters:get_id()]),
         patch,
         json_utils:encode(#{
             <<"onepanelVersion">> => #{
@@ -1495,7 +1495,7 @@ upload_onepanel_gui() ->
     GuiPrefix = onedata:gui_prefix(?ONEPANEL_GUI),
     Result = oz_endpoint:request(
         provider,
-        str_utils:format("/~s/~s/gui-upload", [GuiPrefix, clusters:get_id()]),
+        str_utils:format("/~ts/~ts/gui-upload", [GuiPrefix, clusters:get_id()]),
         post,
         {multipart, [{file, str_utils:to_binary(https_listener:gui_package_path())}]},
         [{endpoint, gui}]
