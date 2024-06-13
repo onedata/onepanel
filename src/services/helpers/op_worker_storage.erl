@@ -41,8 +41,8 @@
 -type storage_details() :: #{
     lumaFeed := op_worker_rpc:luma_feed(),
     qosParameters := qos_parameters(),
-    atom() := binary(),
-    verificationPassed => boolean()
+    verificationPassed => boolean(),
+    atom() := binary()
 }.
 
 -type helper_args() :: op_worker_rpc:helper_args().
@@ -199,14 +199,6 @@ get(Id) ->
     onepanel_utils:convert(
         maps_utils:undefined_to_null(DetailsMap),
         {keys, atom}).
-
-
--spec get_helper_args(binary(), node(), helper()) -> helper_args().
-get_helper_args(<<"s3">>, OpNode, Helper) ->
-    HelperArgs = op_worker_rpc:get_helper_args(OpNode, Helper),
-    join_scheme_and_hostname_args_for_s3_storage(HelperArgs);
-get_helper_args(_, OpNode, Helper) ->
-    op_worker_rpc:get_helper_args(OpNode, Helper).
 
 
 %%--------------------------------------------------------------------
