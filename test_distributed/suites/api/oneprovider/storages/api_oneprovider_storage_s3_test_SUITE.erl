@@ -56,6 +56,7 @@ all() -> [
 add_correct_storage_test(_Config) ->
     add_s3_storage_test_base(correct_args).
 
+
 add_bad_storage_test(_Config) ->
     add_s3_storage_test_base(bad_args).
 

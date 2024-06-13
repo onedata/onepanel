@@ -53,6 +53,7 @@ all() -> [
 add_correct_storage_test(_Config) ->
     add_posix_storage_test_base(correct_args).
 
+
 add_bad_storage_test(_Config) ->
     add_posix_storage_test_base(bad_args).
 

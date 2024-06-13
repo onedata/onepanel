@@ -114,6 +114,7 @@ add(#{name := Name, params := Params}) ->
 update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
     Id = maps:get(id, Storage),
+    Name = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
     CurrentReadonly = maps:get(readonly, Storage),
     CurrentImported = maps:get(importedStorage, Storage),
@@ -137,24 +138,32 @@ update(OpNode, Id, NewParams) ->
 
     UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
-    verify_configuration(OpNode, Id, VerificationParams2, Helper),
-    verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, Storage, atom, auto)),
+    try
+        verify_configuration(OpNode, Id, VerificationParams2, Helper),
+        verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto)),
 
-    % @TODO VFS-5513 Modify everything in a single datastore operation
-    % TODO VFS-6951 refactor storage configuration API
-    lists:foreach(fun({Fun, Args}) ->
-        ?EXEC_AND_THROW_ON_ERROR(Fun, Args)
-    end,
-        [
-            {fun maybe_update_qos_parameters/3, [OpNode, Id, NewParams]},
-            {fun maybe_update_name/3, [OpNode, Id, PlainValueNewParams]},
-            {fun maybe_update_admin_ctx/4, [OpNode, Id, StorageType, PlainValueNewParams]},
-            {fun maybe_update_args/4, [OpNode, Id, StorageType, PlainValueNewParams]},
-            {fun maybe_update_luma_config/3, [OpNode, Id, NewParams]},
-            {fun update_readonly_and_imported/4, [OpNode, Id, Readonly, Imported]}
-        ]
-    ),
-    make_update_result(OpNode, Id).
+        % @TODO VFS-5513 Modify everything in a single datastore operation
+        % TODO VFS-6951 refactor storage configuration API
+        lists:foreach(fun({Fun, Args}) ->
+            ?EXEC_AND_THROW_ON_ERROR(Fun, Args)
+        end,
+            [
+                {fun maybe_update_qos_parameters/3, [OpNode, Id, NewParams]},
+                {fun maybe_update_name/3, [OpNode, Id, PlainValueNewParams]},
+                {fun maybe_update_admin_ctx/4, [OpNode, Id, StorageType, PlainValueNewParams]},
+                {fun maybe_update_args/4, [OpNode, Id, StorageType, PlainValueNewParams]},
+                {fun maybe_update_luma_config/3, [OpNode, Id, NewParams]},
+                {fun update_readonly_and_imported/4, [OpNode, Id, Readonly, Imported]}
+            ]
+        ),
+        Details = ?MODULE:get(Id),
+        ?info("Modified storage ~tp (~tp)", [Name, Id]),
+        Details#{verificationPassed => true}
+    catch Class:Reason:Stacktrace ->
+        Details2 = ?MODULE:get(Id),
+        ?error_exception("Storage modification failed", Class, Reason, Stacktrace),
+        Details2#{verificationPassed => false}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -430,27 +439,6 @@ get_required_luma_arg(Key, StorageParams, Type) ->
         {ok, Value} -> Value
     end.
 
-
-%%--------------------------------------------------------------------
-%% @private @doc Creates response for modify request
-%% by gathering current storage params and performing a write test
-%% as when adding new storage.
-%% @end
-%%--------------------------------------------------------------------
--spec make_update_result(OpNode :: node(), StorageId :: id()) -> storage_details().
-make_update_result(OpNode, StorageId) ->
-    Details = ?MODULE:get(StorageId),
-    #{name := Name, lumaFeed := LumaFeed} = Details,
-    ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
-    try
-        {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
-        verify_availability(Helper, LumaFeed),
-        Details#{verificationPassed => true}
-    catch ErrType:Error ->
-        ?warning("Verfication of modified storage ~tp (~tp) failed: ~tp:~tp",
-            [Name, StorageId, ErrType, Error]),
-        Details#{verificationPassed => false}
-    end.
 
 %%--------------------------------------------------------------------
 %% @doc

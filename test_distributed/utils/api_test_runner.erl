@@ -848,7 +848,7 @@ get_rest_auth_headers(#api_client{basic_credentials = BasicCredentials, token = 
     {error, term()}.
 make_rest_request(Node, Method, URL, Headers, Body) ->
     CaCerts = panel_test_rpc:get_cert_chain_ders(Node),
-    Opts = [{ssl_options, [{cacerts, CaCerts}]}, {recv_timeout, 200000}],
+    Opts = [{ssl_options, [{cacerts, CaCerts}]}, {recv_timeout, 60000}],
 
     case http_client:request(Method, URL, Headers, Body, Opts) of
         {ok, RespCode, RespHeaders, RespBody} ->
