@@ -41,7 +41,8 @@
 -type storage_details() :: #{
     lumaFeed := op_worker_rpc:luma_feed(),
     qosParameters := qos_parameters(),
-    atom() := binary()
+    atom() := binary(),
+    verificationPassed => boolean()
 }.
 
 -type helper_args() :: op_worker_rpc:helper_args().
@@ -128,14 +129,16 @@ update(OpNode, Id, NewParams) ->
 
     % TODO VFS-6951 refactor storage configuration API
     {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
-    CurrentArgs = get_helper_args(StorageType, OpNode, CurrentHelper),
-    CurrentAdminCtx = op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper),
-    VerificationParams2 = maps:merge(CurrentArgs, VerificationParams1),
-    VerificationParams3 = maps:merge(CurrentAdminCtx, VerificationParams2),
+    CurrentAdminCtx = onepanel_utils:convert(
+        maps_utils:undefined_to_null(op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper)),
+        {keys, atom}
+    ),
+    VerificationParams2 = maps:merge(CurrentAdminCtx, VerificationParams1),
 
-    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams3),
-    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams3),
-    verify_configuration(OpNode, Id, VerificationParams3, Helper),
+    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams2),
+    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
+    verify_configuration(OpNode, Id, VerificationParams2, Helper),
+    verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, Storage, atom, auto)),
 
     % @TODO VFS-5513 Modify everything in a single datastore operation
     % TODO VFS-6951 refactor storage configuration API

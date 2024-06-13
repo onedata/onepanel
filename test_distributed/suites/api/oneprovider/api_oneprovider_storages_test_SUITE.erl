@@ -18,6 +18,7 @@
 -include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
+-include_lib("onenv_ct/include/chart_values.hrl").
 
 %% API
 -export([all/0]).
@@ -37,8 +38,10 @@
 -define(S3_STORAGE_SPEC, #{
     ?S3_STORAGE_NAME => #{
         <<"type">> => <<"s3">>,
-        <<"bucketName">> => <<"bucket2.iam.example.com">>,
-        <<"hostname">> => <<"https://s3.amazonaws.com:443/">>
+        <<"bucketName">> => ?S3_BUCKET_NAME,
+        <<"hostname">> => <<"http://", (?S3_HOSTNAME)/binary>>,
+        <<"accessKey">> => ?S3_KEY_ID,
+        <<"secretKey">> => ?S3_ACCESS_KEY
     }
 }).
 
@@ -158,7 +161,9 @@ build_add_s3_storage_verify_fun(MemRef, StorageIdsBeforeAdd, RequestBody) ->
 %% @private
 add_request_match_response(RequestBody, StorageDetails) ->
     RequestMap = maps:get(?S3_STORAGE_NAME, RequestBody),
-    maps_utils:is_submap(RequestMap, StorageDetails) and (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
+    % secretKey is redacted in StorageDetails so it won't match
+    maps_utils:is_submap(maps:remove(<<"secretKey">>, RequestMap), StorageDetails) and
+        (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
 
 
 get_s3_storage(_Config) ->
@@ -261,7 +266,7 @@ build_delete_s3_storage_verify_fun(StorageId) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op"
+        onenv_scenario = "storages_api_tests"
     }).
 
 end_per_suite(_Config) ->
