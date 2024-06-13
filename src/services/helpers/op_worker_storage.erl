@@ -161,7 +161,7 @@ update(OpNode, Id, NewParams) ->
         Details#{verificationPassed => true}
     catch Class:Reason:Stacktrace ->
         Details2 = ?MODULE:get(Id),
-        ?error_exception("Storage modification failed", Class, Reason, Stacktrace),
+        ?error_exception(?autoformat_with_msg("Storage modification failed", [Id, Name]), Class, Reason, Stacktrace),
         Details2#{verificationPassed => false}
     end.
 
