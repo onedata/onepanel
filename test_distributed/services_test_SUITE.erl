@@ -696,7 +696,7 @@ assert_step_present(Module, Function, Results) ->
             false
     end, Results) of
         [NodesToResult | _] -> NodesToResult;
-        [] -> ct:fail("Step ~ts:~ts not found among results:~n~p", [Module, Function, Results])
+        [] -> ct:fail("Step ~ts:~ts not found among results:~n~tp", [Module, Function, Results])
     end.
 
 

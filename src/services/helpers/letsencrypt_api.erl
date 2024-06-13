@@ -223,18 +223,18 @@ run_certification_flow(Domain, Plugin, Mode) ->
 
     AccountExists = case read_keys(KeysDir) of
         {ok, _, _} ->
-            ?info("Let's Encrypt ~s run: reusing account from \"~s\"", [CurrentMode, filename:absname(KeysDir)]),
+            ?info("Let's Encrypt ~ts run: reusing account from \"~ts\"", [CurrentMode, filename:absname(KeysDir)]),
             true;
         _ ->
-            ?info("Let's Encrypt ~s run: generating new Let's Encrypt account keys", [CurrentMode]),
+            ?info("Let's Encrypt ~ts run: generating new Let's Encrypt account keys", [CurrentMode]),
             false
     end,
 
     try
         AccountExists orelse generate_keys(KeysDir),
-        ?info("Let's Encrypt ~s run: get endpoints", [CurrentMode]),
+        ?info("Let's Encrypt ~ts run: get endpoints", [CurrentMode]),
         {ok, State2} = get_directory(State),
-        ?info("Let's Encrypt ~s run: register account", [CurrentMode]),
+        ?info("Let's Encrypt ~ts run: register account", [CurrentMode]),
         {ok, State3} = register_account(State2),
         {ok, _State4} = attempt_certification(State3)
     catch
@@ -336,11 +336,11 @@ attempt_certification(#flow_state{service = Service} = State) ->
 -spec obtain_certificate(challenge_type(), #flow_state{}) -> {ok, #flow_state{}}.
 obtain_certificate(ChallengeType, State) ->
     CurrentMode = State#flow_state.current_mode,
-    ?info("Let's Encrypt ~s run: attempt ~s challenge", [CurrentMode, ChallengeType]),
+    ?info("Let's Encrypt ~ts run: attempt ~ts challenge", [CurrentMode, ChallengeType]),
     {ok, State2} = create_order(State),
     {ok, State3} = fulfill_authorizations(ChallengeType, State2),
 
-    ?info("Let's Encrypt ~s run: obtain certificate", [CurrentMode]),
+    ?info("Let's Encrypt ~ts run: obtain certificate", [CurrentMode]),
     fetch_certificate(State3).
 
 
@@ -456,9 +456,9 @@ find_challenge(Type, ChallengeList) ->
     case [Ch || Ch = #challenge{type = T} <- ChallengeList, T == Type] of
         [Challenge | _] -> {ok, Challenge};
         [] ->
-            ?warning("Let's Encrypt did not offer challenge type ~s", [Type]),
+            ?warning("Let's Encrypt did not offer challenge type ~ts", [Type]),
             throw(?ERROR_LETS_ENCRYPT_RESPONSE(undefined, str_utils:format_bin(
-                "Let's Encrypt did not offer challenge type ~s", [Type])))
+                "Let's Encrypt did not offer challenge type ~ts", [Type])))
     end.
 
 
@@ -535,7 +535,7 @@ poll_status(URL, #flow_state{} = State, Attempts) ->
             timer:sleep(?LE_POLL_INTERVAL),
             poll_status(URL, State2, Attempts - 1);
         <<"invalid">> ->
-            ?error("Let's Encrypt did not accept challenge response: ~p", [Body]),
+            ?error("Let's Encrypt did not accept challenge response: ~tp", [Body]),
             {ErrorObject, Message} = case Body of
                 #{<<"error">> := #{<<"detail">> := Description} = Error} -> {Error, Description};
                 _ -> {undefined, <<"Let's encrypt could not authorize domain.">>}
@@ -567,7 +567,7 @@ fetch_certificate(#flow_state{order_url = OrderURL} = State) ->
     case State5#flow_state.save_cert of
         true ->
             save_cert(CertAndChainPem, KeyPem, State5),
-            ?info("Let's Encrypt ~s run: saved new certificate at ~s",
+            ?info("Let's Encrypt ~ts run: saved new certificate at ~ts",
                 [State#flow_state.current_mode, filename:absname(State5#flow_state.cert_path)]),
             {ok, State5};
         _ ->
@@ -620,7 +620,7 @@ resolve_run_mode() ->
             "Let's Encrypt certification"),
             full;
         {_, undefined} ->
-            ?error("No staging server URL defined for Let's Encrypt. Cannot perform ~s run",
+            ?error("No staging server URL defined for Let's Encrypt. Cannot perform ~ts run",
                 [ModeEnv]),
             error(no_letsencrypt_staging_server);
         {StagingOrDry, _} ->
@@ -704,7 +704,7 @@ http_get(URL, Attempts) ->
         {ok, Status, Headers, BodyRaw} ->
             {ok, Status, Headers, decode_body(BodyRaw)};
         {error, Reason} ->
-            ?error("Error performing GET request to ~s: ~p", [URL, {error, Reason}]),
+            ?error("Error performing GET request to ~ts: ~tp", [URL, {error, Reason}]),
             http_get(URL, Attempts - 1)
     end.
 
@@ -760,13 +760,13 @@ post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                             % badNonce - retry with newly received nonce
                             post(URL, Payload, OkCodes, push_nonce(Headers, State2), Attempts - 1);
                         {_, #{<<"type">> := _, <<"detail">> := ErrorMessage} = Error} ->
-                            ?error("Let's Encrypt response status: ~B, expected ~s~n"
-                            "Response headers: ~p~nResponse body:~p",
+                            ?error("Let's Encrypt response status: ~B, expected ~ts~n"
+                            "Response headers: ~tp~nResponse body:~tp",
                                 [Status, OkCodesStr, Headers, Response]),
                             throw(?ERROR_LETS_ENCRYPT_RESPONSE(Error, ErrorMessage));
                         {Code, Response} ->
-                            ?error("Let's Encrypt response status: ~B, expected ~s~n"
-                            "Response headers: ~p~nResponse body:~p",
+                            ?error("Let's Encrypt response status: ~B, expected ~ts~n"
+                            "Response headers: ~tp~nResponse body:~tp",
                                 [Status, OkCodesStr, Headers, Response]),
                             throw(?ERROR_LETS_ENCRYPT_RESPONSE(undefined, str_utils:format_bin(
                                 "Unexpected Let's Encrypt response with HTTP code ~b", [Code])))
@@ -774,7 +774,7 @@ post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
             end;
 
         {error, Reason} ->
-            ?error("Error performing POST request to ~s: ~p", [URL, {error, Reason}]),
+            ?error("Error performing POST request to ~ts: ~tp", [URL, {error, Reason}]),
             post(URL, Payload, OkCodes, State2, Attempts - 1)
     end.
 
@@ -964,7 +964,7 @@ wait_for_txt_propagation(TxtName, Domain, Expected, Plugin) ->
     Query = binary:bin_to_list(<<TxtName/binary, ".", Domain/binary>>),
     Validator = fun(#dns_check{summary = ok}) -> ok end,
 
-    ?info("Let's Encrypt: Waiting for txt record valued ~p at ~s", [Expected, Query]),
+    ?info("Let's Encrypt: Waiting for txt record valued ~tp at ~ts", [Expected, Query]),
     try
         ZoneDomain = Plugin:get_dns_server(),
         {ok, IP} = inet:getaddr(ZoneDomain, inet),

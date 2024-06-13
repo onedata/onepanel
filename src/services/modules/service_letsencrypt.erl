@@ -351,7 +351,7 @@ schedule_check() ->
             check_webcert(#{renewal => true})
         catch
             Type:Error:Stacktrace ->
-                ?error_stacktrace("Certificate renewal check failed: ~p:~p", [Type, Error], Stacktrace)
+                ?error_stacktrace("Certificate renewal check failed: ~tp:~tp", [Type, Error], Stacktrace)
         end
     end,
     % clean existing jobs to ensure no duplication

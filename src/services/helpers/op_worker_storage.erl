@@ -87,7 +87,7 @@ add(#{name := Name, params := Params}) ->
         _:{error, Reason} ->
             {error, Reason};
         Class:Reason:Stacktrace ->
-            ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~p", [
+            ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~tp", [
                 StorageName, StorageType, Class, Reason
             ], Stacktrace),
             {error, storage_add_failed}
@@ -98,7 +98,7 @@ add(#{name := Name, params := Params}) ->
                 StorageName, StorageType, AddedStorageId
             ]);
         {error, _} = Error ->
-            ?error("Failed to add storage '~ts' (~ts) due to ~p", [
+            ?error("Failed to add storage '~ts' (~ts) due to ~tp", [
                 StorageName, StorageType, Error
             ])
     end,
@@ -166,7 +166,7 @@ update(OpNode, Id, NewParams) ->
 remove(OpNode, Id) ->
     case op_worker_rpc:storage_safe_remove(OpNode, Id) of
         ok ->
-            ?info("Successfully removed storage with id ~p", [Id]),
+            ?info("Successfully removed storage with id ~tp", [Id]),
             ok;
         {error, storage_in_use} ->
             throw(?ERROR_STORAGE_IN_USE)
@@ -455,7 +455,7 @@ make_update_result(OpNode, StorageId) ->
         verify_availability(Helper, LumaFeed),
         Details#{verificationPassed => true}
     catch ErrType:Error ->
-        ?warning("Verfication of modified storage ~p (~p) failed: ~tp:~tp",
+        ?warning("Verfication of modified storage ~tp (~tp) failed: ~tp:~tp",
             [Name, StorageId, ErrType, Error]),
         Details#{verificationPassed => false}
     end.
@@ -708,10 +708,10 @@ log_gathered_storage_configuration(Name, StorageType, Params) ->
     ),
     FormattedParams = lists:map(fun
         ({Key, Value}) when is_binary(Value) ->
-            str_utils:format_bin("    ~s: ~s", [Key, Value]);
+            str_utils:format_bin("    ~ts: ~ts", [Key, Value]);
         ({Key, Value}) ->
-            str_utils:format_bin("    ~s: ~p", [Key, Value])
+            str_utils:format_bin("    ~ts: ~tp", [Key, Value])
     end, maps:to_list(RedactedParams)),
-    ?info("Gathered storage configuration for '~ts' (~ts) - parameters: ~n~s", [
+    ?info("Gathered storage configuration for '~ts' (~ts) - parameters: ~n~ts", [
         Name, StorageType, str_utils:join_as_binaries(FormattedParams, str_utils:format_bin("~n", []))
     ]).

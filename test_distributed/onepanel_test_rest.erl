@@ -128,8 +128,8 @@ auth_request(HostOrConfig, Port, Endpoint, Method, [_ | _] = Auths, Headers, Bod
                 {ok, PrevCode, _, PrevBody} = Result ->
                     {Result, Auth};
                 {ok, _OtherCode, _, _OtherBody} = Result ->
-                    ct:pal("Result of rest call with auth ~p differs from previous with auth ~p~n"
-                    ++ "Was: ~p~nIs: ~p", [Auth, PrevAuth, Previous, Result]),
+                    ct:pal("Result of rest call with auth ~tp differs from previous with auth ~tp~n"
+                    ++ "Was: ~tp~nIs: ~tp", [Auth, PrevAuth, Previous, Result]),
                     ?assertMatch({ok, PrevCode, _, PrevBody}, Result);
                 Error ->
                     {Error, PrevAuth}
@@ -196,7 +196,7 @@ noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body) ->
         [{ssl_options, [{secure, false}]}]);
 
 noauth_request(HostOrConfig, Port, Endpoint, Method, Headers, Body) ->
-    Path = str_utils:format("/api/v3/onepanel~s", [Endpoint]),
+    Path = str_utils:format("/api/v3/onepanel~ts", [Endpoint]),
     noauth_request(HostOrConfig, Port, {noprefix, Path}, Method, Headers, Body).
 
 

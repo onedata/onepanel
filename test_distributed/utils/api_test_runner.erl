@@ -136,7 +136,7 @@ run_suite(#suite_spec{
         throw:fail ->
             false;
         Type:Reason:Stacktrace ->
-            ct:pal("Unexpected error while running test suite ~p:~p ~p", [
+            ct:pal("Unexpected error while running test suite ~tp:~tp ~tp", [
                 Type, Reason, Stacktrace
             ]),
             false
@@ -565,14 +565,14 @@ log_failure(ScenarioName, #api_test_ctx{
     client = Client
 }, Args, Expected, Got, ErrType, ErrReason, Stacktrace) ->
     ct:pal(
-        "~s test case failed:~n"
-        "Node: ~p~n"
-        "Client: ~s~n"
-        "Args: ~s~n"
-        "Expected: ~p~n"
-        "Got: ~p~n"
-        "Error: ~p:~p~n"
-        "Stacktrace: ~p~n",
+        "~ts test case failed:~n"
+        "Node: ~tp~n"
+        "Client: ~ts~n"
+        "Args: ~ts~n"
+        "Expected: ~tp~n"
+        "Got: ~tp~n"
+        "Error: ~tp:~tp~n"
+        "Stacktrace: ~tp~n",
         [
             ScenarioName,
             TargetNode,

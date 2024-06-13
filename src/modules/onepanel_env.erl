@@ -279,7 +279,7 @@ write(Keys, Value, ServiceName) ->
     end,
 
     NewConfigs = kv_utils:put(Keys, Value, AppConfigs),
-    NewConfigsStr = io_lib:fwrite("~s~n~p.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
+    NewConfigsStr = io_lib:fwrite("~ts~n~tp.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
     case file:write_file(Path, NewConfigsStr) of
         ok -> ok;
         {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
@@ -323,7 +323,7 @@ upgrade_app_config(ServiceName, Variables, SetInRuntime) ->
     Dst = get_config_path(ServiceName, generated),
     case file:consult(Src) of
         {ok, [LegacyConfigs]} ->
-            ?info("Migrating app config from '~s' to '~s'", [Src, Dst]),
+            ?info("Migrating app config from '~ts' to '~ts'", [Src, Dst]),
             Values = lists:filtermap(fun(Variable) ->
                 case kv_utils:find(Variable, LegacyConfigs) of
                     {ok, Value} -> {true, {Variable, Value}};
@@ -413,7 +413,7 @@ legacy_config_exists(ServiceName) ->
     Path :: string() | no_return()
     when ConfigLayer :: app | generated | overlay | legacy.
 get_config_path(ServiceName, ConfigLayer) ->
-    EnvName = str_utils:format("~s_~s_config_file", [ServiceName, ConfigLayer]),
+    EnvName = str_utils:format("~ts_~ts_config_file", [ServiceName, ConfigLayer]),
     onepanel_env:get(list_to_atom(EnvName)).
 
 
@@ -468,7 +468,7 @@ get_config_paths(ServiceName) ->
 %%--------------------------------------------------------------------
 -spec list_config_dir(service:name()) -> [file:name_all()].
 list_config_dir(ServiceName) ->
-    EnvName = str_utils:format("~s_custom_config_dir", [ServiceName]),
+    EnvName = str_utils:format("~ts_custom_config_dir", [ServiceName]),
     DirPath = onepanel_env:get(list_to_atom(EnvName)),
     case file:list_dir(DirPath) of
         {ok, Files} ->
