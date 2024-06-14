@@ -41,6 +41,7 @@
 -type storage_details() :: #{
     lumaFeed := op_worker_rpc:luma_feed(),
     qosParameters := qos_parameters(),
+    verificationPassed => boolean(),
     atom() := binary()
 }.
 
@@ -70,7 +71,6 @@
 %% @doc Adds specified storage.
 %% Before each addition verifies that given storage is accessible for all
 %% op_worker service nodes and aborts upon error.
-%% This verification is skipped for readonly storages.
 % TODO VFS-6951 refactor storage configuration API
 %% @end
 %%--------------------------------------------------------------------
@@ -114,6 +114,7 @@ add(#{name := Name, params := Params}) ->
 update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
     Id = maps:get(id, Storage),
+    Name = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
     CurrentReadonly = maps:get(readonly, Storage),
     CurrentImported = maps:get(importedStorage, Storage),
@@ -129,30 +130,40 @@ update(OpNode, Id, NewParams) ->
 
     % TODO VFS-6951 refactor storage configuration API
     {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
-    CurrentArgs = get_helper_args(StorageType, OpNode, CurrentHelper),
-    CurrentAdminCtx = op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper),
-    VerificationParams2 = maps:merge(CurrentArgs, VerificationParams1),
-    VerificationParams3 = maps:merge(CurrentAdminCtx, VerificationParams2),
-
-    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams3),
-    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams3),
-    verify_configuration(OpNode, Id, VerificationParams3, Helper),
-
-    % @TODO VFS-5513 Modify everything in a single datastore operation
-    % TODO VFS-6951 refactor storage configuration API
-    lists:foreach(fun({Fun, Args}) ->
-        ?EXEC_AND_THROW_ON_ERROR(Fun, Args)
-    end,
-        [
-            {fun maybe_update_qos_parameters/3, [OpNode, Id, NewParams]},
-            {fun maybe_update_name/3, [OpNode, Id, PlainValueNewParams]},
-            {fun maybe_update_admin_ctx/4, [OpNode, Id, StorageType, PlainValueNewParams]},
-            {fun maybe_update_args/4, [OpNode, Id, StorageType, PlainValueNewParams]},
-            {fun maybe_update_luma_config/3, [OpNode, Id, NewParams]},
-            {fun update_readonly_and_imported/4, [OpNode, Id, Readonly, Imported]}
-        ]
+    CurrentAdminCtx = onepanel_utils:convert(
+        maps_utils:undefined_to_null(op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper)),
+        {keys, atom}
     ),
-    make_update_result(OpNode, Id).
+    VerificationParams2 = maps:merge(CurrentAdminCtx, VerificationParams1),
+
+    UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams2),
+    {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
+    try
+        verify_configuration(OpNode, Id, VerificationParams2, Helper),
+        verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto)),
+
+        % @TODO VFS-5513 Modify everything in a single datastore operation
+        % TODO VFS-6951 refactor storage configuration API
+        lists:foreach(fun({Fun, Args}) ->
+            ?EXEC_AND_THROW_ON_ERROR(Fun, Args)
+        end,
+            [
+                {fun maybe_update_qos_parameters/3, [OpNode, Id, NewParams]},
+                {fun maybe_update_name/3, [OpNode, Id, PlainValueNewParams]},
+                {fun maybe_update_admin_ctx/4, [OpNode, Id, StorageType, PlainValueNewParams]},
+                {fun maybe_update_args/4, [OpNode, Id, StorageType, PlainValueNewParams]},
+                {fun maybe_update_luma_config/3, [OpNode, Id, NewParams]},
+                {fun update_readonly_and_imported/4, [OpNode, Id, Readonly, Imported]}
+            ]
+        ),
+        Details = ?MODULE:get(Id),
+        ?info("Modified storage ~tp (~tp)", [Name, Id]),
+        Details#{verificationPassed => true}
+    catch Class:Reason:Stacktrace ->
+        Details2 = ?MODULE:get(Id),
+        ?error_exception(?autoformat_with_msg("Storage modification failed", [Id, Name]), Class, Reason, Stacktrace),
+        Details2#{verificationPassed => false}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -197,14 +208,6 @@ get(Id) ->
     onepanel_utils:convert(
         maps_utils:undefined_to_null(DetailsMap),
         {keys, atom}).
-
-
--spec get_helper_args(binary(), node(), helper()) -> helper_args().
-get_helper_args(<<"s3">>, OpNode, Helper) ->
-    HelperArgs = op_worker_rpc:get_helper_args(OpNode, Helper),
-    join_scheme_and_hostname_args_for_s3_storage(HelperArgs);
-get_helper_args(_, OpNode, Helper) ->
-    op_worker_rpc:get_helper_args(OpNode, Helper).
 
 
 %%--------------------------------------------------------------------
@@ -339,15 +342,12 @@ add(OpNode, Name, StorageType, Params) ->
 
     {QosParameters, StorageParams} = maps:take(qosParameters, Params),
     Readonly = onepanel_utils:get_converted(readonly, StorageParams, boolean, false),
-    % if skipStorageDetection is not defined, set it to the same value as Readonly
-    SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, StorageParams, boolean, Readonly),
     ImportedStorage = onepanel_utils:get_converted(importedStorage, StorageParams, boolean, false),
     ArchiveStorage = onepanel_utils:get_converted(archiveStorage, StorageParams, boolean, false),
 
     % ensure all params are in the config map
     StorageParams2 = StorageParams#{
         readonly => Readonly,
-        skipStorageDetection => SkipStorageDetection,
         importedStorage => ImportedStorage,
         archiveStorage => ArchiveStorage
     },
@@ -359,12 +359,13 @@ add(OpNode, Name, StorageType, Params) ->
     LumaConfig = make_luma_config(OpNode, StorageParams2),
     LumaFeed = onepanel_utils:get_converted(lumaFeed, Params, atom, auto),
 
-    try SkipStorageDetection orelse verify_write_access(Helper, LumaFeed) of
-        _ ->
-            ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
-            op_worker_rpc:storage_create(
-                Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
-            )
+    try
+        ?info("Verifying storage access: '~ts' (~ts)", [Name, StorageType]),
+        verify_availability(Helper, LumaFeed),
+        ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
+        op_worker_rpc:storage_create(
+            Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
+        )
     catch
         _ErrType:Error ->
             Error
@@ -414,14 +415,12 @@ verify_configuration(OpNode, NameOrId, StorageParams, Helper) ->
 
 
 %%--------------------------------------------------------------------
-%% @private @doc Verifies that storage is accessible for all op_worker
+%% @private @doc Verifies that storage is accessible from all op_worker
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec verify_write_access(helper(), luma_feed()) ->
-    ok | no_return().
-verify_write_access(Helper, LumaFeed) ->
-    case op_worker_rpc:verify_storage_on_all_nodes(Helper, LumaFeed) of
+verify_availability(Helper, LumaFeed) ->
+    case op_worker_rpc:verify_storage_availability_on_all_nodes(Helper, LumaFeed) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
     end.
@@ -440,34 +439,6 @@ get_required_luma_arg(Key, StorageParams, Type) ->
         {ok, Value} -> Value
     end.
 
-
-%%--------------------------------------------------------------------
-%% @private @doc Creates response for modify request
-%% by gathering current storage params and performing a write test
-%% as when adding new storage.
-%% @end
-%%--------------------------------------------------------------------
--spec make_update_result(OpNode :: node(), StorageId :: id()) -> storage_details().
-make_update_result(OpNode, StorageId) ->
-    Details = ?MODULE:get(StorageId),
-    #{name := Name, lumaFeed := LumaFeed} = Details,
-    Readonly = onepanel_utils:get_converted(readonly, Details, boolean, false),
-    SkipStorageDetection = onepanel_utils:get_converted(skipStorageDetection, Details, boolean, Readonly),
-    ?info("Modified storage ~tp (~tp)", [Name, StorageId]),
-    try
-        {ok, Helper} = op_worker_rpc:storage_get_helper(OpNode, StorageId),
-        case SkipStorageDetection of
-            true ->
-                Details;
-            false ->
-                verify_write_access(Helper, LumaFeed),
-                Details#{verificationPassed => true}
-        end
-    catch ErrType:Error ->
-        ?warning("Verfication of modified storage ~tp (~tp) failed: ~tp:~tp",
-            [Name, StorageId, ErrType, Error]),
-        Details#{verificationPassed => false}
-    end.
 
 %%--------------------------------------------------------------------
 %% @doc

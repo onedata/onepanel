@@ -33,18 +33,14 @@
 ]).
 
 -export([
-    add_correct_storage_and_perform_detection_test/1,
-    add_correct_storage_and_skip_detection_test/1,
-    add_bad_storage_and_perform_detection_test/1,
-    add_bad_storage_and_skip_detection_test/1
+    add_correct_storage_test/1,
+    add_bad_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
-        add_correct_storage_and_perform_detection_test,
-        add_correct_storage_and_skip_detection_test,
-        add_bad_storage_and_perform_detection_test,
-        add_bad_storage_and_skip_detection_test
+        add_correct_storage_test,
+        add_bad_storage_test
     ]}
 ].
 
@@ -57,38 +53,27 @@ all() -> [
 %%% API
 %%%===================================================================
 
-
-add_correct_storage_and_perform_detection_test(_Config) ->
-    add_s3_storage_test_base(correct_args, true).
-
-
-add_correct_storage_and_skip_detection_test(_Config) ->
-    add_s3_storage_test_base(correct_args, false).
+add_correct_storage_test(_Config) ->
+    add_s3_storage_test_base(correct_args).
 
 
-add_bad_storage_and_perform_detection_test(_Config) ->
-    add_s3_storage_test_base(bad_args, true).
-
-
-add_bad_storage_and_skip_detection_test(_Config) ->
-    add_s3_storage_test_base(bad_args, false).
+add_bad_storage_test(_Config) ->
+    add_s3_storage_test_base(bad_args).
 
 
 %% @private
 -spec add_s3_storage_test_base(
-    api_oneprovider_storages_test_base:args_correctness(),
-    api_oneprovider_storages_test_base:skip_storage_detection()
+    api_oneprovider_storages_test_base:args_correctness()
 ) ->
     ok.
-add_s3_storage_test_base(ArgsCorrectness, SkipStorageDetection) ->
+add_s3_storage_test_base(ArgsCorrectness) ->
     api_oneprovider_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = s3,
             args_correctness = ArgsCorrectness,
-            skip_storage_detection = SkipStorageDetection,
 
             data_spec_fun = fun build_add_s3_storage_data_spec/3,
-            prepare_args_fun = fun build_add_s3_storage_prepare_args_fun/2,
+            prepare_args_fun = fun build_add_s3_storage_prepare_args_fun/1,
             data_spec_random_coverage = 5
         }).
 
@@ -173,11 +158,10 @@ build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
 
 %% @private
 -spec build_add_s3_storage_prepare_args_fun(
-    api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:skip_storage_detection()
+    api_test_memory:env_ref()
 ) ->
     api_test_runner:prepare_args_fun().
-build_add_s3_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
+build_add_s3_storage_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
 
         %% S3 Storage that onenv creates, requires credentials even though swagger marks them as optional.
@@ -187,15 +171,9 @@ build_add_s3_storage_prepare_args_fun(MemRef, SkipStorageDetection) ->
             <<"secretKey">> => ?S3_ACCESS_KEY
         }),
 
-        %% TODO VFS-7706 currently storage detection always fails on s3 storage when archiveStorage is enabled
-        IsArchiveStorage = maps:get(<<"archiveStorage">>, DataWithCredentials, false),
-        SkipStorageDetection2 = case IsArchiveStorage of
-            true -> true;
-            _ -> SkipStorageDetection
-        end,
         StorageName = api_test_memory:get(MemRef, storage_name),
         RequestBody = #{
-            StorageName => maps:put(<<"skipStorageDetection">>, SkipStorageDetection2, DataWithCredentials)
+            StorageName => DataWithCredentials
         },
 
         #rest_args{

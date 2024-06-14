@@ -25,18 +25,16 @@
 
 -type storage_type() :: cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
 -type args_correctness() :: bad_args | correct_args.
--type skip_storage_detection() :: boolean().
 -type add_storage_test_spec() :: #add_storage_test_spec{}.
 
 -type data_spec_builder() :: fun((_, _, _)-> api_test_runner:data_spec()).
--type prepare_args_fun_builder() :: fun((_, _)-> api_test_runner:prepare_args_fun()).
+-type prepare_args_fun_builder() :: fun((_)-> api_test_runner:prepare_args_fun()).
 
 -type data_spec_random_coverage() :: 1..100.
 
 -type storage_id() :: binary().
 
 -export_type([
-    skip_storage_detection/0,
     storage_type/0,
     args_correctness/0,
     add_storage_test_spec/0,
@@ -57,7 +55,6 @@
 add_storage_test_base(#add_storage_test_spec{
     storage_type = StorageType,
     args_correctness = ArgsCorrectness,
-    skip_storage_detection = SkipStorageDetection,
 
     data_spec_fun = DataSpecFun,
     prepare_args_fun = PrepareArgsFun,
@@ -87,9 +84,9 @@ add_storage_test_base(#add_storage_test_spec{
             },
             data_spec_random_coverage = DataSpecRandomCoverage,
             data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
-            prepare_args_fun = PrepareArgsFun(MemRef, SkipStorageDetection),
-            validate_result_fun = build_add_storage_validate_result_fun(MemRef, ArgsCorrectness, SkipStorageDetection),
-            verify_fun = build_add_storage_verify_fun(MemRef, ArgsCorrectness, SkipStorageDetection)
+            prepare_args_fun = PrepareArgsFun(MemRef),
+            validate_result_fun = build_add_storage_validate_result_fun(MemRef, ArgsCorrectness),
+            verify_fun = build_add_storage_verify_fun(MemRef, ArgsCorrectness)
         }
     ])).
 
@@ -97,27 +94,20 @@ add_storage_test_base(#add_storage_test_spec{
 %% @private
 -spec build_add_storage_validate_result_fun(
     api_test_memory:env_ref(),
-    args_correctness(),
-    skip_storage_detection()
+    args_correctness()
 ) ->
     api_test_runner:validate_result_fun().
-build_add_storage_validate_result_fun(MemRef, correct_args, _) ->
+build_add_storage_validate_result_fun(MemRef, correct_args) ->
     api_test_validate:http_200_ok(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
         StorageId = kv_utils:get([StorageName, <<"id">>], Body),
         api_test_memory:set(MemRef, storage_id, StorageId)
     end);
-build_add_storage_validate_result_fun(MemRef, bad_args, true) ->
-    api_test_validate:http_200_ok(fun(Body) ->
-        StorageName = api_test_memory:get(MemRef, storage_name),
-        StorageId = kv_utils:get([StorageName, <<"id">>], Body),
-        api_test_memory:set(MemRef, storage_id, StorageId)
-    end);
-build_add_storage_validate_result_fun(MemRef, bad_args, false) ->
+build_add_storage_validate_result_fun(MemRef, bad_args) ->
     api_test_validate:http_400_bad_request(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
         ExpRespBody = #{
-            StorageName => ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(write))
+            StorageName => ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(access))
         },
         ?assertEqual(ExpRespBody, Body)
     end).
@@ -126,24 +116,18 @@ build_add_storage_validate_result_fun(MemRef, bad_args, false) ->
 %% @private
 -spec build_add_storage_verify_fun(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:args_correctness(),
-    api_oneprovider_storages_test_base:skip_storage_detection()
+    api_oneprovider_storages_test_base:args_correctness()
 ) -> api_test_runner:verify_fun().
-build_add_storage_verify_fun(_MemRef, bad_args, false) ->
+build_add_storage_verify_fun(_MemRef, bad_args) ->
     fun(_, _) ->
         true
     end;
-build_add_storage_verify_fun(MemRef, ArgsCorrectness, _SkipStorageDetection) ->
+build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
     fun
         (expected_success, _) ->
             NewStorageId = api_test_memory:get(MemRef, storage_id),
             ?assertEqual(true, lists:member(NewStorageId, opw_test_rpc:get_storages(krakow)), ?ATTEMPTS),
-            case ArgsCorrectness of
-                correct_args ->
-                    ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS);
-                bad_args ->
-                    ?assertMatch({error, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS)
-            end,
+            ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS),
             true;
         (expected_failure, _) ->
             true

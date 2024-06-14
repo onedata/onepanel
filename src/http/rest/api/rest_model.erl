@@ -1475,8 +1475,8 @@ storage_import_model() ->
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
         %% supported. For more info please read:
-        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
-        %% registration
+        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
+        %% /File-registration
         mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
@@ -1789,10 +1789,6 @@ ceph_model() ->
         type => {discriminator, <<"ceph">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -1867,10 +1863,6 @@ ceph_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -1928,10 +1920,6 @@ cephrados_model() ->
         type => {discriminator, <<"cephrados">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2004,10 +1992,6 @@ cephrados_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2061,10 +2045,6 @@ glusterfs_model() ->
         type => {discriminator, <<"glusterfs">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2140,10 +2120,6 @@ glusterfs_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2202,10 +2178,6 @@ http_model() ->
         type => {discriminator, <<"http">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2331,10 +2303,6 @@ http_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2470,10 +2438,6 @@ nfs_model() ->
         type => {discriminator, <<"nfs">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2551,10 +2515,6 @@ nfs_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2616,10 +2576,6 @@ nulldevice_model() ->
         type => {discriminator, <<"nulldevice">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2718,10 +2674,6 @@ nulldevice_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2868,10 +2820,6 @@ posix_model() ->
         type => {discriminator, <<"posix">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2942,10 +2890,6 @@ posix_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -2999,10 +2943,6 @@ s3_model() ->
         type => {discriminator, <<"s3">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3097,10 +3037,6 @@ s3_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3175,10 +3111,6 @@ swift_model() ->
         type => {discriminator, <<"swift">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3251,10 +3183,6 @@ swift_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3309,10 +3237,6 @@ webdav_model() ->
         type => {discriminator, <<"webdav">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3450,10 +3374,6 @@ webdav_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3539,10 +3459,6 @@ xrootd_model() ->
         type => {discriminator, <<"xrootd">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
@@ -3631,10 +3547,6 @@ xrootd_modify_model() ->
         name => {string, optional},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
-        %% If true, detecting whether storage is directly accessible by the
-        %% Oneclient will not be performed. This option should be set to true on
-        %% readonly storages.
-        skipStorageDetection => {boolean, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
         %% https://onedata.org/#/home/documentation/doc/administering_onedata/luma.html
