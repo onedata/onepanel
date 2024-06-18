@@ -369,16 +369,17 @@
         {oz_worker_wait_for_init_attempts, 96},
         {oz_worker_wait_for_init_delay, 5000},
 
-        {connect_to_onezone_attempts, 5}
-    ]},
+        {connect_to_onezone_attempts, 5},
 
-    {ones3, [
+        %% ===================================================================
+        %% OneS3 configuration
+        %% ===================================================================
+
         %% External IP of this node - used by DNS
         %% can be set to a tuple or string, for example:
         %% {external_ip, {10,0,0,1}}, or:
         %% {external_ip, "10.0.0.1"},
-        {external_ip, undefined},
-
-        {http_port, 8888}
+        {ones3_external_ip, undefined},
+        {ones3_http_port, 8888}
     ]}
 ].
