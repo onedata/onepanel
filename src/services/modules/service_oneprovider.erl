@@ -839,25 +839,27 @@ get_manual_storage_import_example(#{space_id := SpaceId}) ->
 set_cluster_ips(Ctx) ->
     ?info("Configuring provider ips"),
 
-    CurrentOpwIps = maps:from_list(service_cluster_worker:get_hosts_ips(Ctx#{name => ?SERVICE_OPW})),
-    CurrentOneS3Ips = maps:from_list(service_ones3:get_hosts_ips()),
-    CurrentIps = maps_utils:undefined_to_null(maps:merge(CurrentOneS3Ips, CurrentOpwIps)),
+    global:trans({set_cluster_ips, self()}, fun() ->
+        CurrentOpwIps = maps:from_list(service_cluster_worker:get_hosts_ips(Ctx#{name => ?SERVICE_OPW})),
+        CurrentOneS3Ips = maps:from_list(service_ones3:get_hosts_ips()),
+        CurrentIps = maps_utils:undefined_to_null(maps:merge(CurrentOneS3Ips, CurrentOpwIps)),
 
-    try
-        set_services_ips(Ctx),
+        try
+            set_services_ips(Ctx),
 
-        {ok, OpNode} = nodes:any(?SERVICE_OPW),
-        case op_worker_rpc:is_subdomain_delegated(OpNode) of
-            {true, Subdomain} -> set_subdomain_delegation(OpNode, Subdomain);
-            false -> ok
+            {ok, OpNode} = nodes:any(?SERVICE_OPW),
+            case op_worker_rpc:is_subdomain_delegated(OpNode) of
+                {true, Subdomain} -> set_subdomain_delegation(OpNode, Subdomain);
+                false -> ok
+            end
+        catch Class:Reason:Stacktrace ->
+            Error = ?examine_exception(Class, Reason, Stacktrace),
+
+            set_services_ips(Ctx#{cluster_ips => CurrentIps}),
+
+            throw(Error)
         end
-    catch Class:Reason:Stacktrace ->
-        Error = ?examine_exception(Class, Reason, Stacktrace),
-
-        set_services_ips(Ctx#{cluster_ips => CurrentIps}),
-
-        throw(Error)
-    end.
+    end).
 
 
 %% @private
