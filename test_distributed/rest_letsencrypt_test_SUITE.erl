@@ -277,7 +277,7 @@ csr_generation_works(Config) ->
     ?nodePerCluster(Config, fun(Node) ->
         ?assertMatch(
             {ok, _, _},
-            rpc:call(Node, onepanel_cert, generate_csr_and_key, ["domain.example.com"])
+            rpc:call(Node, onepanel_cert, generate_csr_and_key, ["domain.example.com", []])
         )
     end).
 

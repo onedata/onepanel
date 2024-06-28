@@ -299,9 +299,6 @@ is_enabled(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec obtain_cert(#{renewal => boolean(), _ => _}) -> ok | no_return().
 obtain_cert(Ctx) ->
-    Plugin = get_plugin_module(),
-    <<Domain/binary>> = Plugin:get_domain(),
-
     case maps:get(renewal, Ctx, false) of
         false ->
             onepanel_cert:backup_exisiting_certs();
@@ -310,7 +307,7 @@ obtain_cert(Ctx) ->
             ok
     end,
 
-    ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
+    ok = letsencrypt_api:run_certification_flow(get_plugin_module()),
 
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
 

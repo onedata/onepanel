@@ -101,6 +101,8 @@
     service :: plugin_service(),
     % Common Name for the certificate
     domain :: binary(),
+    % TODO comment
+    subdomains :: [binary()],
     % Whether to save obtained certificate on disk
     save_cert :: boolean(),
     % Paths for saving resulting key and cert
@@ -155,7 +157,7 @@
 
 -export_type([challenge_type/0]).
 
--export([run_certification_flow/2]).
+-export([run_certification_flow/1]).
 -export([challenge_types/0]).
 
 %%%===================================================================
@@ -170,9 +172,9 @@
 %% Plugin is a service module for interacting with the oneprovider or onezone.
 %% @end
 %%--------------------------------------------------------------------
--spec run_certification_flow(Domain :: binary(), Plugin :: module()) -> ok | no_return().
-run_certification_flow(Domain, Plugin) ->
-    run_certification_flow(Domain, Plugin, resolve_run_mode()).
+-spec run_certification_flow(module()) -> ok | no_return().
+run_certification_flow(Plugin) ->
+    run_certification_flow(Plugin, resolve_run_mode()).
 
 
 %%--------------------------------------------------------------------
@@ -203,9 +205,8 @@ challenge_types() ->
 %%                from the production server
 %% @end
 %%--------------------------------------------------------------------
--spec run_certification_flow(Domain :: binary(), Plugin :: module(),
-    Mode :: run_mode()) -> ok | no_return().
-run_certification_flow(Domain, Plugin, Mode) ->
+-spec run_certification_flow(Plugin :: module(), Mode :: run_mode()) -> ok | no_return().
+run_certification_flow(Plugin, Mode) ->
     % When called with 'full' mode, first complete the staging flow
     % and then recurse with Mode 'production'.
     CurrentMode = case Mode of
@@ -213,7 +214,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
         _ -> Mode
     end,
 
-    {ok, State} = initial_state(Domain, Plugin, Mode, CurrentMode),
+    {ok, State} = initial_state(Plugin, Mode, CurrentMode),
     KeysDir = State#flow_state.jws_keys_dir,
 
     case Mode of
@@ -254,7 +255,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
     catch clean_txt_record(Plugin),
 
     case Mode of
-        full -> run_certification_flow(Domain, Plugin, production);
+        full -> run_certification_flow(Plugin, production);
         _ -> ok
     end.
 
@@ -351,12 +352,15 @@ obtain_certificate(ChallengeType, State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create_order(#flow_state{}) -> {ok, #flow_state{}}.
-create_order(#flow_state{domain = Domain} = State) ->
-    #flow_state{directory = #directory{new_order = NewOrderURL}} = State,
-    Payload = #{<<"identifiers">> => [#{
-        <<"type">> => <<"dns">>,
-        <<"value">> => Domain
-    }]},
+create_order(State = #flow_state{
+    domain = Domain,
+    subdomains = Subdomains,
+    directory = #directory{new_order = NewOrderURL}
+}) ->
+    Payload = #{<<"identifiers">> => [
+        build_order_dns_identifier(Domain)
+        | [build_order_dns_identifier(Subdomain) || Subdomain <- Subdomains]
+    ]},
 
     {ok, Response, Headers, State2} = post(NewOrderURL, Payload, ?HTTP_201_CREATED, State),
     #{
@@ -369,6 +373,12 @@ create_order(#flow_state{domain = Domain} = State) ->
         finalize_url = FinalizeURL,
         order_url = maps:get(<<"Location">>, Headers)
     }}.
+
+
+%% @private
+-spec build_order_dns_identifier(binary()) -> json_utils:json_map().
+build_order_dns_identifier(Domain) ->
+    #{<<"type">> => <<"dns">>, <<"value">> => Domain}.
 
 
 %%--------------------------------------------------------------------
@@ -584,11 +594,13 @@ fetch_certificate(#flow_state{order_url = OrderURL} = State) ->
 -spec request_certificate(#flow_state{}) ->
     {ok, #flow_state{}, Order :: map(), pem()}.
 request_certificate(State) ->
-    #flow_state{domain = Domain, finalize_url = FinalizeURL} = State,
+    #flow_state{domain = Domain, subdomains = Subdomains, finalize_url = FinalizeURL} = State,
 
     % The CSR does not contain Alt Name extension request, but Let's Encrypt
     % adds one for the requested domain, which is the desired result.
-    {ok, CSRPem, KeyPem} = onepanel_cert:generate_csr_and_key(binary_to_list(Domain)),
+    {ok, CSRPem, KeyPem} = onepanel_cert:generate_csr_and_key(
+        binary_to_list(Domain), [binary_to_list(Subdomain) || Subdomain <- Subdomains]
+    ),
     [{'CertificationRequest', CSRDer, not_encrypted}] = public_key:pem_decode(CSRPem),
     CSRB64 = base64url:encode(CSRDer),
 
@@ -636,9 +648,8 @@ resolve_run_mode() ->
 %% CurrentMode - mode of the current run
 %% @end
 %%--------------------------------------------------------------------
--spec initial_state(Domain :: binary(), Plugin :: plugin_service(),
-    Mode :: run_mode(), CurrentMode :: run_mode()) -> {ok, #flow_state{}}.
-initial_state(Domain, Plugin, Mode, CurrentMode) ->
+-spec initial_state(plugin_service(), run_mode(), run_mode()) -> {ok, #flow_state{}}.
+initial_state(Plugin, Mode, CurrentMode) ->
     CertPath = onepanel_env:get(web_cert_file),
     KeyPath = onepanel_env:get(web_key_file),
     ChainPath = onepanel_env:get(web_cert_chain_file),
@@ -652,6 +663,12 @@ initial_state(Domain, Plugin, Mode, CurrentMode) ->
         _ -> ?STAGING_DIRECTORY_URL
     end,
 
+    Domain = Plugin:get_domain(),
+    Subdomains = case service_ones3:exists() of
+        true -> [service_ones3:get_domain()];
+        false -> []
+    end,
+
     % passing state around is useful for managing anti-replay nonces
     {ok, #flow_state{
         service = Plugin,
@@ -662,6 +679,7 @@ initial_state(Domain, Plugin, Mode, CurrentMode) ->
         chain_path = ChainPath,
         save_cert = SaveCert,
         domain = Domain,
+        subdomains = Subdomains,
         current_mode = CurrentMode
     }}.
 

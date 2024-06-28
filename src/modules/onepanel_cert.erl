@@ -22,7 +22,7 @@
 -export_type([pem/0, cert/0]).
 
 %% API
--export([generate_csr_and_key/1, backup_exisiting_certs/0,
+-export([generate_csr_and_key/2, backup_exisiting_certs/0,
     list_certificate_files/0]).
 -export([read/1, verify_hostname/2, get_subject_cn/1, get_issuer_cn/1,
     get_seconds_till_expiration/1]).
@@ -36,22 +36,29 @@
 %% @doc Generates Certificate Signing Request and matching private key.
 %% @end
 %%--------------------------------------------------------------------
--spec generate_csr_and_key(Domain :: string()) ->
+-spec generate_csr_and_key(Domain :: string(), [string()]) ->
     {ok, CSR :: pem(), Key :: pem()} | error.
-generate_csr_and_key(Domain) ->
+generate_csr_and_key(Domain, Subdomains) ->
     KeyFile = shell_utils:mktemp(),
     CSRFile = shell_utils:mktemp(),
 
+    BasicCmd = [
+        "openssl req"
+        " -new -batch",
+        " -nodes", % no password on keyfile
+        " -keyout ", KeyFile,
+        " -out ", CSRFile,
+        " -subj '/CN=", Domain, "'"
+    ],
+
+    SubjectAltNames = lists:foldl(fun(Subdomain, Acc) ->
+        Acc ++ [",DNS:", Subdomain]
+    end, [" -addext 'subjectAltName=DNS:", Domain], Subdomains) ++ "'",
+
+    Cmd = BasicCmd ++ SubjectAltNames,
+
     try
-        os:cmd([
-            "openssl req"
-            " -new -batch",
-            " -subj '/CN=", Domain, "'",
-            " -addext 'subjectAltName=DNS:", Domain, "'",
-            " -nodes", % no password on keyfile
-            " -keyout ", KeyFile,
-            " -out ", CSRFile
-        ]),
+        os:cmd(Cmd),
 
         {ok, KeyPem} = file:read_file(KeyFile),
         {ok, CSRPem} = file:read_file(CSRFile),
