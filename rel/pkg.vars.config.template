@@ -74,13 +74,13 @@
     ", sed"
     ", util-linux"
     ", lvm2"
-    ", folly (>= 2021.01.04.00)"}.
+    ", folly (>= 2024.06.24.00)"}.
 {deb_build_depends,
     "automake"
     ", cmake (>= 3.0.0)"
     ", esl-erlang (>= 25.0.2)"
-    ", folly-dev (>= 2021.01.04.00)"
-    ", g++ (>= 4.9.0)"
+    ", folly-dev (>= 2024.06.24.00)"
+    ", g++ (>= 10.0.0)"
     ", git"
     ", golang-go"
     ", libfmt-dev (>= 7.0.1)"
