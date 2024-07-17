@@ -91,7 +91,8 @@
 
 -record(authorization, {
     identifier :: #{type := binary(), value := binary()},
-    challenges :: [#challenge{}]
+    challenges :: [#challenge{}],
+    service :: plugin_service() | service_ones3
 }).
 
 % Record for storing progress in the certification process
@@ -101,8 +102,7 @@
     service :: plugin_service(),
     % Common Name for the certificate
     domain :: binary(),
-    % TODO comment
-    subdomains :: [binary()],
+    subdomains :: #{binary() => plugin_service() | service_ones3},
     % Whether to save obtained certificate on disk
     save_cert :: boolean(),
     % Paths for saving resulting key and cert
@@ -359,7 +359,7 @@ create_order(State = #flow_state{
 }) ->
     Payload = #{<<"identifiers">> => [
         build_order_dns_identifier(Domain)
-        | [build_order_dns_identifier(Subdomain) || Subdomain <- Subdomains]
+        | [build_order_dns_identifier(Subdomain) || Subdomain <- maps:keys(Subdomains)]
     ]},
 
     {ok, Response, Headers, State2} = post(NewOrderURL, Payload, ?HTTP_201_CREATED, State),
@@ -406,16 +406,23 @@ fetch_authorizations(AuthorizationURLs, State) ->
 %%--------------------------------------------------------------------
 -spec fetch_authorization(url(), #flow_state{}) ->
     {ok, #authorization{}, #flow_state{}}.
-fetch_authorization(URL, State) ->
+fetch_authorization(URL, State = #flow_state{
+    service = Plugin,
+    domain = Domain,
+    subdomains = Subdomains
+}) ->
     {ok, Body, _, State2} = post_as_get(URL, State),
 
-    #{<<"type">> := IdType,
-        <<"value">> := IdValue} = maps:get(<<"identifier">>, Body),
+    #{<<"type">> := IdType, <<"value">> := IdValue} = maps:get(<<"identifier">>, Body),
     ChallengeList = maps:get(<<"challenges">>, Body),
 
     Authorization = #authorization{
         challenges = lists:filtermap(fun parse_challenge/1, ChallengeList),
-        identifier = #{type => IdType, value => IdValue}
+        identifier = #{type => IdType, value => IdValue},
+        service = case IdValue == Domain of
+            true -> Plugin;
+            false -> maps:get(IdValue, Subdomains)
+        end
     },
     {ok, Authorization, State2}.
 
@@ -447,9 +454,9 @@ fulfill_authorizations(ChallengeType, #flow_state{authorizations = Authorization
 %%--------------------------------------------------------------------
 -spec fulfill_challenge(challenge_type(), #authorization{}, #flow_state{}) ->
     {ok, #flow_state{}}.
-fulfill_challenge(ChallengeType, #authorization{challenges = Challenges}, State) ->
+fulfill_challenge(ChallengeType, Authz = #authorization{challenges = Challenges}, State) ->
     {ok, Challenge} = find_challenge(ChallengeType, Challenges),
-    {ok, State2} = handle_challenge(State#flow_state{challenge = Challenge}),
+    {ok, State2} = handle_challenge(Authz, State#flow_state{challenge = Challenge}),
     {ok, State3, _} = poll_status(Challenge#challenge.url, State2),
     {ok, State3}.
 
@@ -478,15 +485,16 @@ find_challenge(Type, ChallengeList) ->
 %% Sets up challenge response and triggers validation.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_challenge(State :: #flow_state{}) -> {ok, #flow_state{}}.
-handle_challenge(#flow_state{challenge = #challenge{type = http}} = State) ->
+-spec handle_challenge(#authorization{}, State :: #flow_state{}) -> {ok, #flow_state{}}.
+handle_challenge(Authz, #flow_state{challenge = #challenge{type = http}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
             url = URL
-        },
-        service = Service
+        }
     } = State,
+    Service = Authz#authorization.service,
+
     AuthString = make_auth_string(Token, State),
 
     ok = set_http_record(Token, AuthString),
@@ -494,14 +502,16 @@ handle_challenge(#flow_state{challenge = #challenge{type = http}} = State) ->
     {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2};
 
-handle_challenge(#flow_state{challenge = #challenge{type = dns}} = State) ->
+handle_challenge(Authz, #flow_state{challenge = #challenge{type = dns}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
             url = URL
-        },
-        service = Service
-    } = State,
+        }
+   } = State,
+    Service = Authz#authorization.service,
+    Domain = maps:get(value, Authz#authorization.identifier),
+
     AuthString = make_auth_string(Token, State),
     TxtValue = base64url:encode(crypto:hash(sha256, AuthString)),
     ok = Service:set_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME,
@@ -509,8 +519,7 @@ handle_challenge(#flow_state{challenge = #challenge{type = dns}} = State) ->
 
     % Do not fail here even if TXT cannot be resolved
     % as there is no harm in attempting certification anyway
-    wait_for_txt_propagation(?LETSENCRYPT_TXT_NAME, State#flow_state.domain,
-        TxtValue, State#flow_state.service),
+    wait_for_txt_propagation(?LETSENCRYPT_TXT_NAME, Domain, TxtValue, Service),
 
     {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2}.
@@ -599,7 +608,7 @@ request_certificate(State) ->
     % The CSR does not contain Alt Name extension request, but Let's Encrypt
     % adds one for the requested domain, which is the desired result.
     {ok, CSRPem, KeyPem} = onepanel_cert:generate_csr_and_key(
-        binary_to_list(Domain), [binary_to_list(Subdomain) || Subdomain <- Subdomains]
+        binary_to_list(Domain), [binary_to_list(Subdomain) || Subdomain <- maps:keys(Subdomains)]
     ),
     [{'CertificationRequest', CSRDer, not_encrypted}] = public_key:pem_decode(CSRPem),
     CSRB64 = base64url:encode(CSRDer),
@@ -665,8 +674,8 @@ initial_state(Plugin, Mode, CurrentMode) ->
 
     Domain = Plugin:get_domain(),
     Subdomains = case service_ones3:exists() of
-        true -> [service_ones3:get_domain()];
-        false -> []
+        true -> #{service_ones3:get_domain() => service_ones3};
+        false -> #{}
     end,
 
     % passing state around is useful for managing anti-replay nonces
@@ -949,7 +958,8 @@ clean_keys(KeysDir) ->
 parse_challenge(#{
     <<"type">> := Type,
     <<"token">> := Token,
-    <<"url">> := URL}) ->
+    <<"url">> := URL
+}) ->
     TypeAtom = challenge_type_to_atom(Type),
     {true, #challenge{token = Token, url = URL, type = TypeAtom}};
 
@@ -1023,8 +1033,11 @@ wait_for_txt_propagation(TxtName, Domain, Expected, Plugin) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec clean_txt_record(Service :: module()) -> ok.
-clean_txt_record(Service) ->
-    ok = Service:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME}).
+clean_txt_record(service_oz_worker) ->
+    ok = service_oz_worker:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME});
+clean_txt_record(service_op_worker) ->
+    ok = service_op_worker:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME}),
+    ok = service_ones3:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME}).
 
 
 %%--------------------------------------------------------------------

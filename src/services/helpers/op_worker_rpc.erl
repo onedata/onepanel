@@ -161,7 +161,7 @@
 -export([storage_import_get_info/1, storage_import_get_info/2]).
 -export([storage_import_get_manual_example/1, storage_import_get_manual_example/2]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
--export([set_txt_record/3, set_txt_record/4]).
+-export([update_txt_records/1, update_txt_records/2]).
 -export([remove_txt_record/1, remove_txt_record/2]).
 
 %%%===================================================================
@@ -1042,15 +1042,14 @@ restart_rtransfer_link(Node) ->
     ?CALL(Node, []).
 
 
--spec set_txt_record(Name :: binary(), Content :: binary(),
-    TTL :: time:seconds() | undefined) -> ok | no_return().
-set_txt_record(Name, Content, TTL) ->
-    ?CALL([Name, Content, TTL]).
+-spec update_txt_records(map()) -> ok | no_return().
+update_txt_records(Data) ->
+    ?CALL([Data]).
 
--spec set_txt_record(node(), Name :: binary(), Content :: binary(),
-    TTL :: time:seconds() | undefined) -> ok | no_return().
-set_txt_record(Node, Name, Content, TTL) ->
-    ?CALL(Node, [Name, Content, TTL]).
+
+-spec update_txt_records(node(), map()) -> ok | no_return().
+update_txt_records(Node, Data) ->
+    ?CALL(Node, [Data]).
 
 
 -spec remove_txt_record(Name :: binary()) -> ok | no_return().

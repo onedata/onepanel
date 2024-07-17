@@ -23,6 +23,13 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 
+%% LE callbacks
+-export([
+    set_http_record/2,
+    set_txt_record/1, remove_txt_record/1,
+    get_dns_server/0
+]).
+
 %% API
 -export([
     exists/0,
@@ -91,6 +98,57 @@ get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
 get_steps(set_cluster_ips, Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
     get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()}).
+
+
+%%%===================================================================
+%%% LE callbacks
+%%%===================================================================
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets static http content.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
+set_http_record(Name, Value) ->
+    % TODO implement
+    ok.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets txt record in onezone dns via oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_txt_record(Ctx :: service:step_ctx()) -> ok.
+set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
+    BasicRecordJson = #{
+        <<"name">> => Name,
+        <<"content">> => Value
+    },
+    RecordJson = maps_utils:put_if_defined(BasicRecordJson, <<"ttl">>, TTL),
+    ok = op_worker_rpc:update_txt_records(#{<<"setOneS3TxtRecord">> => RecordJson}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Removes txt record from onezone dns via oneprovider.
+%% @end
+%%--------------------------------------------------------------------
+-spec remove_txt_record(Ctx :: service:step_ctx()) -> ok.
+remove_txt_record(#{txt_name := Name}) ->
+    ok = op_worker_rpc:update_txt_records(#{<<"unsetOneS3TxtRecordName">> => Name}).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns hostname of the dns server responsible for setting txt record.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_dns_server() -> string().
+get_dns_server() ->
+    service_oneprovider:get_oz_domain().
 
 
 %%%===================================================================
