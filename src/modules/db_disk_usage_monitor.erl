@@ -252,4 +252,7 @@ format_offenders(Offenders) ->
 set_service_circuit_breaker_state(State) ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
     onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME),
+    ClusterType = onepanel_env:get_cluster_type(),
+    ServiceName = onedata:service_by_type(ClusterType, worker),
+    onepanel_env:set_remote(PanelNodes, [service_circuit_breaker_state], State, ServiceName),
     ok.
