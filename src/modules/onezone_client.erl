@@ -137,7 +137,7 @@ check_for_compatibility_registry_updates(Domain, Resolver, OzConfiguration) ->
                     compatibility:check_for_updates(Resolver, [compatibility_registry_url(Domain)]);
                 false ->
                     ?debug(
-                        "Local compatibility registry (v. ~s) is not older than Onezone's (v. ~s)",
+                        "Local compatibility registry (v. ~ts) is not older than Onezone's (v. ~ts)",
                         [LocalRevision, RemoteRevision]
                     )
             end;
@@ -151,10 +151,10 @@ check_for_compatibility_registry_updates(Domain, Resolver, OzConfiguration) ->
 %% @private
 -spec configuration_url(Domain :: binary()) -> binary().
 configuration_url(Domain) ->
-    str_utils:format_bin("https://~s~s", [Domain, onepanel_env:get(onezone_configuration_urn)]).
+    str_utils:format_bin("https://~ts~ts", [Domain, onepanel_env:get(onezone_configuration_urn)]).
 
 
 %% @private
 -spec compatibility_registry_url(Domain :: binary()) -> binary().
 compatibility_registry_url(Domain) ->
-    str_utils:format_bin("https://~s~s", [Domain, onepanel_env:get(onezone_compatibility_registry_urn)]).
+    str_utils:format_bin("https://~ts~ts", [Domain, onepanel_env:get(onezone_compatibility_registry_urn)]).

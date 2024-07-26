@@ -100,11 +100,11 @@ async_update_cache(Service) ->
             update_cache(Service)
         catch
             throw:?ERROR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
-                ?error("DNS check refresh failed: no connection to servers ~ps", [UsedServers]);
+                ?error("DNS check refresh failed: no connection to servers ~tps", [UsedServers]);
             Type:Error ->
                 % Catch all as a process failure with exception
                 % causes an ugly error log
-                ?error("DNS check refresh failed: ~p:~p", [Type, Error])
+                ?error("DNS check refresh failed: ~tp:~tp", [Type, Error])
         end
     end),
     ok.

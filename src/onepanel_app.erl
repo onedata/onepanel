@@ -60,7 +60,7 @@ start(_StartType, _StartArgs) ->
         end
     catch
         _:Reason:Stacktrace ->
-            ?error_stacktrace("Cannot start onepanel application due to: ~p",
+            ?error_stacktrace("Cannot start onepanel application due to: ~tp",
                 [Reason], Stacktrace),
             {error, Reason}
     end.
@@ -100,7 +100,7 @@ resume_service() ->
         true ->
             ClusterType = onepanel_env:get_cluster_type(),
             Task = service:apply_async(ClusterType, manage_restart, #{}),
-            ?info("Resuming ~s (task id ~s)", [ClusterType, Task]);
+            ?info("Resuming ~ts (task id ~ts)", [ClusterType, Task]);
         false -> ok % new deployment, managed by REST
     end.
 

@@ -331,8 +331,7 @@ service_op_worker_add_storage_test(Config) ->
                 importedStorage => true,
                 readonly => true,
                 qosParameters => #{},
-                lumaFeed => <<"auto">>,
-                skipStorageDetection => <<"true">>
+                lumaFeed => <<"auto">>
             }
         }
     }),
@@ -403,9 +402,9 @@ service_op_worker_update_storage_test(Config) ->
                     ChangesBinary = onepanel_utils:convert(Changes, {values, binary}),
                     Expected = case Name of
                         <<"someNullDevice">> ->
-                            maps:merge(Storage, ChangesBinary);
+                            maps:merge(Storage, ChangesBinary#{verificationPassed => true});
                         _ ->
-                            maps:merge(Storage, ChangesBinary#{verificationPassed => false})
+                            Storage#{verificationPassed => false}
                     end,
 
                     Results = onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
@@ -697,7 +696,7 @@ assert_step_present(Module, Function, Results) ->
             false
     end, Results) of
         [NodesToResult | _] -> NodesToResult;
-        [] -> ct:fail("Step ~ts:~ts not found among results:~n~p", [Module, Function, Results])
+        [] -> ct:fail("Step ~ts:~ts not found among results:~n~tp", [Module, Function, Results])
     end.
 
 

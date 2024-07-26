@@ -54,7 +54,7 @@
 -define(FILE_CONTENT(X), lists:flatten(io_lib:format(
     "% MACHINE GENERATED FILE. DO NOT MODIFY.~n"
     "% Use overlay.config for custom configuration.~n~n"
-    "~p.", [X]))).
+    "~tp.", [X]))).
 
 %%%===================================================================
 %%% Test generators

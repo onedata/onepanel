@@ -159,7 +159,7 @@ get_steps(manage_restart, Ctx) ->
         {ok, #service{ctx = #{master_host := Master}}} -> Master;
         _ ->
             [FirstHost | _] = get_hosts(),
-            ?info("No master host configured, defaulting to ~p", [FirstHost]),
+            ?info("No master host configured, defaulting to ~tp", [FirstHost]),
             service:update(name(), fun(#service{ctx = C} = S) ->
                 S#service{ctx = C#{master_host => FirstHost}}
             end),
@@ -185,7 +185,7 @@ get_steps(manage_restart, Ctx) ->
             #steps{action = set_up_onepanel_in_onezone}
         ];
         false ->
-            ?info("Waiting for master node \"~s\" to start the Onezone", [MasterHost]),
+            ?info("Waiting for master node \"~ts\" to start the Onezone", [MasterHost]),
             []
     end;
 
@@ -294,7 +294,7 @@ set_up_onepanel_in_onezone() ->
     {ok, GuiHash} = oz_worker_rpc:deploy_static_gui_package(
         ?ONEPANEL_GUI, AppVersion, filename:absname(GuiPackagePath), false
     ),
-    ?info("Deployed static GUI files (~s)", [GuiHash]),
+    ?info("Deployed static GUI files (~ts)", [GuiHash]),
 
     {rpc, Client} = onezone_client:root_auth(),
     VersionInfo = {AppVersion, BuildVersion, GuiHash},

@@ -49,7 +49,7 @@ handle(<<"POST">>, Req) ->
                 )
         end
     catch Type:Reason:Stacktrace ->
-        ?error_stacktrace("Login by credentials failed - ~p:~p", [Type, Reason], Stacktrace),
+        ?error_stacktrace("Login by credentials failed - ~tp:~tp", [Type, Reason], Stacktrace),
         rest_handler:send_response(
             rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR), Req
         )

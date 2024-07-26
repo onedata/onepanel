@@ -125,7 +125,7 @@ migrate_from_users() ->
                     Username = onepanel_user:get_username(Record),
                     PassphraseHash = onepanel_user:get_password_hash(Record),
                     set_hash(PassphraseHash),
-                    ?info("Set passphrase of user '~s' as the emergency passphrase",
+                    ?info("Set passphrase of user '~ts' as the emergency passphrase",
                         [Username]),
                     ok;
                 error ->

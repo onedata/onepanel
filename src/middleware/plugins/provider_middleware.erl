@@ -198,7 +198,7 @@ create(#onp_req{gri = #gri{aspect = instance}, data = Data}) ->
     middleware_utils:execute_service_action(?SERVICE_OP, register, Ctx);
 
 create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
-    ?notice("Received cluster configuration request with the following batch config:~n~p", [
+    ?notice("Received cluster configuration request with the following batch config:~n~tp", [
         Data
     ]),
     DbHosts = middleware_utils:get_hosts([cluster, databases, nodes], Data),

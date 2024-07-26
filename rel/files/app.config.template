@@ -325,7 +325,8 @@
         {op_worker_cmd, "service op_worker"},
         {op_worker_open_files_limit, 65535},
         {op_worker_nagios_protocol, "https"},
-        {op_worker_wait_for_init_attempts, 60},
+        % 96 attempts every 5 seconds yield 8 minutes of waiting
+        {op_worker_wait_for_init_attempts, 96},
         {op_worker_wait_for_init_delay, 5000},
         %% 360 attempts every 5 seconds yield 30 minutes of waiting.
         {op_worker_wait_for_registration_token_file_attempts, 360},
@@ -343,7 +344,8 @@
         {oz_worker_custom_config_dir, "{{platform_etc_dir}}/../oz_worker/config.d/"},
         {oz_worker_open_files_limit, 65535},
         {oz_worker_nagios_protocol, "https"},
-        {oz_worker_wait_for_init_attempts, 60},
+        % 96 attempts every 5 seconds yield 8 minutes of waiting
+        {oz_worker_wait_for_init_attempts, 96},
         {oz_worker_wait_for_init_delay, 5000},
 
         {connect_to_onezone_attempts, 5}

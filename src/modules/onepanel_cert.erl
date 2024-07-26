@@ -177,7 +177,7 @@ backup_exisiting_certs() ->
         case filelib:is_regular(Path) of
             false -> ok;
             true ->
-                BackupPath = str_utils:format("~s.~B.bak", [
+                BackupPath = str_utils:format("~ts.~B.bak", [
                     Path, global_clock:timestamp_seconds()
                 ]),
                 file:copy(Path, BackupPath)

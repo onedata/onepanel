@@ -100,7 +100,7 @@ wait_until(Module, Function, Args, {validator, Validator}, Attempts, Delay) ->
         Class:Reason:Stacktrace ->
             timer:sleep(Delay),
             ?debug_exception(
-                "The call ~p:~p(~p) crashed with exception. Retrying...", [Module, Function, Args],
+                "The call ~tp:~tp(~tp) crashed with exception. Retrying...", [Module, Function, Args],
                 Class, Reason, Stacktrace
             ),
             wait_until(Module, Function, Args, {validator, Validator},

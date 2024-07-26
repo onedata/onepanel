@@ -151,7 +151,7 @@ assert_fields(TupleList, ExpectedFields) ->
         case lists:keymember(Field, 1, TupleList) of
             true -> ok;
             false ->
-                ct:fail("Key ~p missing in body ~p", [Field, TupleList])
+                ct:fail("Key ~tp missing in body ~tp", [Field, TupleList])
         end
     end, ExpectedFields).
 

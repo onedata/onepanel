@@ -244,9 +244,9 @@ handle_info({'DOWN', _, _, Pid, normal}, #state{tasks = Tasks, workers = Workers
                     Handler ! {forward_results, TaskId, Owner},
                     schedule_task_cleanup(TaskId);
                 error ->
-                    ?warning("Task ~p not found", [TaskId])
+                    ?warning("Task ~tp not found", [TaskId])
             end;
-        error -> ?warning("Worker ~p not found", [Pid])
+        error -> ?warning("Worker ~tp not found", [Pid])
     end,
     {noreply, State#state{workers = maps:remove(Pid, Workers)}};
 

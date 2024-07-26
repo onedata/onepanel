@@ -4,6 +4,30 @@ Release notes for project onepanel
 CHANGELOG
 ---------
 
+### 21.02.5
+
+-   **VFS-11744** Web GUI: Refactored UX of changing provider settings
+    in cluster.
+-   **VFS-11710** Web GUI: added possibility to embed Onedata Web
+    application into an iframe hosted on site with domain other than
+    Onezone.
+-   **VFS-11707** Web GUI: Detecting web browser extensions potentially
+    interfering with Onedata GUI.
+-   **VFS-11595** Web GUI: Fixed missing application elements when Qwant
+    VIPrivacy add-on is installed in user's browser.
+-   **VFS-11594** Web GUI: Fixed QoS query builder "Add" button
+    out-of-the-screen placement.
+-   **VFS-11365** Improvements to Open Data publishing and the OAI-PMH
+    protocol implementation. Added support for Europeana Data Model
+    metadata type. Improved the metadata editor in UI (both the visual
+    and XML forms). Improved the conformity to OAI-PMH protocol spec and
+    added support for optional functionalities. Added an HTTPS endpoint
+    (next to previously supported HTTP).
+-   **VFS-10265** Changes to user spaces (changing space name,
+    joining/leaving a space) are now reflected in Oneclient in real
+    time. Added support for spaces with the same name in Oneclient - in
+    case of an ambiguity a space name is extended with its ID.
+
 ### 21.02.4
 
 -   **VFS-11459** Added option to set custom region in S3 storage

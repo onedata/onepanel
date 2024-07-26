@@ -121,10 +121,10 @@ global_wait_for_tables() ->
 -spec upgrade_tables() -> ok.
 upgrade_tables() ->
     lists:foreach(fun(Model) ->
-        ?debug("Upgrading model ~p", [Model]),
+        ?debug("Upgrading model ~tp", [Model]),
         Table = model:get_table_name(Model),
         upgrade_table(Table, Model),
-        ?debug("Model ~p upgraded", [Model])
+        ?debug("Model ~tp upgraded", [Model])
     end, model:get_models()).
 
 

@@ -35,7 +35,7 @@ start(Service, SystemLimits) ->
         (_, _, Acc) -> Acc
     end, Tokens, SystemLimits),
     shell_utils:ensure_success(Tokens2),
-    ?info("Service ~s started", [Service]).
+    ?info("Service ~ts started", [Service]).
 
 
 %%--------------------------------------------------------------------
@@ -47,7 +47,7 @@ stop(Service) ->
     Tokens = [get_script(Service), "stop"],
     case shell_utils:execute(Tokens) of
         {0, _, _} ->
-            ?info("Service ~s stopped", [Service]),
+            ?info("Service ~ts stopped", [Service]),
             ok;
         {Code, Output, StdErr} ->
             ?warning("Failed to stop service '~ts' because of~n~tp ~ts~n~ts",

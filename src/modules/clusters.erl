@@ -117,7 +117,7 @@ get_user_privileges(OnezoneUserId) ->
     {ok, [privileges:cluster_privilege()]} | {error, _} | no_return().
 get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
     node_cache:acquire(?PRIVILEGES_CACHE_KEY(OnezoneUserId), fun() ->
-        case zone_rest(RestAuth, "/clusters/~s/effective_users/~s/privileges",
+        case zone_rest(RestAuth, "/clusters/~ts/effective_users/~ts/privileges",
             [get_id(), OnezoneUserId]) of
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
@@ -156,7 +156,7 @@ get_details({rpc, Auth}, ClusterId) ->
     end;
 
 get_details({rest, Auth}, ClusterId) ->
-    case zone_rest(Auth, "/clusters/~s", [ClusterId]) of
+    case zone_rest(Auth, "/clusters/~ts", [ClusterId]) of
         {ok, Map} ->
             Map2 = maps:without([clusterId], Map),
             {ok, Map2#{id => ClusterId, serviceId => ClusterId}};
@@ -325,7 +325,7 @@ get_members_count({rest, Auth}, UsersOrGroups, DirectOrEffective) ->
         {groups, effective} -> {"effective_groups", groups}
     end,
 
-    case zone_rest(Auth, "/clusters/~s/~s", [get_id(), Resource]) of
+    case zone_rest(Auth, "/clusters/~ts/~ts", [get_id(), Resource]) of
         {ok, #{ResponseKey := List}} -> length(List);
         Error -> throw(Error)
     end;

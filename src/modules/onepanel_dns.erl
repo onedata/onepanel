@@ -189,7 +189,7 @@ lookup(Names, Type, DnsServerIP) ->
         case Resolved of
             {error, {_Reason, _DnsMsg}} -> [];
             {error, Reason} ->
-                ?warning("Error querying server ~p for DNS check ~p of name ~p: ~p",
+                ?warning("Error querying server ~tp for DNS check ~tp of name ~tp: ~tp",
                     [DnsServerIP, Type, NameStr, Reason]),
                 error;
             {ok, Msg} ->
@@ -273,7 +273,7 @@ log_result(_Names, _Type, _Servers, #dns_check{summary = ok}) -> ok;
 
 log_result(Names, Type, Servers,
     #dns_check{summary = Summary, expected = Expected, got = Got}) ->
-    ?warning("DNS check for records ~s named ~p failed with \"~s\":~n"
-    "Servers used: ~p~nExpected values: ~p~nObtained values: ~p",
+    ?warning("DNS check for records ~ts named ~tp failed with \"~ts\":~n"
+    "Servers used: ~tp~nExpected values: ~tp~nObtained values: ~tp",
         [string:uppercase(atom_to_list(Type)), Names, Summary, Servers, Expected, Got]).
 

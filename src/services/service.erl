@@ -222,7 +222,7 @@ update_status(Service, Host, Status) ->
             Status ->
                 OldCtx;
             _ ->
-                ?info("Service ~s on host ~s changed status to: ~p", [
+                ?info("Service ~ts on host ~ts changed status to: ~tp", [
                     Service, Host, Status
                 ]),
                 kv_utils:put([status, Host], Status, OldCtx)
@@ -294,7 +294,7 @@ apply(Service, Action, Ctx, Notify) ->
     catch
         throw:{error, _} = Error -> Error;
         Type:Error:Stacktrace ->
-            ?error_stacktrace("Error executing action ~p:~p: ~p:~p",
+            ?error_stacktrace("Error executing action ~tp:~tp: ~tp:~tp",
                 [Service, Action, Type, Error], Stacktrace),
             ?ERROR_INTERNAL_SERVER_ERROR
     end,

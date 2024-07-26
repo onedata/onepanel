@@ -36,7 +36,7 @@ synchronize_node_upon_start(Node) ->
         true ->
             cluster_clocks:synchronize_node_upon_start(Node);
         false ->
-            ?info("Deferring clock sync with node ~p until Onezone connection is established", [Node])
+            ?info("Deferring clock sync with node ~tp until Onezone connection is established", [Node])
     end.
 
 
