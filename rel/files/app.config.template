@@ -161,11 +161,14 @@
         {zone_default_admin_username, <<"admin">>},
 
         {rest_api_prefix, "/api/v3/onepanel"},
-        %% Number of accepting processes in HTTPS listeners
+        %% Number of accepting processes in HTTP listener
+        {rest_http_acceptors, 10},
+        %% Number of accepting processes in HTTPS listener
         {rest_https_acceptors, 100},
         %% Request timeout in milliseconds, meaning how long the server should
         %% wait for an incoming request since the last activity until it closes
         %% the connection.
+        {rest_http_request_timeout, 30000},
         {rest_https_request_timeout, 30000},
         {rest_listener_status_check_attempts, 30},
 

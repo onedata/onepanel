@@ -97,9 +97,7 @@ init([]) ->
         end,
         ?info("Database ready"),
 
-        https_listener:start(),
-        onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
-            onepanel_env:get(rest_listener_status_check_attempts)),
+        start_listeners(),
 
         {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
             service_executor_spec(),
@@ -114,6 +112,17 @@ init([]) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% @private
+-spec start_listeners() -> ok.
+start_listeners() ->
+    Attempts = onepanel_env:get(rest_listener_status_check_attempts),
+
+    http_listener:start(),
+    onepanel_utils:wait_until(http_listener, healthcheck, [], {equal, ok}, Attempts),
+
+    https_listener:start(),
+    onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok}, Attempts).
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns a worker child_spec for a service_executor gen_server.
