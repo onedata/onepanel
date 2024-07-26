@@ -27,6 +27,17 @@
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_http_acceptors, 10)).
 -define(REQUEST_TIMEOUT, application:get_env(onepanel, rest_http_request_timeout, timer:seconds(30))).
 
+-define(LE_CHALLENGE_PATH, application:get_env(
+    onepanel,
+    letsencrypt_challenge_api_prefix,
+    "/.well-known/acme-challenge"
+)).
+-define(LE_CHALLENGE_ROOT, application:get_env(
+    onepanel,
+    letsencrypt_challenge_static_root,
+    "/tmp/op_worker/http/.well-known/acme-challenge/"
+)).
+
 %% listener_behaviour callbacks
 -export([port/0, start/0, stop/0, reload_web_certs/0, healthcheck/0]).
 -export([set_response_to_letsencrypt_challenge/2]).
@@ -56,6 +67,7 @@ start() ->
 
     Dispatch = cowboy_router:compile([
         {'_', [
+            {?LE_CHALLENGE_PATH ++ "/[...]", cowboy_static, {dir, ?LE_CHALLENGE_ROOT}},
             {'_', redirector_handler, https_listener:port()}
         ]}
     ]),

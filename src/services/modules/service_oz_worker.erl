@@ -43,9 +43,11 @@
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
 %% LE behaviour callbacks
--export([set_txt_record/1, remove_txt_record/1, get_dns_server/0,
-    reload_webcert/1, get_domain/0, get_admin_email/0, set_http_record/2,
-    supports_letsencrypt_challenge/1]).
+-export([
+    set_txt_record/1, remove_txt_record/1, get_dns_server/0,
+    reload_webcert/1, get_domain/0, get_admin_email/0,
+    supports_letsencrypt_challenge/1
+]).
 
 %% API functions
 -export([get_auth_by_token/2]).
@@ -353,18 +355,6 @@ get_nagios_status(Ctx) ->
 synchronize_clock_upon_start(_) ->
     OzNode = nodes:local(name()),
     onezone_cluster_clocks:synchronize_node_upon_start(OzNode).
-
-
-%%--------------------------------------------------------------------
-%% @doc {@link letsencrypt_plugin_behaviour:set_http_record/2}
-%% @end
-%%--------------------------------------------------------------------
--spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
-set_http_record(Name, Value) ->
-    Nodes = get_nodes(),
-    {Results, []} = utils:rpc_multicall(Nodes, http_listener,
-        set_response_to_letsencrypt_challenge, [Name, Value]),
-    lists:foreach(fun(R) -> ok = R end, Results).
 
 
 %%-------------------------------------------------------------------
