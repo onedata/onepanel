@@ -13,6 +13,7 @@
 -author("Bartosz Walkowicz").
 
 -behaviour(service_behaviour).
+-behaviour(letsencrypt_plugin_behaviour).
 
 -include("deployment_progress.hrl").
 -include("modules/errors.hrl").
@@ -25,16 +26,19 @@
 
 %% LE callbacks
 -export([
-    set_http_record/2,
     set_txt_record/1, remove_txt_record/1,
-    get_dns_server/0
+    get_dns_server/0,
+    get_domain/0,
+    get_admin_email/0,
+    supports_letsencrypt_challenge/1,
+    reload_webcert/1
 ]).
 
 %% API
 -export([
     exists/0,
 
-    get_domain/0, get_port/0,
+    get_port/0,
 
     create_service/1, add_service_host/1,
 
@@ -107,17 +111,6 @@ get_steps(set_cluster_ips, Ctx) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Sets static http content.
-%% @end
-%%--------------------------------------------------------------------
--spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
-set_http_record(Name, Value) ->
-    % TODO implement
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc
 %% Sets txt record in onezone dns via oneprovider.
 %% @end
 %%--------------------------------------------------------------------
@@ -151,6 +144,38 @@ get_dns_server() ->
     service_oneprovider:get_oz_domain().
 
 
+-spec get_domain() -> binary().
+get_domain() ->
+    OpDomain = service_op_worker:get_domain(),
+    <<"s3.", OpDomain/binary>>.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns the email address of the provider administrator.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_admin_email() -> binary().
+get_admin_email() ->
+    service_op_worker:get_admin_email().
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if given Let's Encrypt challenge can be fulfilled.
+%% @end
+%%--------------------------------------------------------------------
+-spec supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
+    boolean().
+supports_letsencrypt_challenge(Challenge) ->
+    service_op_worker:supports_letsencrypt_challenge(Challenge).
+
+
+-spec reload_webcert(service:step_ctx()) -> ok.
+reload_webcert(_Ctx) ->
+    %% TODO implement
+    ok.
+
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -159,12 +184,6 @@ get_dns_server() ->
 -spec exists() -> boolean().
 exists() ->
     service:exists(name()).
-
-
--spec get_domain() -> binary().
-get_domain() ->
-    OpDomain = service_op_worker:get_domain(),
-    <<"s3.", OpDomain/binary>>.
 
 
 -spec get_port() -> undefined | inet:port_number().
