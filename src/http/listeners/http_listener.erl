@@ -38,6 +38,15 @@
     "/tmp/op_worker/http/.well-known/acme-challenge/"
 )).
 
+-define(OZ_WORKER_CONNECT_OPTS, fun() -> [
+    {recv_timeout, timer:seconds(application:get_env(onepanel, oz_worker_proxy_recv_timeout_sec, 30))},
+    {ssl_options, [
+        {secure, only_verify_peercert},
+        {cacerts, https_listener:get_cert_chain_ders()}
+    ]}
+] end).
+-define(OAI_PMH_PATH,  application:get_env(onepanel, oai_pmh_api_prefix, "/oai_pmh")).
+
 %% listener_behaviour callbacks
 -export([port/0, start/0, stop/0, reload_web_certs/0, healthcheck/0]).
 -export([set_response_to_letsencrypt_challenge/2]).
@@ -65,12 +74,21 @@ port() ->
 start() ->
     ?info("Starting '~tp' server...", [?HTTP_LISTENER]),
 
-    Dispatch = cowboy_router:compile([
-        {'_', [
-            {?LE_CHALLENGE_PATH ++ "/[...]", cowboy_static, {dir, ?LE_CHALLENGE_ROOT}},
-            {'_', redirector_handler, https_listener:port()}
-        ]}
-    ]),
+    BasicRoutes = [
+        {?LE_CHALLENGE_PATH ++ "/[...]", cowboy_static, {dir, ?LE_CHALLENGE_ROOT}},
+        {'_', redirector_handler, https_listener:port()}
+    ],
+    Routes = case onepanel:is_oz_panel() of
+        true ->
+            [
+                {?OAI_PMH_PATH ++ "/[...]", http_port_forwarder, [<<"https">>, 443, ?OZ_WORKER_CONNECT_OPTS]}
+                | BasicRoutes
+            ];
+        false ->
+            BasicRoutes
+    end,
+    Dispatch = cowboy_router:compile([{'_', Routes}]),
+
     Result = cowboy:start_clear(?HTTP_LISTENER,
         #{
             num_acceptors => ?ACCEPTORS_NUM,
