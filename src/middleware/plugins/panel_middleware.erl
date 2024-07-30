@@ -219,19 +219,16 @@ get(#onp_req{gri = #gri{aspect = test_image}}, _) ->
 
 get(#onp_req{gri = #gri{aspect = health}}, _) ->
     Nodes = nodes:all(?SERVICE_PANEL),
-    StatusResponses = onepanel_rpc:call_all(Nodes, https_listener, healthcheck, []),
 
-    AllHealthy = lists:all(fun(StatusReponse) ->
-        case StatusReponse of
-            {_Node, ok} -> true;
-            _ -> false
-        end
-    end, StatusResponses),
+    AllHealthyFun = fun(Listener) ->
+        lists:all(fun
+            ({_Node, ok}) -> true;
+            (_) -> false
+        end, onepanel_rpc:call_all(Nodes, Listener, healthcheck, []))
+    end,
 
-    case AllHealthy of
-        true -> {ok, value, #{
-            <<"status">> => <<"healthy">>
-        }};
+    case AllHealthyFun(http_listener) andalso AllHealthyFun(https_listener) of
+        true -> {ok, value, #{<<"status">> => <<"healthy">>}};
         false -> throw(?ERROR_INTERNAL_SERVER_ERROR)
     end;
 

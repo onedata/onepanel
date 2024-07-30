@@ -28,11 +28,6 @@
 -callback remove_txt_record(#{txt_name := binary(), _ => _}) -> ok.
 
 %%--------------------------------------------------------------------
-%% Sets static http content.
-%%--------------------------------------------------------------------
--callback set_http_record(Name :: binary(), Value :: binary()) -> ok.
-
-%%--------------------------------------------------------------------
 %% Returns hostname of the server at which txt record is set.
 %%--------------------------------------------------------------------
 -callback get_dns_server() -> string().
