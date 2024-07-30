@@ -8,7 +8,8 @@
 %%% @doc
 %%% This module is responsible for starting and stopping listener that:
 %%% - handles lets encrypt
-%%% - redirects client from HTTP (port 80) to HTTPS.
+%%% - redirects client from HTTP (port 80) to HTTPS
+%%% - proxies oai requests to oz worker
 %%% @end
 %%%--------------------------------------------------------------------
 -module(http_listener).
@@ -35,11 +36,11 @@
 -define(LE_CHALLENGE_ROOT, application:get_env(
     onepanel,
     letsencrypt_challenge_static_root,
-    "/tmp/op_worker/http/.well-known/acme-challenge/"
+    "/tmp/onepanel/http/.well-known/acme-challenge/"
 )).
 
 -define(OZ_WORKER_CONNECT_OPTS, fun() -> [
-    {recv_timeout, timer:seconds(application:get_env(onepanel, oz_worker_proxy_recv_timeout_sec, 30))},
+    {recv_timeout, timer:seconds(application:get_env(onepanel, oai_pmh_proxy_recv_timeout_sec, 30))},
     {ssl_options, [
         {secure, only_verify_peercert},
         {cacerts, https_listener:get_cert_chain_ders()}

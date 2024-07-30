@@ -175,11 +175,7 @@
         %% REST route needed for Let's Encrypt challenge responses
         {letsencrypt_challenge_api_prefix, "/.well-known/acme-challenge"},
         %% Static content root needed for Let's Encrypt challenge responses
-        {letsencrypt_challenge_static_root, "/tmp/op_worker/http/.well-known/acme-challenge/"},
-
-        %% Timeout when waiting for response from oz_worker -
-        %% concerns proxying requests to oz_worker via onepanel.
-        {oz_worker_proxy_recv_timeout_sec, 30},
+        {letsencrypt_challenge_static_root, "/tmp/onepanel/http/.well-known/acme-challenge/"},
 
         %% Path to packaged GUI static files. They will be served
         %% as the emergency GUI and uploaded to Onezone for normal operation.
@@ -230,6 +226,10 @@
         %% Prefix to the OAI-PMH API - all paths must begin with it
         %% NOTE: this variable is duplicated in oz-worker and must be set to the exact same value
         {oai_pmh_api_prefix, "/oai_pmh"},
+
+        %% Timeout when waiting for response from oz_worker -
+        %% concerns proxying oai requests to oz_worker via onepanel.
+        {oai_pmh_proxy_recv_timeout_sec, 30},
 
         %% ===================================================================
         %% DB disk usage monitor configuration
