@@ -1505,8 +1505,8 @@ storage_import_model() ->
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
         %% supported. For more info please read:
-        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
-        %% /File-registration
+        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
+        %% registration
         mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
@@ -1629,8 +1629,12 @@ web_cert_model() ->
         %% Describes certificate validity status.
         status => {enum, string, [<<"valid">>, <<"near_expiration">>, <<"expired">>, <<"domain_mismatch">>, <<"regenerating">>, <<"unknown">>]},
         paths => {web_cert_paths_model(), optional},
-        %% The domain (Common Name) for which current certificate was issued.
+        %% **DEPRECATED** The domain (Common Name) for which current certificate
+        %% was issued.
         domain => string,
+        %% List of dns names included in certificate's Subject Alternative
+        %% Name extension.
+        dnsNames => {[string], optional},
         %% Issuer value of the current certificate.
         issuer => string,
         %% Date and time in ISO 8601 format. Represents last successful

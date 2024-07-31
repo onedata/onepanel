@@ -486,14 +486,13 @@ find_challenge(Type, ChallengeList) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec handle_challenge(#authorization{}, State :: #flow_state{}) -> {ok, #flow_state{}}.
-handle_challenge(Authz, #flow_state{challenge = #challenge{type = http}} = State) ->
+handle_challenge(_Authz, #flow_state{challenge = #challenge{type = http}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
             url = URL
         }
     } = State,
-    Service = Authz#authorization.service,
 
     AuthString = make_auth_string(Token, State),
 

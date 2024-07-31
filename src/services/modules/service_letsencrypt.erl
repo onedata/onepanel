@@ -212,6 +212,7 @@ get_details() ->
     {ok, Cert} = onepanel_cert:read(?CERT_PATH),
     {Since, Until} = onepanel_cert:get_times(Cert),
     Domain = onepanel_cert:get_subject_cn(Cert),
+    DnsNames = onepanel_cert:get_dns_names(Cert),
     Issuer = onepanel_cert:get_issuer_cn(Cert),
 
     Optional = case Enabled of
@@ -221,7 +222,6 @@ get_details() ->
         };
         false -> #{}
     end,
-
 
     Optional#{
         letsEncrypt => is_enabled(#{}),
@@ -233,6 +233,7 @@ get_details() ->
             chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary))
         },
         domain => Domain,
+        dnsNames => DnsNames,
         issuer => Issuer,
         status => Status
     }.
@@ -309,6 +310,7 @@ obtain_cert(Ctx) ->
 
     ok = letsencrypt_api:run_certification_flow(get_plugin_module()),
 
+    %% TODO reload ones3?
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
 
     % Reloading webcerts stops https_listener and kills all connections. To ensure

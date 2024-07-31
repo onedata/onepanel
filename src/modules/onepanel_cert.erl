@@ -22,10 +22,16 @@
 -export_type([pem/0, cert/0]).
 
 %% API
--export([generate_csr_and_key/2, backup_exisiting_certs/0,
-    list_certificate_files/0]).
--export([read/1, verify_hostname/2, get_subject_cn/1, get_issuer_cn/1,
-    get_seconds_till_expiration/1]).
+-export([
+    generate_csr_and_key/2,
+    backup_exisiting_certs/0,
+    list_certificate_files/0
+]).
+-export([
+    read/1, verify_hostname/2,
+    get_subject_cn/1, get_dns_names/1, get_issuer_cn/1,
+    get_seconds_till_expiration/1
+]).
 -export([get_times/1]).
 
 %%%===================================================================
@@ -111,6 +117,14 @@ get_subject_cn(#'Certificate'{} = Cert) ->
         subject = {rdnSequence, SubjectParts}
     }} = Cert,
     get_common_name(SubjectParts).
+
+
+-spec get_dns_names(cert()) -> [binary()].
+get_dns_names(Cert = #'Certificate'{}) ->
+    lists:map(
+        fun str_utils:to_binary/1,
+        ssl_verify_fun_cert_helpers:extract_dns_names(to_otp(Cert))
+    ).
 
 
 %%--------------------------------------------------------------------
