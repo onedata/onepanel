@@ -161,13 +161,21 @@
         {zone_default_admin_username, <<"admin">>},
 
         {rest_api_prefix, "/api/v3/onepanel"},
-        %% Number of accepting processes in HTTPS listeners
+        %% Number of accepting processes in HTTP listener
+        {rest_http_acceptors, 10},
+        %% Number of accepting processes in HTTPS listener
         {rest_https_acceptors, 100},
         %% Request timeout in milliseconds, meaning how long the server should
         %% wait for an incoming request since the last activity until it closes
         %% the connection.
+        {rest_http_request_timeout, 30000},
         {rest_https_request_timeout, 30000},
         {rest_listener_status_check_attempts, 30},
+
+        %% REST route needed for Let's Encrypt challenge responses
+        {letsencrypt_challenge_api_prefix, "/.well-known/acme-challenge"},
+        %% Static content root needed for Let's Encrypt challenge responses
+        {letsencrypt_challenge_static_root, "/tmp/onepanel/http/.well-known/acme-challenge/"},
 
         %% Path to packaged GUI static files. They will be served
         %% as the emergency GUI and uploaded to Onezone for normal operation.
@@ -210,6 +218,18 @@
 
         % frequency of the cron ticks
         {cron_period, 1000}, % 1 second
+
+        %% ===================================================================
+        %% Open Data
+        %% ===================================================================
+
+        %% Prefix to the OAI-PMH API - all paths must begin with it
+        %% NOTE: this variable is duplicated in oz-worker and must be set to the exact same value
+        {oai_pmh_api_prefix, "/oai_pmh"},
+
+        %% Timeout when waiting for response from oz_worker -
+        %% concerns proxying oai requests to oz_worker via onepanel.
+        {oai_pmh_proxy_recv_timeout_sec, 30},
 
         %% ===================================================================
         %% DB disk usage monitor configuration
