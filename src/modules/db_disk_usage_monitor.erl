@@ -14,6 +14,7 @@
 
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/onedata.hrl").
 
 -export([
     restart_periodic_check/0,
@@ -100,8 +101,8 @@ run_periodic_check() ->
 
         Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
         Results = utils:erpc_multicall(Nodes, fun check_usage_on_host/0),
-        CircuitBreakerState = onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed),
-        NewCircuitBreakerState = infer_ciruit_breaker_state(
+        CircuitBreakerState = get_service_circuit_breaker_state(),
+        NewCircuitBreakerState = handle_offenders(
             CircuitBreakerState, group_offenders(lists:zip(Hosts, Results))
         ),
         set_service_circuit_breaker_state(NewCircuitBreakerState),
@@ -193,39 +194,39 @@ find_first_exceeded_threshold(Usage, [_ | ThresholdsByPriority]) ->
 
 
 %% @private
--spec infer_ciruit_breaker_state(open | closed, #{atom() => [{service:host(), usage_info()}]}) ->
+-spec handle_offenders(open | closed, #{atom() => [{service:host(), usage_info()}]}) ->
     open | closed.
-infer_ciruit_breaker_state(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
+handle_offenders(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
     closed;
 
-infer_ciruit_breaker_state(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
+handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
     ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~ts", [
         format_offenders(Offenders)
     ]),
-    infer_ciruit_breaker_state(CircuitBreakerState, maps:remove(warning_threshold, OffendersPerThreshold));
+    handle_offenders(CircuitBreakerState, maps:remove(warning_threshold, OffendersPerThreshold));
 
-infer_ciruit_breaker_state(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
+handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
     ?alert(
         "DB disk usage is very high. Provide more space for the DB as soon as possible. "
         "When the usage reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts",
         [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD * 100, format_offenders(Offenders)]
     ),
-    infer_ciruit_breaker_state(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
+    handle_offenders(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
 
-infer_ciruit_breaker_state(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
+handle_offenders(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
     ?emergency(
         "DB disk space is nearly exhausted! All services will now stop processing requests until the problem is resolved.~ts",
         [format_offenders(Offenders)]
     ),
     open;
 
-infer_ciruit_breaker_state(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
+handle_offenders(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
     % service_circuit_breaker must have been opened on previous check
     open;
 
-infer_ciruit_breaker_state(open, OffendersPerThreshold) ->
+handle_offenders(open, OffendersPerThreshold) ->
     ?notice("DB disk space is no longer near exhaustion. All services will now resume processing requests."),
-    infer_ciruit_breaker_state(closed, OffendersPerThreshold).
+    handle_offenders(closed, OffendersPerThreshold).
 
 
 %% @private
@@ -254,6 +255,15 @@ set_service_circuit_breaker_state(State) ->
     ?catch_exceptions(onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
     ClusterType = onepanel_env:get_cluster_type(),
     ServiceName = onedata:service_by_type(ClusterType, worker),
-    ServiceNodes = nodes:all(ServiceName),
+    ServiceNodes = case ClusterType of
+        ?ONEZONE ->  service_oz_worker:get_nodes();
+        ?ONEPROVIDER -> service_op_worker:get_nodes()
+    end,
     ?catch_exceptions(onepanel_env:set_remote(ServiceNodes, [service_circuit_breaker_state], State, ServiceName)),
     ok.
+
+
+%% @private
+-spec get_service_circuit_breaker_state() -> open | closed.
+get_service_circuit_breaker_state() ->
+    onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed).
