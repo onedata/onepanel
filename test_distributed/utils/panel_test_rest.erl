@@ -21,6 +21,7 @@
 %% API
 -export([
     get/3,
+    patch/3,
 
     request/2
 ]).
@@ -28,7 +29,7 @@
 -type request_auth() ::
     root |
     {basic, Username :: binary(), Password :: binary()} |
-    {token, Token} |
+    {token, Token :: binary()} |
     none.
 
 -type request_args() :: #{
@@ -59,6 +60,11 @@
 -spec get(oct_background:node_selector(), binary(), request_args()) -> response().
 get(PanelNodeSelector, Path, RequestArgs) ->
     request(PanelNodeSelector, RequestArgs#{method => get, path => Path}).
+
+
+-spec patch(oct_background:node_selector(), binary(), request_args()) -> response().
+patch(PanelNodeSelector, Path, RequestArgs) ->
+    request(PanelNodeSelector, RequestArgs#{method => patch, path => Path}).
 
 
 -spec request(oct_background:node_selector(), request_args()) -> response().
@@ -128,7 +134,13 @@ build_url(Node, RequestArgs) ->
 -spec build_headers(request_args()) -> http_client:headers().
 build_headers(RequestArgs) ->
     BasicHeaders = maps:get(headers, RequestArgs, #{}),
-    add_auth_header(BasicHeaders, maps:get(auth, RequestArgs, none)).
+
+    Headers = case maps:is_key(json, RequestArgs) of
+        true -> BasicHeaders#{?HDR_CONTENT_TYPE => <<"application/json">>};
+        false -> BasicHeaders
+    end,
+
+    add_auth_header(Headers, maps:get(auth, RequestArgs, none)).
 
 
 %% @private
