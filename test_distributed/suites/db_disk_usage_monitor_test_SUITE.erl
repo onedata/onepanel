@@ -172,7 +172,15 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
     assert_service_circuit_breaker_state(closed, Service),
 
+    test_utils:mock_new(TargetPanelNodes, [onepanel_env]),
+    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(?ERROR_FORBIDDEN) end),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
+
+    assert_service_circuit_breaker_state(open, closed, Service),
+    timer:sleep(2000),
+    assert_service_circuit_breaker_state(open, closed, Service),
+    test_utils:mock_unload(TargetPanelNodes),
+
     assert_service_circuit_breaker_state(open, Service),
 
     %% Simulate that Onepanel was unable to set the circuit breaker state as open at worker nodes
@@ -231,11 +239,15 @@ get_worker_name(?SERVICE_OPW) -> ?SERVICE_OP.
 
 %% @private
 assert_service_circuit_breaker_state(ExpState, Service) ->
+    assert_service_circuit_breaker_state(ExpState, ExpState, Service).
+
+%% @private
+assert_service_circuit_breaker_state(ExpStateInPanel, ExpStateInWorker, Service) ->
     lists:foreach(fun(Node) ->
-        ?assertEqual(ExpState, get_panel_env(Node, service_circuit_breaker_state, closed), ?ATTEMPTS)
+        ?assertEqual(ExpStateInPanel, get_panel_env(Node, service_circuit_breaker_state, closed), ?ATTEMPTS)
     end, get_panel_nodes(Service)),
     lists:foreach(fun(Worker) ->
-        ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, closed), ?ATTEMPTS)
+        ?assertEqual(ExpStateInWorker, get_worker_env(Worker, service_circuit_breaker_state, Service, closed), ?ATTEMPTS)
     end, get_worker_nodes(Service)).
 
 
