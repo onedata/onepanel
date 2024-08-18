@@ -13,8 +13,6 @@
 -author("Bartosz Walkowicz").
 
 -include("names.hrl").
--include_lib("ctool/include/test/assertions.hrl").
--include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -178,40 +176,32 @@ assert_oz_dns(OzDomain, ExpOzIps) ->
 
 %% @private
 assert_panel_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneCheckSummary) ->
-    ExpCheckResult = build_exp_dns_check(
+    ExpCheckResults = build_exp_dns_check_results(
         ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneCheckSummary
     ),
     PerformFun = fun() ->
         dns_test_utils:invalidate_dns_check_cache(zone),
-
-        Check = dns_test_utils:perform_dns_check(zone),
-        maps:without([<<"timestamp">>], Check)
+        maps:without([<<"timestamp">>], dns_test_utils:perform_dns_check(zone))
     end,
-    ?assertEqual(ExpCheckResult, PerformFun(), ?ATTEMPTS).
+    ?assertEqual(ExpCheckResults, PerformFun(), ?ATTEMPTS).
 
 
 %% @private
-build_exp_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneCheckSummary) ->
+build_exp_dns_check_results(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneCheckSummary) ->
     ExpOzIpsBin = ip_test_utils:encode_ips(ExpOzIps),
 
-    ExpDomainCheck = #{
-        <<"domain">> => #{
-            <<"summary">> => str_utils:to_binary(ExpDomainCheckSummary),
-            <<"expected">> => ExpOzIpsBin,
-            <<"got">> => case ExpDomainCheckSummary of
-                ok -> ExpOzIpsBin;
-                unresolvable -> []
-            end,
-            <<"recommended">> => lists:sort(lists:map(fun(OzIpBin) ->
-                str_utils:format_bin("~s. IN A ~s", [ExpOzDomain, OzIpBin])
-            end, ExpOzIpsBin))
-        }
-    },
+    ExpDomainRecommended = lists:sort(lists:map(fun(OzIpBin) ->
+        str_utils:format_bin("~s. IN A ~s", [ExpOzDomain, OzIpBin])
+    end, ExpOzIpsBin)),
+
+    ExpDomainCheck = #{<<"domain">> => build_exp_dns_check_result(
+        ExpDomainCheckSummary, ExpOzIpsBin, ExpDomainRecommended
+    )},
     case ExpDnsZoneCheckSummary of
         none ->
             ExpDomainCheck;
         _ ->
-            Recommended = lists:flatten([
+            ExpDnsZoneRecommended = lists:flatten([
                 lists:map(fun(NsDomainLabel) ->
                     str_utils:format_bin("~s. IN NS ~s.~s", [ExpOzDomain, NsDomainLabel, ExpOzDomain])
                 end, ?NS_DOMAIN_LABELS),
@@ -219,15 +209,20 @@ build_exp_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneChec
                     str_utils:format_bin("~s.~s. IN A ~s", [NsDomainLabel, ExpOzDomain, OzIpBin])
                 end, lists:zip(?NS_DOMAIN_LABELS, ExpOzIpsBin))
             ]),
-            ExpDomainCheck#{
-                <<"dnsZone">> => #{
-                    <<"summary">> => str_utils:to_binary(ExpDnsZoneCheckSummary),
-                    <<"expected">> => ExpOzIpsBin,
-                    <<"got">> => case ExpDnsZoneCheckSummary of
-                        ok -> ExpOzIpsBin;
-                        unresolvable -> []
-                    end,
-                    <<"recommended">> => Recommended
-                }
-            }
+            ExpDomainCheck#{<<"dnsZone">> => build_exp_dns_check_result(
+                ExpDnsZoneCheckSummary, ExpOzIpsBin, ExpDnsZoneRecommended
+            )}
     end.
+
+
+%% @private
+build_exp_dns_check_result(ExpSummary, ExpIpsBin, ExpRecommended) ->
+    #{
+        <<"summary">> => str_utils:to_binary(ExpSummary),
+        <<"expected">> => ExpIpsBin,
+        <<"got">> => case ExpSummary of
+            ok -> ExpIpsBin;
+            unresolvable -> []
+        end,
+        <<"recommended">> => ExpRecommended
+    }.

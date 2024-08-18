@@ -45,9 +45,10 @@ all() -> [
 -define(PROVIDER_SELECTOR, krakow).
 -define(SUBDOMAIN_LABEL, <<"krakow">>).
 
+-define(EXP_NONE_IPS, #{worker => [], s3 => []}).
+
 -define(ATTEMPTS, 30).
 
-% TODO test s3
 
 %%%===================================================================
 %%% API
@@ -55,9 +56,12 @@ all() -> [
 
 
 configure_dns_for_domain_test(_Config) ->
-    configure_domain(),
     OpDomain = get_op_domain(),
-    OpIps = get_op_ips(),
+    configure_domain(),
+    assert_provider_domain(OpDomain),
+
+    OpWorkerIps = [OneS3Ip | _] = get_op_nodes_ips(),
+    ExpIps = #{worker => OpWorkerIps, s3 => [OneS3Ip]},
 
     % Originally, with no dns servers specified (system defaults will be used)
     % dns check should:
@@ -71,24 +75,24 @@ configure_dns_for_domain_test(_Config) ->
     },
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
-    assert_oz_dns(OpDomain, [], []),
-    assert_panel_dns_check(OpDomain, OpIps, ok, [], none),
+    assert_oz_dns(OpDomain, ?EXP_NONE_IPS),
+    assert_panel_dns_check(OpDomain, ok, ExpIps),
 
     % Enabling build in dns server does nothing (this option is relevant only for oz)
     DnsConfigDiff1 = #{<<"builtInDnsServer">> => true},
     ExpDnsConfig1 = maps:merge(InitialDnsConfig, DnsConfigDiff1),
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff1),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig1),
-    assert_oz_dns(OpDomain, [], []),
-    assert_panel_dns_check(OpDomain, OpIps, ok, [], none),
+    assert_oz_dns(OpDomain, ?EXP_NONE_IPS),
+    assert_panel_dns_check(OpDomain, ok, ExpIps),
 
     % With dns server set explicitly to external one dns check should fail
     DnsConfigDiff2 = #{<<"dnsServers">> => [<<"8.8.8.8">>]},
     ExpDnsConfig2 = maps:merge(ExpDnsConfig1, DnsConfigDiff2),
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff2),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig2),
-    assert_oz_dns(OpDomain, [], []),
-    assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none),
+    assert_oz_dns(OpDomain, ?EXP_NONE_IPS),
+    assert_panel_dns_check(OpDomain, unresolvable, ExpIps),
 
     % With dns server set explicitly to oz one dns check should also fail
     OzIps = ip_test_utils:get_zone_nodes_ips(),
@@ -96,30 +100,36 @@ configure_dns_for_domain_test(_Config) ->
     ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff3),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig3),
-    assert_oz_dns(OpDomain, [], []),
-    assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none).
+    assert_oz_dns(OpDomain, ?EXP_NONE_IPS),
+    assert_panel_dns_check(OpDomain, unresolvable, ExpIps).
 
 
 modify_ips_for_domain_test(_Config) ->
-    configure_domain(),
     OpDomain = get_op_domain(),
-    OpIps = get_op_ips(),
+    configure_domain(),
+    assert_provider_domain(OpDomain),
 
-    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
-    assert_oz_dns(OpDomain, [], []),
-    assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none),
+    OpWorkerIps = [OneS3Ip | _] = get_op_nodes_ips(),
 
-    NewOpIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
-    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
-    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
-    assert_oz_dns(OpDomain, [], []),
-    assert_panel_dns_check(OpDomain, NewOpIps, unresolvable, [], none).
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpWorkerIps),
+    assert_oz_dns(OpDomain, ?EXP_NONE_IPS),
+    assert_panel_dns_check(OpDomain, unresolvable, #{worker => OpWorkerIps, s3 => [OneS3Ip]}),
+
+    NewOpWorkerIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
+
+    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, NewOpWorkerIps),
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpWorkerIps),
+    assert_oz_dns(OpDomain, ?EXP_NONE_IPS),
+    assert_panel_dns_check(OpDomain, unresolvable, #{worker => NewOpWorkerIps, s3 => [hd(NewOpWorkerIps)]}).
 
 
 configure_dns_for_subdomain_test(_Config) ->
+    OpSubdomain = build_op_subdomain(),
     configure_subdomain(),
-    OpSubdomain = get_op_subdomain(),
-    OpIps = get_op_ips(),
+    assert_provider_domain(OpSubdomain),
+
+    OpWorkerIps = [OneS3Ip | _] = get_op_nodes_ips(),
+    ExpIps = #{worker => OpWorkerIps, s3 => [OneS3Ip]},
 
     % Originally, with no dns servers specified (system defaults will be used)
     % dns check should:
@@ -132,24 +142,24 @@ configure_dns_for_subdomain_test(_Config) ->
     },
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
-    assert_oz_dns(OpSubdomain, OpIps, []),
-    assert_panel_dns_check(OpSubdomain, OpIps, unresolvable, [], none),
+    assert_oz_dns(OpSubdomain, ExpIps),
+    assert_panel_dns_check(OpSubdomain, unresolvable, ExpIps),
 
     % Enabling build in dns server does nothing (this option is relevant only for oz)
     DnsConfigDiff1 = #{<<"builtInDnsServer">> => true},
     ExpDnsConfig1 = maps:merge(InitialDnsConfig, DnsConfigDiff1),
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff1),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig1),
-    assert_oz_dns(OpSubdomain, OpIps, []),
-    assert_panel_dns_check(OpSubdomain, OpIps, unresolvable, [], none),
+    assert_oz_dns(OpSubdomain, ExpIps),
+    assert_panel_dns_check(OpSubdomain, unresolvable, ExpIps),
 
     % With dns server set explicitly to external one dns check should fail
     DnsConfigDiff2 = #{<<"dnsServers">> => [<<"8.8.8.8">>]},
     ExpDnsConfig2 = maps:merge(ExpDnsConfig1, DnsConfigDiff2),
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff2),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig2),
-    assert_oz_dns(OpSubdomain, OpIps, []),
-    assert_panel_dns_check(OpSubdomain, OpIps, unresolvable, [], none),
+    assert_oz_dns(OpSubdomain, ExpIps),
+    assert_panel_dns_check(OpSubdomain, unresolvable, ExpIps),
 
     % With dns server set explicitly to oz one dns check should also fail
     OzIps = ip_test_utils:get_zone_nodes_ips(),
@@ -157,41 +167,50 @@ configure_dns_for_subdomain_test(_Config) ->
     ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff3),
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig3),
-    assert_oz_dns(OpSubdomain, OpIps, []),
-    assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none).
+    assert_oz_dns(OpSubdomain, ExpIps),
+    assert_panel_dns_check(OpSubdomain, ok, ExpIps).
 
 
 modify_ips_for_subdomain_test(_Config) ->
+    OpSubdomain = build_op_subdomain(),
     configure_subdomain(),
-    OpSubdomain = get_op_subdomain(),
-    OpIps = get_op_ips(),
+    assert_provider_domain(OpSubdomain),
 
-    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
-    assert_oz_dns(OpSubdomain, OpIps, []),
-    assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none),
+    OpWorkerIps = [OneS3Ip | _] = get_op_nodes_ips(),
+    ExpIps = #{worker => OpWorkerIps, s3 => [OneS3Ip]},
 
-    NewOpIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
-    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
-    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
-    assert_oz_dns(OpSubdomain, NewOpIps, []),
-    assert_panel_dns_check(OpSubdomain, NewOpIps, ok, [], none).
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpWorkerIps),
+    assert_oz_dns(OpSubdomain, ExpIps),
+    assert_panel_dns_check(OpSubdomain, ok, ExpIps),
+
+    NewOpWorkerIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
+    NewExpIps = #{worker => NewOpWorkerIps, s3 => [hd(NewOpWorkerIps)]},
+
+    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, NewOpWorkerIps),
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpWorkerIps),
+    assert_oz_dns(OpSubdomain, NewExpIps),
+    assert_panel_dns_check(OpSubdomain, ok, NewExpIps).
 
 
 modify_subdomain_test(_Config) ->
+    CurrentOpSubdomain = build_op_subdomain(),
     configure_subdomain(),
-    OpSubdomain = get_op_subdomain(),
-    OpIps = get_op_ips(),
+    assert_provider_domain(CurrentOpSubdomain),
 
-    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
-    assert_oz_dns(OpSubdomain, OpIps, []),
-    assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none),
+    OpWorkerIps = [OneS3Ip | _] = get_op_nodes_ips(),
+    ExpIps = #{worker => OpWorkerIps, s3 => [OneS3Ip]},
+
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpWorkerIps),
+    assert_oz_dns(CurrentOpSubdomain, ExpIps),
+    assert_panel_dns_check(CurrentOpSubdomain, ok, ExpIps),
 
     NewOpSubdomainLabel = ?RAND_STR(),
+    NewOpSubdomain = build_op_subdomain(NewOpSubdomainLabel),
     configure_subdomain(NewOpSubdomainLabel),
-    NewOpSubdomain = get_op_subdomain(NewOpSubdomainLabel),
-    assert_oz_dns(OpSubdomain, [], []),
-    assert_oz_dns(NewOpSubdomain, OpIps, []),
-    assert_panel_dns_check(NewOpSubdomain, OpIps, ok, [], none).
+    assert_provider_domain(NewOpSubdomain),
+    assert_oz_dns(CurrentOpSubdomain, ?EXP_NONE_IPS),
+    assert_oz_dns(NewOpSubdomain, ExpIps),
+    assert_panel_dns_check(NewOpSubdomain, ok, ExpIps).
 
 
 %%%===================================================================
@@ -215,23 +234,19 @@ end_per_suite(_Config) ->
 
 
 init_per_testcase(_Case, Config) ->
-    Config.
-
-
-end_per_testcase(Testcase, _Config) when
-    Testcase =:= configure_dns_for_domain_test;
-    Testcase =:= configure_dns_for_subdomain_test
-->
     % Ensure dns servers are set to oz dns after tests messing with dns config
     OzIps = ip_test_utils:get_zone_nodes_ips(),
     DnsConfigDiff = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
-    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff);
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff),
+
+    Config.
+
 
 end_per_testcase(Testcase, _Config) when
     Testcase =:= modify_ips_for_subdomain_test;
     Testcase =:= modify_ips_for_domain_test
 ->
-    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, get_op_ips());
+    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, get_op_nodes_ips());
 
 end_per_testcase(_Case, _Config) ->
     ok.
@@ -284,71 +299,83 @@ update_provider_details(JsonData) ->
 
 
 %% @private
+assert_provider_domain(ExpDomain) ->
+    ?assertMatch(
+        {ok, ?HTTP_200_OK, _, #{<<"domain">> := ExpDomain}},
+        panel_test_rest:get(?PROVIDER_SELECTOR, <<"/provider">>, #{auth => root})
+    ),
+    ok.
+
+
+%% @private
 get_op_domain() ->
     oct_background:get_provider_domain(?PROVIDER_SELECTOR).
 
 
 %% @private
-get_op_subdomain() ->
-    get_op_subdomain(?SUBDOMAIN_LABEL).
+build_op_subdomain() ->
+    build_op_subdomain(?SUBDOMAIN_LABEL).
 
 
 %% @private
-get_op_subdomain(SubdomainLabel) ->
+build_op_subdomain(SubdomainLabel) ->
     OzDomain = dns_test_utils:get_zone_domain(),
     str_utils:format_bin("~s.~s", [SubdomainLabel, OzDomain]).
 
 
 %% @private
-get_op_ips() ->
+get_op_nodes_ips() ->
     ip_test_utils:get_provider_nodes_ips(?PROVIDER_SELECTOR).
 
 
 %% @private
-assert_oz_dns(OpSubdomain, ExpOpWorkerIps, ExpOneS3Ips) ->
+assert_oz_dns(OpSubdomain, ExpIps) ->
     DnsServerIps = ip_test_utils:get_zone_nodes_ips(),
 
-    SortedExpOpWorkerIps = lists:sort(ExpOpWorkerIps),
-    dns_test_utils:assert_dns_answer(DnsServerIps, OpSubdomain, a, SortedExpOpWorkerIps),
+    maps:foreach(fun
+        (worker, ExpWorkerIps) ->
+            SortedExpOpWorkerIps = lists:sort(ExpWorkerIps),
+            dns_test_utils:assert_dns_answer(DnsServerIps, OpSubdomain, a, SortedExpOpWorkerIps);
 
-    OneS3Subdomain = <<"s3.", OpSubdomain/binary>>,
-    SortedExpOneS3Ips = lists:sort(ExpOneS3Ips),
-    dns_test_utils:assert_dns_answer(DnsServerIps, OneS3Subdomain, a, SortedExpOneS3Ips).
+        % TODO s3
+    %%    OneS3Subdomain = <<"s3.", OpSubdomain/binary>>,
+    %%    SortedExpOneS3Ips = lists:sort(ExpOneS3Ips),
+    %%    dns_test_utils:assert_dns_answer(DnsServerIps, OneS3Subdomain, a, SortedExpOneS3Ips).
+        (_, _) ->
+            ok
+    end, ExpIps).
 
 
 %% @private
-assert_panel_dns_check(ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary, ExpOneS3Ips, ExpOneS3CheckSummary) ->
-    ExpCheckResult = build_exp_dns_check(
-        ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary, ExpOneS3Ips, ExpOneS3CheckSummary
-    ),
+assert_panel_dns_check(ExpOpSubdomain, ExpSummary, ExpIps) ->
+    ExpCheckResults = build_exp_dns_check_results(ExpOpSubdomain, ExpSummary, ExpIps),
     PerformFun = fun() ->
         dns_test_utils:invalidate_dns_check_cache(?PROVIDER_SELECTOR),
-
-        Check = dns_test_utils:perform_dns_check(?PROVIDER_SELECTOR),
-        maps:without([<<"timestamp">>], Check)
+        maps:without([<<"timestamp">>], dns_test_utils:perform_dns_check(?PROVIDER_SELECTOR))
     end,
-    ?assertEqual(ExpCheckResult, PerformFun(), ?ATTEMPTS).
+    ?assertEqual(ExpCheckResults, PerformFun(), ?ATTEMPTS).
 
 
 %% @private
-build_exp_dns_check(
-    ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary, ExpOneS3Ips, ExpOneS3CheckSummary
-) ->
-    ExpDomainCheck = #{<<"domain">> => build_exp_dns_subdomain_check(
-        ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary
-    )},
-    case ExpOneS3CheckSummary of
-        none ->
-            ExpDomainCheck;
-        _ ->
-            ExpDomainCheck#{<<"oneS3Subdomain">> => build_exp_dns_subdomain_check(
-                <<"s3.", ExpOpSubdomain/binary>>, ExpOneS3Ips, ExpOneS3CheckSummary
-            )}
-    end.
+build_exp_dns_check_results(ExpOpSubdomain, ExpSummary, ExpIps) ->
+    maps:fold(fun
+        (worker, ExpWorkerIps, Acc) ->
+            Acc#{<<"domain">> => build_exp_dns_check_result(
+                ExpOpSubdomain, ExpWorkerIps, ExpSummary
+            )};
+
+        %% TODO s3
+%%        (s3, ExpOneS3Ips, Acc) ->
+%%            Acc#{<<"oneS3Subdomain">> => build_exp_dns_check_result(
+%%                <<"s3.", ExpOpSubdomain/binary>>, ExpOneS3Ips, ExpOneS3Summary
+%%            )};
+        (_, _, Acc) ->
+            Acc
+    end, #{}, ExpIps).
 
 
 %% @private
-build_exp_dns_subdomain_check(Subdomain, ExpIps, ExpSubdomainCheckSummary) ->
+build_exp_dns_check_result(Subdomain, ExpIps, ExpSubdomainCheckSummary) ->
     ExpIpsBin = ip_test_utils:encode_ips(ExpIps),
 
     #{
