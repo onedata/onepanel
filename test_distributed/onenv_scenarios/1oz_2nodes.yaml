@@ -19,7 +19,3 @@ sources:
       - oz-worker
       - cluster-manager
       - oz-panel
-    node-3:
-      - oz-worker
-      - cluster-manager
-      - oz-panel
