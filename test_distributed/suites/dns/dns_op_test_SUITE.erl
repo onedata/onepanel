@@ -27,12 +27,14 @@
 
 -export([
     configure_dns_for_domain_test/1,
+    modify_ips_for_domain_test/1,
     configure_dns_for_subdomain_test/1,
     modify_ips_for_subdomain_test/1
 ]).
 
 all() -> [
     configure_dns_for_domain_test,
+    modify_ips_for_domain_test,
     configure_dns_for_subdomain_test,
     modify_ips_for_subdomain_test
 ].
@@ -94,6 +96,22 @@ configure_dns_for_domain_test(_Config) ->
     dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig3),
     assert_oz_dns(OpDomain, [], []),
     assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none).
+
+
+modify_ips_for_domain_test(_Config) ->
+    configure_domain(),
+    OpDomain = get_op_domain(),
+    OpIps = get_op_ips(),
+
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
+    assert_oz_dns(OpDomain, [], []),
+    assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none),
+
+    NewOpIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
+    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
+    assert_oz_dns(OpDomain, [], []),
+    assert_panel_dns_check(OpDomain, NewOpIps, unresolvable, [], none).
 
 
 configure_dns_for_subdomain_test(_Config) ->
@@ -196,7 +214,10 @@ end_per_testcase(Testcase, _Config) when
     DnsConfigDiff = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
     dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff);
 
-end_per_testcase(modify_ips_for_subdomain_test, _Config) ->
+end_per_testcase(Testcase, _Config) when
+    Testcase =:= modify_ips_for_subdomain_test;
+    Testcase =:= modify_ips_for_domain_test
+->
     ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, get_op_ips());
 
 end_per_testcase(_Case, _Config) ->
