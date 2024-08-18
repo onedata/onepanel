@@ -27,12 +27,14 @@
 
 -export([
     configure_dns_for_domain_test/1,
-    configure_dns_for_subdomain_test/1
+    configure_dns_for_subdomain_test/1,
+    modify_ips_for_subdomain_test/1
 ]).
 
 all() -> [
     configure_dns_for_domain_test,
-    configure_dns_for_subdomain_test
+    configure_dns_for_subdomain_test,
+    modify_ips_for_subdomain_test
 ].
 
 
@@ -139,6 +141,28 @@ configure_dns_for_subdomain_test(_Config) ->
     assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none).
 
 
+modify_ips_for_subdomain_test(_Config) ->
+    configure_subdomain(),
+    OpSubdomain = get_op_subdomain(),
+    OpIps = get_op_ips(),
+
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
+    DnsConfig = #{
+        <<"builtInDnsServer">> => true,
+        <<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]
+    },
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfig),
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
+    assert_oz_dns(OpSubdomain, OpIps, []),
+    assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none),
+
+    NewOpIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
+    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
+    assert_oz_dns(OpSubdomain, NewOpIps, []),
+    assert_panel_dns_check(OpSubdomain, NewOpIps, ok, [], none).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -162,6 +186,18 @@ end_per_suite(_Config) ->
 init_per_testcase(_Case, Config) ->
     Config.
 
+
+end_per_testcase(Testcase, _Config) when
+    Testcase =:= configure_dns_for_domain_test;
+    Testcase =:= configure_dns_for_subdomain_test
+->
+    % Ensure dns servers are set to oz dns after tests messing with dns config
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
+    DnsConfigDiff = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff);
+
+end_per_testcase(modify_ips_for_subdomain_test, _Config) ->
+    ip_test_utils:update_cluster_ips(?PROVIDER_SELECTOR, get_op_ips());
 
 end_per_testcase(_Case, _Config) ->
     ok.

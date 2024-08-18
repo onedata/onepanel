@@ -105,13 +105,13 @@ modify_ips_test(_Config) ->
         <<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]
     },
     dns_test_utils:update_panel_dns_config(zone, DnsConfig),
-    assert_cluster_ips(OzIps),
+    ip_test_utils:assert_cluster_ips(zone, OzIps),
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, ok),
 
-    NewOzIps = lists:sort([random_ip(), random_ip()]),
-    update_cluster_ips(NewOzIps),
-    assert_cluster_ips(NewOzIps),
+    NewOzIps = lists:sort([ip_test_utils:random_ip(), ip_test_utils:random_ip()]),
+    ip_test_utils:update_cluster_ips(zone, NewOzIps),
+    ip_test_utils:assert_cluster_ips(zone, NewOzIps),
     assert_oz_dns(OzDomain, NewOzIps),
     assert_panel_dns_check(OzDomain, NewOzIps, ok, ok).
 
@@ -137,15 +137,16 @@ init_per_testcase(_Case, Config) ->
 
 
 end_per_testcase(configure_dns_test, _Config) ->
-    InitialDnsConfig = #{
+    % Ensure dns servers are set to oz dns after tests messing with dns config
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
+    DnsConfigDiff = #{
         <<"builtInDnsServer">> => false,
-        <<"dnsServers">> => [],
-        <<"dnsCheckAcknowledged">> => true
+        <<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]
     },
-    dns_test_utils:update_panel_dns_config(zone, InitialDnsConfig);
+    dns_test_utils:update_panel_dns_config(zone, DnsConfigDiff);
 
 end_per_testcase(modify_ips_test, _Config) ->
-    update_cluster_ips(ip_test_utils:encode_ips(ip_test_utils:get_zone_nodes_ips()));
+    ip_test_utils:update_cluster_ips(zone, ip_test_utils:get_zone_nodes_ips());
 
 end_per_testcase(_Case, _Config) ->
     ok.
@@ -154,44 +155,6 @@ end_per_testcase(_Case, _Config) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
-assert_cluster_ips(ExpOzIps) ->
-    ExpClusterIps = #{
-        <<"isConfigured">> => true,
-        <<"hosts">> => build_host_ips_map(ip_test_utils:encode_ips(ExpOzIps))
-    },
-    ?assertMatch(
-        {ok, ?HTTP_200_OK, _, ExpClusterIps},
-        panel_test_rest:get(zone, <<"/zone/cluster_ips">>, #{auth => root})
-    ).
-
-
-%% @private
-update_cluster_ips(NewOzIps) ->
-    JsonData = #{<<"hosts">> => build_host_ips_map(ip_test_utils:encode_ips(NewOzIps))},
-
-    ?assertMatch(
-        {ok, ?HTTP_204_NO_CONTENT, _, _},
-        panel_test_rest:patch(zone, <<"/zone/cluster_ips">>, #{auth => root, json => JsonData})
-    ),
-    ok.
-
-
-%% @private
-build_host_ips_map(Ips) ->
-    lists:foldl(fun({OzHost, Ip}, Acc) ->
-        Acc#{OzHost => Ip}
-    end, #{}, lists:zip(get_zone_hosts(), lists:sort(Ips))).
-
-
-%% @private
-get_zone_hosts() ->
-    lists:map(
-        fun(OzNode) -> str_utils:to_binary(?GET_HOSTNAME(OzNode)) end,
-        lists:sort(oct_background:get_zone_nodes())
-    ).
 
 
 %% @private
@@ -268,8 +231,3 @@ build_exp_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneChec
                 }
             }
     end.
-
-
-%% @private
-random_ip() ->
-    {?RAND_INT(1, 255), ?RAND_INT(1, 255), ?RAND_INT(1, 255), ?RAND_INT(1, 255)}.
