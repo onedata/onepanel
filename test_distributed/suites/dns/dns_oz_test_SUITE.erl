@@ -65,7 +65,7 @@ configure_dns_test(_Config) ->
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, none),
 
-    % With build in dns server enabled dns check should:
+    % With built in dns server enabled dns check should:
     % - return domain and dns zone checks
     % - domain check passes as one-env adds domain mappings to /etc/hosts
     %   (default system resolver will check it first)
@@ -78,8 +78,7 @@ configure_dns_test(_Config) ->
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, unresolvable),
 
-    % With build in dns server enabled dns check should fail for both domain
-    % and dns zone
+    % With dns server set explicitly to external one dns check should fail
     DnsConfigDiff2 = #{<<"dnsServers">> => [<<"8.8.8.8">>]},
     ExpDnsConfig2 = maps:merge(ExpDnsConfig1, DnsConfigDiff2),
     update_panel_dns_config(DnsConfigDiff2),

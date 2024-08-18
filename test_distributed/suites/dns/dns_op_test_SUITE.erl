@@ -26,10 +26,12 @@
 ]).
 
 -export([
+    configure_dns_for_domain_test/1,
     configure_subdomain_test/1
 ]).
 
 all() -> [
+    configure_dns_for_domain_test,
     configure_subdomain_test
 ].
 
@@ -44,6 +46,52 @@ all() -> [
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+configure_dns_for_domain_test(_Config) ->
+    configure_domain(),
+    OpDomain = get_op_domain(),
+    OpIps = get_op_ips(),
+
+    % Originally, with no dns servers specified (system defaults will be used)
+    % dns check should:
+    % - return only domain check
+    % - domain check passes as one-env adds domain mappings to /etc/hosts
+    %   (default system resolver will check it first)
+    InitialDnsConfig = #{
+        <<"builtInDnsServer">> => false,
+        <<"dnsServers">> => [],
+        <<"dnsCheckAcknowledged">> => true
+    },
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
+    assert_oz_dns(OpDomain, [], []),
+    assert_panel_dns_check(OpDomain, OpIps, ok, [], none),
+
+    % Enabling build in dns server does nothing (this option is relevant only for oz)
+    DnsConfigDiff1 = #{<<"builtInDnsServer">> => true},
+    ExpDnsConfig1 = maps:merge(InitialDnsConfig, DnsConfigDiff1),
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff1),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig1),
+    assert_oz_dns(OpDomain, [], []),
+    assert_panel_dns_check(OpDomain, OpIps, ok, [], none),
+
+    % With dns server set explicitly to external one dns check should fail
+    DnsConfigDiff2 = #{<<"dnsServers">> => [<<"8.8.8.8">>]},
+    ExpDnsConfig2 = maps:merge(ExpDnsConfig1, DnsConfigDiff2),
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff2),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig2),
+    assert_oz_dns(OpDomain, [], []),
+    assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none),
+
+    % With dns server set explicitly to oz one dns check should also fail
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
+    DnsConfigDiff3 = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
+    ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff3),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig3),
+    assert_oz_dns(OpDomain, [], []),
+    assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none).
 
 
 configure_subdomain_test(_Config) ->
@@ -145,12 +193,60 @@ get_op_ips() ->
 
 
 %% @private
-assert_oz_dns(OpSubDomain, ExpOpWorkerIps, ExpOneS3Ips) ->
+assert_oz_dns(OpSubdomain, ExpOpWorkerIps, ExpOneS3Ips) ->
     DnsServerIps = ip_test_utils:get_zone_nodes_ips(),
 
     SortedExpOpWorkerIps = lists:sort(ExpOpWorkerIps),
-    dns_test_utils:assert_dns_answer(DnsServerIps, OpSubDomain, a, SortedExpOpWorkerIps),
+    dns_test_utils:assert_dns_answer(DnsServerIps, OpSubdomain, a, SortedExpOpWorkerIps),
 
-    OneS3Subdomain = <<"s3.", OpSubDomain/binary>>,
+    OneS3Subdomain = <<"s3.", OpSubdomain/binary>>,
     SortedExpOneS3Ips = lists:sort(ExpOneS3Ips),
     dns_test_utils:assert_dns_answer(DnsServerIps, OneS3Subdomain, a, SortedExpOneS3Ips).
+
+
+%% @private
+assert_panel_dns_check(ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary, ExpOneS3Ips, ExpOneS3CheckSummary) ->
+    ExpCheckResult = build_exp_dns_check(
+        ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary, ExpOneS3Ips, ExpOneS3CheckSummary
+    ),
+    PerformFun = fun() ->
+        dns_test_utils:invalidate_dns_check_cache(?PROVIDER_SELECTOR),
+
+        Check = dns_test_utils:perform_dns_check(?PROVIDER_SELECTOR),
+        maps:without([<<"timestamp">>], Check)
+    end,
+    ?assertEqual(ExpCheckResult, PerformFun(), ?ATTEMPTS).
+
+
+%% @private
+build_exp_dns_check(
+    ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary, ExpOneS3Ips, ExpOneS3CheckSummary
+) ->
+    ExpDomainCheck = #{<<"domain">> => build_exp_dns_subdomain_check(
+        ExpOpSubdomain, ExpOpWorkerIps, ExpOpWorkerCheckSummary
+    )},
+    case ExpOneS3CheckSummary of
+        none ->
+            ExpDomainCheck;
+        _ ->
+            ExpDomainCheck#{<<"oneS3Subdomain">> => build_exp_dns_subdomain_check(
+                <<"s3.", ExpOpSubdomain/binary>>, ExpOneS3Ips, ExpOneS3CheckSummary
+            )}
+    end.
+
+
+%% @private
+build_exp_dns_subdomain_check(Subdomain, ExpIps, ExpSubdomainCheckSummary) ->
+    ExpIpsBin = ip_test_utils:encode_ips(ExpIps),
+
+    #{
+        <<"summary">> => str_utils:to_binary(ExpSubdomainCheckSummary),
+        <<"expected">> => ExpIpsBin,
+        <<"got">> => case ExpSubdomainCheckSummary of
+            ok -> ExpIpsBin;
+            unresolvable -> []
+        end,
+        <<"recommended">> => lists:sort(lists:map(fun(IpBin) ->
+            str_utils:format_bin("~s. IN A ~s", [Subdomain, IpBin])
+        end, ExpIpsBin))
+    }.

@@ -13,6 +13,7 @@
 -author("Bartosz Walkowicz").
 
 -include("names.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("kernel/src/inet_dns.hrl").
 
@@ -20,6 +21,12 @@
 %% API
 -export([
     get_zone_domain/0,
+
+    assert_panel_dns_config/2,
+    update_panel_dns_config/2,
+
+    invalidate_dns_check_cache/1,
+    perform_dns_check/1,
 
     assert_dns_answer/4,
     assert_dns_answer/5
@@ -39,6 +46,44 @@ get_zone_domain() ->
     OzNode = ?RAND_ELEMENT(oct_background:get_zone_panels()),
     {ok, OzDomain} = test_utils:get_env(OzNode, ?APP_NAME, test_web_cert_domain),
     str_utils:to_binary(OzDomain).
+
+
+-spec assert_panel_dns_config(oct_background:entity_selector(), json_utils:json_map()) -> ok.
+assert_panel_dns_config(EntitySelector, ExpConfig) ->
+    ?assertMatch(
+        {ok, ?HTTP_200_OK, _, ExpConfig},
+        panel_test_rest:get(EntitySelector, <<"/dns_check/configuration">>, #{auth => root})
+    ),
+    ok.
+
+
+-spec update_panel_dns_config(oct_background:entity_selector(), json_utils:json_map()) -> ok.
+update_panel_dns_config(EntitySelector, JsonData) ->
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:patch(EntitySelector, <<"/dns_check/configuration">>, #{auth => root, json => JsonData})
+    ),
+    ok.
+
+
+-spec invalidate_dns_check_cache(oct_background:entity_selector()) -> ok.
+invalidate_dns_check_cache(EntitySelector) ->
+    WorkerService = case EntitySelector of
+        zone -> oz_worker;
+        _ -> op_worker
+    end,
+    lists:foreach(fun(Node) ->
+        panel_test_rpc:call(Node, dns_check, invalidate_cache, [WorkerService])
+    end, get_panels(EntitySelector)).
+
+
+-spec perform_dns_check(oct_background:entity_selector()) -> json_utils:json_map().
+perform_dns_check(EntitySelector) ->
+    {ok, _, _, Check} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _},
+        panel_test_rest:get(EntitySelector, <<"/dns_check">>, #{auth => root})
+    ),
+    Check.
 
 
 %%--------------------------------------------------------------------
@@ -126,3 +171,8 @@ filter_response(Type, {ok, #dns_rec{
         (Record) when Record#dns_rr.type =:= Type -> {true, Record#dns_rr.data};
         (_) -> false
     end, Anlist ++ Arlist ++ Nslist)).
+
+
+%% @private
+get_panels(zone) -> oct_background:get_zone_panels();
+get_panels(ProviderSelector) -> oct_background:get_provider_panels(ProviderSelector).
