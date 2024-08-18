@@ -47,8 +47,8 @@ all() -> [
 
 
 configure_dns_test(_Config) ->
-    OzDomain = get_zone_domain(),
-    OzIps = get_zone_ips(),
+    OzDomain = dns_test_utils:get_zone_domain(),
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
 
     % Originally, with build in dns server disabled and no dns servers specified
     % (system defaults will be used) dns check should:
@@ -89,7 +89,7 @@ configure_dns_test(_Config) ->
 
     % With explicitly set dns servers to oz dns both domain and dns zone checks
     % should succeed
-    DnsConfigDiff3 = #{<<"dnsServers">> => [?RAND_ELEMENT(encode_ips(OzIps))]},
+    DnsConfigDiff3 = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
     ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),
     update_panel_dns_config(DnsConfigDiff3),
     assert_panel_dns_config(ExpDnsConfig3),
@@ -98,12 +98,12 @@ configure_dns_test(_Config) ->
 
 
 modify_ips_test(_Config) ->
-    OzDomain = get_zone_domain(),
-    OzIps = get_zone_ips(),
+    OzDomain = dns_test_utils:get_zone_domain(),
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
 
     DnsConfig = #{
         <<"builtInDnsServer">> => true,
-        <<"dnsServers">> => [?RAND_ELEMENT(encode_ips(OzIps))]
+        <<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]
     },
     update_panel_dns_config(DnsConfig),
     assert_cluster_ips(OzIps),
@@ -123,7 +123,8 @@ modify_ips_test(_Config) ->
 
 
 init_per_suite(Config) ->
-    oct_background:init_per_suite(Config, #onenv_test_config{
+    ModulesToLoad = [?MODULE, ip_test_utils],
+    oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
         onenv_scenario = "1oz_2nodes"
     }).
 
@@ -145,7 +146,7 @@ end_per_testcase(configure_dns_test, _Config) ->
     update_panel_dns_config(InitialDnsConfig);
 
 end_per_testcase(modify_ips_test, _Config) ->
-    update_cluster_ips(encode_ips(get_zone_ips()));
+    update_cluster_ips(ip_test_utils:encode_ips(ip_test_utils:get_zone_nodes_ips()));
 
 end_per_testcase(_Case, _Config) ->
     ok.
@@ -154,38 +155,6 @@ end_per_testcase(_Case, _Config) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
-get_zone_domain() ->
-    OzNode = ?RAND_ELEMENT(oct_background:get_zone_panels()),
-    {ok, OzDomain} = test_utils:get_env(OzNode, ?APP_NAME, test_web_cert_domain),
-    str_utils:to_binary(OzDomain).
-
-
-%% @private
-get_zone_ips() ->
-    lists:sort(lists:map(fun get_node_ip/1, oct_background:get_zone_panels())).
-
-
-%% @private
--spec get_node_ip(node()) -> inet:ip_address().
-get_node_ip(Node) ->
-    panel_test_rpc:insecure_call(Node, fun() ->
-        {ok, IpAddresses} = inet:getifaddrs(),
-        hd([
-            Addr || {_, Opts} <- IpAddresses, {addr, Addr} <- Opts,
-            size(Addr) == 4, Addr =/= {127, 0, 0, 1}
-        ])
-    end).
-
-
-%% @private
-encode_ips(Ips) ->
-    lists:map(fun(Ip) ->
-        {ok, IpBin} = ip_utils:to_binary(Ip),
-        IpBin
-    end, Ips).
 
 
 %% @private
@@ -209,7 +178,7 @@ update_panel_dns_config(JsonData) ->
 assert_cluster_ips(ExpOzIps) ->
     ExpClusterIps = #{
         <<"isConfigured">> => true,
-        <<"hosts">> => build_host_ips_map(encode_ips(ExpOzIps))
+        <<"hosts">> => build_host_ips_map(ip_test_utils:encode_ips(ExpOzIps))
     },
     ?assertMatch(
         {ok, ?HTTP_200_OK, _, ExpClusterIps},
@@ -219,7 +188,7 @@ assert_cluster_ips(ExpOzIps) ->
 
 %% @private
 update_cluster_ips(NewOzIps) ->
-    JsonData = #{<<"hosts">> => build_host_ips_map(encode_ips(NewOzIps))},
+    JsonData = #{<<"hosts">> => build_host_ips_map(ip_test_utils:encode_ips(NewOzIps))},
 
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
@@ -245,7 +214,7 @@ get_zone_hosts() ->
 
 %% @private
 assert_oz_dns(OzDomain, ExpOzIps) ->
-    DnsServerIps = get_zone_ips(),
+    DnsServerIps = ip_test_utils:get_zone_nodes_ips(),
     SortedExpOzIps = lists:sort(ExpOzIps),
 
     dns_test_utils:assert_dns_answer(DnsServerIps, OzDomain, a, SortedExpOzIps),
@@ -278,7 +247,7 @@ assert_panel_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneC
 
 %% @private
 build_exp_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneCheckSummary) ->
-    ExpOzIpsBin = encode_ips(ExpOzIps),
+    ExpOzIpsBin = ip_test_utils:encode_ips(ExpOzIps),
 
     ExpDomainCheck = #{
         <<"domain">> => #{

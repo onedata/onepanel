@@ -12,12 +12,15 @@
 -module(dns_test_utils).
 -author("Bartosz Walkowicz").
 
+-include("names.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("kernel/src/inet_dns.hrl").
 
 
 %% API
 -export([
+    get_zone_domain/0,
+
     assert_dns_answer/4,
     assert_dns_answer/5
 ]).
@@ -29,6 +32,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec get_zone_domain() -> binary().
+get_zone_domain() ->
+    OzNode = ?RAND_ELEMENT(oct_background:get_zone_panels()),
+    {ok, OzDomain} = test_utils:get_env(OzNode, ?APP_NAME, test_web_cert_domain),
+    str_utils:to_binary(OzDomain).
 
 
 %%--------------------------------------------------------------------
