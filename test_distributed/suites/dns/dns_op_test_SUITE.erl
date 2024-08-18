@@ -29,14 +29,16 @@
     configure_dns_for_domain_test/1,
     modify_ips_for_domain_test/1,
     configure_dns_for_subdomain_test/1,
-    modify_ips_for_subdomain_test/1
+    modify_ips_for_subdomain_test/1,
+    modify_subdomain_test/1
 ]).
 
 all() -> [
     configure_dns_for_domain_test,
     modify_ips_for_domain_test,
     configure_dns_for_subdomain_test,
-    modify_ips_for_subdomain_test
+    modify_ips_for_subdomain_test,
+    modify_subdomain_test
 ].
 
 
@@ -164,12 +166,6 @@ modify_ips_for_subdomain_test(_Config) ->
     OpSubdomain = get_op_subdomain(),
     OpIps = get_op_ips(),
 
-    OzIps = ip_test_utils:get_zone_nodes_ips(),
-    DnsConfig = #{
-        <<"builtInDnsServer">> => true,
-        <<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]
-    },
-    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfig),
     ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
     assert_oz_dns(OpSubdomain, OpIps, []),
     assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none),
@@ -179,6 +175,23 @@ modify_ips_for_subdomain_test(_Config) ->
     ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, NewOpIps),
     assert_oz_dns(OpSubdomain, NewOpIps, []),
     assert_panel_dns_check(OpSubdomain, NewOpIps, ok, [], none).
+
+
+modify_subdomain_test(_Config) ->
+    configure_subdomain(),
+    OpSubdomain = get_op_subdomain(),
+    OpIps = get_op_ips(),
+
+    ip_test_utils:assert_cluster_ips(?PROVIDER_SELECTOR, OpIps),
+    assert_oz_dns(OpSubdomain, OpIps, []),
+    assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none),
+
+    NewOpSubdomainLabel = ?RAND_STR(),
+    configure_subdomain(NewOpSubdomainLabel),
+    NewOpSubdomain = get_op_subdomain(NewOpSubdomainLabel),
+    assert_oz_dns(OpSubdomain, [], []),
+    assert_oz_dns(NewOpSubdomain, OpIps, []),
+    assert_panel_dns_check(NewOpSubdomain, OpIps, ok, [], none).
 
 
 %%%===================================================================
@@ -250,9 +263,14 @@ configure_domain() ->
 
 %% @private
 configure_subdomain() ->
+    configure_subdomain(?SUBDOMAIN_LABEL).
+
+
+%% @private
+configure_subdomain(SubdomainLabel) ->
     update_provider_details(#{
         <<"subdomainDelegation">> => true,
-        <<"subdomain">> => ?SUBDOMAIN_LABEL
+        <<"subdomain">> => SubdomainLabel
     }).
 
 
@@ -272,8 +290,13 @@ get_op_domain() ->
 
 %% @private
 get_op_subdomain() ->
+    get_op_subdomain(?SUBDOMAIN_LABEL).
+
+
+%% @private
+get_op_subdomain(SubdomainLabel) ->
     OzDomain = dns_test_utils:get_zone_domain(),
-    str_utils:format_bin("~s.~s", [?SUBDOMAIN_LABEL, OzDomain]).
+    str_utils:format_bin("~s.~s", [SubdomainLabel, OzDomain]).
 
 
 %% @private
