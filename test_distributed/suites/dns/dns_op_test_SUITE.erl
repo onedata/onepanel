@@ -27,12 +27,12 @@
 
 -export([
     configure_dns_for_domain_test/1,
-    configure_subdomain_test/1
+    configure_dns_for_subdomain_test/1
 ]).
 
 all() -> [
     configure_dns_for_domain_test,
-    configure_subdomain_test
+    configure_dns_for_subdomain_test
 ].
 
 
@@ -94,17 +94,49 @@ configure_dns_for_domain_test(_Config) ->
     assert_panel_dns_check(OpDomain, OpIps, unresolvable, [], none).
 
 
-configure_subdomain_test(_Config) ->
+configure_dns_for_subdomain_test(_Config) ->
+    configure_subdomain(),
+    OpSubdomain = get_op_subdomain(),
     OpIps = get_op_ips(),
 
-    % Oz dns do not store Oneprovider domain so querying it should not return anything
-    configure_domain(),
-    OpDomain = get_op_domain(),
-    assert_oz_dns(OpDomain, [], []),
+    % Originally, with no dns servers specified (system defaults will be used)
+    % dns check should:
+    % - return only domain check
+    % - domain check fails as no mappings are added to /etc/hosts for new subdomain
+    InitialDnsConfig = #{
+        <<"builtInDnsServer">> => false,
+        <<"dnsServers">> => [],
+        <<"dnsCheckAcknowledged">> => true
+    },
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, InitialDnsConfig),
+    assert_oz_dns(OpSubdomain, OpIps, []),
+    assert_panel_dns_check(OpSubdomain, OpIps, unresolvable, [], none),
 
-    configure_subdomain(),
-    OpSubDomain = get_op_subdomain(),
-    assert_oz_dns(OpSubDomain, OpIps, []).  %% TODO s3
+    % Enabling build in dns server does nothing (this option is relevant only for oz)
+    DnsConfigDiff1 = #{<<"builtInDnsServer">> => true},
+    ExpDnsConfig1 = maps:merge(InitialDnsConfig, DnsConfigDiff1),
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff1),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig1),
+    assert_oz_dns(OpSubdomain, OpIps, []),
+    assert_panel_dns_check(OpSubdomain, OpIps, unresolvable, [], none),
+
+    % With dns server set explicitly to external one dns check should fail
+    DnsConfigDiff2 = #{<<"dnsServers">> => [<<"8.8.8.8">>]},
+    ExpDnsConfig2 = maps:merge(ExpDnsConfig1, DnsConfigDiff2),
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff2),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig2),
+    assert_oz_dns(OpSubdomain, OpIps, []),
+    assert_panel_dns_check(OpSubdomain, OpIps, unresolvable, [], none),
+
+    % With dns server set explicitly to oz one dns check should also fail
+    OzIps = ip_test_utils:get_zone_nodes_ips(),
+    DnsConfigDiff3 = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
+    ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),
+    dns_test_utils:update_panel_dns_config(?PROVIDER_SELECTOR, DnsConfigDiff3),
+    dns_test_utils:assert_panel_dns_config(?PROVIDER_SELECTOR, ExpDnsConfig3),
+    assert_oz_dns(OpSubdomain, OpIps, []),
+    assert_panel_dns_check(OpSubdomain, OpIps, ok, [], none).
 
 
 %%%===================================================================

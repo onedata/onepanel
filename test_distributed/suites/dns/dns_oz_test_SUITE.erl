@@ -60,8 +60,8 @@ configure_dns_test(_Config) ->
         <<"dnsServers">> => [],
         <<"dnsCheckAcknowledged">> => true
     },
-    update_panel_dns_config(InitialDnsConfig),
-    assert_panel_dns_config(InitialDnsConfig),
+    dns_test_utils:update_panel_dns_config(zone, InitialDnsConfig),
+    dns_test_utils:assert_panel_dns_config(zone, InitialDnsConfig),
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, none),
 
@@ -73,16 +73,16 @@ configure_dns_test(_Config) ->
     %   dns server contains them
     DnsConfigDiff1 = #{<<"builtInDnsServer">> => true},
     ExpDnsConfig1 = maps:merge(InitialDnsConfig, DnsConfigDiff1),
-    update_panel_dns_config(DnsConfigDiff1),
-    assert_panel_dns_config(ExpDnsConfig1),
+    dns_test_utils:update_panel_dns_config(zone, DnsConfigDiff1),
+    dns_test_utils:assert_panel_dns_config(zone, ExpDnsConfig1),
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, unresolvable),
 
     % With dns server set explicitly to external one dns check should fail
     DnsConfigDiff2 = #{<<"dnsServers">> => [<<"8.8.8.8">>]},
     ExpDnsConfig2 = maps:merge(ExpDnsConfig1, DnsConfigDiff2),
-    update_panel_dns_config(DnsConfigDiff2),
-    assert_panel_dns_config(ExpDnsConfig2),
+    dns_test_utils:update_panel_dns_config(zone, DnsConfigDiff2),
+    dns_test_utils:assert_panel_dns_config(zone, ExpDnsConfig2),
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, unresolvable, unresolvable),
 
@@ -90,8 +90,8 @@ configure_dns_test(_Config) ->
     % should succeed
     DnsConfigDiff3 = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
     ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),
-    update_panel_dns_config(DnsConfigDiff3),
-    assert_panel_dns_config(ExpDnsConfig3),
+    dns_test_utils:update_panel_dns_config(zone, DnsConfigDiff3),
+    dns_test_utils:assert_panel_dns_config(zone, ExpDnsConfig3),
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, ok).
 
@@ -104,7 +104,7 @@ modify_ips_test(_Config) ->
         <<"builtInDnsServer">> => true,
         <<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]
     },
-    update_panel_dns_config(DnsConfig),
+    dns_test_utils:update_panel_dns_config(zone, DnsConfig),
     assert_cluster_ips(OzIps),
     assert_oz_dns(OzDomain, OzIps),
     assert_panel_dns_check(OzDomain, OzIps, ok, ok),
@@ -142,7 +142,7 @@ end_per_testcase(configure_dns_test, _Config) ->
         <<"dnsServers">> => [],
         <<"dnsCheckAcknowledged">> => true
     },
-    update_panel_dns_config(InitialDnsConfig);
+    dns_test_utils:update_panel_dns_config(zone, InitialDnsConfig);
 
 end_per_testcase(modify_ips_test, _Config) ->
     update_cluster_ips(ip_test_utils:encode_ips(ip_test_utils:get_zone_nodes_ips()));
@@ -154,23 +154,6 @@ end_per_testcase(_Case, _Config) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
-assert_panel_dns_config(ExpConfig) ->
-    ?assertMatch(
-        {ok, ?HTTP_200_OK, _, ExpConfig},
-        panel_test_rest:get(zone, <<"/dns_check/configuration">>, #{auth => root})
-    ).
-
-
-%% @private
-update_panel_dns_config(JsonData) ->
-    ?assertMatch(
-        {ok, ?HTTP_204_NO_CONTENT, _, _},
-        panel_test_rest:patch(zone, <<"/dns_check/configuration">>, #{auth => root, json => JsonData})
-    ),
-    ok.
 
 
 %% @private
@@ -236,9 +219,9 @@ assert_panel_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneC
         ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneCheckSummary
     ),
     PerformFun = fun() ->
-        invalidate_dns_check_cache(),
+        dns_test_utils:invalidate_dns_check_cache(zone),
 
-        Check = perform_dns_check(),
+        Check = dns_test_utils:perform_dns_check(zone),
         maps:without([<<"timestamp">>], Check)
     end,
     ?assertEqual(ExpCheckResult, PerformFun(), ?ATTEMPTS).
@@ -285,22 +268,6 @@ build_exp_dns_check(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDnsZoneChec
                 }
             }
     end.
-
-
-%% @private
-invalidate_dns_check_cache() ->
-    lists:foreach(fun(Node) ->
-        panel_test_rpc:call(Node, dns_check, invalidate_cache, [oz_worker])
-    end, oct_background:get_zone_panels()).
-
-
-%% @private
-perform_dns_check() ->
-    {ok, _, _, Check} = ?assertMatch(
-        {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:get(zone, <<"/dns_check">>, #{auth => root})
-    ),
-    Check.
 
 
 %% @private
