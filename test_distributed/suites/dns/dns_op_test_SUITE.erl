@@ -13,7 +13,6 @@
 -author("Bartosz Walkowicz").
 
 -include("names.hrl").
--include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").

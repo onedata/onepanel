@@ -20,6 +20,10 @@
 
 %% API
 -export([
+    set_insecure_flag/0,
+    unset_insecure_flag/0,
+    get_insecure_flag/0,
+
     get/3,
     patch/3,
 
@@ -38,6 +42,7 @@
     proxy => boolean(),
 
     auth => request_auth(),
+    insecure => boolean(),
     headers => http_client:headers(),
 
     json => json_utils:json_term(),
@@ -55,6 +60,21 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec set_insecure_flag() -> ok.
+set_insecure_flag() ->
+    node_cache:put({?MODULE, secure}, false).
+
+
+-spec unset_insecure_flag() -> ok.
+unset_insecure_flag() ->
+    node_cache:put({?MODULE, secure}, true).
+
+
+-spec get_insecure_flag() -> boolean().
+get_insecure_flag() ->
+    node_cache:get({?MODULE, secure}, true).
 
 
 -spec get(oct_background:node_selector(), binary(), request_args()) -> response().
@@ -75,9 +95,7 @@ request(PanelNodeSelector, RequestArgs) ->
     Url = build_url(PanelNode, RequestArgs),
     Headers = build_headers(RequestArgs),
     Body = build_body(RequestArgs),
-
-    CaCerts = panel_test_rpc:get_cert_chain_ders(PanelNode),
-    Opts = [{ssl_options, [{cacerts, CaCerts}]}, {recv_timeout, 60000}],
+    Opts = [{ssl_options, build_ssl_opts(PanelNode, RequestArgs)}, {recv_timeout, 60000}],
 
     case http_client:request(Method, Url, Headers, Body, Opts) of
         {ok, RespCode, RespHeaders, RespBody} ->
@@ -171,3 +189,15 @@ build_body(RequestArgs) ->
         JsonTerm ->
             json_utils:encode(JsonTerm)
     end.
+
+
+%% @private
+-spec build_ssl_opts(node(), request_args()) -> [http_client:ssl_opt()].
+build_ssl_opts(PanelNode, RequestArgs) ->
+    Secure = case maps:get(insecure, RequestArgs, undefined) of
+        undefined -> get_insecure_flag();
+        Insecure -> not Insecure
+    end,
+    CaCerts = panel_test_rpc:get_cert_chain_ders(PanelNode),
+
+    [{secure, Secure}, {cacerts, CaCerts}].
