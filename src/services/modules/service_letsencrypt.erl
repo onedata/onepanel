@@ -430,6 +430,7 @@ local_cert_status(ExpectedDomain) ->
 -spec cert_status(Cert :: onepanel_cert:cert(), ExpectedDomain :: binary()) ->
     status().
 cert_status(Cert, ExpectedDomain) ->
+    %% TODO check all subdomaibs
     case onepanel_cert:verify_hostname(Cert, ExpectedDomain) of
         error -> unknown;
         invalid -> domain_mismatch;
