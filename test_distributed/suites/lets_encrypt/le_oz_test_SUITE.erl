@@ -24,21 +24,25 @@
 
 -export([
     non_lets_encrypt_issued_certificate_should_be_replaced_test/1,
-    domain_mismatched_certificate_should_be_replaced_test/1
+    domain_mismatched_certificate_should_be_replaced_test/1,
+    expired_certificate_should_be_replaced_test/1
 ]).
 
 all() -> [
     non_lets_encrypt_issued_certificate_should_be_replaced_test,
-    domain_mismatched_certificate_should_be_replaced_test
+    domain_mismatched_certificate_should_be_replaced_test,
+    expired_certificate_should_be_replaced_test
 ].
 
+
+-define(RE_PEBBLE_ISSUER, <<"^Pebble Intermediate CA \\w+$">>).
 
 -define(ONEDATA_TEST_CERTS_REL_DIR, "onedata").
 
 -define(PEBBLE_DOMAIN_MISMATCH_CERT_REL_DIR, "pebble_domain_mismatch").
 -define(PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN, <<"fake.local">>).
 
--define(RE_PEBBLE_ISSUER, <<"^Pebble Intermediate CA \\w+$">>).
+-define(PEBBLE_EXPIRED_CERT_REL_DIR, "pebble_expired").
 
 
 -define(TODO_DUMP_CERT, ct:pal("~p", [cert_test_utils:get_cert_details(zone)])).  %% TODO rm
@@ -46,6 +50,8 @@ all() -> [
 
 -define(ATTEMPTS, 100).
 
+
+%% TODO między testami może jeszcze nie wstał https_listener - może jakieś sleepy?
 
 %%%===================================================================
 %%% API
@@ -95,6 +101,32 @@ domain_mismatched_certificate_should_be_replaced_test(Config) ->
     ExpPebbleCertDetails = #{
         <<"domain">> => OzDomain,
         <<"dnsNames">> => [OzDomain],
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => true
+    },
+    AllPebbleCertDetails = assert_cert_details(ExpPebbleCertDetails),
+    assert_pebble_issuer(AllPebbleCertDetails).  %% TODO check creationtime?
+
+
+expired_certificate_should_be_replaced_test(Config) ->
+    cert_test_utils:disable_lets_encrypt(zone),
+    ExpiredCertPaths = build_cert_rel_paths(?PEBBLE_EXPIRED_CERT_REL_DIR),
+    cert_test_utils:deploy_certs(zone, ExpiredCertPaths, Config),
+
+    OzDomain = dns_test_utils:get_zone_domain(),
+    ExpBasicCertDetails = #{
+        <<"domain">> => OzDomain,
+        <<"dnsNames">> => [OzDomain]
+    },
+    ExpExpiredCertDetails = ExpBasicCertDetails#{
+        <<"status">> => <<"near_expiration">>,  %% TODO expired
+        <<"letsEncrypt">> => false
+    },
+    assert_cert_details(ExpExpiredCertDetails),
+
+    enable_lets_encrypt_and_await_cert_replacement(),
+
+    ExpPebbleCertDetails = ExpBasicCertDetails#{
         <<"status">> => <<"valid">>,
         <<"letsEncrypt">> => true
     },
