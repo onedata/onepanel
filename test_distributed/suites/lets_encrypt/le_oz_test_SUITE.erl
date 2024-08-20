@@ -23,17 +23,25 @@
 ]).
 
 -export([
-    non_lets_encrypt_issued_certificate_should_be_replaced_test/1
+    non_lets_encrypt_issued_certificate_should_be_replaced_test/1,
+    domain_mismatched_certificate_should_be_replaced_test/1
 ]).
 
 all() -> [
-    non_lets_encrypt_issued_certificate_should_be_replaced_test
+    non_lets_encrypt_issued_certificate_should_be_replaced_test,
+    domain_mismatched_certificate_should_be_replaced_test
 ].
 
 
 -define(ONEDATA_TEST_CERTS_REL_DIR, "onedata").
 
+-define(PEBBLE_DOMAIN_MISMATCH_CERT_REL_DIR, "pebble_domain_mismatch").
+-define(PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN, <<"fake.local">>).
+
 -define(RE_PEBBLE_ISSUER, <<"^Pebble Intermediate CA \\w+$">>).
+
+
+-define(TODO_DUMP_CERT, ct:pal("~p", [cert_test_utils:get_cert_details(zone)])).  %% TODO rm
 
 
 -define(ATTEMPTS, 100).
@@ -45,7 +53,9 @@ all() -> [
 
 
 non_lets_encrypt_issued_certificate_should_be_replaced_test(Config) ->
-    ct:pal("~p", [cert_test_utils:get_cert_details(zone)]),
+    cert_test_utils:disable_lets_encrypt(zone),
+    OnedataTestCertPaths = build_cert_rel_paths(?ONEDATA_TEST_CERTS_REL_DIR),
+    cert_test_utils:deploy_certs(zone, OnedataTestCertPaths, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
     ExpBasicCertDetails = #{
@@ -53,31 +63,43 @@ non_lets_encrypt_issued_certificate_should_be_replaced_test(Config) ->
         <<"dnsNames">> => [OzDomain],
         <<"status">> => <<"valid">>
     },
-
-    cert_test_utils:disable_lets_encrypt(zone),
-    OnedataTestCertPaths = build_cert_rel_paths(?ONEDATA_TEST_CERTS_REL_DIR),
-    cert_test_utils:deploy_certs(zone, OnedataTestCertPaths, Config),
-
     ExpOnedataTestCertDetails = ExpBasicCertDetails#{
         <<"issuer">> => <<"OneDataTestWebServerCA">>,
         <<"letsEncrypt">> => false
     },
-    AllOnedataTestCertDetails = assert_cert_details(ExpOnedataTestCertDetails),
+    assert_cert_details(ExpOnedataTestCertDetails),
 
-    cert_test_utils:enable_lets_encrypt(zone),
-
-    AllOnedataTestCertDetailsWithEnabledLE = AllOnedataTestCertDetails#{
-        <<"letsEncrypt">> => true
-    },
-    ?assertNotMatch(
-        AllOnedataTestCertDetailsWithEnabledLE,
-        cert_test_utils:get_cert_details(zone),
-        ?ATTEMPTS
-    ),
+    enable_lets_encrypt_and_await_cert_replacement(),
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{<<"letsEncrypt">> => true},
     AllPebbleCertDetails = assert_cert_details(ExpPebbleCertDetails),
-    assert_pebble_issuer(AllPebbleCertDetails).
+    assert_pebble_issuer(AllPebbleCertDetails).  %% TODO check creationtime?
+
+
+domain_mismatched_certificate_should_be_replaced_test(Config) ->
+    cert_test_utils:disable_lets_encrypt(zone),
+    DomainMismatchedCertPaths = build_cert_rel_paths(?PEBBLE_DOMAIN_MISMATCH_CERT_REL_DIR),
+    cert_test_utils:deploy_certs(zone, DomainMismatchedCertPaths, Config),
+
+    ExpDomainMismatchedCertDetails = #{
+        <<"domain">> => ?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN,
+        <<"dnsNames">> => [?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN],
+        <<"status">> => <<"domain_mismatch">>,
+        <<"letsEncrypt">> => false
+    },
+    assert_cert_details(ExpDomainMismatchedCertDetails),
+
+    enable_lets_encrypt_and_await_cert_replacement(),
+
+    OzDomain = dns_test_utils:get_zone_domain(),
+    ExpPebbleCertDetails = #{
+        <<"domain">> => OzDomain,
+        <<"dnsNames">> => [OzDomain],
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => true
+    },
+    AllPebbleCertDetails = assert_cert_details(ExpPebbleCertDetails),
+    assert_pebble_issuer(AllPebbleCertDetails).  %% TODO check creationtime?
 
 
 %%%===================================================================
@@ -127,6 +149,21 @@ build_cert_rel_paths(CertRelDir) ->
         web_key_file => str_utils:format("~s/web_key.pem", [CertRelDir]),
         web_cert_chain_file => str_utils:format("~s/web_chain.pem", [CertRelDir])
     }.
+
+
+%% @private
+enable_lets_encrypt_and_await_cert_replacement() ->
+    CurrentCertDetails = cert_test_utils:get_cert_details(zone),
+
+    cert_test_utils:enable_lets_encrypt(zone),
+
+    ?assertNotMatch(
+        CurrentCertDetails,
+        maps:remove(<<"letsEncrypt">>, cert_test_utils:get_cert_details(zone)),
+        ?ATTEMPTS
+    ),
+
+    ok.
 
 
 %% @private
