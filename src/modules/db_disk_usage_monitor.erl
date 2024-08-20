@@ -35,6 +35,7 @@
     usage :: float()  %% [0..1]
 }).
 -type usage_info() :: #usage_info{}.
+-type circuit_breaker_state() :: open | closed.
 
 
 -define(ROOT_DIR, application:get_env(?APP_NAME, db_root_dir, "/opt/couchbase")).
@@ -194,8 +195,8 @@ find_first_exceeded_threshold(Usage, [_ | ThresholdsByPriority]) ->
 
 
 %% @private
--spec handle_offenders(open | closed, #{atom() => [{service:host(), usage_info()}]}) ->
-    open | closed.
+-spec handle_offenders(circuit_breaker_state(), #{atom() => [{service:host(), usage_info()}]}) ->
+    circuit_breaker_state().
 handle_offenders(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
     closed;
 
@@ -249,7 +250,7 @@ format_offenders(Offenders) ->
 
 
 %% @private
--spec set_service_circuit_breaker_state(open | closed) -> ok.
+-spec set_service_circuit_breaker_state(circuit_breaker_state()) -> ok.
 set_service_circuit_breaker_state(State) ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
     ?catch_exceptions(onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
@@ -264,6 +265,6 @@ set_service_circuit_breaker_state(State) ->
 
 
 %% @private
--spec get_service_circuit_breaker_state() -> open | closed.
+-spec get_service_circuit_breaker_state() -> circuit_breaker_state().
 get_service_circuit_breaker_state() ->
     onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed).
