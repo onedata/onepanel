@@ -132,7 +132,7 @@ assert_dns_answer(Servers, Query, Type, Expected) ->
     ok | no_return().
 assert_dns_answer(Servers, Query, Type, Expected, Attempts) ->
     Server = ?RAND_ELEMENT(Servers),
-    QueryStr = str_utils:format("~s", [Query]),
+    QueryStr = str_utils:format("~ts", [Query]),
     SortedExpected = lists:sort(Expected),
 
     Opts = [{nameservers, [{Server, 53}]}],

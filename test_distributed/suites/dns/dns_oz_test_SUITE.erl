@@ -164,7 +164,7 @@ assert_oz_dns(OzDomain, ExpOzIps) ->
 
     % Even if oz dns is not enabled entries for ns are created
     NsDomains = lists:map(fun(NsDomainLabel) ->
-        str_utils:format("~s.~s", [NsDomainLabel, OzDomain])
+        str_utils:format("~ts.~ts", [NsDomainLabel, OzDomain])
     end, ?NS_DOMAIN_LABELS),
 
     dns_test_utils:assert_dns_answer(DnsServerIps, OzDomain, ns, NsDomains),
@@ -191,7 +191,7 @@ build_exp_dns_check_results(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDns
     ExpOzIpsBin = ip_test_utils:encode_ips(ExpOzIps),
 
     ExpDomainRecommended = lists:sort(lists:map(fun(OzIpBin) ->
-        str_utils:format_bin("~s. IN A ~s", [ExpOzDomain, OzIpBin])
+        str_utils:format_bin("~ts. IN A ~ts", [ExpOzDomain, OzIpBin])
     end, ExpOzIpsBin)),
 
     ExpDomainCheck = #{<<"domain">> => build_exp_dns_check_result(
@@ -203,10 +203,10 @@ build_exp_dns_check_results(ExpOzDomain, ExpOzIps, ExpDomainCheckSummary, ExpDns
         _ ->
             ExpDnsZoneRecommended = lists:flatten([
                 lists:map(fun(NsDomainLabel) ->
-                    str_utils:format_bin("~s. IN NS ~s.~s", [ExpOzDomain, NsDomainLabel, ExpOzDomain])
+                    str_utils:format_bin("~ts. IN NS ~ts.~ts", [ExpOzDomain, NsDomainLabel, ExpOzDomain])
                 end, ?NS_DOMAIN_LABELS),
                 lists:map(fun({NsDomainLabel, OzIpBin}) ->
-                    str_utils:format_bin("~s.~s. IN A ~s", [NsDomainLabel, ExpOzDomain, OzIpBin])
+                    str_utils:format_bin("~ts.~ts. IN A ~ts", [NsDomainLabel, ExpOzDomain, OzIpBin])
                 end, lists:zip(?NS_DOMAIN_LABELS, ExpOzIpsBin))
             ]),
             ExpDomainCheck#{<<"dnsZone">> => build_exp_dns_check_result(

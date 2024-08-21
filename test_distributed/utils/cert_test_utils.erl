@@ -103,9 +103,9 @@ deploy_certs(EntitySelector, CertDirName, Config) ->
         ?assertEqual(ExpResult, Result)
 
     end, [
-        {web_cert_file, str_utils:format("~s/web_cert.pem", [CertDirName])},
-        {web_key_file, str_utils:format("~s/web_key.pem", [CertDirName])},
-        {web_cert_chain_file, str_utils:format("~s/web_chain.pem", [CertDirName])}
+        {web_cert_file, str_utils:format("~ts/web_cert.pem", [CertDirName])},
+        {web_key_file, str_utils:format("~ts/web_key.pem", [CertDirName])},
+        {web_cert_chain_file, str_utils:format("~ts/web_chain.pem", [CertDirName])}
     ]),
 
     reload_certs(EntitySelector).

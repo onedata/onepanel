@@ -308,7 +308,7 @@ build_op_subdomain() ->
 %% @private
 build_op_subdomain(SubdomainLabel) ->
     OzDomain = dns_test_utils:get_zone_domain(),
-    str_utils:format_bin("~s.~s", [SubdomainLabel, OzDomain]).
+    str_utils:format_bin("~ts.~ts", [SubdomainLabel, OzDomain]).
 
 
 %% @private
@@ -325,7 +325,7 @@ assert_oz_dns(OpSubdomain, ExpIps) ->
             SortedExpOpWorkerIps = lists:sort(ExpWorkerIps),
             dns_test_utils:assert_dns_answer(DnsServerIps, OpSubdomain, a, SortedExpOpWorkerIps);
 
-        % TODO s3
+        % TODO VFS-12241 s3
     %%    OneS3Subdomain = <<"s3.", OpSubdomain/binary>>,
     %%    SortedExpOneS3Ips = lists:sort(ExpOneS3Ips),
     %%    dns_test_utils:assert_dns_answer(DnsServerIps, OneS3Subdomain, a, SortedExpOneS3Ips).
@@ -352,7 +352,7 @@ build_exp_dns_check_results(ExpOpSubdomain, ExpSummary, ExpIps) ->
                 ExpOpSubdomain, ExpWorkerIps, ExpSummary
             )};
 
-        %% TODO s3
+        %% TODO VFS-12241 s3
 %%        (s3, ExpOneS3Ips, Acc) ->
 %%            Acc#{<<"oneS3Subdomain">> => build_exp_dns_check_result(
 %%                <<"s3.", ExpOpSubdomain/binary>>, ExpOneS3Ips, ExpOneS3Summary
@@ -374,6 +374,6 @@ build_exp_dns_check_result(Subdomain, ExpIps, ExpSubdomainCheckSummary) ->
             unresolvable -> []
         end,
         <<"recommended">> => lists:sort(lists:map(fun(IpBin) ->
-            str_utils:format_bin("~s. IN A ~s", [Subdomain, IpBin])
+            str_utils:format_bin("~ts. IN A ~ts", [Subdomain, IpBin])
         end, ExpIpsBin))
     }.

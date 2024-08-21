@@ -310,7 +310,7 @@ obtain_cert(Ctx) ->
 
     ok = letsencrypt_api:run_certification_flow(get_plugin_module()),
 
-    %% TODO reload ones3?
+    %% TODO VFS-12241 reload ones3
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
 
     % Reloading webcerts stops https_listener and kills all connections. To ensure
@@ -430,7 +430,7 @@ local_cert_status(ExpectedDomain) ->
 -spec cert_status(Cert :: onepanel_cert:cert(), ExpectedDomain :: binary()) ->
     status().
 cert_status(Cert, ExpectedDomain) ->
-    %% TODO check all subdomaibs
+    %% TODO VFS-12242 check all subdomains
     case onepanel_cert:verify_hostname(Cert, ExpectedDomain) of
         error -> unknown;
         invalid -> domain_mismatch;

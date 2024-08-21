@@ -59,9 +59,6 @@ all() -> [
 ].
 
 
--define(TODO_DUMP_CERT, ct:pal("~p", [cert_test_utils:get_cert_details(zone)])).  %% TODO rm
-
-
 -define(ATTEMPTS, 100).
 
 
@@ -198,11 +195,13 @@ init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
         onenv_scenario = "1oz",
-        envs = [{oz_panel, onepanel, [
-            {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
-            % Increase certification attempts as pebble likes to fail from time to time
-            {letsencrypt_attempts, 10}
-        ]}],
+        envs = [
+            {oz_panel, onepanel, [
+                {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
+                % Increase certification attempts as pebble likes to fail from time to time
+                {letsencrypt_attempts, 10}
+            ]}
+        ],
         posthook = fun(NewConfig) ->
             % Requests should be made without cert verification due to possibly
             % incorrect certificates (tests will mess with them)
