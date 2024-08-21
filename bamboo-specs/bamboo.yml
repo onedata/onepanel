@@ -399,6 +399,28 @@ db_disk_usage_monitor:
     - <<: *ct_logs
       name: ct_logs_db_disk_usage_monitor.tar.gz
 
+dns_op:
+  <<: *ct-onenv-job
+  key: DNSOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_dns_op.tar.gz
+
+dns_oz:
+  <<: *ct-onenv-job
+  key: DNSOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_dns_oz.tar.gz
+
+# TODO VFS-12242 add pebble
+#le_oz:
+#  <<: *ct-onenv-job
+#  key: LETSENCRYPTOZ
+#  artifacts:
+#    - <<: *ct_logs
+#      name: ct_logs_le_oz.tar.gz
+
 model: &ct-job
   key: MOD
   other: *common-opts
@@ -565,6 +587,10 @@ Coverage report:
     - artifact: ct_logs_api_onezone_service_configuration.tar.gz
     - artifact: ct_logs_api_onezone_user_management.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
+    - artifact: ct_logs_dns_op.tar.gz
+    - artifact: ct_logs_dns_oz.tar.gz
+    # TODO VFS-12242 add pebble
+#    - artifact: ct_logs_le_oz.tar.gz
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
     - artifact: ct_logs_rest_letsencrypt.tar.gz
