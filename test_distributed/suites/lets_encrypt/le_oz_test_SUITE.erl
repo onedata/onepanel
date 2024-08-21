@@ -12,6 +12,7 @@
 -module(le_oz_test_SUITE).
 -author("Bartosz Walkowicz").
 
+-include("cert_test_utils.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -35,23 +36,11 @@ all() -> [
 ].
 
 
--define(RE_PEBBLE_ISSUER, <<"^Pebble Intermediate CA \\w+$">>).
-
--define(ONEDATA_TEST_CERTS_REL_DIR, "onedata").
-
--define(PEBBLE_DOMAIN_MISMATCH_CERT_REL_DIR, "pebble_domain_mismatch").
--define(PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN, <<"fake.local">>).
-
--define(PEBBLE_EXPIRED_CERT_REL_DIR, "pebble_expired").
-
-
 -define(TODO_DUMP_CERT, ct:pal("~p", [cert_test_utils:get_cert_details(zone)])).  %% TODO rm
 
 
 -define(ATTEMPTS, 100).
 
-
-%% TODO między testami może jeszcze nie wstał https_listener - może jakieś sleepy?
 
 %%%===================================================================
 %%% API
@@ -60,8 +49,7 @@ all() -> [
 
 non_lets_encrypt_issued_certificate_should_be_replaced_test(Config) ->
     cert_test_utils:disable_lets_encrypt(zone),
-    OnedataTestCertPaths = build_cert_rel_paths(?ONEDATA_TEST_CERTS_REL_DIR),
-    cert_test_utils:deploy_certs(zone, OnedataTestCertPaths, Config),
+    cert_test_utils:deploy_certs(zone, ?ONEDATA_TEST_CERT_DIR_NAME, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
     ExpBasicCertDetails = #{
@@ -70,22 +58,21 @@ non_lets_encrypt_issued_certificate_should_be_replaced_test(Config) ->
         <<"status">> => <<"valid">>
     },
     ExpOnedataTestCertDetails = ExpBasicCertDetails#{
-        <<"issuer">> => <<"OneDataTestWebServerCA">>,
+        <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
         <<"letsEncrypt">> => false
     },
-    assert_cert_details(ExpOnedataTestCertDetails),
+    cert_test_utils:assert_cert_details(zone, ExpOnedataTestCertDetails),
 
-    enable_lets_encrypt_and_await_cert_replacement(),
+    cert_test_utils:enable_lets_encrypt(zone),
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{<<"letsEncrypt">> => true},
-    AllPebbleCertDetails = assert_cert_details(ExpPebbleCertDetails),
-    assert_pebble_issuer(AllPebbleCertDetails).  %% TODO check creationtime?
+    AllPebbleCertDetails = cert_test_utils:assert_cert_details(zone, ExpPebbleCertDetails),
+    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
 domain_mismatched_certificate_should_be_replaced_test(Config) ->
     cert_test_utils:disable_lets_encrypt(zone),
-    DomainMismatchedCertPaths = build_cert_rel_paths(?PEBBLE_DOMAIN_MISMATCH_CERT_REL_DIR),
-    cert_test_utils:deploy_certs(zone, DomainMismatchedCertPaths, Config),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_DOMAIN_MISMATCH_CERT_DIR_NAME, Config),
 
     ExpDomainMismatchedCertDetails = #{
         <<"domain">> => ?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN,
@@ -93,9 +80,9 @@ domain_mismatched_certificate_should_be_replaced_test(Config) ->
         <<"status">> => <<"domain_mismatch">>,
         <<"letsEncrypt">> => false
     },
-    assert_cert_details(ExpDomainMismatchedCertDetails),
+    cert_test_utils:assert_cert_details(zone, ExpDomainMismatchedCertDetails),
 
-    enable_lets_encrypt_and_await_cert_replacement(),
+    cert_test_utils:enable_lets_encrypt(zone),
 
     OzDomain = dns_test_utils:get_zone_domain(),
     ExpPebbleCertDetails = #{
@@ -104,14 +91,13 @@ domain_mismatched_certificate_should_be_replaced_test(Config) ->
         <<"status">> => <<"valid">>,
         <<"letsEncrypt">> => true
     },
-    AllPebbleCertDetails = assert_cert_details(ExpPebbleCertDetails),
-    assert_pebble_issuer(AllPebbleCertDetails).  %% TODO check creationtime?
+    AllPebbleCertDetails = cert_test_utils:assert_cert_details(zone, ExpPebbleCertDetails),
+    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
 expired_certificate_should_be_replaced_test(Config) ->
     cert_test_utils:disable_lets_encrypt(zone),
-    ExpiredCertPaths = build_cert_rel_paths(?PEBBLE_EXPIRED_CERT_REL_DIR),
-    cert_test_utils:deploy_certs(zone, ExpiredCertPaths, Config),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_EXPIRED_CERT_DIR_NAME, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
     ExpBasicCertDetails = #{
@@ -122,16 +108,16 @@ expired_certificate_should_be_replaced_test(Config) ->
         <<"status">> => <<"near_expiration">>,  %% TODO expired
         <<"letsEncrypt">> => false
     },
-    assert_cert_details(ExpExpiredCertDetails),
+    cert_test_utils:assert_cert_details(zone, ExpExpiredCertDetails),
 
-    enable_lets_encrypt_and_await_cert_replacement(),
+    cert_test_utils:enable_lets_encrypt(zone),
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{
         <<"status">> => <<"valid">>,
         <<"letsEncrypt">> => true
     },
-    AllPebbleCertDetails = assert_cert_details(ExpPebbleCertDetails),
-    assert_pebble_issuer(AllPebbleCertDetails).  %% TODO check creationtime?
+    AllPebbleCertDetails = cert_test_utils:assert_cert_details(zone, ExpPebbleCertDetails),
+    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
 %%%===================================================================
@@ -145,7 +131,8 @@ init_per_suite(Config) ->
         onenv_scenario = "1oz",
         envs = [{oz_panel, onepanel, [
             {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
-            {letsencrypt_attempts, 10}  %% TODO
+            % Increase certification attempts as pebble likes to fail from time to time
+            {letsencrypt_attempts, 10}
         ]}],
         posthook = fun(NewConfig) ->
             % Requests should be made without cert verification due to possibly
@@ -166,52 +153,13 @@ init_per_testcase(_Case, Config) ->
 
 
 end_per_testcase(_Case, _Config) ->
+    % Onepanel's listeners are restarted asynchronously - force it to prevent
+    % restart during next test
+    cert_test_utils:reload_certs(zone),
+
     ok.
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
-build_cert_rel_paths(CertRelDir) ->
-    #{
-        web_cert_file => str_utils:format("~s/web_cert.pem", [CertRelDir]),
-        web_key_file => str_utils:format("~s/web_key.pem", [CertRelDir]),
-        web_cert_chain_file => str_utils:format("~s/web_chain.pem", [CertRelDir])
-    }.
-
-
-%% @private
-enable_lets_encrypt_and_await_cert_replacement() ->
-    CurrentCertDetails = cert_test_utils:get_cert_details(zone),
-
-    cert_test_utils:enable_lets_encrypt(zone),
-
-    ?assertNotMatch(
-        CurrentCertDetails,
-        maps:remove(<<"letsEncrypt">>, cert_test_utils:get_cert_details(zone)),
-        ?ATTEMPTS
-    ),
-
-    ok.
-
-
-%% @private
-assert_cert_details(ExpCertDetails) ->
-    CheckedKeys = maps:keys(ExpCertDetails),
-    GetCertDetailsFun = fun() ->
-        Details = cert_test_utils:get_cert_details(zone),
-        {maps:with(CheckedKeys, Details), Details}
-    end,
-    {_, AllCertDetails} = ?assertMatch({ExpCertDetails, _}, GetCertDetailsFun()),
-    AllCertDetails.
-
-
-%% @private
-assert_pebble_issuer(CertDetails) ->
-    ?assertEqual(
-        match,
-        re:run(maps:get(<<"issuer">>, CertDetails), ?RE_PEBBLE_ISSUER, [{capture, none}])
-    ).
