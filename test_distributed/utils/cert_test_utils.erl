@@ -130,9 +130,13 @@ reload_certs(EntitySelector) ->
 update_lets_encrypt(EntitySelector, Enabled) ->
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
-        panel_test_rest:patch(EntitySelector, <<"/web_cert">>, #{auth => root, json => #{
-            <<"letsEncrypt">> => Enabled
-        }})
+        panel_test_rest:patch(EntitySelector, <<"/web_cert">>, #{
+            auth => root,
+            json => #{<<"letsEncrypt">> => Enabled},
+            % Enabling lets encrypt may cause (if current cert is not valid)
+            % new synchronous certification process. This may take some time
+            recv_timeout => timer:minutes(5)
+        })
     ),
     ok.
 

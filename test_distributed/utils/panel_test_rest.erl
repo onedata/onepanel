@@ -39,7 +39,9 @@
 -type request_args() :: #{
     method => http_client:method(),
     path => binary(),
+
     proxy => boolean(),
+    recv_timeout => integer(),
 
     auth => request_auth(),
     insecure => boolean(),
@@ -95,7 +97,7 @@ request(PanelNodeSelector, RequestArgs) ->
     Url = build_url(PanelNode, RequestArgs),
     Headers = build_headers(RequestArgs),
     Body = build_body(RequestArgs),
-    Opts = [{ssl_options, build_ssl_opts(PanelNode, RequestArgs)}, {recv_timeout, 60000}],
+    Opts = build_opts(PanelNode, RequestArgs),
 
     case http_client:request(Method, Url, Headers, Body, Opts) of
         {ok, RespCode, RespHeaders, RespBody} ->
@@ -189,6 +191,15 @@ build_body(RequestArgs) ->
         JsonTerm ->
             json_utils:encode(JsonTerm)
     end.
+
+
+%% @private
+-spec build_opts(node(), request_args()) -> [http_client:opt()].
+build_opts(PanelNode, RequestArgs) ->
+    [
+        {ssl_options, build_ssl_opts(PanelNode, RequestArgs)},
+        {recv_timeout, maps:get(recv_timeout, RequestArgs, timer:minutes(1))}
+    ].
 
 
 %% @private
