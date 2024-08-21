@@ -26,13 +26,15 @@
 -export([
     non_lets_encrypt_issued_certificate_should_be_replaced_test/1,
     domain_mismatched_certificate_should_be_replaced_test/1,
-    expired_certificate_should_be_replaced_test/1
+    expired_certificate_should_be_replaced_test/1,
+    valid_certificate_should_not_be_replaced_test/1
 ]).
 
 all() -> [
     non_lets_encrypt_issued_certificate_should_be_replaced_test,
     domain_mismatched_certificate_should_be_replaced_test,
-    expired_certificate_should_be_replaced_test
+    expired_certificate_should_be_replaced_test,
+    valid_certificate_should_not_be_replaced_test
 ].
 
 
@@ -118,6 +120,25 @@ expired_certificate_should_be_replaced_test(Config) ->
     },
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(zone, ExpPebbleCertDetails),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
+
+
+valid_certificate_should_not_be_replaced_test(Config) ->
+    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
+
+    OzDomain = dns_test_utils:get_zone_domain(),
+    ExpBasicCertDetails = #{
+        <<"domain">> => OzDomain,
+        <<"dnsNames">> => [OzDomain],
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => false
+    },
+    AllCertDetails = cert_test_utils:assert_cert_details(zone, ExpBasicCertDetails),
+
+    cert_test_utils:enable_lets_encrypt(zone),
+
+    ExpAllCertDetails = AllCertDetails#{<<"letsEncrypt">> => true},
+    cert_test_utils:assert_cert_details(zone, ExpAllCertDetails).
 
 
 %%%===================================================================

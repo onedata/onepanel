@@ -24,6 +24,8 @@
 
 -define(PEBBLE_EXPIRED_CERT_DIR_NAME, "pebble_expired").
 
+-define(PEBBLE_VALID_CERT_DIR_NAME, "pebble_valid").
+
 -define(GARBAGE_CERT_DIR_NAME, "garbage").
 
 
