@@ -185,6 +185,7 @@ run_certification_flow(Plugin) ->
 %%--------------------------------------------------------------------
 -spec challenge_types() -> [challenge_type()].
 challenge_types() ->
+    % Http challenge is preferred if possible as it is more versatile and simpler.
     [http, dns].
 
 
@@ -318,7 +319,8 @@ attempt_certification(#flow_state{service = Service} = State) ->
     % internal server error: there should never be a case that no challenge
     % is supported by the plugin module, and no better error reason is thrown
     % from supports_letsencrypt_challenge.
-    end, {?ERROR_INTERNAL_SERVER_ERROR, State}, challenge_types()),
+    % NOTE: challenge_types() called via ?MODULE to allow mocking in tests
+    end, {?ERROR_INTERNAL_SERVER_ERROR, State}, ?MODULE:challenge_types()),
 
     case Result of
         {ok, NewState} -> {ok, NewState};

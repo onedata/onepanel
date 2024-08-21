@@ -16,24 +16,45 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
-%% API
--export([all/0]).
+%% exported for CT
 -export([
+    groups/0, all/0,
     init_per_suite/1, end_per_suite/1,
+    init_per_group/2, end_per_group/2,
     init_per_testcase/2, end_per_testcase/2
 ]).
 
+% Tests
 -export([
-    non_lets_encrypt_issued_certificate_should_be_replaced_test/1,
-    domain_mismatched_certificate_should_be_replaced_test/1,
-    expired_certificate_should_be_replaced_test/1,
+    non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test/1,
+    non_lets_encrypt_issued_certificate_should_be_replaced_with_dns_challenge_test/1,
+
+    domain_mismatched_certificate_should_be_replaced_with_http_challenge_test/1,
+    domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test/1,
+
+    expired_certificate_should_be_replaced_with_http_challenge_test/1,
+    expired_certificate_should_be_replaced_with_dns_challenge_test/1,
+
     valid_certificate_should_not_be_replaced_test/1
 ]).
 
+groups() -> [
+    {http_challenge, [], [
+        non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test,
+        domain_mismatched_certificate_should_be_replaced_with_http_challenge_test,
+        expired_certificate_should_be_replaced_with_http_challenge_test
+    ]},
+
+    {dns_challenge, [], [
+        non_lets_encrypt_issued_certificate_should_be_replaced_with_dns_challenge_test,
+        domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test,
+        expired_certificate_should_be_replaced_with_dns_challenge_test
+    ]}
+].
+
 all() -> [
-    non_lets_encrypt_issued_certificate_should_be_replaced_test,
-    domain_mismatched_certificate_should_be_replaced_test,
-    expired_certificate_should_be_replaced_test,
+    {group, http_challenge},
+    {group, dns_challenge},
     valid_certificate_should_not_be_replaced_test
 ].
 
@@ -49,7 +70,16 @@ all() -> [
 %%%===================================================================
 
 
-non_lets_encrypt_issued_certificate_should_be_replaced_test(Config) ->
+non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test(Config) ->
+    non_lets_encrypt_issued_certificate_should_be_replaced_test_base(Config).
+
+
+non_lets_encrypt_issued_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
+    non_lets_encrypt_issued_certificate_should_be_replaced_test_base(Config).
+
+
+%% @private
+non_lets_encrypt_issued_certificate_should_be_replaced_test_base(Config) ->
     cert_test_utils:disable_lets_encrypt(zone),
     cert_test_utils:deploy_certs(zone, ?ONEDATA_TEST_CERT_DIR_NAME, Config),
 
@@ -72,7 +102,16 @@ non_lets_encrypt_issued_certificate_should_be_replaced_test(Config) ->
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
-domain_mismatched_certificate_should_be_replaced_test(Config) ->
+domain_mismatched_certificate_should_be_replaced_with_http_challenge_test(Config) ->
+    domain_mismatched_certificate_should_be_replaced_test_base(Config).
+
+
+domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
+    domain_mismatched_certificate_should_be_replaced_test_base(Config).
+
+
+%% @private
+domain_mismatched_certificate_should_be_replaced_test_base(Config) ->
     cert_test_utils:disable_lets_encrypt(zone),
     cert_test_utils:deploy_certs(zone, ?PEBBLE_DOMAIN_MISMATCH_CERT_DIR_NAME, Config),
 
@@ -97,7 +136,16 @@ domain_mismatched_certificate_should_be_replaced_test(Config) ->
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
-expired_certificate_should_be_replaced_test(Config) ->
+expired_certificate_should_be_replaced_with_http_challenge_test(Config) ->
+    expired_certificate_should_be_replaced_test_base(Config).
+
+
+expired_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
+    expired_certificate_should_be_replaced_test_base(Config).
+
+
+%% @private
+expired_certificate_should_be_replaced_test_base(Config) ->
     cert_test_utils:disable_lets_encrypt(zone),
     cert_test_utils:deploy_certs(zone, ?PEBBLE_EXPIRED_CERT_DIR_NAME, Config),
 
@@ -107,7 +155,7 @@ expired_certificate_should_be_replaced_test(Config) ->
         <<"dnsNames">> => [OzDomain]
     },
     ExpExpiredCertDetails = ExpBasicCertDetails#{
-        <<"status">> => <<"near_expiration">>,  %% TODO expired
+        <<"status">> => <<"expired">>,
         <<"letsEncrypt">> => false
     },
     cert_test_utils:assert_cert_details(zone, ExpExpiredCertDetails),
@@ -169,18 +217,33 @@ end_per_suite(_Config) ->
     oct_background:end_per_suite().
 
 
+init_per_group(Group, Config) ->
+    {ChallengeType, EnableSubdomainDelegation} = case Group of
+        http_challenge -> {http, false};
+        dns_challenge -> {dns, true}
+    end,
+    PanelNoes = oct_background:get_zone_panels(),
+    test_utils:mock_new(PanelNoes, letsencrypt_api),
+    test_utils:mock_expect(PanelNoes, letsencrypt_api, challenge_types, fun() ->
+        [ChallengeType]
+    end),
+    dns_test_utils:update_zone_subdomain_delegation(EnableSubdomainDelegation),
+
+    Config.
+
+
+end_per_group(_Case, Config) ->
+    PanelNoes = oct_background:get_zone_panels(),
+    test_utils:mock_unload(PanelNoes, [letsencrypt_api]),
+
+    Config.
+
+
 init_per_testcase(_Case, Config) ->
     Config.
 
 
-end_per_testcase(_Case, _Config) ->
-    % Onepanel's listeners are restarted asynchronously - force it to prevent
-    % restart during next test
-    cert_test_utils:reload_certs(zone),
+end_per_testcase(_Case, Config) ->
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
 
     ok.
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================

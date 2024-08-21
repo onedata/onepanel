@@ -21,6 +21,7 @@
 %% API
 -export([
     get_zone_domain/0,
+    update_zone_subdomain_delegation/1,
 
     assert_panel_dns_config/2,
     update_panel_dns_config/2,
@@ -46,6 +47,17 @@ get_zone_domain() ->
     OzNode = ?RAND_ELEMENT(oct_background:get_zone_panels()),
     {ok, OzDomain} = test_utils:get_env(OzNode, ?APP_NAME, test_web_cert_domain),
     str_utils:to_binary(OzDomain).
+
+
+-spec update_zone_subdomain_delegation(boolean()) -> ok.
+update_zone_subdomain_delegation(SubdomainDelegationEnabled) ->
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:patch(zone, <<"/zone/policies">>, #{auth => root, json => #{
+            <<"subdomainDelegation">> => SubdomainDelegationEnabled
+        }})
+    ),
+    ok.
 
 
 -spec assert_panel_dns_config(oct_background:entity_selector(), json_utils:json_map()) -> ok.
