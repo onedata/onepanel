@@ -26,6 +26,10 @@
 
 % Tests
 -export([
+    get_certificate_metadata_test/1,
+
+    valid_certificate_should_not_be_replaced_test/1,
+
     non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test/1,
     non_lets_encrypt_issued_certificate_should_be_replaced_with_dns_challenge_test/1,
 
@@ -33,9 +37,7 @@
     domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test/1,
 
     expired_certificate_should_be_replaced_with_http_challenge_test/1,
-    expired_certificate_should_be_replaced_with_dns_challenge_test/1,
-
-    valid_certificate_should_not_be_replaced_test/1
+    expired_certificate_should_be_replaced_with_dns_challenge_test/1
 ]).
 
 groups() -> [
@@ -53,9 +55,11 @@ groups() -> [
 ].
 
 all() -> [
+    get_certificate_metadata_test,
+    valid_certificate_should_not_be_replaced_test,
+
     {group, http_challenge},
-    {group, dns_challenge},
-    valid_certificate_should_not_be_replaced_test
+    {group, dns_challenge}
 ].
 
 
@@ -65,6 +69,73 @@ all() -> [
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+get_certificate_metadata_test(Config) ->
+    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
+
+    OzDomain = dns_test_utils:get_zone_domain(),
+    CertMetadataWithDisabledLetsEncrypt = ?assertMatch(
+        #{
+            <<"letsEncrypt">> := false,
+            <<"expirationTime">> := _,
+            <<"creationTime">> := _,
+            <<"paths">> := #{
+                <<"cert">> := _,
+                <<"key">> := _,
+                <<"chain">> := _
+            },
+            <<"domain">> := OzDomain,
+            <<"dnsNames">> := [OzDomain],
+            <<"issuer">> := _,
+            <<"status">> := <<"valid">>
+        },
+        cert_test_utils:get_cert_details(zone)
+    ),
+    ?assertEqual(8, length(maps:keys(CertMetadataWithDisabledLetsEncrypt))),
+
+    cert_test_utils:enable_lets_encrypt(zone),
+
+    CertMetadataWithEnabledLetsEncrypt = ?assertMatch(
+        #{
+            <<"letsEncrypt">> := true,
+            <<"expirationTime">> := _,
+            <<"creationTime">> := _,
+            <<"paths">> := #{
+                <<"cert">> := _,
+                <<"key">> := _,
+                <<"chain">> := _
+            },
+            <<"domain">> := OzDomain,
+            <<"dnsNames">> := [OzDomain],
+            <<"issuer">> := _,
+            <<"status">> := <<"valid">>,
+            <<"lastRenewalFailure">> := _,
+            <<"lastRenewalSuccess">> := _
+        },
+        cert_test_utils:get_cert_details(zone)
+    ),
+    ?assertEqual(10, length(maps:keys(CertMetadataWithEnabledLetsEncrypt))).
+
+
+valid_certificate_should_not_be_replaced_test(Config) ->
+    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
+
+    OzDomain = dns_test_utils:get_zone_domain(),
+    ExpBasicCertDetails = #{
+        <<"domain">> => OzDomain,
+        <<"dnsNames">> => [OzDomain],
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => false
+    },
+    AllCertDetails = cert_test_utils:assert_cert_details(zone, ExpBasicCertDetails),
+
+    cert_test_utils:enable_lets_encrypt(zone),
+
+    ExpAllCertDetails = AllCertDetails#{<<"letsEncrypt">> => true},
+    cert_test_utils:assert_cert_details(zone, ExpAllCertDetails).
 
 
 non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test(Config) ->
@@ -167,25 +238,6 @@ expired_certificate_should_be_replaced_test_base(Config) ->
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
-valid_certificate_should_not_be_replaced_test(Config) ->
-    cert_test_utils:disable_lets_encrypt(zone),
-    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
-
-    OzDomain = dns_test_utils:get_zone_domain(),
-    ExpBasicCertDetails = #{
-        <<"domain">> => OzDomain,
-        <<"dnsNames">> => [OzDomain],
-        <<"status">> => <<"valid">>,
-        <<"letsEncrypt">> => false
-    },
-    AllCertDetails = cert_test_utils:assert_cert_details(zone, ExpBasicCertDetails),
-
-    cert_test_utils:enable_lets_encrypt(zone),
-
-    ExpAllCertDetails = AllCertDetails#{<<"letsEncrypt">> => true},
-    cert_test_utils:assert_cert_details(zone, ExpAllCertDetails).
-
-
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -239,10 +291,21 @@ end_per_group(_Case, Config) ->
 
 
 init_per_testcase(_Case, Config) ->
+    PanelNodes = oct_background:get_zone_panels(),
+    test_utils:mock_new(PanelNodes, [service_oz_worker, service_onepanel], [passthrough]),
+
     Config.
 
 
 end_per_testcase(_Case, Config) ->
+    PanelNodes = oct_background:get_zone_panels(),
+    test_utils:mock_unload(PanelNodes),
+
     cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
 
     ok.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
