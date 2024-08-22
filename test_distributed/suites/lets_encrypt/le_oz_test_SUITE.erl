@@ -37,7 +37,9 @@
     domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test/1,
 
     expired_certificate_should_be_replaced_with_http_challenge_test/1,
-    expired_certificate_should_be_replaced_with_dns_challenge_test/1
+    expired_certificate_should_be_replaced_with_dns_challenge_test/1,
+
+    disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test/1
 ]).
 
 groups() -> [
@@ -59,7 +61,9 @@ all() -> [
     valid_certificate_should_not_be_replaced_test,
 
     {group, http_challenge},
-    {group, dns_challenge}
+    {group, dns_challenge},
+
+    disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test
 ].
 
 
@@ -236,6 +240,20 @@ expired_certificate_should_be_replaced_test_base(Config) ->
     },
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(zone, ExpPebbleCertDetails),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
+
+
+disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test(Config) ->
+    % Run previous test code to ensure new certificate was issued
+    expired_certificate_should_be_replaced_test_base(Config),
+    CertDetails = cert_test_utils:get_cert_details(zone),
+
+    cert_test_utils:disable_lets_encrypt(zone),
+
+    ExpCertDetails = maps:without(
+        [<<"lastRenewalFailure">>, <<"lastRenewalSuccess">>],
+        CertDetails#{<<"letsEncrypt">> => false}
+    ),
+    ?assertEqual(ExpCertDetails, cert_test_utils:get_cert_details(zone)).
 
 
 %%%===================================================================
