@@ -24,8 +24,7 @@
     assert_cert_details/2,
     assert_newly_issued_pebble_cert/1,
 
-    enable_lets_encrypt/1,
-    disable_lets_encrypt/1,
+    update_lets_encrypt/2,
 
     deploy_certs/3,
     reload_certs/1
@@ -72,14 +71,23 @@ assert_newly_issued_pebble_cert(#{
     ok.
 
 
--spec enable_lets_encrypt(oct_background:entity_selector()) -> ok.
-enable_lets_encrypt(EntitySelector) ->
-    update_lets_encrypt(EntitySelector, true).
-
-
--spec disable_lets_encrypt(oct_background:entity_selector()) -> ok.
-disable_lets_encrypt(EntitySelector) ->
-    update_lets_encrypt(EntitySelector, false).
+-spec update_lets_encrypt(oct_background:entity_selector(), enable | disable) ->
+    ok.
+update_lets_encrypt(EntitySelector, State) ->
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:patch(EntitySelector, <<"/web_cert">>, #{
+            auth => root,
+            json => #{<<"letsEncrypt">> => case State of
+                enable -> true;
+                disable -> false
+            end},
+            % Enabling lets encrypt may cause (if current cert is not valid)
+            % new synchronous certification process. This may take some time
+            recv_timeout => timer:minutes(5)
+        })
+    ),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -124,21 +132,6 @@ reload_certs(EntitySelector) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
-update_lets_encrypt(EntitySelector, Enabled) ->
-    ?assertMatch(
-        {ok, ?HTTP_204_NO_CONTENT, _, _},
-        panel_test_rest:patch(EntitySelector, <<"/web_cert">>, #{
-            auth => root,
-            json => #{<<"letsEncrypt">> => Enabled},
-            % Enabling lets encrypt may cause (if current cert is not valid)
-            % new synchronous certification process. This may take some time
-            recv_timeout => timer:minutes(5)
-        })
-    ),
-    ok.
 
 
 %% @private

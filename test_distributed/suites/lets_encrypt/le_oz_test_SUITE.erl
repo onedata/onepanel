@@ -12,6 +12,7 @@
 -module(le_oz_test_SUITE).
 -author("Bartosz Walkowicz").
 
+-include("api_test_runner.hrl").
 -include("cert_test_utils.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -27,7 +28,6 @@
 % Tests
 -export([
     get_certificate_metadata_test/1,
-
     valid_certificate_should_not_be_replaced_test/1,
 
     non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test/1,
@@ -76,55 +76,90 @@ all() -> [
 
 
 get_certificate_metadata_test(Config) ->
-    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, disable),
     cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
-    CertMetadataWithDisabledLetsEncrypt = ?assertMatch(
-        #{
-            <<"letsEncrypt">> := false,
-            <<"expirationTime">> := _,
-            <<"creationTime">> := _,
-            <<"paths">> := #{
-                <<"cert">> := _,
-                <<"key">> := _,
-                <<"chain">> := _
-            },
-            <<"domain">> := OzDomain,
-            <<"dnsNames">> := [OzDomain],
-            <<"issuer">> := _,
-            <<"status">> := <<"valid">>
-        },
-        cert_test_utils:get_cert_details(zone)
-    ),
-    ?assertEqual(8, length(maps:keys(CertMetadataWithDisabledLetsEncrypt))),
 
-    cert_test_utils:enable_lets_encrypt(zone),
-
-    CertMetadataWithEnabledLetsEncrypt = ?assertMatch(
-        #{
-            <<"letsEncrypt">> := true,
-            <<"expirationTime">> := _,
-            <<"creationTime">> := _,
-            <<"paths">> := #{
-                <<"cert">> := _,
-                <<"key">> := _,
-                <<"chain">> := _
-            },
-            <<"domain">> := OzDomain,
-            <<"dnsNames">> := [OzDomain],
-            <<"issuer">> := _,
-            <<"status">> := <<"valid">>,
-            <<"lastRenewalFailure">> := _,
-            <<"lastRenewalSuccess">> := _
+    ScenarioSpec = #scenario_spec{
+        %% TODO why not proxy?
+        test_proxied_onepanel_rest_endpoint = false,
+        name = <<"Get Onezone policies using /zone/policies endpoint">>,
+        type = rest,
+        target_nodes = oct_background:get_zone_panels(),
+        client_spec = #client_spec{
+            correct = [
+                root,
+                member
+            ],
+            unauthorized = [
+                guest,
+                {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+            ],
+            forbidden = [peer]
         },
-        cert_test_utils:get_cert_details(zone)
-    ),
-    ?assertEqual(10, length(maps:keys(CertMetadataWithEnabledLetsEncrypt))).
+
+        prepare_args_fun = fun(_) ->
+            #rest_args{
+                method = get,
+                path = <<"web_cert">>
+            }
+        end,
+
+        validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
+            ?assertMatch(
+                #{
+                    <<"letsEncrypt">> := false,
+                    <<"expirationTime">> := _,
+                    <<"creationTime">> := _,
+                    <<"paths">> := #{
+                        <<"cert">> := _,
+                        <<"key">> := _,
+                        <<"chain">> := _
+                    },
+                    <<"domain">> := OzDomain,
+                    <<"dnsNames">> := [OzDomain],
+                    <<"issuer">> := _,
+                    <<"status">> := <<"valid">>
+                },
+                Body
+            ),
+            ?assertEqual(8, length(maps:keys(Body)))
+        end)
+    },
+    ?assert(api_test_runner:run_tests([ScenarioSpec])),
+
+    cert_test_utils:update_lets_encrypt(zone, enable),
+
+    ?assert(api_test_runner:run_tests([ScenarioSpec#scenario_spec{
+        validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
+            ?assertMatch(
+                #{
+                    <<"letsEncrypt">> := true,
+                    <<"expirationTime">> := _,
+                    <<"creationTime">> := _,
+                    <<"paths">> := #{
+                        <<"cert">> := _,
+                        <<"key">> := _,
+                        <<"chain">> := _
+                    },
+                    <<"domain">> := OzDomain,
+                    <<"dnsNames">> := [OzDomain],
+                    <<"issuer">> := _,
+                    <<"status">> := <<"valid">>,
+                    <<"lastRenewalFailure">> := _,
+                    <<"lastRenewalSuccess">> := _
+                },
+                Body
+            ),
+            ?assertEqual(10, length(maps:keys(Body)))
+        end)
+    }])).
 
 
 valid_certificate_should_not_be_replaced_test(Config) ->
-    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, disable),
     cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
@@ -136,7 +171,7 @@ valid_certificate_should_not_be_replaced_test(Config) ->
     },
     AllCertDetails = cert_test_utils:assert_cert_details(zone, ExpBasicCertDetails),
 
-    cert_test_utils:enable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, enable),
 
     ExpAllCertDetails = AllCertDetails#{<<"letsEncrypt">> => true},
     cert_test_utils:assert_cert_details(zone, ExpAllCertDetails).
@@ -152,7 +187,7 @@ non_lets_encrypt_issued_certificate_should_be_replaced_with_dns_challenge_test(C
 
 %% @private
 non_lets_encrypt_issued_certificate_should_be_replaced_test_base(Config) ->
-    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, disable),
     cert_test_utils:deploy_certs(zone, ?ONEDATA_TEST_CERT_DIR_NAME, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
@@ -167,7 +202,7 @@ non_lets_encrypt_issued_certificate_should_be_replaced_test_base(Config) ->
     },
     cert_test_utils:assert_cert_details(zone, ExpOnedataTestCertDetails),
 
-    cert_test_utils:enable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, enable),
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{<<"letsEncrypt">> => true},
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(zone, ExpPebbleCertDetails),
@@ -184,7 +219,7 @@ domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test(Config)
 
 %% @private
 domain_mismatched_certificate_should_be_replaced_test_base(Config) ->
-    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, disable),
     cert_test_utils:deploy_certs(zone, ?PEBBLE_DOMAIN_MISMATCH_CERT_DIR_NAME, Config),
 
     ExpDomainMismatchedCertDetails = #{
@@ -195,7 +230,7 @@ domain_mismatched_certificate_should_be_replaced_test_base(Config) ->
     },
     cert_test_utils:assert_cert_details(zone, ExpDomainMismatchedCertDetails),
 
-    cert_test_utils:enable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, enable),
 
     OzDomain = dns_test_utils:get_zone_domain(),
     ExpPebbleCertDetails = #{
@@ -218,7 +253,7 @@ expired_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
 
 %% @private
 expired_certificate_should_be_replaced_test_base(Config) ->
-    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, disable),
     cert_test_utils:deploy_certs(zone, ?PEBBLE_EXPIRED_CERT_DIR_NAME, Config),
 
     OzDomain = dns_test_utils:get_zone_domain(),
@@ -232,7 +267,7 @@ expired_certificate_should_be_replaced_test_base(Config) ->
     },
     cert_test_utils:assert_cert_details(zone, ExpExpiredCertDetails),
 
-    cert_test_utils:enable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, enable),
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{
         <<"status">> => <<"valid">>,
@@ -247,7 +282,7 @@ disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test(Con
     expired_certificate_should_be_replaced_test_base(Config),
     CertDetails = cert_test_utils:get_cert_details(zone),
 
-    cert_test_utils:disable_lets_encrypt(zone),
+    cert_test_utils:update_lets_encrypt(zone, disable),
 
     ExpCertDetails = maps:without(
         [<<"lastRenewalFailure">>, <<"lastRenewalSuccess">>],
