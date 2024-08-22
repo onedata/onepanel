@@ -66,6 +66,8 @@ stages:
         - api_onezone_service_configuration
         - api_onezone_user_management
         - db_disk_usage_monitor
+        - dns_op
+        - dns_oz
         - model
         - rest_clusters
         - rest_letsencrypt
