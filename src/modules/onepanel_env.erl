@@ -32,7 +32,7 @@
 -export([read/2, read_effective/2, read_effective/3, get_config_path/2]).
 -export([write/2, write/3, write/4]).
 -export([rename/3]).
--export([get_remote/3, find_remote/3, set_remote/4]).
+-export([get_remote/3, get_remote/4, find_remote/3, set_remote/4]).
 -export([upgrade_app_config/2, upgrade_app_config/3, legacy_config_exists/1]).
 -export([import_generated_from_node/3, import_generated_from_node/4]).
 -export([get_cluster_type/0]).
@@ -110,6 +110,21 @@ get_remote(Node, Keys, AppName) ->
     case find_remote(Node, Keys, AppName) of
         {ok, Value} -> Value;
         error -> error({missing_env_variable, {AppName, Keys}})
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @doc Returns value of an application variable from from memory of application
+%% on another node.
+%% Returns the Default when value has not been found.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_remote(Node :: node(), Keys :: keys(), app_name(), Default :: value()) ->
+    Value :: value().
+get_remote(Node, Keys, AppName, Default) ->
+    case find_remote(Node, Keys, AppName) of
+        {ok, Value} -> Value;
+        error -> Default
     end.
 
 
