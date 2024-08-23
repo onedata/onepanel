@@ -41,7 +41,9 @@
     expired_certificate_should_be_replaced_with_http_challenge_test/1,
     expired_certificate_should_be_replaced_with_dns_challenge_test/1,
 
-    disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test/1
+    disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test/1,
+    failed_certification_attempt_leaves_lets_encrypt_disabled_test/1,
+    failed_certification_attempt_leaves_lets_encrypt_enabled_test/1
 ]).
 
 groups() -> [
@@ -66,9 +68,17 @@ all() -> [
     {group, http_challenge},
     {group, dns_challenge},
 
-    disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test
+    disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test,
+    failed_certification_attempt_leaves_lets_encrypt_disabled_test,
+    failed_certification_attempt_leaves_lets_encrypt_enabled_test
 ].
 
+% Increase certification attempts as pebble may fail several times
+% (not offering challenge, etc.) which is even better as it lets
+% us tests certification retries
+-define(CERTIFICATION_ATTEMPTS, 10).
+
+-define(CERTIFICATION_FLOW_ERROR, ?ERROR_LETS_ENCRYPT_RESPONSE(<<>>, <<>>)).
 
 -define(ATTEMPTS, 100).
 
@@ -334,6 +344,28 @@ disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test(Con
     ?assertEqual(ExpCertDetails, cert_test_utils:get_cert_details(zone)).
 
 
+failed_certification_attempt_leaves_lets_encrypt_disabled_test(Config) ->
+    failed_certification_attempt_leaves_lets_encrypt_intact_test_base(Config).
+
+
+failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
+    failed_certification_attempt_leaves_lets_encrypt_intact_test_base(Config).
+
+
+%% @private
+failed_certification_attempt_leaves_lets_encrypt_intact_test_base(_Config) ->
+    KeyToRm = <<"lastRenewalFailure">>,
+    CertDetails = maps:remove(KeyToRm, cert_test_utils:get_cert_details(zone)),
+
+    {ok, _, _, #{<<"error">> := RespError}} = ?assertMatch(
+        {ok, ?HTTP_400_BAD_REQUEST, _, #{<<"error">> := _}},
+        cert_test_utils:try_update_lets_encrypt(zone, enable)
+    ),
+    ?assertMatch(?ERROR_ON_NODES(?CERTIFICATION_FLOW_ERROR, _), errors:from_json(RespError)),
+
+    ?assertEqual(CertDetails, maps:remove(KeyToRm, cert_test_utils:get_cert_details(zone))).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -347,7 +379,7 @@ init_per_suite(Config) ->
             {oz_panel, onepanel, [
                 {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
                 % Increase certification attempts as pebble likes to fail from time to time
-                {letsencrypt_attempts, 10}
+                {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS}
             ]}
         ],
         posthook = fun(NewConfig) ->
@@ -379,29 +411,62 @@ init_per_group(Group, Config) ->
     Config.
 
 
-end_per_group(_Case, Config) ->
+end_per_group(_Group, Config) ->
     PanelNoes = oct_background:get_zone_panels(),
     test_utils:mock_unload(PanelNoes, [letsencrypt_api]),
 
     Config.
 
 
-init_per_testcase(_Case, Config) ->
+init_per_testcase(Testcase, Config) when
+    Testcase =:= failed_certification_attempt_leaves_lets_encrypt_disabled_test;
+    Testcase =:= failed_certification_attempt_leaves_lets_encrypt_enabled_test
+->
+    % Decrease certification attempts so that test will not hung for longer
+    % than it needs (certification fails due to mocked error)
+    cert_test_utils:set_certification_attempts(zone, 2),
+
+%%    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
+    cert_test_utils:update_lets_encrypt(zone, case Testcase of
+        failed_certification_attempt_leaves_lets_encrypt_disabled_test -> disable;
+        failed_certification_attempt_leaves_lets_encrypt_enabled_test -> enable
+    end),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_EXPIRED_CERT_DIR_NAME, Config),
+
+    PanelNodes = oct_background:get_zone_panels(),
+    test_utils:mock_new(PanelNodes, [letsencrypt_api], [passthrough]),
+    test_utils:mock_expect(PanelNodes, letsencrypt_api, run_certification_flow, fun(_) ->
+        throw(?CERTIFICATION_FLOW_ERROR)
+    end),
+
+    init_per_testcase(?DEFAULT_CASE(Testcase), Config);
+
+init_per_testcase(_Testcase, Config) ->
     PanelNodes = oct_background:get_zone_panels(),
     test_utils:mock_new(PanelNodes, [service_oz_worker, service_onepanel], [passthrough]),
 
     Config.
 
 
-end_per_testcase(_Case, Config) ->
+end_per_testcase(Testcase, Config) when
+    Testcase =:= failed_certification_attempt_leaves_lets_encrypt_disabled_test;
+    Testcase =:= failed_certification_attempt_leaves_lets_encrypt_enabled_test
+->
     PanelNodes = oct_background:get_zone_panels(),
-    test_utils:mock_unload(PanelNodes),
+    test_utils:mock_unload(PanelNodes, [letsencrypt_api]),
 
-    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
+    end_per_testcase(?DEFAULT_CASE(Testcase), Config);
 
-    ok.
+end_per_testcase(_Testcase, Config) ->
+    PanelNodes = oct_background:get_zone_panels(),
+    test_utils:mock_unload(PanelNodes, [service_oz_worker, service_onepanel]),
+
+    cert_test_utils:set_certification_attempts(zone, ?CERTIFICATION_ATTEMPTS),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config).
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+

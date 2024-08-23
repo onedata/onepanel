@@ -20,11 +20,14 @@
 
 %% API
 -export([
+    set_certification_attempts/2,
+
     get_cert_details/1,
     assert_cert_details/2,
     assert_newly_issued_pebble_cert/1,
 
     update_lets_encrypt/2,
+    try_update_lets_encrypt/2,
 
     deploy_certs/3,
     reload_certs/1
@@ -34,6 +37,18 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec set_certification_attempts(oct_background:entity_selector(), non_neg_integer()) ->
+    ok.
+set_certification_attempts(EntitySelector, Attempts) ->
+    PanelNodes = get_panel_nodes(EntitySelector),
+
+    ?assertEqual(
+        {lists:duplicate(length(PanelNodes), ok), []},
+        utils:rpc_multicall(PanelNodes, onepanel_env, set, [letsencrypt_attempts, Attempts])
+    ),
+    ok.
 
 
 -spec get_cert_details(oct_background:entity_selector()) -> json_utils:json_map().
@@ -76,18 +91,24 @@ assert_newly_issued_pebble_cert(#{
 update_lets_encrypt(EntitySelector, State) ->
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
-        panel_test_rest:patch(EntitySelector, <<"/web_cert">>, #{
-            auth => root,
-            json => #{<<"letsEncrypt">> => case State of
-                enable -> true;
-                disable -> false
-            end},
-            % Enabling lets encrypt may cause (if current cert is not valid)
-            % new synchronous certification process. This may take some time
-            recv_timeout => timer:minutes(5)
-        })
+        try_update_lets_encrypt(EntitySelector, State)
     ),
     ok.
+
+
+-spec try_update_lets_encrypt(oct_background:entity_selector(), enable | disable) ->
+    panel_test_rest:response().
+try_update_lets_encrypt(EntitySelector, State) ->
+    panel_test_rest:patch(EntitySelector, <<"/web_cert">>, #{
+        auth => root,
+        json => #{<<"letsEncrypt">> => case State of
+            enable -> true;
+            disable -> false
+        end},
+        % Enabling lets encrypt may cause (if current cert is not valid)
+        % new synchronous certification process. This may take some time
+        recv_timeout => timer:minutes(5)
+    }).
 
 
 %%--------------------------------------------------------------------
