@@ -70,7 +70,6 @@ stages:
         - dns_oz
         - model
         - rest_clusters
-        - rest_letsencrypt
         - rest_onepanel
         - rest_onepanel_user
         - rest_oneprovider
@@ -449,13 +448,6 @@ rest_clusters:
     - <<: *ct_logs
       name: ct_logs_rest_clusters.tar.gz
 
-rest_letsencrypt:
-  <<: *ct-job
-  key: LE
-  artifacts:
-    - <<: *ct_logs
-      name: ct_logs_rest_letsencrypt.tar.gz
-
 rest_onepanel:
   <<: *ct-job
   key: RO
@@ -595,7 +587,6 @@ Coverage report:
 #    - artifact: ct_logs_le_oz.tar.gz
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
-    - artifact: ct_logs_rest_letsencrypt.tar.gz
     - artifact: ct_logs_rest_onepanel.tar.gz
     - artifact: ct_logs_rest_onepanel_user.tar.gz
     - artifact: ct_logs_rest_oneprovider.tar.gz
