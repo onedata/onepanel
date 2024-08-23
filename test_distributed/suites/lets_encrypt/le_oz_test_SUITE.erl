@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("cert_test_utils.hrl").
+-include_lib("ctool/include/privileges.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -28,6 +29,7 @@
 % Tests
 -export([
     get_certificate_metadata_test/1,
+    toggle_lets_encrypt_test/1,
     valid_certificate_should_not_be_replaced_test/1,
 
     non_lets_encrypt_issued_certificate_should_be_replaced_with_http_challenge_test/1,
@@ -58,6 +60,7 @@ groups() -> [
 
 all() -> [
     get_certificate_metadata_test,
+    toggle_lets_encrypt_test,
     valid_certificate_should_not_be_replaced_test,
 
     {group, http_challenge},
@@ -82,9 +85,8 @@ get_certificate_metadata_test(Config) ->
     OzDomain = dns_test_utils:get_zone_domain(),
 
     ScenarioSpec = #scenario_spec{
-        %% TODO why not proxy?
         test_proxied_onepanel_rest_endpoint = false,
-        name = <<"Get Onezone policies using /zone/policies endpoint">>,
+        name = <<"Get Onezone webcertificate metadata using /web_cert endpoint">>,
         type = rest,
         target_nodes = oct_background:get_zone_panels(),
         client_spec = #client_spec{
@@ -155,6 +157,47 @@ get_certificate_metadata_test(Config) ->
             ),
             ?assertEqual(10, length(maps:keys(Body)))
         end)
+    }])).
+
+
+toggle_lets_encrypt_test(Config) ->
+    cert_test_utils:update_lets_encrypt(zone, disable),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
+
+    ?assert(api_test_runner:run_tests([#scenario_spec{
+        test_proxied_onepanel_rest_endpoint = false,
+        name = <<"Toggle Onezone Lets Enrytp using /web_cert endpoint">>,
+        type = rest,
+        target_nodes = oct_background:get_zone_panels(),
+        client_spec = #client_spec{
+            correct = [
+                root,
+                {member, [?CLUSTER_UPDATE]}
+            ],
+            unauthorized = [
+                guest,
+                {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+            ],
+            forbidden = [
+                peer,
+                {member, privileges:cluster_privileges() -- [?CLUSTER_UPDATE]}
+            ]
+        },
+        data_spec = #data_spec{
+            required = [<<"letsEncrypt">>],
+            correct_values = #{<<"letsEncrypt">> => [true, false]},
+            bad_values = [{<<"letsEncrypt">>, bul, ?ERROR_BAD_VALUE_BOOLEAN(<<"letsEncrypt">>)}]
+        },
+        prepare_args_fun = fun(#api_test_ctx{data = Data}) ->
+            #rest_args{
+                method = patch,
+                path = <<"web_cert">>,
+                headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                body = json_utils:encode(Data)
+            }
+        end,
+        validate_result_fun = api_test_validate:http_204_no_content()
     }])).
 
 
