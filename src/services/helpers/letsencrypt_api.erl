@@ -71,6 +71,8 @@
     {ssl_options, [{cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}]}
 ]).
 
+-define(TEST_CA_FILE_NAME, "LetsEncryptTestCa.pem").
+
 
 % Record for the endpoints directory presented by Let's Encrypt
 -record(directory, {
@@ -109,6 +111,7 @@
     cert_path :: string(),
     cert_private_key_path :: string(),
     chain_path :: string(),
+    full_chain_path :: string(),
     % Directory for keys used in communication with Let's Encrypt
     jws_keys_dir :: string(),
     % Mode of the current run (used in logs)
@@ -582,11 +585,11 @@ fetch_certificate(#flow_state{order_url = OrderURL} = State) ->
             {ok, State3, #{<<"certificate">> := URL}} = poll_status(OrderURL, State2),
             {URL, State3}
     end,
-    {ok, {raw, CertAndChainPem}, _, State5} = post_as_get(CertURL, State4),
+    {ok, {raw, FullChainPem}, _, State5} = post_as_get(CertURL, State4),
 
     case State5#flow_state.save_cert of
         true ->
-            save_cert(CertAndChainPem, KeyPem, State5),
+            save_cert(FullChainPem, KeyPem, State5),
             ?info("Let's Encrypt ~ts run: saved new certificate at ~ts",
                 [State#flow_state.current_mode, filename:absname(State5#flow_state.cert_path)]),
             {ok, State5};
@@ -663,6 +666,7 @@ initial_state(Plugin, Mode, CurrentMode) ->
     CertPath = onepanel_env:get(web_cert_file),
     KeyPath = onepanel_env:get(web_key_file),
     ChainPath = onepanel_env:get(web_cert_chain_file),
+    FullChainPath = onepanel_env:get(web_cert_full_chain_file),
     KeysDir = filename:join(?LETSENCRYPT_KEYS_DIR, atom_to_list(CurrentMode)),
 
     % save cert only in the final run and not in 'dry' mode
@@ -687,6 +691,7 @@ initial_state(Plugin, Mode, CurrentMode) ->
         cert_path = CertPath,
         cert_private_key_path = KeyPath,
         chain_path = ChainPath,
+        full_chain_path = FullChainPath,
         save_cert = SaveCert,
         domain = Domain,
         subdomains = Subdomains,
@@ -1066,18 +1071,33 @@ make_auth_string(Token, #flow_state{jws_keys_dir = KeysDir}) ->
 %%--------------------------------------------------------------------
 -spec save_cert(CertAndChainPem :: onepanel_cert:pem(),
     KeyPem :: onepanel_cert:pem(), #flow_state{}) -> ok.
-save_cert(CertAndChainPem, KeyPem, State) ->
+save_cert(FullChainPem, KeyPem, State) ->
     #flow_state{
         cert_private_key_path = KeyPath,
         cert_path = CertPath,
-        chain_path = ChainPath
+        chain_path = ChainPath,
+        full_chain_path = FullChainPath
     } = State,
     Nodes = nodes:all(?SERVICE_PANEL),
 
-    {ok, CertPem, ChainPem} = split_chain(CertAndChainPem),
+    {ok, CertPem, ChainPem, RootCaPem} = split_full_chain(FullChainPem),
     ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
     ok = utils:save_file_on_hosts(Nodes, CertPath, CertPem),
-    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem).
+    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem),
+    ok = utils:save_file_on_hosts(Nodes, FullChainPath, FullChainPem),
+
+    % In case of test environment treat Lets Encrypt (one-env pebble) Ca as trusted
+    case onepanel_env:get(treat_test_ca_as_trusted) of
+        false ->
+            ok;
+        true ->
+            CaFile = ?TEST_CA_FILE_NAME,
+            TargetCaFile = filename:join(onepanel_env:get(cacerts_dir), CaFile),
+            ok = utils:save_file_on_hosts(Nodes, TargetCaFile, RootCaPem),
+            ?warning("Added '~ts' to trusted certificates. Use only for test purposes.", [
+                CaFile
+            ])
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -1087,13 +1107,14 @@ save_cert(CertAndChainPem, KeyPem, State) ->
 %% chain certificates.
 %% @end
 %%--------------------------------------------------------------------
--spec split_chain(PemData :: pem()) ->
-    {ok, EndCert :: pem(), ChainCerts :: pem()}.
-split_chain(PemData) ->
+-spec split_full_chain(PemData :: pem()) ->
+    {ok, EndCert :: pem(), ChainCerts :: pem(), RootCaPem :: pem()}.
+split_full_chain(PemData) ->
     [CertDer | ChainDers] = cert_utils:pem_to_ders(PemData),
     CertPem = cert_utils:ders_to_pem(CertDer),
     ChainPem = cert_utils:ders_to_pem(ChainDers),
-    {ok, CertPem, ChainPem}.
+    RootCaPem = cert_utils:ders_to_pem(lists:last(ChainDers)),
+    {ok, CertPem, ChainPem, RootCaPem}.
 
 
 %%--------------------------------------------------------------------

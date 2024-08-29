@@ -97,6 +97,8 @@
         {web_cert_file, "{{platform_etc_dir}}/certs/web_cert.pem"},
         %% Path to certificate chain file used by web server
         {web_cert_chain_file, "{{platform_etc_dir}}/certs/web_chain.pem"},
+        %% Path to certificate full chain file used by e.g. OneS3
+        {web_cert_full_chain_file, "{{platform_etc_dir}}/certs/web_full_chain.pem"},
 
         %% Path to directory with trusted CA certificates
         {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
