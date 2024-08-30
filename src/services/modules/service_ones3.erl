@@ -20,6 +20,8 @@
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/http/codes.hrl").
 
 %% Service behaviour callbacks
 -export([name/0, get_hosts/0, get_nodes/0, get_steps/2]).
@@ -44,8 +46,22 @@
 
     set_node_ip/1,
     format_hosts_ips/0,
-    get_hosts_ips/0
+    get_hosts_ips/0,
+
+    configure/1,
+    start/1,
+    wait_for_init/1,
+    stop/1,
+    status/1
 ]).
+
+
+-type model_ctx() :: #{
+    % Caches (i.e. not the primary source of truth):
+    % service status cache
+    status => #{service:host() => service:status()}
+}.
+-export_type([model_ctx/0]).
 
 
 %%%===================================================================
@@ -101,7 +117,28 @@ get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     get_steps(set_cluster_ips, Ctx#{hosts => lists_utils:intersect(get_hosts(), maps:keys(HostsToIps))});
 get_steps(set_cluster_ips, Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
-    get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()}).
+    get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()});
+
+get_steps(resume, _Ctx) ->
+    [
+        #step{function = start},
+        #step{function = wait_for_init}
+    ];
+
+get_steps(start, _Ctx) ->
+    [
+        #step{function = configure},
+        #step{function = start}
+    ];
+
+get_steps(stop, _Ctx) ->
+    [#step{function = stop}];
+
+get_steps(restart, _Ctx) ->
+    [#step{function = stop}, #step{function = start}];
+
+get_steps(status, _Ctx) ->
+    [#step{function = status}].
 
 
 %%%===================================================================
@@ -252,6 +289,55 @@ get_hosts_ips() ->
     end, hosts:all(name())).
 
 
+-spec configure(service:step_ctx()) -> ok | no_return().
+configure(_Ctx) ->
+    ConfigPath = onepanel_env:get(ones3_config_path),
+    ok = file:write_file(ConfigPath, build_config()).
+
+
+-spec start(service:step_ctx()) -> ok | no_return().
+start(Ctx) ->
+    ServiceName = name(),
+
+    service:update_status(ServiceName, starting),
+    service_cli:start(ServiceName, Ctx),
+    service:update_status(ServiceName, unhealthy),
+    service:register_healthcheck(ServiceName, #{hosts => [hosts:self()]}).
+
+
+-spec wait_for_init(service:step_ctx()) -> ok | no_return().
+wait_for_init(Ctx) ->
+    StartAttempts = onepanel_env:get(ones3_wait_for_init_attempts),
+
+    ?info("Awaiting connection to the OneS3 server..."),
+    onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, healthy}, StartAttempts),
+    ?info("Connection to the OneS3 server OK"),
+
+    service:register_healthcheck(name(), #{hosts => [hosts:self()]}).
+
+
+-spec stop(service:step_ctx()) -> ok | no_return().
+stop(Ctx) ->
+    ServiceName = name(),
+
+    service:deregister_healthcheck(ServiceName, Ctx),
+    service:update_status(ServiceName, stopping),
+    service_cli:stop(ServiceName),
+    % update status cache
+    status(Ctx),
+    ok.
+
+
+-spec status(service:step_ctx()) -> service:status().
+status(Ctx) ->
+    ServiceName = name(),
+    service:update_status(ServiceName, case service_cli:status(ServiceName, status) of
+        running -> health(Ctx);
+        stopped -> stopped;
+        missing -> missing
+    end).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -268,4 +354,46 @@ infer_ip() ->
             Ip;
         _ ->
             onepanel_ip:determine_ip(name())
+    end.
+
+
+%% @private
+-spec build_config() -> binary().
+build_config() ->
+    Opts = lists:map(fun({Opt, Value}) ->
+        str_utils:format_bin("~ts=~ts", [Opt, str_utils:to_binary(Value)])
+    end, [
+        {"verbose_log_level", onepanel_env:get(ones3_verbose_log_level)},
+        {"onezone_host", service_oneprovider:get_oz_domain()},
+        {"provider_host", service_op_worker:get_domain()},
+        {"ones3_https_port", get_port()},
+        {"ones3_ssl_cert", onepanel_env:get(web_cert_full_chain_file)},
+        {"ones3_ssl_key", onepanel_env:get(web_key_file)}
+    ]),
+    str_utils:join_binary(Opts, <<"\n">>).
+
+
+%% @private
+-spec health(service:step_ctx()) -> service:status().
+health(_Ctx) ->
+    Url = str_utils:format_bin("https://~ts:~ts/.__onedata__status__", [hosts:self(), get_port()]),
+
+    case http_client:get(Url) of
+        {ok, ?HTTP_200_OK, _, Resp} ->
+            case json_utils:decode(Resp) of
+                #{<<"isOk">> := true} ->
+                    healthy;
+                _ ->
+                    % TODO
+%%                    ?warning("Cannot connect to OneS3 server (~ts:~tp) due to: ~n~tp", [
+%%                        Host, Port, Reason
+%%                    ]),
+                    unhealthy
+            end;
+        _ ->
+            % TODO
+%%            ?warning("Cannot connect to OneS3 server (~ts:~tp) due to: ~n~tp", [
+%%                Host, Port, Reason
+%%            ]),
+            unhealthy
     end.

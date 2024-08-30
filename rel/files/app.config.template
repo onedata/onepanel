@@ -382,6 +382,13 @@
         %% {external_ip, {10,0,0,1}}, or:
         %% {external_ip, "10.0.0.1"},
         {ones3_external_ip, undefined},
-        {ones3_http_port, 8888}
+        {ones3_http_port, 8888},
+
+        {ones3_verbose_log_level, 4},
+        {ones3_config_path, "/etc/ones3.conf"},
+
+        {ones3_cmd, "service ones3"},
+
+        {ones3_wait_for_init_attempts, 60}
     ]}
 ].
