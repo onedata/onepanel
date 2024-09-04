@@ -360,17 +360,34 @@ infer_ip() ->
 %% @private
 -spec build_config() -> binary().
 build_config() ->
-    Opts = lists:map(fun({Opt, Value}) ->
-        str_utils:format_bin("~ts=~ts", [Opt, str_utils:to_binary(Value)])
-    end, [
+    BasicOpts = [
         {"verbose_log_level", onepanel_env:get(ones3_verbose_log_level)},
         {"onezone_host", service_oneprovider:get_oz_domain()},
         {"provider_host", service_op_worker:get_domain()},
         {"ones3_https_port", get_port()},
-        {"ones3_ssl_cert", onepanel_env:get(web_cert_full_chain_file)},
-        {"ones3_ssl_key", onepanel_env:get(web_key_file)}
-    ]),
-    str_utils:join_binary(Opts, <<"\n">>).
+        {"ones3_ssl_cert", get_abs_path(web_cert_full_chain_file)},
+        {"ones3_ssl_key", get_abs_path(web_key_file)}
+    ],
+    Opts = case onepanel_env:get(treat_test_ca_as_trusted) of
+        false ->
+            BasicOpts;
+        true ->
+            [
+                {custom_ca_dir, get_abs_path(cacerts_dir)}
+                | BasicOpts
+            ]
+    end,
+
+    Lines = lists:map(fun({Opt, Value}) ->
+        str_utils:format_bin("~ts=~ts", [Opt, str_utils:to_binary(Value)])
+    end, Opts),
+    str_utils:join_binary(Lines, <<"\n">>).
+
+
+%% @private
+-spec get_abs_path(atom()) -> binary().
+get_abs_path(EnvVar) ->
+    filename:absname(onepanel_utils:convert(onepanel_env:get(EnvVar), binary)).
 
 
 %% @private
