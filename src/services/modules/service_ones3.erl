@@ -393,24 +393,27 @@ get_abs_path(EnvVar) ->
 %% @private
 -spec health(service:step_ctx()) -> service:status().
 health(_Ctx) ->
-    Url = str_utils:format_bin("https://~ts:~ts/.__onedata__status__", [hosts:self(), get_port()]),
+    Host = hosts:self(),
+    Port = get_port(),
+    Url = str_utils:format_bin("https://~ts:~B/.__onedata__status__", [Host, Port]),
+    Opts = [{
+        connect_timeout, timer:seconds(30)},
+        {recv_timeout, timer:seconds(30)},
+        % cacerts opt will not work as hosts:self() hostname will not validate
+        {ssl_options, [{secure, false}]}
+    ],
 
-    case http_client:get(Url) of
+    case http_client:get(Url, #{}, <<>>, Opts) of
         {ok, ?HTTP_200_OK, _, Resp} ->
             case json_utils:decode(Resp) of
                 #{<<"isOk">> := true} ->
                     healthy;
                 _ ->
-                    % TODO
-%%                    ?warning("Cannot connect to OneS3 server (~ts:~tp) due to: ~n~tp", [
-%%                        Host, Port, Reason
-%%                    ]),
+                    ?warning("OneS3 server server is running but not healthy"),
                     unhealthy
             end;
         _ ->
-            % TODO
-%%            ?warning("Cannot connect to OneS3 server (~ts:~tp) due to: ~n~tp", [
-%%                Host, Port, Reason
-%%            ]),
+            % TODO more logs?
+            ?warning("Cannot connect to OneS3 server (~ts:~tp)", [Host, Port]),
             unhealthy
     end.
