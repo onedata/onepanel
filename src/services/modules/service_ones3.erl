@@ -121,7 +121,7 @@ get_steps(set_cluster_ips, Ctx) ->
 
 get_steps(resume, _Ctx) ->
     [
-        #step{function = start},
+        #steps{action = start},
         #step{function = wait_for_init}
     ];
 
@@ -135,7 +135,7 @@ get_steps(stop, _Ctx) ->
     [#step{function = stop}];
 
 get_steps(restart, _Ctx) ->
-    [#step{function = stop}, #step{function = start}];
+    [#steps{action = stop}, #steps{action = start}];
 
 get_steps(status, _Ctx) ->
     [#step{function = status}].

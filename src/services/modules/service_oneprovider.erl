@@ -217,6 +217,7 @@ get_steps(deploy, Ctx) ->
 
 get_steps(stop, _Ctx) ->
     [
+        #steps{service = ?SERVICE_ONES3, action = stop},
         #steps{service = ?SERVICE_OPW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
@@ -255,6 +256,7 @@ get_steps(manage_restart, Ctx) ->
                 selection = any
             },
             #steps{service = ?SERVICE_OPW, action = finalize_resume},
+            #steps{service = ?SERVICE_ONES3, action = resume},
             #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{
@@ -272,7 +274,8 @@ get_steps(status, _Ctx) ->
     [
         #steps{service = ?SERVICE_CB, action = status},
         #steps{service = ?SERVICE_CM, action = status},
-        #steps{service = ?SERVICE_OPW, action = status}
+        #steps{service = ?SERVICE_OPW, action = status},
+        #steps{service = ?SERVICE_ONES3, action = status}
     ];
 
 get_steps(register, #{hosts := _Hosts}) ->
@@ -285,6 +288,9 @@ get_steps(register, #{hosts := _Hosts}) ->
         #step{function = check_oneprovider_gs_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #steps{action = set_cluster_ips}
+        #steps{service = ?SERVICE_ONES3, action = resume,
+            % Starting OneS3 requires registered Oneprovider
+            condition = fun(_) -> service_ones3:exists() end}
     ];
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
