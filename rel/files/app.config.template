@@ -257,6 +257,8 @@
         %% Let's Encrypt configuration
         %% ===================================================================
 
+        {letsencrypt_root_ca_url, "https://letsencrypt.org/certs/isrgrootx1.pem"},
+
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance
         {letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory"},

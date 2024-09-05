@@ -162,6 +162,7 @@
 
 -export([run_certification_flow/1]).
 -export([challenge_types/0]).
+-export([get_root_ca/0]).
 
 %%%===================================================================
 %%% Public API
@@ -190,6 +191,15 @@ run_certification_flow(Plugin) ->
 challenge_types() ->
     % Http challenge is preferred if possible as it is more versatile and simpler.
     [http, dns].
+
+
+-spec get_root_ca() -> pem().
+get_root_ca() ->
+    RootCaUrl = onepanel_env:get(letsencrypt_root_ca_url),
+
+    {ok, ?HTTP_200_OK, _, Pem} = http_client:get(RootCaUrl, #{}, <<>>, ?HTTP_OPTS),
+
+    Pem.
 
 
 %%%===================================================================
@@ -1080,24 +1090,11 @@ save_cert(FullChainPem, KeyPem, State) ->
     } = State,
     Nodes = nodes:all(?SERVICE_PANEL),
 
-    {ok, CertPem, ChainPem, RootCaPem} = split_full_chain(FullChainPem),
+    {ok, CertPem, ChainPem} = split_full_chain(FullChainPem),
     ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
     ok = utils:save_file_on_hosts(Nodes, CertPath, CertPem),
     ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem),
-    ok = utils:save_file_on_hosts(Nodes, FullChainPath, FullChainPem),
-
-    % In case of test environment treat Lets Encrypt (one-env pebble) Ca as trusted
-    case onepanel_env:get(treat_test_ca_as_trusted) of
-        false ->
-            ok;
-        true ->
-            CaFile = ?TEST_CA_FILE_NAME,
-            TargetCaFile = filename:join(onepanel_env:get(cacerts_dir), CaFile),
-            ok = utils:save_file_on_hosts(Nodes, TargetCaFile, RootCaPem),
-            ?warning("Added '~ts' to trusted certificates. Use only for test purposes.", [
-                CaFile
-            ])
-    end.
+    ok = utils:save_file_on_hosts(Nodes, FullChainPath, FullChainPem).
 
 
 %%--------------------------------------------------------------------
@@ -1108,13 +1105,12 @@ save_cert(FullChainPem, KeyPem, State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec split_full_chain(PemData :: pem()) ->
-    {ok, EndCert :: pem(), ChainCerts :: pem(), RootCaPem :: pem()}.
+    {ok, EndCert :: pem(), ChainCerts :: pem()}.
 split_full_chain(PemData) ->
     [CertDer | ChainDers] = cert_utils:pem_to_ders(PemData),
     CertPem = cert_utils:ders_to_pem(CertDer),
     ChainPem = cert_utils:ders_to_pem(ChainDers),
-    RootCaPem = cert_utils:ders_to_pem(lists:last(ChainDers)),
-    {ok, CertPem, ChainPem, RootCaPem}.
+    {ok, CertPem, ChainPem}.
 
 
 %%--------------------------------------------------------------------

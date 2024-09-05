@@ -73,6 +73,8 @@
 -define(CERTIFICATION_ATTEMPTS, application:get_env(
     ?APP_NAME, letsencrypt_attempts, 1)).
 
+-define(TEST_CA_FILE_NAME, "LetsEncryptTestRootCa.pem").
+
 -type status() :: regenerating | valid | near_expiration
 | expired | domain_mismatch | unknown.
 
@@ -160,6 +162,8 @@ get_steps(import_files, #{reference_host := _}) ->
 %%--------------------------------------------------------------------
 -spec create(#{letsencrypt_plugin := service:name(), _ => _}) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
+    trust_test_ca(),
+
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
     ServiceCtx = #{
         letsencrypt_plugin => Plugin,
@@ -168,6 +172,25 @@ create(#{letsencrypt_plugin := Plugin}) ->
     case service:create(#service{name = name(), ctx = ServiceCtx}) of
         {ok, _} -> ok;
         ?ERR_ALREADY_EXISTS -> ok
+    end.
+
+
+%% @private
+-spec trust_test_ca() -> ok.
+trust_test_ca() ->
+    case onepanel_env:get(treat_test_ca_as_trusted) of
+        false ->
+            ok;
+        true ->
+            Nodes = nodes:all(?SERVICE_PANEL),
+            TestCaPem = letsencrypt_api:get_root_ca(),
+            TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME),
+            ok = utils:save_file_on_hosts(Nodes, TargetCaFilePath, TestCaPem),
+
+            ?warning(
+                "Added '~ts' to trusted certificates. Use only for test purposes.",
+                [?TEST_CA_FILE_NAME]
+            )
     end.
 
 
