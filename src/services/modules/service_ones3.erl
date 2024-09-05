@@ -138,7 +138,10 @@ get_steps(restart, _Ctx) ->
     [#steps{action = stop}, #steps{action = start}];
 
 get_steps(status, _Ctx) ->
-    [#step{function = status}].
+    [#step{function = status}];
+
+get_steps(reload_webcert, _Ctx) ->
+    [#step{function = reload_webcert}].
 
 
 %%%===================================================================
@@ -208,9 +211,10 @@ supports_letsencrypt_challenge(Challenge) ->
 
 
 -spec reload_webcert(service:step_ctx()) -> ok.
-reload_webcert(_Ctx) ->
-    %% TODO implement
-    ok.
+reload_webcert(Ctx) ->
+    % OneS3 can not live reload certs - it must be restarted
+    ok = stop(Ctx),
+    ok = start(Ctx).
 
 
 %%%===================================================================
