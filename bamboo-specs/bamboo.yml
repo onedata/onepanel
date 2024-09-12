@@ -415,6 +415,13 @@ dns_oz:
       name: ct_logs_dns_oz.tar.gz
 
 # TODO VFS-12242 add pebble
+#le_op:
+#  <<: *ct-onenv-job
+#  key: LETSENCRYPTOP
+#  artifacts:
+#    - <<: *ct_logs
+#      name: ct_logs_le_op.tar.gz
+
 #le_oz:
 #  <<: *ct-onenv-job
 #  key: LETSENCRYPTOZ
@@ -584,6 +591,7 @@ Coverage report:
     - artifact: ct_logs_dns_op.tar.gz
     - artifact: ct_logs_dns_oz.tar.gz
     # TODO VFS-12242 add pebble
+#    - artifact: ct_logs_le_op.tar.gz
 #    - artifact: ct_logs_le_oz.tar.gz
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz

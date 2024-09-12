@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Integration tests of Lets Encrypt for Onezone.
+%%% Integration tests of Lets Encrypt for Oneprovider.
 %%% @end
 %%%-------------------------------------------------------------------
--module(le_oz_test_SUITE).
+-module(le_op_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -74,6 +74,7 @@ all() -> [
     failed_certification_attempt_leaves_lets_encrypt_enabled_test
 ].
 
+
 % Increase certification attempts as pebble may fail several times
 % (not offering challenge, etc.) which is even better as it lets
 % us tests certification retries
@@ -106,14 +107,18 @@ non_lets_encrypt_issued_certificate_should_be_replaced_with_dns_challenge_test(C
 
 
 domain_mismatched_certificate_should_be_replaced_with_http_challenge_test(Config) ->
+    OpDomain = get_domain(),
+
     le_test_base:domain_mismatched_certificate_should_be_replaced_test_base(
-        ?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN, [?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN], build_test_spec(Config)
+        OpDomain, [OpDomain, ?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN], build_test_spec(Config)
     ).
 
 
 domain_mismatched_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
+    OpDomain = get_domain(),
+
     le_test_base:domain_mismatched_certificate_should_be_replaced_test_base(
-        ?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN, [?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN], build_test_spec(Config)
+        OpDomain, [OpDomain, ?PEBBLE_DOMAIN_MISMATCH_FAKE_DOMAIN], build_test_spec(Config)
     ).
 
 
@@ -149,11 +154,11 @@ failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
 
 
 init_per_suite(Config) ->
-    ModulesToLoad = [?MODULE, le_test_base, ip_test_utils, cert_test_utils],
+    ModulesToLoad = [?MODULE, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1oz",
+        onenv_scenario = "1op",
         envs = [
-            {oz_panel, onepanel, [
+            {op_panel, onepanel, [
                 {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
                 % Increase certification attempts as pebble likes to fail from time to time
                 {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS}
@@ -174,22 +179,21 @@ end_per_suite(_Config) ->
 
 
 init_per_group(Group, Config) ->
-    {ChallengeType, EnableSubdomainDelegation} = case Group of
-        http_challenge -> {http, false};
-        dns_challenge -> {dns, true}
+    ChallengeType = case Group of
+        http_challenge -> http;
+        dns_challenge -> dns
     end,
-    PanelNoes = oct_background:get_zone_panels(),
+    PanelNoes = panel_test_utils:get_panel_nodes(krakow),
     test_utils:mock_new(PanelNoes, letsencrypt_api),
     test_utils:mock_expect(PanelNoes, letsencrypt_api, challenge_types, fun() ->
         [ChallengeType]
     end),
-    dns_test_utils:update_zone_subdomain_delegation(EnableSubdomainDelegation),
 
     Config.
 
 
 end_per_group(_Group, Config) ->
-    PanelNoes = oct_background:get_zone_panels(),
+    PanelNoes = panel_test_utils:get_panel_nodes(krakow),
     test_utils:mock_unload(PanelNoes, [letsencrypt_api]),
 
     Config.
@@ -198,7 +202,7 @@ end_per_group(_Group, Config) ->
 init_per_testcase(Testcase = automatic_certification_renewal_test, Config) ->
     init_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:init_automatic_certification_renewal_test(zone, Config)
+        le_test_base:init_automatic_certification_renewal_test(krakow, Config)
     );
 
 init_per_testcase(Testcase, Config) when
@@ -211,17 +215,20 @@ init_per_testcase(Testcase, Config) when
     end,
     init_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:init_failed_certification_attempt_test(zone, LetsEncryptPolicy, Config)
+        le_test_base:init_failed_certification_attempt_test(krakow, LetsEncryptPolicy, Config)
     );
 
 init_per_testcase(_Testcase, Config) ->
+    PanelNodes = panel_test_utils:get_panel_nodes(krakow),
+    test_utils:mock_new(PanelNodes, [service_oz_worker, service_onepanel], [passthrough]),
+
     Config.
 
 
 end_per_testcase(Testcase = automatic_certification_renewal_test, Config) ->
     end_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:teardown_automatic_certification_renewal_test(zone, Config)
+        le_test_base:teardown_automatic_certification_renewal_test(krakow, Config)
     );
 
 end_per_testcase(Testcase, Config) when
@@ -230,13 +237,15 @@ end_per_testcase(Testcase, Config) when
 ->
     end_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:teardown_failed_certification_attempt_test(zone, Config)
+        le_test_base:teardown_failed_certification_attempt_test(krakow, Config)
     );
 
 end_per_testcase(_Testcase, Config) ->
-    cert_test_utils:set_certification_attempts(zone, ?CERTIFICATION_ATTEMPTS),
-%%    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config).
-    ok.
+    PanelNodes = panel_test_utils:get_panel_nodes(krakow),
+    test_utils:mock_unload(PanelNodes, [service_oz_worker, service_onepanel]),
+
+    cert_test_utils:set_certification_attempts(krakow, ?CERTIFICATION_ATTEMPTS),
+    cert_test_utils:deploy_certs(krakow, ?PEBBLE_VALID_CERT_DIR_NAME, Config).
 
 
 %%%===================================================================
@@ -247,12 +256,20 @@ end_per_testcase(_Testcase, Config) ->
 %% @private
 -spec build_test_spec(test_config:config()) -> le_test_base:test_spec().
 build_test_spec(Config) ->
-    OzDomain = dns_test_utils:get_zone_domain(),
+    OpDomain = get_domain(),
+    OneS3Domain = <<"s3.", OpDomain/binary>>,
 
     #le_test_spec{
-        entity_selector = zone,
-        exp_domain = OzDomain,
-        exp_dns_names = [OzDomain],
-        service = ?SERVICE(?OZ_PANEL, <<"onezone">>),
+        entity_selector = krakow,
+        exp_domain = OpDomain,
+        exp_dns_names = [OpDomain, OneS3Domain],
+        service = ?SERVICE(?OP_PANEL, oct_background:get_provider_id(krakow)),
         ct_config = Config
     }.
+
+
+%% @private
+-spec get_domain() -> binary().
+get_domain() ->
+    % TODO
+    <<"krakow.dev-onezone.default.svc.cluster.local">>.

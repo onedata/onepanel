@@ -417,7 +417,6 @@ health(_Ctx) ->
                     unhealthy
             end;
         _ ->
-            % TODO more logs?
             ?warning("Cannot connect to OneS3 server (~ts:~tp)", [Host, Port]),
             unhealthy
     end.

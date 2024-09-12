@@ -60,7 +60,7 @@
     import_files/1]).
 
 %% Private function exported for rpc
--export([local_cert_status/1, is_local_cert_letsencrypt/0]).
+-export([local_cert_status/0, is_local_cert_letsencrypt/0]).
 
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
@@ -235,7 +235,7 @@ get_details() ->
     {ok, Cert} = onepanel_cert:read(?CERT_PATH),
     {Since, Until} = onepanel_cert:get_times(Cert),
     Domain = onepanel_cert:get_subject_cn(Cert),
-    DnsNames = onepanel_cert:get_dns_names(Cert),
+    DnsNames = lists:sort(onepanel_cert:get_dns_names(Cert)),
     Issuer = onepanel_cert:get_issuer_cn(Cert),
 
     Optional = case Enabled of
@@ -423,9 +423,8 @@ global_cert_status() ->
         true -> regenerating;
         _ ->
             Nodes = get_nodes(),
-            Domain = (get_plugin_module()):get_domain(),
             lists_utils:foldl_while(fun(Node, _) ->
-                case rpc:call(Node, ?MODULE, local_cert_status, [Domain]) of
+                case rpc:call(Node, ?MODULE, local_cert_status, []) of
                     valid -> {cont, valid};
                     Problem -> {halt, Problem}
                 end
@@ -439,10 +438,10 @@ global_cert_status() ->
 %% Checks cert status on the current node.
 %% @end
 %%--------------------------------------------------------------------
--spec local_cert_status(ExpectedDomain :: binary()) -> status().
-local_cert_status(ExpectedDomain) ->
+-spec local_cert_status() -> status().
+local_cert_status() ->
     case onepanel_cert:read(?CERT_PATH) of
-        {ok, Cert} -> cert_status(Cert, ExpectedDomain);
+        {ok, Cert} -> cert_status(Cert);
         {error, _} -> unknown
     end.
 
@@ -453,15 +452,30 @@ local_cert_status(ExpectedDomain) ->
 %% Checks status of given cert.
 %% @end
 %%--------------------------------------------------------------------
--spec cert_status(Cert :: onepanel_cert:cert(), ExpectedDomain :: binary()) ->
-    status().
-cert_status(Cert, ExpectedDomain) ->
-    %% TODO VFS-12242 check all subdomains
-    case onepanel_cert:verify_hostname(Cert, ExpectedDomain) of
+-spec cert_status(onepanel_cert:cert()) -> status().
+cert_status(Cert) ->
+    case dns_names_status(Cert) of
         error -> unknown;
         invalid -> domain_mismatch;
         valid -> expiration_status(Cert)
     end.
+
+
+%% @private
+-spec dns_names_status(Cert :: onepanel_cert:cert()) -> valid | invalid | error.
+dns_names_status(Cert) ->
+    Domain = (get_plugin_module()):get_domain(),
+    DnsNames = case service_ones3:exists() of
+        true -> [Domain, service_ones3:get_domain()];
+        false -> [Domain]
+    end,
+
+    lists_utils:foldl_while(fun
+        (DnsName, valid) ->
+            {cont, onepanel_cert:verify_hostname(Cert, DnsName)};
+        (_, Acc) ->
+            {halt, Acc}
+    end, valid, DnsNames).
 
 
 %% @private

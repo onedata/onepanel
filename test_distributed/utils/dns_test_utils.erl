@@ -20,6 +20,7 @@
 
 %% API
 -export([
+    get_domain/1,
     get_zone_domain/0,
     update_zone_subdomain_delegation/1,
 
@@ -40,6 +41,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec get_domain(oct_background:entity_selector()) -> binary().
+get_domain(zone) -> oct_background:get_zone_domain();
+get_domain(ProviderSelector) -> oct_background:get_provider_domain(ProviderSelector).
 
 
 -spec get_zone_domain() -> binary().

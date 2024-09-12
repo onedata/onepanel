@@ -29,4 +29,13 @@
 -define(GARBAGE_CERT_DIR_NAME, "garbage").
 
 
+-record(le_test_spec, {
+    entity_selector :: oct_background:entity_selector(),
+    exp_domain :: binary(),
+    exp_dns_names :: [binary()],
+    service :: aai:service_spec(),
+    ct_config :: test_config:config()
+}).
+
+
 -endif.
