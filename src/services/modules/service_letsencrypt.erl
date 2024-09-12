@@ -333,7 +333,10 @@ obtain_cert(Ctx) ->
 
     ok = letsencrypt_api:run_certification_flow(get_plugin_module()),
 
-    service:apply_sync(?SERVICE_ONES3, reload_webcert, #{}),
+    case service_ones3:exists() of
+        true -> service:apply_sync(?SERVICE_ONES3, reload_webcert, #{});
+        false -> ok
+    end,
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
 
     % Reloading webcerts stops https_listener and kills all connections. To ensure

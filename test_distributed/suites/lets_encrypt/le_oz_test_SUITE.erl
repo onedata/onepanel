@@ -41,6 +41,7 @@
     expired_certificate_should_be_replaced_with_http_challenge_test/1,
     expired_certificate_should_be_replaced_with_dns_challenge_test/1,
 
+    automatic_certification_renewal_test/1,
     disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test/1,
     failed_certification_attempt_leaves_lets_encrypt_disabled_test/1,
     failed_certification_attempt_leaves_lets_encrypt_enabled_test/1
@@ -68,10 +69,16 @@ all() -> [
     {group, http_challenge},
     {group, dns_challenge},
 
+    automatic_certification_renewal_test,
     disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test,
     failed_certification_attempt_leaves_lets_encrypt_disabled_test,
     failed_certification_attempt_leaves_lets_encrypt_enabled_test
 ].
+
+-define(WEB_CERT_RENEWAL_CHECK_SEC, 10).
+% With renewal margin bigger than the validity of the cert all certs will be
+% near expired as soon as they are issued.
+-define(WEB_CERT_RENEW_MARGIN_DAYS, 36500).
 
 % Increase certification attempts as pebble may fail several times
 % (not offering challenge, etc.) which is even better as it lets
@@ -80,7 +87,7 @@ all() -> [
 
 -define(CERTIFICATION_FLOW_ERROR, ?ERROR_LETS_ENCRYPT_RESPONSE(<<>>, <<>>)).
 
--define(ATTEMPTS, 100).
+-define(ATTEMPTS, 60).
 
 
 %%%===================================================================
@@ -330,6 +337,27 @@ expired_certificate_should_be_replaced_test_base(Config) ->
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
+automatic_certification_renewal_test(_Config) ->
+    OzDomain = dns_test_utils:get_zone_domain(),
+    cert_test_utils:update_lets_encrypt(zone, enable),
+
+    ExpPebbleCertDetails = #{
+        <<"domain">> => OzDomain,
+        <<"dnsNames">> => [OzDomain],
+        <<"status">> => <<"near_expiration">>,
+        <<"letsEncrypt">> => true
+    },
+    #{<<"creationTime">> := CertCreationTime} = cert_test_utils:assert_cert_details(
+        zone, ExpPebbleCertDetails
+    ),
+    ?assertNot(CertCreationTime == get_cert_creation_time(), ?ATTEMPTS),
+
+    #{<<"creationTime">> := CertCreationTime2} = cert_test_utils:assert_cert_details(
+        zone, ExpPebbleCertDetails
+    ),
+    ?assertNot(CertCreationTime2 == get_cert_creation_time(), ?ATTEMPTS).
+
+
 disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test(Config) ->
     % Run previous test code to ensure new certificate was issued
     expired_certificate_should_be_replaced_test_base(Config),
@@ -418,6 +446,19 @@ end_per_group(_Group, Config) ->
     Config.
 
 
+init_per_testcase(Testcase = automatic_certification_renewal_test, Config) ->
+    PrevDays = cert_test_utils:substitute_cert_renewal_days(zone, ?WEB_CERT_RENEW_MARGIN_DAYS),
+    PrevDelay = cert_test_utils:substitute_cert_renewal_check_delay(zone, ?WEB_CERT_RENEWAL_CHECK_SEC),
+
+    cert_test_utils:update_lets_encrypt(zone, disable),
+    cert_test_utils:deploy_certs(zone, ?PEBBLE_EXPIRED_CERT_DIR_NAME, Config),
+
+    init_per_testcase(?DEFAULT_CASE(Testcase), [
+        {prev_renewal_days, PrevDays},
+        {prev_renewal_check_delay, PrevDelay}
+        | Config
+    ]);
+
 init_per_testcase(Testcase, Config) when
     Testcase =:= failed_certification_attempt_leaves_lets_encrypt_disabled_test;
     Testcase =:= failed_certification_attempt_leaves_lets_encrypt_enabled_test
@@ -426,7 +467,6 @@ init_per_testcase(Testcase, Config) when
     % than it needs (certification fails due to mocked error)
     cert_test_utils:set_certification_attempts(zone, 2),
 
-%%    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config),
     cert_test_utils:update_lets_encrypt(zone, case Testcase of
         failed_certification_attempt_leaves_lets_encrypt_disabled_test -> disable;
         failed_certification_attempt_leaves_lets_encrypt_enabled_test -> enable
@@ -447,6 +487,14 @@ init_per_testcase(_Testcase, Config) ->
 
     Config.
 
+
+end_per_testcase(Testcase = automatic_certification_renewal_test, Config) ->
+    cert_test_utils:substitute_cert_renewal_days(zone, ?config(prev_renewal_days, Config)),
+    cert_test_utils:substitute_cert_renewal_check_delay(zone, ?config(prev_renewal_check_delay, Config)),
+
+    cert_test_utils:update_lets_encrypt(zone, disable),
+
+    end_per_testcase(?DEFAULT_CASE(Testcase), Config);
 
 end_per_testcase(Testcase, Config) when
     Testcase =:= failed_certification_attempt_leaves_lets_encrypt_disabled_test;
@@ -470,3 +518,7 @@ end_per_testcase(_Testcase, Config) ->
 %%%===================================================================
 
 
+%% @private
+-spec get_cert_creation_time() -> binary().
+get_cert_creation_time() ->
+    maps:get(<<"creationTime">>, cert_test_utils:get_cert_details(zone)).

@@ -13,6 +13,7 @@
 -author("Bartosz Walkowicz").
 
 -include("cert_test_utils.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("kernel/src/inet_dns.hrl").
@@ -20,6 +21,9 @@
 
 %% API
 -export([
+    substitute_cert_renewal_days/2,
+    substitute_cert_renewal_check_delay/2,
+
     set_certification_attempts/2,
 
     get_cert_details/1,
@@ -33,29 +37,48 @@
     reload_certs/1
 ]).
 
+-define(ATTEMPTS, 10).
+
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 
+-spec substitute_cert_renewal_days(oct_background:entity_selector(), non_neg_integer()) ->
+    non_neg_integer().
+substitute_cert_renewal_days(EntitySelector, Days) ->
+    PanelNodes = get_panel_nodes(EntitySelector),
+    {ok, PrevDays} = test_utils:get_env(?RAND_ELEMENT(PanelNodes), ?APP_NAME, web_cert_renewal_days),
+    test_utils:set_env(PanelNodes, ?APP_NAME, web_cert_renewal_days, Days),
+
+    PrevDays.
+
+
+-spec substitute_cert_renewal_check_delay(oct_background:entity_selector(), time:seconds()) ->
+    time:seconds().
+substitute_cert_renewal_check_delay(EntitySelector, DelaySec) ->
+    PanelNodes = get_panel_nodes(EntitySelector),
+    {ok, PrevDelaySec} = test_utils:get_env(?RAND_ELEMENT(PanelNodes), ?APP_NAME, web_cert_renewal_check_delay),
+    test_utils:set_env(PanelNodes, ?APP_NAME, web_cert_renewal_check_delay, DelaySec),
+
+    PrevDelaySec.
+
+
 -spec set_certification_attempts(oct_background:entity_selector(), non_neg_integer()) ->
     ok.
 set_certification_attempts(EntitySelector, Attempts) ->
     PanelNodes = get_panel_nodes(EntitySelector),
-
-    ?assertEqual(
-        {lists:duplicate(length(PanelNodes), ok), []},
-        utils:rpc_multicall(PanelNodes, onepanel_env, set, [letsencrypt_attempts, Attempts])
-    ),
-    ok.
+    test_utils:set_env(PanelNodes, ?APP_NAME, letsencrypt_attempts, Attempts).
 
 
 -spec get_cert_details(oct_background:entity_selector()) -> json_utils:json_map().
 get_cert_details(EntitySelector) ->
     {ok, _, _, CertDetails} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:get(EntitySelector, <<"/web_cert">>, #{auth => root})
+        panel_test_rest:get(EntitySelector, <<"/web_cert">>, #{auth => root}),
+        % Call with attempts in case of cert reload after certification
+        ?ATTEMPTS
     ),
     CertDetails.
 
@@ -91,7 +114,8 @@ assert_newly_issued_pebble_cert(#{
 update_lets_encrypt(EntitySelector, State) ->
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
-        try_update_lets_encrypt(EntitySelector, State)
+        try_update_lets_encrypt(EntitySelector, State),
+        ?ATTEMPTS
     ),
     ok.
 
