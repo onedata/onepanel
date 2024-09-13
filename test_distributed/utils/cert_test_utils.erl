@@ -34,10 +34,11 @@
     try_update_lets_encrypt/2,
 
     deploy_certs/3,
-    reload_certs/1
+    reload_certs/1,
+    assert_certs_reloaded/1
 ]).
 
--define(ATTEMPTS, 10).
+-define(ATTEMPTS, 30).
 
 
 %%%===================================================================
@@ -166,12 +167,42 @@ deploy_certs(EntitySelector, CertDirName, Config) ->
 
 -spec reload_certs(oct_background:entity_selector()) -> ok.
 reload_certs(EntitySelector) ->
-    Nodes = get_panel_nodes(EntitySelector),
-    ExpResult = lists:duplicate(length(Nodes), ok),
-    {Result, []} = utils:rpc_multicall(Nodes, https_listener, reload_web_certs, []),
-    ?assertEqual(ExpResult, Result),
+    lists:foreach(fun(Nodes) ->
+        ExpResult = lists:duplicate(length(Nodes), ok),
+        {Result, []} = utils:rpc_multicall(Nodes, https_listener, reload_web_certs, []),
+        ?assertEqual(ExpResult, Result)
+    end, [
+        get_panel_nodes(EntitySelector),
+        get_worker_nodes(EntitySelector)
+    ]).
 
-    ok.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Asserts certificates returned vy server (when queried by openssl) are the
+%% same as the ones on disc under cert dir location.
+%% @end
+%%--------------------------------------------------------------------
+-spec assert_certs_reloaded(oct_background:entity_selector()) -> ok.
+assert_certs_reloaded(EntitySelector) ->
+    ExpPems = lists:flatten([
+        read_pems(EntitySelector, web_cert_file),
+        read_pems(EntitySelector, web_cert_chain_file)
+    ]),
+
+    Server = dns_test_utils:get_domain(EntitySelector),
+
+    lists:foreach(fun(Port) ->
+        Cmd = str_utils:format(
+            "openssl s_client -showcerts -connect ~ts:~tp -servername ~ts",
+            [Server, Port, Server]
+        ),
+        Result = str_utils:to_binary(os:cmd(Cmd)),
+
+        lists:foreach(fun(Pem) ->
+            ?assertMatch({_, _}, binary:match(Result, Pem))
+        end, ExpPems)
+    end, [443, 9443]).
 
 
 %%%===================================================================
@@ -182,3 +213,16 @@ reload_certs(EntitySelector) ->
 %% @private
 get_panel_nodes(zone) -> oct_background:get_zone_panels();
 get_panel_nodes(ProviderSelector) -> oct_background:get_provider_panels(ProviderSelector).
+
+
+%% @private
+get_worker_nodes(zone) -> oct_background:get_zone_nodes();
+get_worker_nodes(ProviderSelector) -> oct_background:get_provider_nodes(ProviderSelector).
+
+
+%% @private
+read_pems(NodeSelector, FileType) ->
+    {ok, Content} = panel_test_rpc:call(NodeSelector, fun() ->
+        file:read_file(onepanel_env:get(FileType))
+    end),
+    [string:trim(cert_utils:ders_to_pem([Der])) || Der <- cert_utils:pem_to_ders(Content)].

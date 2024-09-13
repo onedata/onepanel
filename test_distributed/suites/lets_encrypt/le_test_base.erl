@@ -275,6 +275,7 @@ valid_certificate_should_not_be_replaced_test_base(#le_test_spec{
 
     cert_test_utils:update_lets_encrypt(EntitySelector, enable),
 
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     ExpAllCertDetails = AllCertDetails#{<<"letsEncrypt">> => true},
     cert_test_utils:assert_cert_details(EntitySelector, ExpAllCertDetails).
 
@@ -305,6 +306,7 @@ non_lets_encrypt_issued_certificate_should_be_replaced_test_base(#le_test_spec{
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{<<"letsEncrypt">> => true},
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(EntitySelector, ExpPebbleCertDetails),
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
@@ -336,6 +338,7 @@ domain_mismatched_certificate_should_be_replaced_test_base(FakeDomain, FakeDnsNa
         <<"letsEncrypt">> => true
     },
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(EntitySelector, ExpPebbleCertDetails),
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
@@ -368,6 +371,7 @@ expired_certificate_should_be_replaced_test_base(#le_test_spec{
         <<"letsEncrypt">> => true
     },
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(EntitySelector, ExpPebbleCertDetails),
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
@@ -389,11 +393,13 @@ automatic_certification_renewal_test_base(#le_test_spec{
     #{<<"creationTime">> := CertCreationTime} = cert_test_utils:assert_cert_details(
         EntitySelector, ExpPebbleCertDetails
     ),
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     ?assertNot(CertCreationTime == get_cert_creation_time(EntitySelector), ?ATTEMPTS),
 
     #{<<"creationTime">> := CertCreationTime2} = cert_test_utils:assert_cert_details(
         EntitySelector, ExpPebbleCertDetails
     ),
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     ?assertNot(CertCreationTime2 == get_cert_creation_time(EntitySelector), ?ATTEMPTS).
 
 
@@ -412,6 +418,7 @@ disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test_bas
         [<<"lastRenewalFailure">>, <<"lastRenewalSuccess">>],
         CertDetails#{<<"letsEncrypt">> => false}
     ),
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     ?assertEqual(ExpCertDetails, cert_test_utils:get_cert_details(EntitySelector)).
 
 
@@ -429,6 +436,7 @@ failed_certification_attempt_leaves_lets_encrypt_intact_test_base(#le_test_spec{
     ),
     ?assertMatch(?ERROR_ON_NODES(?CERTIFICATION_FLOW_ERROR, _), errors:from_json(RespError)),
 
+    cert_test_utils:assert_certs_reloaded(EntitySelector),
     ?assertEqual(CertDetails, maps:remove(KeyToRm, cert_test_utils:get_cert_details(EntitySelector))).
 
 
