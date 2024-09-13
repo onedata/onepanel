@@ -29,6 +29,9 @@
 -define(PRODUCTION_DIRECTORY_URL, application:get_env(?APP_NAME,
     letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory")).
 
+-define(ROOT_CA_URL, application:get_env(?APP_NAME,
+    letsencrypt_root_ca_url, "https://letsencrypt.org/certs/isrgrootx1.pem")).
+
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(LETSENCRYPT_KEYS_DIR, application:get_env(?APP_NAME, letsencrypt_keys_dir,
     % default
@@ -195,10 +198,7 @@ challenge_types() ->
 
 -spec get_root_ca() -> pem().
 get_root_ca() ->
-    RootCaUrl = onepanel_env:get(letsencrypt_root_ca_url),
-
-    {ok, ?HTTP_200_OK, _, Pem} = http_client:get(RootCaUrl, #{}, <<>>, ?HTTP_OPTS),
-
+    {ok, ?HTTP_200_OK, _, Pem} = http_client:get(?ROOT_CA_URL, #{}, <<>>, ?HTTP_OPTS),
     Pem.
 
 

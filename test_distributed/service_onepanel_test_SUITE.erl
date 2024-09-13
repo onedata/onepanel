@@ -413,7 +413,7 @@ init_per_testcase(Case, Config) when
     test_utils:mock_expect(Nodes, service_op_worker, reload_webcert,
         fun(_) -> ok end),
     test_utils:mock_expect(Nodes, letsencrypt_api, run_certification_flow,
-        fun(_, _) ->
+        fun(_) ->
             deploy_predefined_certs(?TEST_CERT_PATHS, Config),
 
             KeysDir = filename:join(
