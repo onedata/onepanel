@@ -28,6 +28,8 @@
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_http_acceptors, 10)).
 -define(REQUEST_TIMEOUT, application:get_env(onepanel, rest_http_request_timeout, timer:seconds(30))).
 
+-define(WORKER_HTTPS_PORT, application:get_env(onepanel, worker_https_server_port, 443)).
+
 -define(LE_CHALLENGE_PATH, application:get_env(
     onepanel,
     letsencrypt_challenge_api_prefix,
@@ -77,12 +79,12 @@ start() ->
 
     BasicRoutes = [
         {?LE_CHALLENGE_PATH ++ "/[...]", cowboy_static, {dir, ?LE_CHALLENGE_ROOT}},
-        {'_', redirector_handler, https_listener:port()}
+        {'_', redirector_handler, ?WORKER_HTTPS_PORT}
     ],
     Routes = case onepanel:is_oz_panel() of
         true ->
             [
-                {?OAI_PMH_PATH ++ "/[...]", http_port_forwarder, [<<"https">>, 443, ?OZ_WORKER_CONNECT_OPTS]}
+                {?OAI_PMH_PATH ++ "/[...]", http_port_forwarder, [<<"https">>, ?WORKER_HTTPS_PORT, ?OZ_WORKER_CONNECT_OPTS]}
                 | BasicRoutes
             ];
         false ->

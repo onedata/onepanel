@@ -172,6 +172,10 @@
         {rest_https_request_timeout, 30000},
         {rest_listener_status_check_attempts, 30},
 
+        %% Worker https server port number on which http requests should be redirected
+        %% NOTE: this variable MUST BE synchronized with oz/op worker `https_server_port`
+        {worker_https_server_port, 443},
+
         %% REST route needed for Let's Encrypt challenge responses
         {letsencrypt_challenge_api_prefix, "/.well-known/acme-challenge"},
         %% Static content root needed for Let's Encrypt challenge responses
