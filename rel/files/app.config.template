@@ -173,7 +173,6 @@
         {rest_listener_status_check_attempts, 30},
 
         %% Worker https server port number on which http requests should be redirected
-        %% NOTE: this variable MUST BE synchronized with oz/op worker `https_server_port`
         {worker_https_server_port, 443},
 
         %% REST route needed for Let's Encrypt challenge responses
@@ -228,7 +227,6 @@
         %% ===================================================================
 
         %% Prefix to the OAI-PMH API - all paths must begin with it
-        %% NOTE: this variable is duplicated in oz-worker and must be set to the exact same value
         {oai_pmh_api_prefix, "/oai_pmh"},
 
         %% Timeout when waiting for response from oz_worker -

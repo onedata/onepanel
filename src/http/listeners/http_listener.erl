@@ -28,8 +28,6 @@
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_http_acceptors, 10)).
 -define(REQUEST_TIMEOUT, application:get_env(onepanel, rest_http_request_timeout, timer:seconds(30))).
 
--define(WORKER_HTTPS_PORT, application:get_env(onepanel, worker_https_server_port, 443)).
-
 -define(LE_CHALLENGE_PATH, application:get_env(
     onepanel,
     letsencrypt_challenge_api_prefix,
@@ -41,14 +39,13 @@
     "/tmp/onepanel/http/.well-known/acme-challenge/"
 )).
 
--define(OZ_WORKER_CONNECT_OPTS, fun() -> [
+-define(OZ_WORKER_OAI_PROXY_OPTS, fun() -> [
     {recv_timeout, timer:seconds(application:get_env(onepanel, oai_pmh_proxy_recv_timeout_sec, 30))},
     {ssl_options, [
         {secure, only_verify_peercert},
         {cacerts, https_listener:get_cert_chain_ders()}
     ]}
 ] end).
--define(OAI_PMH_PATH,  application:get_env(onepanel, oai_pmh_api_prefix, "/oai_pmh")).
 
 %% listener_behaviour callbacks
 -export([port/0, start/0, stop/0, reload_web_certs/0, healthcheck/0]).
@@ -77,16 +74,18 @@ port() ->
 start() ->
     ?info("Starting '~tp' server...", [?HTTP_LISTENER]),
 
+    WorkerHttpsPort = service_cluster_worker:get_worker_https_server_port(),
+
     BasicRoutes = [
         {?LE_CHALLENGE_PATH ++ "/[...]", cowboy_static, {dir, ?LE_CHALLENGE_ROOT}},
-        {'_', redirector_handler, ?WORKER_HTTPS_PORT}
+        {'_', redirector_handler, WorkerHttpsPort}
     ],
     Routes = case onepanel:is_oz_panel() of
         true ->
-            [
-                {?OAI_PMH_PATH ++ "/[...]", http_port_forwarder, [<<"https">>, ?WORKER_HTTPS_PORT, ?OZ_WORKER_CONNECT_OPTS]}
-                | BasicRoutes
-            ];
+            OaiPmhPath = service_oz_worker:get_oai_pmh_rest_api_prefix() ++ "/[...]",
+            PortForwarderOpts = [<<"https">>, WorkerHttpsPort, ?OZ_WORKER_OAI_PROXY_OPTS],
+
+            [{OaiPmhPath, http_port_forwarder, PortForwarderOpts} | BasicRoutes];
         false ->
             BasicRoutes
     end,

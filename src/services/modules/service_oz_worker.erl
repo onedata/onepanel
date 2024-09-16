@@ -62,7 +62,10 @@
 -export([reconcile_dns/1, get_ns_hosts/0]).
 -export([migrate_generated_config/1, rename_variables/0]).
 -export([get_policies/0, set_policies/1]).
+-export([get_oai_pmh_rest_api_prefix/0]).
 -export([get_details/1, get_details/0]).
+
+-define(OAI_PMH_API_PREFIX_KEY, oai_pmh_api_prefix).
 
 -define(DETAILS_CACHE_KEY, onezone_details).
 -define(DETAILS_CACHE_TTL_SECONDS, 60). % 1 minute
@@ -186,6 +189,11 @@ get_policies() ->
     }.
 
 
+-spec get_oai_pmh_rest_api_prefix() -> string().
+get_oai_pmh_rest_api_prefix() ->
+    application:get_env(?APP_NAME, ?OAI_PMH_API_PREFIX_KEY, "/oai_pmh").
+
+
 %%%===================================================================
 %%% Step functions
 %%%===================================================================
@@ -210,6 +218,8 @@ configure(Ctx) ->
         http_domain => OzDomain
     }),
     set_policies(maps:get(policies, Ctx, #{})),
+
+    onepanel_env:write([name(), ?OAI_PMH_API_PREFIX_KEY], get_oai_pmh_rest_api_prefix(), name()),
 
     node_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
