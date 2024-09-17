@@ -29,6 +29,7 @@
 
 %% API
 -export([
+    get_worker_https_server_port/0,
     add_nodes_steps/1, configure/1,
     start/1, stop/1, status/1,
     wait_for_node_manager/1, is_node_manager_running/1, wait_for_init/1,
@@ -163,6 +164,11 @@ get_steps(dns_check, #{name := ServiceName, force_check := ForceCheck}) ->
 %%% API functions
 %%%===================================================================
 
+-spec get_worker_https_server_port() -> integer().
+get_worker_https_server_port() ->
+    application:get_env(?APP_NAME, worker_https_server_port, 443).
+
+
 %%--------------------------------------------------------------------
 %% @doc Defines part of the steps, which complete list is generated
 %% in service_oz/op_worker.
@@ -226,6 +232,9 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
             onepanel_env:write([name(), external_ip], IP, ServiceName);
         false -> ok
     end,
+
+    HttpsPort = get_worker_https_server_port(),
+    onepanel_env:write([ServiceName, https_server_port], HttpsPort, ServiceName),
 
     onepanel_vm:write("name", Node, VmArgsFile),
     onepanel_vm:write("setcookie", erlang:get_cookie(), VmArgsFile),
