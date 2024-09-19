@@ -26,6 +26,7 @@
 
     get/3,
     patch/3,
+    post/3,
 
     request/2
 ]).
@@ -38,6 +39,7 @@
 
 -type request_args() :: #{
     method => http_client:method(),
+    hostname => binary(),
     path => binary(),
 
     proxy => boolean(),
@@ -89,6 +91,11 @@ patch(PanelNodeSelector, Path, RequestArgs) ->
     request(PanelNodeSelector, RequestArgs#{method => patch, path => Path}).
 
 
+-spec post(oct_background:node_selector(), binary(), request_args()) -> response().
+post(PanelNodeSelector, Path, RequestArgs) ->
+    request(PanelNodeSelector, RequestArgs#{method => post, path => Path}).
+
+
 -spec request(oct_background:node_selector(), request_args()) -> response().
 request(PanelNodeSelector, RequestArgs) ->
     PanelNode = select_node(PanelNodeSelector),
@@ -135,7 +142,12 @@ is_known_node(NodeSelector) ->
 %% @private
 -spec build_url(node(), request_args()) -> binary().
 build_url(Node, RequestArgs) ->
-    {ok, Domain} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain),
+    Domain = case maps:get(hostname, RequestArgs, undefined) of
+        undefined ->
+            element(2, {ok, _} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain));
+        Hostname ->
+            Hostname
+    end,
     {ok, RestPrefix} = test_utils:get_env(Node, ?APP_NAME, rest_api_prefix),
     Path = maps:get(path, RequestArgs),
 
