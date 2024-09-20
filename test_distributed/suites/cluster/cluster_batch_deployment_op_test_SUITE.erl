@@ -33,6 +33,8 @@ all() -> [
     deploy_using_batch_config_test
 ].
 
+-define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
+
 % Time caveat is required in temporary tokens
 -define(DEFAULT_TEMP_CAVEAT_TTL, 36000).
 
@@ -47,7 +49,7 @@ deploy_using_batch_config_test(Config) ->
     RegistrationToken = create_provider_registration_token(AdminUserId),
 
     OpPanelNodes = ?config(op_panel_nodes, Config),
-    OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+    [OpIpHost1, OpIpHost2] = OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
     OpPanelHosts = hosts:from_nodes(OpPanelNodes),
 
     OpPanelNode1 = hd(OpPanelNodes),
@@ -70,16 +72,13 @@ deploy_using_batch_config_test(Config) ->
                 <<"nodes">> => [<<"node-1">>]
             },
             <<"workers">> => #{
-                <<"nodes">> => [<<"node-1">>, <<"node-2">>]
+                <<"nodes">> => [<<"node-1">>]
+            },
+            <<"oneS3">> => #{
+                <<"nodes">> => [<<"node-2">>]
             },
             <<"databases">> => #{
-                <<"nodes">> => [<<"node-1">>, <<"node-2">>]
-%%            },
-%%            <<"storages">> => #{
-%%                <<"posix">> => #{
-%%                    <<"type">> => <<"posix">>,
-%%                    <<"mountPoint">> => <<"/volumes/posix">>
-%%                }
+                <<"nodes">> => [<<"node-1">>]
             }
         },
         <<"oneprovider">> => #{
@@ -90,42 +89,27 @@ deploy_using_batch_config_test(Config) ->
             <<"adminEmail">> => <<"admin@example.eu">>,
             <<"subdomainDelegation">> => true,
             <<"subdomain">> => <<"krakow">>,
-            <<"letsEncryptEnabled">> => false % TODO
+            <<"letsEncryptEnabled">> => true
         }
     },
 
     OpRequestOpts = #{
         auth => root,
-        hostname => ip_test_utils:encode_ip(hd(OpIps))
+        hostname => ip_test_utils:encode_ip(OpIpHost1)
     },
     {ok, ?HTTP_202_ACCEPTED, _, Resp} = panel_test_rest:post(
         OpPanelNode1, <<"/provider/configuration">>, OpRequestOpts#{json => BatchConfig}
     ),
     TaskId = maps:get(<<"taskId">>, Resp),
 
-    ct:pal("~p", [panel_test_rest:post(OpPanelNode1, <<"/tasks/", TaskId/binary>>, OpRequestOpts)]),
-
     ?assertMatch(
         {ok, ?HTTP_200_OK, _, #{<<"status">> := <<"ok">>}},
         panel_test_rest:get(OpPanelNode1, <<"/tasks/", TaskId/binary>>, OpRequestOpts),
-        300
+        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
     ),
 
-
-
-    ok.
-
-
-%% @private
-create_provider_registration_token(AdminUserId) ->
-    Now = ozw_test_rpc:timestamp_seconds(),
-
-    Token = ozw_test_rpc:create_user_temporary_token(?USER(AdminUserId), AdminUserId, #{
-        <<"type">> => ?INVITE_TOKEN(?REGISTER_ONEPROVIDER, AdminUserId),
-        <<"caveats">> => [#cv_time{valid_until = Now + ?DEFAULT_TEMP_CAVEAT_TTL}]
-    }),
-    {ok, SerializedToken} = tokens:serialize(Token),
-    SerializedToken.
+    OneS3Port = panel_test_rpc:call(OpPanelNode1, service_ones3, get_port, []),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 %%%===================================================================
@@ -150,3 +134,20 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
+
+
+%%%===================================================================
+%%% Helper functions
+%%%===================================================================
+
+
+%% @private
+create_provider_registration_token(AdminUserId) ->
+    Now = ozw_test_rpc:timestamp_seconds(),
+
+    Token = ozw_test_rpc:create_user_temporary_token(?USER(AdminUserId), AdminUserId, #{
+        <<"type">> => ?INVITE_TOKEN(?REGISTER_ONEPROVIDER, AdminUserId),
+        <<"caveats">> => [#cv_time{valid_until = Now + ?DEFAULT_TEMP_CAVEAT_TTL}]
+    }),
+    {ok, SerializedToken} = tokens:serialize(Token),
+    SerializedToken.
