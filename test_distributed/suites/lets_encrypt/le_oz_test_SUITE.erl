@@ -233,9 +233,8 @@ end_per_testcase(Testcase, Config) when
         le_test_base:teardown_failed_certification_attempt_test(zone, Config)
     );
 
-end_per_testcase(_Testcase, Config) ->
+end_per_testcase(_Testcase, _Config) ->
     cert_test_utils:set_certification_attempts(zone, ?CERTIFICATION_ATTEMPTS),
-%%    cert_test_utils:deploy_certs(zone, ?PEBBLE_VALID_CERT_DIR_NAME, Config).
     ok.
 
 

@@ -21,7 +21,8 @@
 
 %% API
 -export([
-    get_panel_nodes/1
+    get_panel_nodes/1,
+    get_worker_nodes/1
 ]).
 
 
@@ -35,3 +36,6 @@ get_panel_nodes(zone) -> oct_background:get_zone_panels();
 get_panel_nodes(ProviderSelector) -> oct_background:get_provider_panels(ProviderSelector).
 
 
+-spec get_worker_nodes(oct_background:entity_selector()) -> [node()].
+get_worker_nodes(zone) -> oct_background:get_zone_nodes();
+get_worker_nodes(ProviderSelector) -> oct_background:get_provider_nodes(ProviderSelector).

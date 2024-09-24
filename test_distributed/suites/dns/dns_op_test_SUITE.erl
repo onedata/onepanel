@@ -160,7 +160,7 @@ configure_dns_for_subdomain_test(_Config) ->
     assert_oz_dns(OpSubdomain, ExpIps),
     assert_panel_dns_check(OpSubdomain, unresolvable, ExpIps),
 
-    % With dns server set explicitly to oz one dns check should also fail
+    % With dns server set explicitly to oz one dns check should succeed
     OzIps = ip_test_utils:get_zone_nodes_ips(),
     DnsConfigDiff3 = #{<<"dnsServers">> => [?RAND_ELEMENT(ip_test_utils:encode_ips(OzIps))]},
     ExpDnsConfig3 = maps:merge(ExpDnsConfig2, DnsConfigDiff3),

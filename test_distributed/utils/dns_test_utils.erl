@@ -92,7 +92,7 @@ invalidate_dns_check_cache(EntitySelector) ->
     end,
     lists:foreach(fun(Node) ->
         panel_test_rpc:call(Node, dns_check, invalidate_cache, [WorkerService])
-    end, get_panels(EntitySelector)).
+    end, panel_test_utils:get_panel_nodes(EntitySelector)).
 
 
 -spec perform_dns_check(oct_background:entity_selector()) -> json_utils:json_map().
@@ -148,7 +148,7 @@ assert_dns_answer(Servers, Query, Type, Expected, Attempts) ->
     try
         ?assertEqual(
             SortedExpected,
-            filter_response(Type, inet_res:resolve(QueryStr, any, Type, Opts)),
+            lists:sort(filter_response(Type, inet_res:resolve(QueryStr, any, Type, Opts))),
             Attempts,
             ?DNS_ASSERT_RETRY_DELAY
         )
@@ -173,7 +173,7 @@ assert_dns_answer(Servers, Query, Type, Expected, Attempts) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Filters results of inet_res:resolve by record type and returns it sorted.
+%% Filters results of inet_res:resolve by record type and returns it.
 %% @end
 %%--------------------------------------------------------------------
 -spec filter_response(Type :: atom(), Response :: {ok, #dns_rec{}} | {error, _}) ->
@@ -185,12 +185,7 @@ filter_response(Type, {ok, #dns_rec{
     arlist = Arlist,
     nslist = Nslist
 }}) ->
-    lists:sort(lists:filtermap(fun
+    lists:filtermap(fun
         (Record) when Record#dns_rr.type =:= Type -> {true, Record#dns_rr.data};
         (_) -> false
-    end, Anlist ++ Arlist ++ Nslist)).
-
-
-%% @private
-get_panels(zone) -> oct_background:get_zone_panels();
-get_panels(ProviderSelector) -> oct_background:get_provider_panels(ProviderSelector).
+    end, Anlist ++ Arlist ++ Nslist).

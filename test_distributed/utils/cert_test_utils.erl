@@ -49,7 +49,7 @@
 -spec substitute_cert_renewal_days(oct_background:entity_selector(), non_neg_integer()) ->
     non_neg_integer().
 substitute_cert_renewal_days(EntitySelector, Days) ->
-    PanelNodes = get_panel_nodes(EntitySelector),
+    PanelNodes = panel_test_utils:get_panel_nodes(EntitySelector),
     {ok, PrevDays} = test_utils:get_env(?RAND_ELEMENT(PanelNodes), ?APP_NAME, web_cert_renewal_days),
     test_utils:set_env(PanelNodes, ?APP_NAME, web_cert_renewal_days, Days),
 
@@ -59,7 +59,7 @@ substitute_cert_renewal_days(EntitySelector, Days) ->
 -spec substitute_cert_renewal_check_delay(oct_background:entity_selector(), time:seconds()) ->
     time:seconds().
 substitute_cert_renewal_check_delay(EntitySelector, DelaySec) ->
-    PanelNodes = get_panel_nodes(EntitySelector),
+    PanelNodes = panel_test_utils:get_panel_nodes(EntitySelector),
     {ok, PrevDelaySec} = test_utils:get_env(?RAND_ELEMENT(PanelNodes), ?APP_NAME, web_cert_renewal_check_delay),
     test_utils:set_env(PanelNodes, ?APP_NAME, web_cert_renewal_check_delay, DelaySec),
 
@@ -69,7 +69,7 @@ substitute_cert_renewal_check_delay(EntitySelector, DelaySec) ->
 -spec set_certification_attempts(oct_background:entity_selector(), non_neg_integer()) ->
     ok.
 set_certification_attempts(EntitySelector, Attempts) ->
-    PanelNodes = get_panel_nodes(EntitySelector),
+    PanelNodes = panel_test_utils:get_panel_nodes(EntitySelector),
     test_utils:set_env(PanelNodes, ?APP_NAME, letsencrypt_attempts, Attempts).
 
 
@@ -144,7 +144,7 @@ try_update_lets_encrypt(EntitySelector, State) ->
 -spec deploy_certs(oct_background:entity_selector(), string(), test_config:config()) ->
     ok.
 deploy_certs(EntitySelector, CertDirName, Config) ->
-    Nodes = get_panel_nodes(EntitySelector),
+    Nodes = panel_test_utils:get_panel_nodes(EntitySelector),
     ExpResult = lists:duplicate(length(Nodes), ok),
 
     lists:foreach(fun({FileType, Path}) ->
@@ -172,14 +172,14 @@ reload_certs(EntitySelector) ->
         {Result, []} = utils:rpc_multicall(Nodes, https_listener, reload_web_certs, []),
         ?assertEqual(ExpResult, Result)
     end, [
-        get_panel_nodes(EntitySelector),
-        get_worker_nodes(EntitySelector)
+        panel_test_utils:get_panel_nodes(EntitySelector),
+        panel_test_utils:get_worker_nodes(EntitySelector)
     ]).
 
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Asserts certificates returned vy server (when queried by openssl) are the
+%% Asserts certificates returned by server (when queried by openssl) are the
 %% same as the ones on disc under cert dir location.
 %% @end
 %%--------------------------------------------------------------------
@@ -190,34 +190,35 @@ assert_certs_reloaded(EntitySelector) ->
         read_pems(EntitySelector, web_cert_chain_file)
     ]),
 
-    Server = dns_test_utils:get_domain(EntitySelector),
+    ASD = [{dns_test_utils:get_domain(EntitySelector), [
+        443,  %% TODO
+        panel_test_rpc:call(EntitySelector, https_listener, port, [])
+    ]}],
+    PortsPerDomain = ASD ++ panel_test_rpc:call(EntitySelector, fun() ->
+        case service_ones3:exists() of
+            true -> [{service_ones3:get_domain(), [service_ones3:get_port()]}];
+            false -> []
+        end
+    end),
 
-    lists:foreach(fun(Port) ->
-        Cmd = str_utils:format(
-            "openssl s_client -showcerts -connect ~ts:~tp -servername ~ts",
-            [Server, Port, Server]
-        ),
-        Result = str_utils:to_binary(os:cmd(Cmd)),
+    lists:foreach(fun({Domain, Ports}) ->
+        lists:foreach(fun(Port) ->
+            Cmd = str_utils:format(
+                "openssl s_client -showcerts -connect ~ts:~tp -servername ~ts",
+                [Domain, Port, Domain]
+            ),
+            Result = str_utils:to_binary(os:cmd(Cmd)),
 
-        lists:foreach(fun(Pem) ->
-            ?assertMatch({_, _}, binary:match(Result, Pem))
-        end, ExpPems)
-    end, [443, 9443]).
+            lists:foreach(fun(Pem) ->
+                ?assertMatch({_, _}, binary:match(Result, Pem))
+            end, ExpPems)
+        end, Ports)
+    end, PortsPerDomain).
 
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
-get_panel_nodes(zone) -> oct_background:get_zone_panels();
-get_panel_nodes(ProviderSelector) -> oct_background:get_provider_panels(ProviderSelector).
-
-
-%% @private
-get_worker_nodes(zone) -> oct_background:get_zone_nodes();
-get_worker_nodes(ProviderSelector) -> oct_background:get_provider_nodes(ProviderSelector).
 
 
 %% @private

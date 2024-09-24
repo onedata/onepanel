@@ -359,7 +359,6 @@ expired_certificate_should_be_replaced_test_base(#le_test_spec{
     },
     ExpExpiredCertDetails = ExpBasicCertDetails#{
         <<"status">> => <<"expired">>,
-%%        <<"status">> => <<"near_expiration">>,  %% TODO expired
         <<"letsEncrypt">> => false
     },
     cert_test_utils:assert_cert_details(EntitySelector, ExpExpiredCertDetails),
