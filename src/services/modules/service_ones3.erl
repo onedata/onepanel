@@ -313,9 +313,9 @@ start(Ctx) ->
 wait_for_init(Ctx) ->
     StartAttempts = onepanel_env:get(ones3_wait_for_init_attempts),
 
-    ?info("Awaiting connection to the OneS3 server..."),
+    ?info("Awaiting readiness of the OneS3 server..."),
     onepanel_utils:wait_until(?MODULE, status, [Ctx], {equal, healthy}, StartAttempts),
-    ?info("Connection to the OneS3 server OK"),
+    ?info("OneS3 server OK"),
 
     service:register_healthcheck(name(), #{hosts => [hosts:self()]}).
 
@@ -377,7 +377,7 @@ build_config() ->
             BasicOpts;
         true ->
             [
-                {custom_ca_dir, get_abs_path(cacerts_dir)}
+                {"custom_ca_dir", get_abs_path(cacerts_dir)}
                 | BasicOpts
             ]
     end,
@@ -413,10 +413,12 @@ health(_Ctx) ->
                 #{<<"isOk">> := true} ->
                     healthy;
                 _ ->
-                    ?warning("OneS3 server server is running but not healthy"),
+                    ?error(?autoformat_with_msg(
+                        "OneS3 server server is running but not healthy:", [Url]
+                    )),
                     unhealthy
             end;
         _ ->
-            ?warning("Cannot connect to OneS3 server (~ts:~tp)", [Host, Port]),
+            ?error(?autoformat_with_msg("Cannot connect to OneS3 server:", [Url])),
             unhealthy
     end.

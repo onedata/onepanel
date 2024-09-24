@@ -162,7 +162,7 @@ get_steps(import_files, #{reference_host := _}) ->
 %%--------------------------------------------------------------------
 -spec create(#{letsencrypt_plugin := service:name(), _ => _}) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
-    trust_test_ca(),
+    onepanel_env:get(treat_test_ca_as_trusted) andalso trust_test_ca(),
 
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
     ServiceCtx = #{
@@ -178,20 +178,15 @@ create(#{letsencrypt_plugin := Plugin}) ->
 %% @private
 -spec trust_test_ca() -> ok.
 trust_test_ca() ->
-    case onepanel_env:get(treat_test_ca_as_trusted) of
-        false ->
-            ok;
-        true ->
-            Nodes = nodes:all(?SERVICE_PANEL),
-            TestCaPem = letsencrypt_api:get_root_ca(),
-            TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME),
-            ok = utils:save_file_on_hosts(Nodes, TargetCaFilePath, TestCaPem),
+    Nodes = nodes:all(?SERVICE_PANEL),
+    TestCaPem = letsencrypt_api:get_root_ca(),
+    TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME),
+    ok = utils:save_file_on_hosts(Nodes, TargetCaFilePath, TestCaPem),
 
-            ?warning(
-                "Added '~ts' to trusted certificates. Use only for test purposes.",
-                [?TEST_CA_FILE_NAME]
-            )
-    end.
+    ?warning(
+        "Added '~ts' to trusted certificates. Use only for test purposes.",
+        [?TEST_CA_FILE_NAME]
+    ).
 
 
 %%--------------------------------------------------------------------

@@ -74,8 +74,6 @@
     {ssl_options, [{cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}]}
 ]).
 
--define(TEST_CA_FILE_NAME, "LetsEncryptTestCa.pem").
-
 
 % Record for the endpoints directory presented by Let's Encrypt
 -record(directory, {

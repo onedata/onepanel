@@ -869,18 +869,16 @@ set_cluster_ips(Ctx) ->
 
 
 %% @private
--spec set_services_ips(service:step_ctx()) ->
-    ok.
+-spec set_services_ips(service:step_ctx()) -> ok.
 set_services_ips(Ctx) ->
-    %% TODO XD
-    false = service_utils:results_contain_error(service:apply_sync(?SERVICE_CW, set_cluster_ips, Ctx#{
-        name => ?SERVICE_OPW,
-        hosts => hosts:all(?SERVICE_OPW)
-    })),
-    false = service_utils:results_contain_error(service:apply_sync(?SERVICE_ONES3, set_cluster_ips, Ctx#{
-        hosts => hosts:all(?SERVICE_ONES3)
-    })),
+    set_service_ips(?SERVICE_CW, Ctx#{name => ?SERVICE_OPW, hosts => hosts:all(?SERVICE_OPW)}),
+    set_service_ips(?SERVICE_ONES3, Ctx#{hosts => hosts:all(?SERVICE_ONES3)}).
 
+
+%% @private
+-spec set_service_ips(service:name(), service:step_ctx()) -> ok | no_return().
+set_service_ips(ServiceName, Ctx) ->
+    service_utils:throw_on_error(service:apply_sync(ServiceName, set_cluster_ips, Ctx)),
     ok.
 
 
@@ -1471,31 +1469,31 @@ set_subdomain_delegation(OpNode, Subdomain) ->
         <<"subdomain">> => Subdomain,
         <<"opWorkerIpAddresses">> => encode_ips(OpWorkerIps)
     },
+    Data2 = case service_ones3:exists() of
+        true ->
+            {_, OneS3Ips} = lists:unzip(service_ones3:get_hosts_ips()),
+            OneS3Port = service_ones3:get_port(),
 
-    {_, OneS3Ips} = lists:unzip(service_ones3:get_hosts_ips()),
-    OneS3Port = service_ones3:get_port(),
-    Data2 = case {OneS3Ips, OneS3Port} of
-        {[], undefined} ->
-            Data1;
-        {OneS3Ips, OneS3Port} ->
             Data1#{
                 <<"oneS3IpAddresses">> => encode_ips(OneS3Ips),
                 <<"oneS3Port">> => utils:undefined_to_null(OneS3Port)
             }
+        ;
+        false ->
+            Data1
     end,
 
     update_domain_config(OpNode, Data2).
 
 
 %% @private
--spec encode_ips([inet:ip4_address() | binary()]) -> [binary()].
+-spec encode_ips([ip_utils:ip()]) -> [binary()].
 encode_ips(Ips) -> lists:map(fun encode_ip/1, Ips).
 
 
 %% @private
--spec encode_ip(inet:ip4_address() | binary()) -> binary().
-encode_ip(Ip) when is_binary(Ip) -> Ip;
-encode_ip(Ip) when is_tuple(Ip) -> list_to_binary(inet:ntoa(Ip)).
+-spec encode_ip(ip_utils:ip()) -> binary().
+encode_ip(Ip) -> ?check(ip_utils:to_binary(Ip)).
 
 
 %% NOTE: this operation should be performed directly by Onepanel when it has a GraphSync channel to Onezone.
