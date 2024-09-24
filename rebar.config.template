@@ -30,7 +30,7 @@
 ]}.
 
 {deps, [
-    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "f244bef0f528"}}}},
+    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "1df129f5ca3c"}}}},
     {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "688cccfb686978"}}},
     {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "65984a07e10e"}}},
     {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "db93617c3af8"}}}
