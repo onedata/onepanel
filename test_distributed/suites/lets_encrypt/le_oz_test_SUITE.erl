@@ -174,16 +174,15 @@ end_per_suite(_Config) ->
 
 
 init_per_group(Group, Config) ->
-    {ChallengeType, EnableSubdomainDelegation} = case Group of
-        http_challenge -> {http, false};
-        dns_challenge -> {dns, true}
+    ChallengeType = case Group of
+        http_challenge -> http;
+        dns_challenge -> dns
     end,
     PanelNoes = oct_background:get_zone_panels(),
     test_utils:mock_new(PanelNoes, letsencrypt_api),
     test_utils:mock_expect(PanelNoes, letsencrypt_api, challenge_types, fun() ->
         [ChallengeType]
     end),
-    dns_test_utils:update_zone_subdomain_delegation(EnableSubdomainDelegation),
 
     Config.
 

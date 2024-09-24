@@ -386,7 +386,7 @@
         {ones3_external_ip, undefined},
         {ones3_http_port, 6443},
 
-        {ones3_verbose_log_level, 4},
+        {ones3_verbose_log_level, 1},
 
         % Path to OneS3 config file
         % NOTE: this value should mirror the one from /etc/init.d/ones3 script.

@@ -190,11 +190,11 @@ assert_certs_reloaded(EntitySelector) ->
         read_pems(EntitySelector, web_cert_chain_file)
     ]),
 
-    ASD = [{dns_test_utils:get_domain(EntitySelector), [
-        443,  %% TODO
+    PortsPerDomain0 = [{dns_test_utils:get_domain(EntitySelector), [
+        panel_test_rpc:call(EntitySelector, onepanel_env, get, [worker_https_server_port, ?APP_NAME, 443]),
         panel_test_rpc:call(EntitySelector, https_listener, port, [])
     ]}],
-    PortsPerDomain = ASD ++ panel_test_rpc:call(EntitySelector, fun() ->
+    PortsPerDomain1 = PortsPerDomain0 ++ panel_test_rpc:call(EntitySelector, fun() ->
         case service_ones3:exists() of
             true -> [{service_ones3:get_domain(), [service_ones3:get_port()]}];
             false -> []
@@ -213,7 +213,7 @@ assert_certs_reloaded(EntitySelector) ->
                 ?assertMatch({_, _}, binary:match(Result, Pem))
             end, ExpPems)
         end, Ports)
-    end, PortsPerDomain).
+    end, PortsPerDomain1).
 
 
 %%%===================================================================

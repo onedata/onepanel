@@ -271,5 +271,5 @@ build_test_spec(Config) ->
 %% @private
 -spec get_domain() -> binary().
 get_domain() ->
-    % TODO
+    % TODO VFS-12242 Deploy op with subdomain delegation and get its domain
     <<"krakow.dev-onezone.default.svc.cluster.local">>.
