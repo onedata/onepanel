@@ -267,8 +267,8 @@ set_node_ip(Ctx) ->
             {ok, infer_ip()}
     end,
 
-    onepanel_env:write([?SERVICE_PANEL, ones3_external_ip], Ip, ?SERVICE_PANEL),
-    onepanel_env:set(ones3_external_ip, Ip, ?SERVICE_PANEL),
+    onepanel_env:write([?SERVICE_PANEL, external_ip], Ip, ?SERVICE_PANEL),
+    onepanel_env:set(external_ip, Ip, ?SERVICE_PANEL),
     dns_check:invalidate_cache(op_worker).
 
 
@@ -284,7 +284,7 @@ format_hosts_ips() ->
 
 -spec get_hosts_ips() -> [{service:host(), inet:ip4_address()}].
 get_hosts_ips() ->
-    Args = [[?SERVICE_PANEL, ones3_external_ip], ?SERVICE_PANEL],
+    Args = [[?SERVICE_PANEL, external_ip], ?SERVICE_PANEL],
 
     lists:map(fun(Host) ->
         Node = nodes:service_to_node(?SERVICE_PANEL, Host),
@@ -350,7 +350,7 @@ status(Ctx) ->
 %% @private
 -spec infer_ip() -> inet:ip4_address().
 infer_ip() ->
-    case onepanel_env:read_effective([?SERVICE_PANEL, ones3_external_ip], ?SERVICE_PANEL) of
+    case onepanel_env:read_effective([?SERVICE_PANEL, external_ip], ?SERVICE_PANEL) of
         {ok, {_, _, _, _} = Ip} ->
             Ip;
         {ok, IpList} when is_list(IpList) ->

@@ -130,6 +130,12 @@
         %% General
         %% ===================================================================
 
+        %% External IP of this node - used by DNS
+        %% can be set to a tuple or string, for example:
+        %% {external_ip, {10,0,0,1}}, or:
+        %% {external_ip, "10.0.0.1"},
+        {external_ip, undefined},
+
         %% Initial clock sync is required for the cluster to successfully
         %% initialize (consecutive syncs are best effort). Below parameters can
         %% be used to tune the number of attempts and the interval.
@@ -379,11 +385,6 @@
         %% OneS3 configuration
         %% ===================================================================
 
-        %% External IP of this node - used by DNS
-        %% can be set to a tuple or string, for example:
-        %% {external_ip, {10,0,0,1}}, or:
-        %% {external_ip, "10.0.0.1"},
-        {ones3_external_ip, undefined},
         {ones3_http_port, 6443},
 
         {ones3_verbose_log_level, 1},

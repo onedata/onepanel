@@ -373,8 +373,11 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
             {ok, get_initial_ip(ServiceName)}
     end,
 
+    onepanel_env:write([?SERVICE_PANEL, external_ip], IP, ?SERVICE_PANEL),
+    onepanel_env:set(external_ip, IP, ?SERVICE_PANEL),
     onepanel_env:write([name(), external_ip], IP, ServiceName),
     onepanel_env:set_remote(Node, [external_ip], IP, name()),
+
     dns_check:invalidate_cache(ServiceName).
 
 
