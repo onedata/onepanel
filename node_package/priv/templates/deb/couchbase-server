@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Startup / shutdown script for the Couchbase server
+#
+# Copyright (c) 2011, Couchbase, Inc.
+# All rights reserved
+#
+#
+### BEGIN INIT INFO
+# Provides:          couchbase-server-community
+# Required-Start:    $network $local_fs
+# Required-Stop:
+# Should-Start:      $named
+# Should-Stop:
+# Default-Start:        2 3 4 5
+# Default-Stop:         0 1 6
+# Short-Description:    Couchbase server
+# Description:          Couchbase server
+
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+exec /opt/couchbase/etc/couchbase_init.d "$@"
