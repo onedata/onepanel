@@ -634,7 +634,7 @@ modify_details(Ctx) ->
 
     case maps:size(Params) of
         0 -> ok;
-        _ -> ok = op_worker_rpc:provider_logic_update(Params)
+        _ -> ?check(op_worker_rpc:provider_logic_update(Params))
     end.
 
 
