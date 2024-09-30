@@ -6,7 +6,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Integration tests of Onezone/Oneprovider clusters miscellaneous functionality .
+%%% Integration tests of Onezone/Oneprovider clusters miscellaneous functionality.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(cluster_misc_test_SUITE).
@@ -25,12 +25,16 @@
 ]).
 
 -export([
-    service_oneprovider_fetch_compatibility_registry_test/1
+    service_oneprovider_fetch_compatibility_registry_test/1,
+    cluster_clocks_sync_test/1
 ]).
 
 all() -> [
-    service_oneprovider_fetch_compatibility_registry_test
+    service_oneprovider_fetch_compatibility_registry_test,
+    cluster_clocks_sync_test
 ].
+
+-define(AWAIT_CLOCK_SYNC_ATTEMPTS, 30).
 
 
 %%%===================================================================
@@ -43,13 +47,13 @@ service_oneprovider_fetch_compatibility_registry_test(_Config) ->
     OpPanelNodes = panel_test_utils:get_panel_nodes(krakow),
     OldRevision = 2000010100,
     lists:foreach(fun(Node) ->
-        CurrentRegistryPath = rpc:call(Node, ctool, get_env, [current_compatibility_registry_file]),
-        DefaultRegistryPath = rpc:call(Node, ctool, get_env, [default_compatibility_registry_file]),
+        CurrentRegistryPath = panel_test_rpc:call(Node, ctool, get_env, [current_compatibility_registry_file]),
+        DefaultRegistryPath = panel_test_rpc:call(Node, ctool, get_env, [default_compatibility_registry_file]),
         OldRegistry = #{<<"revision">> => OldRevision},
-        ok = rpc:call(Node, ctool, set_env, [compatibility_registry_mirrors, []]),
-        ok = rpc:call(Node, file, write_file, [CurrentRegistryPath, json_utils:encode(OldRegistry)]),
-        ok = rpc:call(Node, file, write_file, [DefaultRegistryPath, json_utils:encode(OldRegistry)]),
-        ok = rpc:call(Node, compatibility, clear_registry_cache, [])
+        ok = panel_test_rpc:call(Node, ctool, set_env, [compatibility_registry_mirrors, []]),
+        ok = panel_test_rpc:call(Node, file, write_file, [CurrentRegistryPath, json_utils:encode(OldRegistry)]),
+        ok = panel_test_rpc:call(Node, file, write_file, [DefaultRegistryPath, json_utils:encode(OldRegistry)]),
+        ok = panel_test_rpc:call(Node, compatibility, clear_registry_cache, [])
     end, OpPanelNodes),
 
     % force a registry query that should cause Onepanel to fetch a newer one from Onezone
@@ -68,15 +72,95 @@ service_oneprovider_fetch_compatibility_registry_test(_Config) ->
     end, OpPanelNodes -- [ChosenNode]).
 
 
+cluster_clocks_sync_test(_Config) ->
+    % the clock_synchronization_interval_seconds env is set in the env.json to
+    % 5 seconds for the sake of this test
+
+    OzpNodes = panel_test_utils:get_panel_nodes(zone),
+    % master node is selected as the first from sorted list
+    OzpMasterNode = hd(lists:sort(OzpNodes)),
+    OzCmNode = panel_test_rpc:call(OzpMasterNode, service_cluster_manager, get_current_primary_node, []),
+    OzwNodes = panel_test_rpc:call(OzpMasterNode, service_oz_worker, get_nodes, []),
+
+    OppNodes = panel_test_utils:get_panel_nodes(krakow),
+    OpCmNode = panel_test_rpc:call(hd(OppNodes), service_cluster_manager, get_current_primary_node, []),
+    OpwNodes = panel_test_rpc:call(hd(OppNodes), service_op_worker, get_nodes, []),
+
+    IsSyncedWithMaster = fun(Node) ->
+        MasterTimestamp = panel_test_rpc:call(OzpMasterNode, global_clock, timestamp_millis, []),
+        NodeTimestamp = panel_test_rpc:call(Node, global_clock, timestamp_millis, []),
+        are_timestamps_in_sync(MasterTimestamp, NodeTimestamp)
+    end,
+
+    % after the environment is deployed and periodic sync has run at least once,
+    % all nodes in Onezone and Oneprovider clusters should be synced with the master Onezone node
+    AllNonMasterNodes = lists:flatten([
+        OzpNodes, OzCmNode, OzwNodes,
+        OppNodes, OpCmNode, OpwNodes
+    ]) -- [OzpMasterNode],
+
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+
+    Bias = ?RAND_INT(20, 60),
+    % simulate a situation when the time changes on the master node by 50 hours
+    % and see if (after some time) the clocks are unified again
+    ok = panel_test_rpc:call(OzpMasterNode, global_clock, store_bias, [local_clock, timer:hours(Bias)]),
+    ?assertEqual(false, lists:all(IsSyncedWithMaster, AllNonMasterNodes)),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+
+    % simulate a situation when the time changes on another, non-master node by
+    % 50 hours and see if (after some time) it catches up with the master again
+    RandomNonMasterNode = lists_utils:random_element(AllNonMasterNodes),
+    panel_test_rpc:call(RandomNonMasterNode, global_clock, store_bias, [local_clock, timer:hours(-Bias)]),
+    ?assertEqual(false, IsSyncedWithMaster(RandomNonMasterNode)),
+    ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
+
+    % simulate a situation when one of the nodes fails to synchronize its clock
+    % and check if the procedure that restarts clock sync correctly awaits and
+    % retries until the problem is resolved
+    OppMasterNode = hd(lists:sort(OppNodes)), % master node is selected as the first from sorted list
+    % below envs make it impossible for the node to successfully synchronize
+    panel_test_rpc:call(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, -1]),
+    panel_test_rpc:call(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, -1]),
+
+    % try to restart the clock sync in an async process (it should block until the sync is successful)
+    panel_test_rpc:call(OppMasterNode, global_clock, reset_to_system_time, []),
+    Master = self(),
+    AsyncProcess = spawn(fun() ->
+        Result = panel_test_rpc:call(OppMasterNode, oneprovider_cluster_clocks, restart_periodic_sync, []),
+        Master ! {restart_result, Result}
+    end),
+
+    ?assertEqual(false, IsSyncedWithMaster(OppMasterNode)),
+    timer:sleep(timer:seconds(10)),
+    ?assertEqual(false, IsSyncedWithMaster(OppMasterNode)),
+    % check that the async process is still waiting
+    ?assert(erlang:is_process_alive(AsyncProcess)),
+
+    % bring back the sane config and wait until the sync is successful
+    panel_test_rpc:call(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, 2000]),
+    panel_test_rpc:call(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, 10000]),
+    ?assertReceivedMatch({restart_result, ok}, timer:seconds(10)),
+    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
 
 
 init_per_suite(Config) ->
-    ModulesToLoad = [?MODULE, ip_test_utils],
-    oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes"
+    oct_background:init_per_suite(Config, #onenv_test_config{
+        onenv_scenario = "1op_2nodes",
+        envs = [
+            {oz_panel, onepanel, [
+                {clock_synchronization_interval_seconds, 5}
+            ]},
+            {oz_panel, onepanel, [
+                {clock_synchronization_interval_seconds, 5}
+            ]}
+        ]
     }).
 
 
@@ -93,5 +177,17 @@ end_per_suite(_Config) ->
 -spec peek_current_registry_revision_on_node(node()) -> integer().
 peek_current_registry_revision_on_node(Node) ->
     Resolver = compatibility:build_resolver([Node], []),
-    {ok, Rev} = rpc:call(Node, compatibility, peek_current_registry_revision, [Resolver]),
+    {ok, Rev} = panel_test_rpc:call(Node, compatibility, peek_current_registry_revision, [Resolver]),
     Rev.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Compares two timestamps and returns true if they are at most 5 seconds apart
+%% (bigger clock differences should be tested to make this a reliable check).
+%% @end
+%%--------------------------------------------------------------------
+-spec are_timestamps_in_sync(time:millis(), time:millis()) -> boolean().
+are_timestamps_in_sync(TimestampA, TimestampB) ->
+    TimestampA - TimestampB > -5000 andalso TimestampA - TimestampB < 5000.
