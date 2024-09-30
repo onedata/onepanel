@@ -68,6 +68,7 @@ stages:
 # TODO
 #        - cluster_batch_deployment_op
         - cluster_batch_deployment_oz
+        - cluster_misc
         - db_disk_usage_monitor
         - dns_op
         - dns_oz
@@ -414,6 +415,13 @@ cluster_batch_deployment_oz:
     - <<: *ct_logs
       name: ct_logs_cluster_batch_deployment_oz.tar.gz
 
+cluster_misc:
+  <<: *ct-onenv-job
+  key: CLUSTERMISC
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_misc.tar.gz
+
 db_disk_usage_monitor:
   <<: *ct-onenv-job
   key: DBDISKMONITOR
@@ -610,6 +618,7 @@ Coverage report:
     - artifact: ct_logs_api_onezone_user_management.tar.gz
     - artifact: ct_logs_cluster_batch_deployment_op.tar.gz
     - artifact: ct_logs_cluster_batch_deployment_oz.tar.gz
+    - artifact: ct_logs_cluster_misc.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz
     - artifact: ct_logs_dns_oz.tar.gz
