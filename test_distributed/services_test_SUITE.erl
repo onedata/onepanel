@@ -25,25 +25,13 @@
 
 %% tests
 -export([
-    domain_is_lowercased_test/1,
-    default_admin_is_created_test/1,
-    batch_config_creates_users/1,
-    service_oneprovider_modify_details_test/1,
-    service_oneprovider_get_details_test/1,
-    service_oneprovider_get_supported_spaces_test/1,
-    service_op_worker_add_storage_test/1,
-    service_op_worker_get_storages_test/1,
     service_oneprovider_unregister_register_test/1,
+    service_op_worker_add_storage_test/1,
     service_op_worker_update_storage_test/1,
     service_op_worker_add_node_test/1,
     service_oz_worker_add_node_test/1,
-    service_oneprovider_fetch_compatibility_registry_test/1,
-    services_status_test/1,
-    cluster_clocks_sync_test/1,
     services_stop_start_test/1
 ]).
-
--define(TIMEOUT, timer:seconds(5)).
 
 -define(run(Config, Function, HostsType), begin
     lists:foreach(fun(_Type_) ->
@@ -51,30 +39,17 @@
     end, HostsType)
 end).
 
--define(AWAIT_OZ_CONNECTIVITY_ATTEMPTS, 30).
--define(AWAIT_CLOCK_SYNC_ATTEMPTS, 30).
-
--define(OZ_USERNAME, <<"joe">>).
+-define(JOE_USERNAME, <<"joe">>).
 -define(OZ_PASSWORD, <<"password">>).
 -define(PASSPHRASE, <<"passphrase">>).
 
 all() ->
     ?ALL([
-        domain_is_lowercased_test,
-        default_admin_is_created_test,
-        batch_config_creates_users,
-        service_oneprovider_modify_details_test,
-        service_oneprovider_get_details_test,
-        service_oneprovider_get_supported_spaces_test,
-        service_op_worker_get_storages_test,
         service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
         service_op_worker_add_node_test,
-        service_oz_worker_add_node_test,
-        service_oneprovider_fetch_compatibility_registry_test,
-        services_status_test,
-        cluster_clocks_sync_test
+        service_oz_worker_add_node_test
         %% TODO VFS-4056
         %% services_stop_start_test
     ]).
@@ -82,110 +57,6 @@ all() ->
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
-
-
-domain_is_lowercased_test(Config) ->
-    % Deployment in init_per_suite provides domain in uppercase.
-    % Verify the domain to be lowercased by the deployment functions.
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    [OpNode | _] = ?config(oneprovider_nodes, Config),
-    ExpectedOpDomain = ?config(oneprovider_domain, Config),
-    ExpectedOzDomain = ?config(onezone_domain, Config),
-
-    ?assertEqual(ExpectedOpDomain, rpc:call(OpNode, service_op_worker, get_domain, [])),
-    ?assertEqual(ExpectedOzDomain, rpc:call(OzNode, service_oz_worker, get_domain, [])).
-
-
-default_admin_is_created_test(Config) ->
-    % After deployment, there should exist Onezone user <<"admin">>
-    % with password set to the emergency passphrase.
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
-        basic_auth, authenticate, [<<"admin">>, ?PASSPHRASE])).
-
-
-batch_config_creates_users(Config) ->
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    OzwNode = nodes:service_to_node(?SERVICE_OZW, OzNode),
-    {true, #auth{subject = #subject{id = UserId}}} =
-        ?assertMatch({true, #auth{}}, image_test_utils:proxy_rpc(OzNode, OzwNode,
-            basic_auth, authenticate, [?OZ_USERNAME, ?OZ_PASSWORD])),
-
-    ?assert(image_test_utils:proxy_rpc(OzNode, OzwNode, group_logic, has_direct_user,
-        [<<"admins">>, UserId])).
-
-
-service_oneprovider_modify_details_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    Domain = list_to_binary(hosts:from_node(Node)),
-    onepanel_test_utils:service_action(Node, oneprovider, modify_details, #{
-        oneprovider_geo_latitude => 30.0,
-        oneprovider_geo_longitude => 40.0,
-        oneprovider_name => <<"provider3">>,
-        oneprovider_subdomain_delegation => false,
-        oneprovider_domain => Domain,
-        oneprovider_admin_email => <<"admin@onedata.org">>
-    }),
-
-    Results = onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
-        hosts => [hosts:from_node(Node)]
-    }),
-    NodeToResult = assert_step_present(service:get_module(oneprovider), get_details, Results),
-    [{_, Details}] = ?assertMatch([{Node, _}], NodeToResult),
-    onepanel_test_utils:assert_fields(Details,
-        [id, name, subdomainDelegation, domain, adminEmail, geoLatitude, geoLongitude]
-    ),
-    onepanel_test_utils:assert_values(Details, [
-        {name, <<"provider3">>},
-        {subdomainDelegation, false},
-        {domain, Domain},
-        {adminEmail, <<"admin@onedata.org">>},
-        {geoLatitude, 30.0},
-        {geoLongitude, 40.0}
-    ]).
-
-
-service_oneprovider_get_details_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    Results = onepanel_test_utils:service_action(Node, oneprovider, get_details, #{
-        hosts => [hosts:from_node(Node)]
-    }),
-    ResultToNode = assert_step_present(service:get_module(oneprovider), get_details, Results),
-    [{_, Details}] = ?assertMatch([{Node, _}], ResultToNode),
-    onepanel_test_utils:assert_fields(Details,
-        [id, name, domain, adminEmail, geoLatitude, geoLongitude]
-    ).
-
-
-service_oneprovider_get_supported_spaces_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    Results = onepanel_test_utils:service_action(Node, oneprovider, get_spaces, #{
-        hosts => [hosts:from_node(Node)]
-    }),
-    assert_expected_result(
-        service:get_module(oneprovider), get_spaces, [Node], [], Results
-    ).
-
-
-service_op_worker_get_storages_test(Config) ->
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    Ctx = #{hosts => [hosts:from_node(Node)]},
-    Results = onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx),
-    ResultToNode = assert_step_present(service:get_module(op_worker), get_storages, Results),
-    [{Node, [Id]}] = ?assertMatch([{Node, [_]}], ResultToNode),
-
-    Results2 = onepanel_test_utils:service_action(Node, op_worker, get_storages, Ctx#{id => Id}),
-    ResultToNode2 = assert_step_present(service:get_module(op_worker), get_storages, Results2),
-    [{Node, Storage}] = ?assertMatch([{Node, _}], ResultToNode2),
-    onepanel_test_utils:assert_values(Storage, [
-        {id, Id},
-        {name, <<"somePosix1">>},
-        {type, <<"posix">>},
-        {mountPoint, onepanel_utils:get_converted(
-            [storages, posix, '/mnt/st1', docker_path], Config, binary
-        )}
-    ]).
 
 
 service_oneprovider_unregister_register_test(Config) ->
@@ -320,7 +191,7 @@ service_op_worker_update_storage_test(Config) ->
                     Results = onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
                         hosts => [Host], storage => Changes, id => Id
                     }),
-                    assert_expected_result(service:get_module(op_worker),
+                    onepanel_test_utils:assert_service_action_result(service:get_module(op_worker),
                         update_storage, [Node], Expected, Results
                     );
                 error ->
@@ -373,133 +244,6 @@ service_oz_worker_add_node_test(Config) ->
         rpc:call(NewNode, service_oz_worker, get_policies, [])).
 
 
-service_oneprovider_fetch_compatibility_registry_test(Config) ->
-    % place some initial, outdated compatibility registry on all nodes
-    OnepanelNodes = ?config(oneprovider_nodes, Config),
-    OldRevision = 2000010100,
-    lists:foreach(fun(Node) ->
-        CurrentRegistryPath = rpc:call(Node, ctool, get_env, [current_compatibility_registry_file]),
-        DefaultRegistryPath = rpc:call(Node, ctool, get_env, [default_compatibility_registry_file]),
-        OldRegistry = #{<<"revision">> => OldRevision},
-        ok = rpc:call(Node, ctool, set_env, [compatibility_registry_mirrors, []]),
-        ok = rpc:call(Node, file, write_file, [CurrentRegistryPath, json_utils:encode(OldRegistry)]),
-        ok = rpc:call(Node, file, write_file, [DefaultRegistryPath, json_utils:encode(OldRegistry)]),
-        ok = rpc:call(Node, compatibility, clear_registry_cache, [])
-    end, OnepanelNodes),
-
-    % force a registry query that should cause Onepanel to fetch a newer one from Onezone
-    ChosenNode = lists_utils:random_element(OnepanelNodes),
-    ?assertMatch({ok, 200, _, _}, onepanel_test_rest:auth_request(
-        hosts:from_node(ChosenNode), "/provider/onezone_info", get, ?PASSPHRASE
-    )),
-    NewerRevision = peek_current_registry_revision_on_node(ChosenNode),
-    ?assertNotEqual(NewerRevision, OldRevision),
-
-    % in the process, the new registry should be propagated to all nodes
-    lists:foreach(fun(Node) ->
-        ?assertEqual(NewerRevision, peek_current_registry_revision_on_node(Node))
-    end, OnepanelNodes -- [ChosenNode]).
-
-
-services_status_test(Config) ->
-    lists:foreach(fun({NodesType, MainService, Services}) ->
-        Nodes = ?config(NodesType, Config),
-        lists:foreach(fun(Service) ->
-            SModule = service:get_module(Service),
-            lists:foreach(fun(Node) ->
-                Results = onepanel_test_utils:service_host_action(Node, Service, status),
-                assert_expected_result(SModule, status, [Node], healthy, Results)
-            end, Nodes),
-
-            Results = onepanel_test_utils:service_action(hd(Nodes), Service, status),
-            assert_expected_result(SModule, status, Nodes, healthy, Results)
-        end, Services),
-
-        Results = onepanel_test_utils:service_action(hd(Nodes), MainService, status),
-        lists:foreach(fun(Service) ->
-            SModule = service:get_module(Service),
-            assert_expected_result(SModule, status, Nodes, healthy, Results)
-        end, Services)
-    end, [
-        {onezone_nodes, ?SERVICE_OZ,
-            [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW]},
-        {oneprovider_nodes, ?SERVICE_OP,
-            [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OPW]}
-    ]).
-
-
-cluster_clocks_sync_test(Config) ->
-    % the clock_synchronization_interval_seconds env is set in the env.json to
-    % 5 seconds for the sake of this test
-
-    OzpNodes = ?config(onezone_nodes, Config),
-    % master node is selected as the first from sorted list
-    OzpMasterNode = hd(lists:sort(OzpNodes)),
-    OzCmNode = rpc:call(OzpMasterNode, service_cluster_manager, get_current_primary_node, []),
-    OzwNodes = rpc:call(OzpMasterNode, service_oz_worker, get_nodes, []),
-
-    OppNodes = ?config(oneprovider_nodes, Config),
-    OpCmNode = rpc:call(hd(OppNodes), service_cluster_manager, get_current_primary_node, []),
-    OpwNodes = rpc:call(hd(OppNodes), service_op_worker, get_nodes, []),
-
-    IsSyncedWithMaster = fun(Node) ->
-        MasterTimestamp = rpc:call(OzpMasterNode, global_clock, timestamp_millis, []),
-        NodeTimestamp = image_test_utils:proxy_rpc(Node, global_clock, timestamp_millis, []),
-        are_timestamps_in_sync(MasterTimestamp, NodeTimestamp)
-    end,
-
-    % after the environment is deployed and periodic sync has run at least once,
-    % all nodes in Onezone and Oneprovider clusters should be synced with the master Onezone node
-    AllNonMasterNodes = lists:flatten([
-        OzpNodes, OzCmNode, OzwNodes,
-        OppNodes, OpCmNode, OpwNodes
-    ]) -- [OzpMasterNode],
-
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
-
-    % simulate a situation when the time changes on the master node by 50 hours
-    % and see if (after some time) the clocks are unified again
-    ok = rpc:call(OzpMasterNode, global_clock, store_bias, [local_clock, timer:hours(50)]),
-    ?assertEqual(false, lists:all(IsSyncedWithMaster, AllNonMasterNodes)),
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
-
-    % simulate a situation when the time changes on another, non-master node by
-    % 50 hours and see if (after some time) it catches up with the master again
-    RandomNonMasterNode = lists_utils:random_element(AllNonMasterNodes),
-    image_test_utils:proxy_rpc(RandomNonMasterNode, global_clock, store_bias, [local_clock, timer:hours(-50)]),
-    ?assertEqual(false, IsSyncedWithMaster(RandomNonMasterNode)),
-    ?assertEqual(true, IsSyncedWithMaster(RandomNonMasterNode), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS),
-
-    % simulate a situation when one of the nodes fails to synchronize its clock
-    % and check if the procedure that restarts clock sync correctly awaits and
-    % retries until the problem is resolved
-    OppMasterNode = hd(lists:sort(OppNodes)), % master node is selected as the first from sorted list
-    % below envs make it impossible for the node to successfully synchronize
-    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, -1]),
-    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, -1]),
-
-    % try to restart the clock sync in an async process (it should block until the sync is successful)
-    image_test_utils:proxy_rpc(OppMasterNode, global_clock, reset_to_system_time, []),
-    Master = self(),
-    AsyncProcess = spawn(fun() ->
-        Result = image_test_utils:proxy_rpc(OppMasterNode, oneprovider_cluster_clocks, restart_periodic_sync, []),
-        Master ! {restart_result, Result}
-    end),
-
-    ?assertEqual(false, IsSyncedWithMaster(OppMasterNode)),
-    timer:sleep(timer:seconds(10)),
-    ?assertEqual(false, IsSyncedWithMaster(OppMasterNode)),
-    % check that the async process is still waiting
-    ?assert(erlang:is_process_alive(AsyncProcess)),
-
-    % bring back the sane config and wait until the sync is successful
-    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_satisfying_delay, 2000]),
-    image_test_utils:proxy_rpc(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, 10000]),
-    ?assertReceivedMatch({restart_result, ok}, timer:seconds(10)),
-    ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
-
-
 services_stop_start_test(Config) ->
     ActionsWithResults = [
         {stop, ok}, {status, stopped}, {start, ok}, {status, unhealthy}
@@ -512,13 +256,13 @@ services_stop_start_test(Config) ->
             lists:foreach(fun(Node) ->
                 lists:foreach(fun({Action, Result}) ->
                     Results = onepanel_test_utils:service_host_action(Node, Service, Action),
-                    assert_expected_result(SModule, Action, [Node], Result, Results)
+                    onepanel_test_utils:assert_service_action_result(SModule, Action, [Node], Result, Results)
                 end, ActionsWithResults)
             end, Nodes),
 
             lists:foreach(fun({Action, Result}) ->
                 Results = onepanel_test_utils:service_action(hd(Nodes), Service, Action),
-                assert_expected_result(SModule, Action, Nodes, Result, Results)
+                onepanel_test_utils:assert_service_action_result(SModule, Action, Nodes, Result, Results)
             end, ActionsWithResults)
         end, Services),
 
@@ -526,7 +270,7 @@ services_stop_start_test(Config) ->
             Results = onepanel_test_utils:service_action(hd(Nodes), MainService, Action),
             lists:foreach(fun(Service) ->
                 SModule = service:get_module(Service),
-                assert_expected_result(SModule, Action, Nodes, Result, Results)
+                onepanel_test_utils:assert_service_action_result(SModule, Action, Nodes, Result, Results)
             end, Services)
         end, ActionsWithResults)
     end, [
@@ -547,7 +291,7 @@ init_per_suite(Config) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
         NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
-            ?OZ_USERNAME, ?OZ_PASSWORD, 1, NewConfig2),
+            ?JOE_USERNAME, ?OZ_PASSWORD, 1, NewConfig2),
 
         Posix = kv_utils:get([storages, posix, '/mnt/st1'], NewConfig2),
         Storages = #{
@@ -567,15 +311,6 @@ init_per_suite(Config) ->
 
 init_per_testcase(services_stop_start_test, Config) ->
     ct:timetrap({minutes, 60}),
-    init_per_testcase(default, Config);
-
-init_per_testcase(Case, Config) when
-    Case == service_oneprovider_get_details_test;
-    Case == service_oneprovider_modify_details_test ->
-
-    [Node | _] = ?config(oneprovider_nodes, Config),
-    await_oz_connectivity(Node),
-
     init_per_testcase(default, Config);
 
 init_per_testcase(_Case, Config) ->
@@ -610,39 +345,6 @@ assert_step_present(Module, Function, Results) ->
         [NodesToResult | _] -> NodesToResult;
         [] -> ct:fail("Step ~ts:~ts not found among results:~n~tp", [Module, Function, Results])
     end.
-
-
-%% @private
--spec assert_expected_result(Module :: module(), Function :: atom(),
-    Nodes :: [node()], Expected :: term(),
-    Results :: service_executor:results()) -> ok.
-assert_expected_result(Module, Function, Nodes, ExpectedValue, Results) ->
-    NodesToResult = assert_step_present(Module, Function, Results),
-    Expected = same_result_for_nodes(Nodes, ExpectedValue),
-    onepanel_test_utils:assert_values(NodesToResult, Expected),
-    NodesToResult.
-
-
-%% @private
--spec same_result_for_nodes(Nodes :: [node()], Result) -> [{node(), Result}]
-    when Result :: term().
-same_result_for_nodes(Nodes, Result) ->
-    [{Node, Result} || Node <- Nodes].
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Waits for subscriptions channel to be active in the provider.
-%% @end
-%%--------------------------------------------------------------------
--spec await_oz_connectivity(Node :: node()) -> ok | no_return().
-await_oz_connectivity(Node) ->
-    OpNode = nodes:service_to_node(?SERVICE_OPW, Node),
-    ?assertMatch({ok, _},
-        image_test_utils:proxy_rpc(Node, OpNode, provider_logic, get, []),
-        ?AWAIT_OZ_CONNECTIVITY_ATTEMPTS),
-    ok.
 
 
 %%--------------------------------------------------------------------
@@ -690,22 +392,3 @@ parse_add_storages_results(ActionResults) ->
                 {AccMap, AccErrorOccurred}
         end
     end, {#{}, false}, ActionResults).
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Compares two timestamps and returns true if they are at most 5 seconds apart
-%% (bigger clock differences should be tested to make this a reliable check).
-%% @end
-%%--------------------------------------------------------------------
--spec are_timestamps_in_sync(time:millis(), time:millis()) -> boolean().
-are_timestamps_in_sync(TimestampA, TimestampB) ->
-    TimestampA - TimestampB > -5000 andalso TimestampA - TimestampB < 5000.
-
-
-%% @private
--spec peek_current_registry_revision_on_node(node()) -> integer().
-peek_current_registry_revision_on_node(Node) ->
-    Resolver = compatibility:build_resolver([Node], []),
-    {ok, Rev} = rpc:call(Node, compatibility, peek_current_registry_revision, [Resolver]),
-    Rev.
