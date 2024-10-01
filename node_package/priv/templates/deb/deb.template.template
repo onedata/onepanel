@@ -39,3 +39,6 @@
 {template, "rules", "rules"}.
 {template, "vars.config", "vars.config"}.
 {template, "init.script", "init.script"}.
+{template, "couchbase-server", "couchbase-server"}.
+{template, "couchbase-upgrade.sh", "couchbase-upgrade.sh"}.
+{template, "couchbase_init.d", "couchbase_init.d"}.
