@@ -73,7 +73,7 @@ install: build
 	mkdir -p debian/opt/couchbase/etc
 	mkdir -p debian/root
 	install -m755 debian/couchbase-server debian/etc/init.d/couchbase-server
-	install -m755 -o couchbase -g couchbase debian/couchbase_init.d debian/opt/couchbase/etc/couchbase_init.d
+	install -m755 debian/couchbase_init.d debian/opt/couchbase/etc/couchbase_init.d
 	install -m755 debian/couchbase-upgrade.sh debian/root/couchbase-upgrade.sh
 
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info #todo check why onepanel build fails without this option
