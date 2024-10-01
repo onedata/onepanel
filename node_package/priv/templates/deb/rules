@@ -69,6 +69,9 @@ install: build
 	install -m755 debian/init.script \
               debian/{{package_name}}/etc/init.d/{{package_install_name}}
 
+	mkdir -p debian/etc/init.d
+	mkdir -p debian/opt/couchbase/etc
+	mkdir -p debian/root
 	install -m755 debian/couchbase-server debian/etc/init.d/couchbase-server
 	install -m755 -o couchbase -g couchbase debian/couchbase_init.d debian/opt/couchbase/etc/couchbase_init.d
 	install -m755 debian/couchbase-upgrade.sh debian/root/couchbase-upgrade.sh
