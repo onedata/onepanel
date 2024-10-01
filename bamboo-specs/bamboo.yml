@@ -66,8 +66,8 @@ stages:
         - api_onezone_service_configuration
         - api_onezone_user_management
 # TODO
-#        - cluster_batch_deployment_op
-        - cluster_batch_deployment_oz
+#        - cluster_op_batch_deployment
+        - cluster_oz_batch_deployment
         - cluster_misc
         - db_disk_usage_monitor
         - dns_op
@@ -401,19 +401,19 @@ api_onezone_user_management:
       name: ct_logs_api_onezone_user_management.tar.gz
 
 # TODO
-#cluster_batch_deployment_op:
+#cluster_op_batch_deployment:
 #  <<: *ct-onenv-job
-#  key: CLUSTERBATCHDEPLOYMENTOP
+#  key: CLUSTEROPBATCHDEPLOYMENT
 #  artifacts:
 #    - <<: *ct_logs
-#      name: ct_logs_cluster_batch_deployment_op.tar.gz
+#      name: ct_logs_cluster_op_batch_deployment.tar.gz
 
-cluster_batch_deployment_oz:
+cluster_oz_batch_deployment:
   <<: *ct-onenv-job
-  key: CLUSTERBATCHDEPLOYMENTOZ
+  key: CLUSTEROZBATCHDEPLOYMENT
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_batch_deployment_oz.tar.gz
+      name: ct_logs_cluster_oz_batch_deployment.tar.gz
 
 cluster_misc:
   <<: *ct-onenv-job
@@ -616,8 +616,8 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_storages.tar.gz
     - artifact: ct_logs_api_onezone_service_configuration.tar.gz
     - artifact: ct_logs_api_onezone_user_management.tar.gz
-    - artifact: ct_logs_cluster_batch_deployment_op.tar.gz
-    - artifact: ct_logs_cluster_batch_deployment_oz.tar.gz
+#    - artifact: ct_logs_cluster_op_batch_deployment.tar.gz
+    - artifact: ct_logs_cluster_oz_batch_deployment.tar.gz
     - artifact: ct_logs_cluster_misc.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz

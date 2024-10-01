@@ -25,13 +25,19 @@
 ]).
 
 -export([
-    service_oneprovider_fetch_compatibility_registry_test/1,
-    cluster_clocks_sync_test/1
+    op_fetch_compatibility_registry_test/1,
+    cluster_clocks_sync_test/1,
+
+    oz_services_healthy_status_test/1,
+    op_services_healthy_status_test/1
 ]).
 
 all() -> [
-    service_oneprovider_fetch_compatibility_registry_test,
-    cluster_clocks_sync_test
+    op_fetch_compatibility_registry_test,
+    cluster_clocks_sync_test,
+
+    oz_services_healthy_status_test,
+    op_services_healthy_status_test
 ].
 
 -define(AWAIT_CLOCK_SYNC_ATTEMPTS, 30).
@@ -42,7 +48,7 @@ all() -> [
 %%%===================================================================
 
 
-service_oneprovider_fetch_compatibility_registry_test(_Config) ->
+op_fetch_compatibility_registry_test(_Config) ->
     % place some initial, outdated compatibility registry on all nodes
     OpPanelNodes = panel_test_utils:get_panel_nodes(krakow),
     OldRevision = 2000010100,
@@ -143,6 +149,48 @@ cluster_clocks_sync_test(_Config) ->
     panel_test_rpc:call(OppMasterNode, ctool, set_env, [clock_sync_max_allowed_delay, 10000]),
     ?assertReceivedMatch({restart_result, ok}, timer:seconds(10)),
     ?assertEqual(true, lists:all(IsSyncedWithMaster, AllNonMasterNodes), ?AWAIT_CLOCK_SYNC_ATTEMPTS).
+
+
+oz_services_healthy_status_test(_Config) ->
+    cluster_services_healthy_status_test_base(zone, ?SERVICE_OZ, [
+        ?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW
+    ]).
+
+
+op_services_healthy_status_test(_Config) ->
+    cluster_services_healthy_status_test_base(krakow, ?SERVICE_OP, [
+        ?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OPW
+    ]).
+
+
+%% @private
+cluster_services_healthy_status_test_base(EntitySelector, MainService, SubServices) ->
+    PanelNodes = panel_test_utils:get_panel_nodes(EntitySelector),
+
+    lists:foreach(fun(Service) ->
+        ServiceModule = service:get_module(Service),
+
+        lists:foreach(fun(PanelNode) ->
+            Results = onepanel_test_utils:service_host_action(PanelNode, Service, status),
+            onepanel_test_utils:assert_service_action_result(
+                ServiceModule, status, [PanelNode], healthy, Results
+            )
+        end, PanelNodes),
+
+        Results = onepanel_test_utils:service_action(hd(PanelNodes), Service, status),
+        onepanel_test_utils:assert_service_action_result(
+            ServiceModule, status, PanelNodes, healthy, Results
+        )
+    end, SubServices),
+
+    % Assert main service status consists/includes all sub services statuses
+    Results = onepanel_test_utils:service_action(hd(PanelNodes), MainService, status),
+    lists:foreach(fun(Service) ->
+        ServiceModule = service:get_module(Service),
+        onepanel_test_utils:assert_service_action_result(
+            ServiceModule, status, PanelNodes, healthy, Results
+        )
+    end, SubServices).
 
 
 %%%===================================================================

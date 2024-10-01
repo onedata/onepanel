@@ -11,16 +11,18 @@
 -module(onepanel_test_utils).
 -author("Krzysztof Trzepla").
 
+-include("modules/errors.hrl").
 -include("names.hrl").
 -include("onepanel_test_utils.hrl").
--include("modules/errors.hrl").
+-include("service.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
 
 %% API
 -export([init/1, ensure_started/1, set_test_envs/1, set_test_envs/2,
     mock_start/1]).
--export([assert_fields/2, assert_values/2, clear_msg_inbox/0]).
+-export([assert_fields/2, assert_values/2, assert_service_action_result/5]).
+-export([clear_msg_inbox/0]).
 -export([
     service_host_action/3, service_host_action/4,
     service_action/3, service_action/4, attempt_service_action/4
@@ -171,6 +173,16 @@ assert_values(ResponseProplist, ExpectedValues) ->
     end, ExpectedValues).
 
 
+-spec assert_service_action_result(Module :: module(), Function :: atom(),
+    Nodes :: [node()], Expected :: term(),
+    Results :: service_executor:results()) -> ok.
+assert_service_action_result(Module, Function, Nodes, ExpectedValue, Results) ->
+    NodesToResult = assert_step_present(Module, Function, Results),
+    Expected = [{Node, ExpectedValue} || Node <- Nodes],
+    onepanel_test_utils:assert_values(NodesToResult, Expected),
+    NodesToResult.
+
+
 %%--------------------------------------------------------------------
 %% @doc Removes all messages from calling process message inbox.
 %% @end
@@ -314,3 +326,20 @@ create_cluster([Node | _] = Nodes) ->
     onepanel_test_utils:service_action(Node,
         onepanel, deploy, #{hosts => Hosts}
     ).
+
+
+%% @private
+-spec assert_step_present(module(), Function :: atom(),
+    service_executor:results()) -> onepanel_rpc:results().
+assert_step_present(Module, Function, Results) ->
+    case lists:filtermap(fun
+        (#step_end{module = M, function = F, good_bad_results = {GoodResults, []}})
+            when M == Module, F == Function
+            ->
+            {true, GoodResults};
+        (_) ->
+            false
+    end, Results) of
+        [NodesToResult | _] -> NodesToResult;
+        [] -> ct:fail("Step ~ts:~ts not found among results:~n~tp", [Module, Function, Results])
+    end.
