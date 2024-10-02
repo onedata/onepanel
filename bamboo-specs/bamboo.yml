@@ -65,7 +65,7 @@ stages:
         - api_oneprovider_storages
         - api_onezone_service_configuration
         - api_onezone_user_management
-# TODO
+# TODO VFS-12242 add pebble
 #        - cluster_op_batch_deployment
         - cluster_oz_batch_deployment
         - cluster_misc
@@ -73,7 +73,7 @@ stages:
         - dns_op
         - dns_oz
         - model
-# TODO
+# TODO VFS-12242 add pebble
 #        - le_op
 #        - le_oz
         - rest_clusters
@@ -616,6 +616,7 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_storages.tar.gz
     - artifact: ct_logs_api_onezone_service_configuration.tar.gz
     - artifact: ct_logs_api_onezone_user_management.tar.gz
+    # TODO VFS-12242 add pebble
 #    - artifact: ct_logs_cluster_op_batch_deployment.tar.gz
     - artifact: ct_logs_cluster_oz_batch_deployment.tar.gz
     - artifact: ct_logs_cluster_misc.tar.gz
