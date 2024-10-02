@@ -49,24 +49,24 @@ deploy_using_batch_config_test(Config) ->
     RegistrationToken = create_provider_registration_token(AdminUserId),
 
     OpPanelNodes = ?config(op_panel_nodes, Config),
-    [OpIpHost1, OpIpHost2] = OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
-    OpPanelHosts = hosts:from_nodes(OpPanelNodes),
+    [OpIpHost1, OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+    [OpHost1, OpHost2] = hosts:from_nodes(OpPanelNodes),
 
     OpPanelNode1 = hd(OpPanelNodes),
     panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
     BatchConfig = #{
         <<"cluster">> => #{
-            <<"nodes">> => lists:foldl(
-                fun({Num, {Hostname, Ip}}, Acc) ->
-                    Acc#{str_utils:format_bin("node-~B", [Num]) => #{
-                        <<"hostname">> => str_utils:to_binary(Hostname),
-                        <<"externalIp">> => ip_test_utils:encode_ip(Ip)
-                    }}
-                end,
-                #{},
-                lists_utils:enumerate(lists:zip(OpPanelHosts, OpIps))
-            ),
+            <<"nodes">> => #{
+                <<"node-1">> => #{
+                    <<"hostname">> => str_utils:to_binary(OpHost1),
+                    <<"externalIp">> => ip_test_utils:encode_ip(OpIpHost1)
+                },
+                <<"node-2">> => #{
+                    <<"hostname">> => str_utils:to_binary(OpHost2),
+                    <<"externalIp">> => ip_test_utils:encode_ip(OpIpHost2)
+                }
+            },
             <<"managers">> => #{
                 <<"mainNode">> => <<"node-1">>,
                 <<"nodes">> => [<<"node-1">>]

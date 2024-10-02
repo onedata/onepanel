@@ -33,12 +33,6 @@
     services_stop_start_test/1
 ]).
 
--define(run(Config, Function, HostsType), begin
-    lists:foreach(fun(_Type_) ->
-        Function(hd(?config(_Type_, Config)))
-    end, HostsType)
-end).
-
 -define(JOE_USERNAME, <<"joe">>).
 -define(OZ_PASSWORD, <<"password">>).
 -define(PASSPHRASE, <<"passphrase">>).

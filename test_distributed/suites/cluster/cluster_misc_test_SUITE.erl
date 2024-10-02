@@ -205,7 +205,7 @@ init_per_suite(Config) ->
             {oz_panel, onepanel, [
                 {clock_synchronization_interval_seconds, 5}
             ]},
-            {oz_panel, onepanel, [
+            {op_panel, onepanel, [
                 {clock_synchronization_interval_seconds, 5}
             ]}
         ]
