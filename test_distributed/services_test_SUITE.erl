@@ -33,8 +33,8 @@
     services_stop_start_test/1
 ]).
 
--define(JOE_USERNAME, <<"joe">>).
--define(OZ_PASSWORD, <<"password">>).
+-define(NON_ADMIN_USERNAME, <<"joe">>).
+-define(NON_ADMIN_PASSWORD, <<"password">>).
 -define(PASSPHRASE, <<"passphrase">>).
 
 all() ->
@@ -285,7 +285,7 @@ init_per_suite(Config) ->
         NewConfig2 = onepanel_test_utils:init(NewConfig),
 
         NewConfig3 = image_test_utils:deploy_onezone(?PASSPHRASE,
-            ?JOE_USERNAME, ?OZ_PASSWORD, 1, NewConfig2),
+            ?NON_ADMIN_USERNAME, ?NON_ADMIN_PASSWORD, 1, NewConfig2),
 
         Posix = kv_utils:get([storages, posix, '/mnt/st1'], NewConfig2),
         Storages = #{

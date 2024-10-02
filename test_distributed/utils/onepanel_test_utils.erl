@@ -173,14 +173,18 @@ assert_values(ResponseProplist, ExpectedValues) ->
     end, ExpectedValues).
 
 
--spec assert_service_action_result(Module :: module(), Function :: atom(),
-    Nodes :: [node()], Expected :: term(),
-    Results :: service_executor:results()) -> ok.
+-spec assert_service_action_result(
+    Module :: module(),
+    Function :: atom(),
+    Nodes :: [node()],
+    Expected :: term(),
+    Results :: service_executor:results()
+) ->
+    ok.
 assert_service_action_result(Module, Function, Nodes, ExpectedValue, Results) ->
-    NodesToResult = assert_step_present(Module, Function, Results),
-    Expected = [{Node, ExpectedValue} || Node <- Nodes],
-    onepanel_test_utils:assert_values(NodesToResult, Expected),
-    NodesToResult.
+    NodesToResult = retrieve_step_results(Module, Function, Results),
+    ExpectedValuePerNode = [{Node, ExpectedValue} || Node <- Nodes],
+    assert_values(NodesToResult, ExpectedValuePerNode).
 
 
 %%--------------------------------------------------------------------
@@ -329,9 +333,9 @@ create_cluster([Node | _] = Nodes) ->
 
 
 %% @private
--spec assert_step_present(module(), Function :: atom(),
+-spec retrieve_step_results(module(), Function :: atom(),
     service_executor:results()) -> onepanel_rpc:results().
-assert_step_present(Module, Function, Results) ->
+retrieve_step_results(Module, Function, Results) ->
     case lists:filtermap(fun
         (#step_end{module = M, function = F, good_bad_results = {GoodResults, []}})
             when M == Module, F == Function

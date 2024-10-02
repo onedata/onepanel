@@ -35,8 +35,8 @@ all() -> [
 -define(OZ_NAME, <<"zone">>).
 
 -define(ADMIN_USERNAME, <<"admin">>).
--define(JOE_USERNAME, <<"joe">>).
--define(JOE_PASSWORD, <<"password">>).
+-define(NON_ADMIN_USERNAME, <<"joe">>).
+-define(NON_ADMIN_PASSWORD, <<"password">>).
 
 -define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
 
@@ -79,8 +79,8 @@ deploy_using_batch_config_test(Config) ->
             <<"domainName">> => string:uppercase(OzDomain),
             <<"users">> => [
                 #{
-                    <<"username">> => ?JOE_USERNAME,
-                    <<"password">> => ?JOE_PASSWORD,
+                    <<"username">> => ?NON_ADMIN_USERNAME,
+                    <<"password">> => ?NON_ADMIN_PASSWORD,
                     <<"groups">> => [<<"admins">>]
                 }
             ]
@@ -177,7 +177,7 @@ assert_users_created() ->
     ?assertEqual(2, length(ozw_test_rpc:list_users())),
 
     ozw_test_rpc:are_basic_credentials_valid(?ADMIN_USERNAME, ?ONENV_EMERGENCY_PASSPHRASE),
-    ozw_test_rpc:are_basic_credentials_valid(?JOE_USERNAME, ?JOE_PASSWORD),
+    ozw_test_rpc:are_basic_credentials_valid(?NON_ADMIN_USERNAME, ?NON_ADMIN_PASSWORD),
 
     % and both of them should belong to the admins group
     ?assertEqual(
