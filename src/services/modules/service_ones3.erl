@@ -414,7 +414,7 @@ health(_Ctx) ->
                     healthy;
                 _ ->
                     ?error(?autoformat_with_msg(
-                        "OneS3 server server is running but not healthy:", [Url]
+                        "OneS3 server is running but not healthy:", [Url]
                     )),
                     unhealthy
             end;
