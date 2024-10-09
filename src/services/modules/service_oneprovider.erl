@@ -290,7 +290,7 @@ get_steps(register, #{hosts := _Hosts}) ->
         % explicitly fail on connection problems before executing further steps
         #step{function = check_oneprovider_gs_connection, args = [],
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
-        #steps{action = set_cluster_ips}
+        #steps{action = set_cluster_ips},
         #steps{service = ?SERVICE_ONES3, action = resume,
             % Starting OneS3 requires registered Oneprovider
             condition = fun(_) -> service_ones3:exists() end}
