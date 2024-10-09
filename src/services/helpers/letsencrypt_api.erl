@@ -381,7 +381,7 @@ create_order(State = #flow_state{
         <<"finalize">> := FinalizeURL
     } = Response,
 
-    {ok, State3} = fetch_authorizations(AuthorizationURLs, State2),
+    {ok, State3} = fetch_pending_authorizations(AuthorizationURLs, State2),
     {ok, State3#flow_state{
         finalize_url = FinalizeURL,
         order_url = maps:get(<<"Location">>, Headers)
@@ -400,44 +400,50 @@ build_order_dns_identifier(Domain) ->
 %% Obtains authorization objects given by URLs.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_authorizations(AuthorizationURLs :: [url()], State :: #flow_state{}) ->
+-spec fetch_pending_authorizations([url()], #flow_state{}) ->
     {ok, #flow_state{}}.
-fetch_authorizations(AuthorizationURLs, State) ->
+fetch_pending_authorizations(AuthorizationURLs, State) ->
     State2 = lists:foldl(fun(AuthURL, StateAcc) ->
-        AuthzAcc = StateAcc#flow_state.authorizations,
-        {ok, Authz, StateAcc2} = fetch_authorization(AuthURL, StateAcc),
-        StateAcc2#flow_state{authorizations = [Authz | AuthzAcc]}
+        fetch_pending_authorization(AuthURL, StateAcc)
     end, State#flow_state{authorizations = []}, AuthorizationURLs),
+
     {ok, State2}.
 
 
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Obtains authorization object given by URL.
+%% Obtains authorization if it is pending. Otherwise it may have been already
+%% fulfilled (ACME servers may choose to reuse authorizations from previous
+%% orders in new orders).
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_authorization(url(), #flow_state{}) ->
-    {ok, #authorization{}, #flow_state{}}.
-fetch_authorization(URL, State = #flow_state{
+-spec fetch_pending_authorization(url(), #flow_state{}) -> #flow_state{}.
+fetch_pending_authorization(URL, State = #flow_state{
     service = Plugin,
     domain = Domain,
-    subdomains = Subdomains
+    subdomains = Subdomains,
+    authorizations = Authz
 }) ->
     {ok, Body, _, State2} = post_as_get(URL, State),
 
-    #{<<"type">> := IdType, <<"value">> := IdValue} = maps:get(<<"identifier">>, Body),
-    ChallengeList = maps:get(<<"challenges">>, Body),
+    case maps:get(<<"status">>, Body) of
+        <<"valid">> ->
+            State2;
+        _ ->
+            #{<<"type">> := IdType, <<"value">> := IdValue} = maps:get(<<"identifier">>, Body),
+            ChallengeList = maps:get(<<"challenges">>, Body),
 
-    Authorization = #authorization{
-        challenges = lists:filtermap(fun parse_challenge/1, ChallengeList),
-        identifier = #{type => IdType, value => IdValue},
-        service = case IdValue == Domain of
-            true -> Plugin;
-            false -> maps:get(IdValue, Subdomains)
-        end
-    },
-    {ok, Authorization, State2}.
+            Authorization = #authorization{
+                challenges = lists:filtermap(fun parse_challenge/1, ChallengeList),
+                identifier = #{type => IdType, value => IdValue},
+                service = case IdValue == Domain of
+                    true -> Plugin;
+                    false -> maps:get(IdValue, Subdomains)
+                end
+            },
+            State2#flow_state{authorizations = [Authorization | Authz]}
+    end.
 
 
 %%--------------------------------------------------------------------
