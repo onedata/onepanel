@@ -152,7 +152,7 @@ get_configuration() ->
     #{
         builtInDnsServer => expect_delegation(),
         dnsCheckAcknowledged => onepanel_deployment:is_set(?DNS_CHECK_ACKNOWLEDGED),
-        dnsServers => lists:map(fun onepanel_ip:ip4_to_binary/1, get_dns_servers())
+        dnsServers => dns_servers_to_json()
     }.
 
 
@@ -393,3 +393,14 @@ delegation_bind_records(Domain) ->
         onepanel_dns:build_bind_record(<<Domain/binary, $.>>, ns, Name),
         onepanel_dns:build_bind_record(<<Name/binary, $.>>, a, IP)
     ] end, OnezoneNS)).
+
+
+%% @private
+-spec dns_servers_to_json() -> [binary()].
+dns_servers_to_json() ->
+    lists:map(fun(ServerIpOrDomain) ->
+        case ip_utils:to_binary(ServerIpOrDomain) of
+            {ok, IpBin} -> IpBin;
+            {error, ?EINVAL} -> str_utils:to_binary(ServerIpOrDomain)
+        end
+    end, get_dns_servers()).
