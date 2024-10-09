@@ -1,0 +1,43 @@
+# Name of the scenario to run
+scenario: "scenario-1oz"
+
+# Path or list of paths in which look for sources (can be either relative to
+# cwd or absolute path)
+sourcesRoot: ".."
+
+# Sources are expected to be found in CWD (from where the 'up' script was run) or one dir above.
+# On bamboo all required sources will be pulled automatically.
+# NOTE: Cluster manager in Onezone and Oneprovider will be started from the same sources 
+# (by default cluster_manager provided as op_worker dependency will be used).
+sources:
+  onezone:
+    node-1:
+      - oz-worker
+      - cluster-manager
+      - oz-panel
+
+# Onezone service configuration. Allows to overwrite arbitrary option for
+# onezone service present in
+# scenarios/{name_of_the_scenario}/ScenarioValues.yaml file.
+onezone:
+  pebble:
+    enabled: true
+
+    pebble:
+      image:
+        ## repository ref: https://hub.docker.com/r/letsencrypt/pebble
+        repository: docker.onedata.org/pebble
+        tag: "v2" # default is the chart's appVersion, this is an override
+      env:
+        - name:  DEV_PEBBLE_COREDNS_SERVICE_HOST
+          value: "dev-onezone"
+
+  panelOverlayConfig: |-
+    [{onepanel, [
+      {letsencrypt_root_ca_url, "https://dev-pebble:8444/roots/0"},
+      {letsencrypt_directory_url, "https://dev-pebble:443/dir"},
+      {letsencrypt_directory_url_staging, "https://dev-pebble:443/dir"},
+      {letsencrypt_dns_verification_servers, ["dev-onezone"]},
+      {dns_check_servers, ["dev-onezone"]},
+      {letsencrypt_attempts, 10}
+    ]}].

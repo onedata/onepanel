@@ -151,12 +151,15 @@ failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, le_test_base, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1oz",
+        onenv_scenario = "1oz_pebble",
         envs = [
             {oz_panel, onepanel, [
                 {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
                 % Increase certification attempts as pebble likes to fail from time to time
                 {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS}
+            ]},
+            {oz_panel, ctool, [
+                {force_insecure_connections, true}
             ]}
         ],
         posthook = fun(NewConfig) ->
