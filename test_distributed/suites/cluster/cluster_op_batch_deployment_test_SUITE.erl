@@ -121,6 +121,11 @@ init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
         onenv_scenario = "1op_2nodes_not_deployed",
+        envs = [
+            {op_panel, ctool, [
+                {force_insecure_connections, true}
+            ]}
+        ],
         posthook = fun(NewConfig) ->
             % Requests should be made without cert verification as provider
             % domain is set/changed during deployment
