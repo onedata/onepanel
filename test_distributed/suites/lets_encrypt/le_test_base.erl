@@ -275,14 +275,14 @@ valid_certificate_should_not_be_replaced_test_base(#le_test_spec{
 
     cert_test_utils:update_lets_encrypt(EntitySelector, enable),
 
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
     ExpAllCertDetails = AllCertDetails#{<<"letsEncrypt">> => true},
     cert_test_utils:assert_cert_details(EntitySelector, ExpAllCertDetails).
 
 
 -spec non_lets_encrypt_issued_certificate_should_be_replaced_test_base(test_spec()) ->
     ok | no_return().
-non_lets_encrypt_issued_certificate_should_be_replaced_test_base(#le_test_spec{
+non_lets_encrypt_issued_certificate_should_be_replaced_test_base(TestSpec = #le_test_spec{
     entity_selector = EntitySelector,
     exp_domain = ExpDomain,
     exp_dns_names = ExpDnsNames,
@@ -301,18 +301,20 @@ non_lets_encrypt_issued_certificate_should_be_replaced_test_base(#le_test_spec{
         <<"letsEncrypt">> => false
     },
     cert_test_utils:assert_cert_details(EntitySelector, ExpOnedataTestCertDetails),
+    PreCertReloadSslCtx = start_ssl_conn(EntitySelector),
 
     cert_test_utils:update_lets_encrypt(EntitySelector, enable),
 
     ExpPebbleCertDetails = ExpBasicCertDetails#{<<"letsEncrypt">> => true},
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(EntitySelector, ExpPebbleCertDetails),
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
+    check_ssl_conn_after_cert_reload(PreCertReloadSslCtx, TestSpec),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
 -spec domain_mismatched_certificate_should_be_replaced_test_base(binary(), [binary()], test_spec()) ->
     ok | no_return().
-domain_mismatched_certificate_should_be_replaced_test_base(FakeDomain, FakeDnsNames, #le_test_spec{
+domain_mismatched_certificate_should_be_replaced_test_base(FakeDomain, FakeDnsNames, TestSpec = #le_test_spec{
     entity_selector = EntitySelector,
     exp_domain = ExpDomain,
     exp_dns_names = ExpDnsNames,
@@ -328,6 +330,7 @@ domain_mismatched_certificate_should_be_replaced_test_base(FakeDomain, FakeDnsNa
         <<"letsEncrypt">> => false
     },
     cert_test_utils:assert_cert_details(EntitySelector, ExpDomainMismatchedCertDetails),
+    PreCertReloadSslCtx = start_ssl_conn(EntitySelector),
 
     cert_test_utils:update_lets_encrypt(EntitySelector, enable),
 
@@ -338,13 +341,14 @@ domain_mismatched_certificate_should_be_replaced_test_base(FakeDomain, FakeDnsNa
         <<"letsEncrypt">> => true
     },
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(EntitySelector, ExpPebbleCertDetails),
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
+    check_ssl_conn_after_cert_reload(PreCertReloadSslCtx, TestSpec),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
 -spec expired_certificate_should_be_replaced_test_base(test_spec()) ->
     ok | no_return().
-expired_certificate_should_be_replaced_test_base(#le_test_spec{
+expired_certificate_should_be_replaced_test_base(TestSpec = #le_test_spec{
     entity_selector = EntitySelector,
     exp_domain = ExpDomain,
     exp_dns_names = ExpDnsNames,
@@ -362,6 +366,7 @@ expired_certificate_should_be_replaced_test_base(#le_test_spec{
         <<"letsEncrypt">> => false
     },
     cert_test_utils:assert_cert_details(EntitySelector, ExpExpiredCertDetails),
+    PreCertReloadSslCtx = start_ssl_conn(EntitySelector),
 
     cert_test_utils:update_lets_encrypt(EntitySelector, enable),
 
@@ -370,13 +375,14 @@ expired_certificate_should_be_replaced_test_base(#le_test_spec{
         <<"letsEncrypt">> => true
     },
     AllPebbleCertDetails = cert_test_utils:assert_cert_details(EntitySelector, ExpPebbleCertDetails),
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
+    check_ssl_conn_after_cert_reload(PreCertReloadSslCtx, TestSpec),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails).
 
 
 -spec automatic_certification_renewal_test_base(test_spec()) ->
     ok | no_return().
-automatic_certification_renewal_test_base(#le_test_spec{
+automatic_certification_renewal_test_base(TestSpec = #le_test_spec{
     entity_selector = EntitySelector,
     exp_domain = ExpDomain,
     exp_dns_names = ExpDnsNames
@@ -392,14 +398,20 @@ automatic_certification_renewal_test_base(#le_test_spec{
     #{<<"creationTime">> := CertCreationTime} = cert_test_utils:assert_cert_details(
         EntitySelector, ExpPebbleCertDetails
     ),
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    PreFirstCertReloadSslCtx = start_ssl_conn(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
     ?assertNot(CertCreationTime == get_cert_creation_time(EntitySelector), ?ATTEMPTS),
+    check_ssl_conn_after_cert_reload(PreFirstCertReloadSslCtx, TestSpec),
 
     #{<<"creationTime">> := CertCreationTime2} = cert_test_utils:assert_cert_details(
         EntitySelector, ExpPebbleCertDetails
     ),
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
-    ?assertNot(CertCreationTime2 == get_cert_creation_time(EntitySelector), ?ATTEMPTS).
+    PreSecondCertReloadSslCtx = start_ssl_conn(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
+    ?assertNot(CertCreationTime2 == get_cert_creation_time(EntitySelector), ?ATTEMPTS),
+    check_ssl_conn_after_cert_reload(PreSecondCertReloadSslCtx, TestSpec),
+
+    ok.
 
 
 -spec disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test_base(test_spec()) ->
@@ -417,7 +429,7 @@ disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test_bas
         [<<"lastRenewalFailure">>, <<"lastRenewalSuccess">>],
         CertDetails#{<<"letsEncrypt">> => false}
     ),
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
     ?assertEqual(ExpCertDetails, cert_test_utils:get_cert_details(EntitySelector)).
 
 
@@ -435,7 +447,7 @@ failed_certification_attempt_leaves_lets_encrypt_intact_test_base(#le_test_spec{
     ),
     ?assertMatch(?ERROR_ON_NODES(?CERTIFICATION_FLOW_ERROR, _), errors:from_json(RespError)),
 
-    cert_test_utils:assert_certs_reloaded(EntitySelector),
+    cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
     ?assertEqual(CertDetails, maps:remove(KeyToRm, cert_test_utils:get_cert_details(EntitySelector))).
 
 
@@ -448,3 +460,44 @@ failed_certification_attempt_leaves_lets_encrypt_intact_test_base(#le_test_spec{
 -spec get_cert_creation_time(oct_background:entity_selector()) -> binary().
 get_cert_creation_time(EntitySelector) ->
     maps:get(<<"creationTime">>, cert_test_utils:get_cert_details(EntitySelector)).
+
+
+%% @private
+start_ssl_conn(EntitySelector) ->
+    Domain = binary_to_list(dns_test_utils:get_domain(EntitySelector)),
+    Port = panel_test_rpc:call(EntitySelector, https_listener, port, []),
+
+    {ok, TcpConn} = gen_tcp:connect(Domain, Port, [{active, false}]),
+    {ok, SslConn} = ssl:connect(TcpConn, [{verify, verify_none}]),
+
+    {SslConn, get_peer_cert(SslConn)}.
+
+
+%% @private
+check_ssl_conn_after_cert_reload({PreCertReloadSslConn, PreCertReloadPeerCert}, #le_test_spec{
+    entity_selector = EntitySelector,
+    exp_domain = ExpDomain
+}) ->
+    % Assert connection still exists and is functional
+    ssl:send(PreCertReloadSslConn, [
+        "GET / HTTP/1.1\r\n",
+        "Host: ", ExpDomain, "\r\n",
+        "Connection: keep-alive\r\n",
+        "\r\n"
+    ]),
+    ?assertMatch({ok, "HTTP/1.1 200 OK" ++ _}, ssl:recv(PreCertReloadSslConn, 100)),
+
+    % Assert it has the same peer cert as before the certs reload
+    ?assertEqual(PreCertReloadPeerCert, get_peer_cert(PreCertReloadSslConn)),
+
+    % Assert that newly made connection would have different peer certificates
+    {_, PostCertReloadPeerCert} = start_ssl_conn(EntitySelector),
+    ?assertNotEqual(PreCertReloadPeerCert, PostCertReloadPeerCert),
+
+    ok.
+
+
+%% @private
+get_peer_cert(SslConn) ->
+    {ok, CertDer} = ssl:peercert(SslConn),
+    CertDer.

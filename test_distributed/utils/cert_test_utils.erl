@@ -35,7 +35,7 @@
 
     deploy_certs/3,
     reload_certs/1,
-    assert_certs_reloaded/1
+    assert_certs_on_disc_and_loaded_matches/1
 ]).
 
 -define(ATTEMPTS, 30).
@@ -183,8 +183,8 @@ reload_certs(EntitySelector) ->
 %% same as the ones on disc under cert dir location.
 %% @end
 %%--------------------------------------------------------------------
--spec assert_certs_reloaded(oct_background:entity_selector()) -> ok.
-assert_certs_reloaded(EntitySelector) ->
+-spec assert_certs_on_disc_and_loaded_matches(oct_background:entity_selector()) -> ok.
+assert_certs_on_disc_and_loaded_matches(EntitySelector) ->
     ExpPems = lists:flatten([
         read_pems(EntitySelector, web_cert_file),
         read_pems(EntitySelector, web_cert_chain_file)
