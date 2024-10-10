@@ -22,7 +22,6 @@
 -export([
     set_insecure_flag/0,
     unset_insecure_flag/0,
-    get_insecure_flag/0,
 
     get/3,
     patch/3,
@@ -68,17 +67,12 @@
 
 -spec set_insecure_flag() -> ok.
 set_insecure_flag() ->
-    node_cache:put({?MODULE, secure}, false).
+    application:set_env(ctool, force_insecure_connections, true).
 
 
 -spec unset_insecure_flag() -> ok.
 unset_insecure_flag() ->
-    node_cache:put({?MODULE, secure}, true).
-
-
--spec get_insecure_flag() -> boolean().
-get_insecure_flag() ->
-    node_cache:get({?MODULE, secure}, true).
+    application:set_env(ctool, force_insecure_connections, false).
 
 
 -spec get(oct_background:node_selector(), binary(), request_args()) -> response().
@@ -217,10 +211,10 @@ build_opts(PanelNode, RequestArgs) ->
 %% @private
 -spec build_ssl_opts(node(), request_args()) -> [http_client:ssl_opt()].
 build_ssl_opts(PanelNode, RequestArgs) ->
-    Secure = case maps:get(insecure, RequestArgs, undefined) of
-        undefined -> get_insecure_flag();
-        Insecure -> not Insecure
-    end,
     CaCerts = panel_test_rpc:get_cert_chain_ders(PanelNode),
+    Opts = [{cacerts, CaCerts}],
 
-    [{secure, Secure}, {cacerts, CaCerts}].
+    case maps:get(insecure, RequestArgs, undefined) of
+        undefined -> Opts;
+        Insecure -> [{secure, not Insecure} | Opts]
+    end.

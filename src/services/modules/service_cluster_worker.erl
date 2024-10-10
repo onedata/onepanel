@@ -364,8 +364,6 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
     Node = nodes:local(ServiceName),
 
     {ok, IP} = case kv_utils:find([cluster_ips, Host], Ctx) of
-        {ok, null} ->
-            {ok, undefined};
         {ok, NewIP} ->
             onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             ip_utils:to_ip4_address(NewIP);
