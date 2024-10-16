@@ -83,7 +83,28 @@
     optional = [] :: [Key :: binary()],
     at_least_one = [] :: [Key :: binary()],
     correct_values = #{} :: #{Key :: binary() => Values :: [binary()]},
-    bad_values = [] :: [{Key :: binary(), Value :: term(), errors:error()}]
+    bad_values = [] :: [{Key :: binary(), Value :: term(), errors:error()}],
+    % by default (`relaxed`) datasets from the optional values are generated as follows:
+    % - one dataset for each key-value pair
+    % - one dataset containing each key with randomly selected value;
+    % e.g:
+    % given
+    %   optional = [<<"key1">>, <<"key2">>]
+    %   correct_values = #{<<"key1">> => [<<"value1">>, <<"value2">>], <<"key2">> => [<<"value1">>]}
+    % following datasets could be generated:
+    %  #{<<"key1">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value2">>},
+    %  #{<<"key2">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value1">>, #{<<"key2">> => <<"value1">>}
+    % with `all_combinations` option following datasets will be generated (empty dataset is omitted):
+    %  #{<<"key1">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value2">>},
+    %  #{<<"key2">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value1">>, #{<<"key2">> => <<"value1">>}
+    %  #{<<"key1">> => <<"value2">>, #{<<"key2">> => <<"value1">>}
+    % NOTE: calculation of all combinations can take same time (because of naïve implementation),
+    % so it is not recommended to use with more than 10 total correct values for optional keys.
+    optional_values_data_sets = relaxed :: relaxed | all_combinations
 }).
 
 -record(rest_args, {
@@ -119,10 +140,7 @@
     % When enabled, REST requests to onepanel will be made randomly
     % on the native onepanel endpoint (port 9443), or via the proxy hosted by op-worker/oz-worker.
     % When disabled, only the native endpoint will be tested (use for tests on undeployed environment)
-    test_proxied_onepanel_rest_endpoint = true :: boolean(),
-
-    % Percentage of all data sets to be tested.
-    data_spec_random_coverage = 100 :: 1..100
+    test_proxied_onepanel_rest_endpoint = true :: boolean()
 }).
 
 % Template used to create scenario_spec(). It contains scenario specific data
@@ -133,8 +151,7 @@
     type :: api_test_runner:scenario_type(),
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
     validate_result_fun :: api_test_runner:validate_call_result_fun(),
-    test_proxied_onepanel_rest_endpoint = true :: boolean(),
-    data_spec_random_coverage  = 100 :: 1..100
+    test_proxied_onepanel_rest_endpoint = true :: boolean()
 }).
 
 % Record used to group scenarios having common parameters like target nodes,
