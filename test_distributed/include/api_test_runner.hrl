@@ -84,6 +84,9 @@
     at_least_one = [] :: [Key :: binary()],
     correct_values = #{} :: #{Key :: binary() => Values :: [binary()]},
     bad_values = [] :: [{Key :: binary(), Value :: term(), errors:error()}],
+
+    % flag telling whether some optional value should be added to required only data sets
+    at_least_one_optional_value_in_data_sets = false :: boolean(),
     % by default (`relaxed`) datasets from the optional values are generated as follows:
     % - one dataset for each key-value pair
     % - one dataset containing each key with randomly selected value;

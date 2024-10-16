@@ -31,13 +31,19 @@
 
 -export([
     add_correct_storage_test/1,
-    add_bad_storage_test/1
+    add_bad_storage_test/1,
+
+    modify_correct_storage_test/1,
+    modify_bad_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
         add_correct_storage_test,
-        add_bad_storage_test
+        add_bad_storage_test,
+
+        modify_correct_storage_test,
+        modify_bad_storage_test
     ]}
 ].
 
@@ -49,6 +55,7 @@ all() -> [
 %%%===================================================================
 %%% API
 %%%===================================================================
+
 
 add_correct_storage_test(_Config) ->
     add_posix_storage_test_base(correct_args).
@@ -150,13 +157,136 @@ build_add_posix_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+modify_correct_storage_test(_Config) ->
+    modify_posix_storage_test_base(correct_args).
+
+
+modify_bad_storage_test(_Config) ->
+    modify_posix_storage_test_base(bad_args).
+
+
+%% @private
+modify_posix_storage_test_base(ArgsCorrectness) ->
+    api_oneprovider_storages_test_base:modify_storage_test_base(
+        #modify_storage_test_spec{
+            storage_type = posix,
+            args_correctness = ArgsCorrectness,
+
+            build_data_spec_fun = fun build_modify_posix_storage_data_spec/3,
+            build_setup_fun = fun build_modify_posix_storage_setup_fun/1,
+            build_prepare_args_fun = fun build_modify_posix_storage_prepare_args_fun/1
+        }).
+
+
+%% @private
+build_modify_posix_storage_data_spec(MemRef, posix, correct_args) ->
+    StorageName = str_utils:rand_hex(10),
+    api_test_memory:set(MemRef, storage_name, StorageName),
+
+    K = fun(Field) -> ?STORAGE_DATA_KEY(StorageName, Field) end,
+
+    #data_spec{
+        required = [
+            {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
+        ],
+        optional = [
+            <<"name">>,
+            <<"mountPoint">>,
+            <<"timeout">>,
+            <<"qosParameters">>,
+            <<"archiveStorage">>
+        ],
+        correct_values = #{
+            <<"type">> => [<<"posix">>],
+            <<"name">> => [?RAND_STR(10), StorageName],
+            <<"mountPoint">> => [?POSIX_MOUNTPOINT, <<"/tmp">>],
+            <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
+            <<"qosParameters">> => [
+                #{<<"key">> => <<"value1">>},
+                #{<<"key">> => <<"value2">>}
+            ],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
+            <<"archiveStorage">> => [true, false]
+        },
+        bad_values = [
+            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
+            {<<"name">>, 1, ?ERROR_BAD_VALUE_BINARY(K(<<"name">>))},
+            {<<"mountPoint">>, 1, ?ERROR_BAD_VALUE_BINARY(K(<<"mountPoint">>))},
+            % TODO VFS-12391 timeout is being changed to binary and not validated
+%%            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
+        ]
+    };
+
+build_modify_posix_storage_data_spec(MemRef, posix, bad_args) ->
+    StorageName = str_utils:rand_hex(10),
+    api_test_memory:set(MemRef, storage_name, StorageName),
+
+    #data_spec{
+        required = [
+            {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
+        ],
+        optional = [
+            <<"name">>,
+            <<"mountPoint">>
+        ],
+        correct_values = #{
+            <<"type">> => [<<"posix">>],
+            <<"name">> => [<<"a">>],
+            <<"mountPoint">> => [<<"/volumes/wrong/path">>]
+        },
+        at_least_one_optional_value_in_data_sets = true
+    }.
+
+
+%% @private
+build_modify_posix_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = api_test_memory:get(MemRef, storage_name),
+
+        StorageId = panel_test_rpc:add_storage(krakow,
+            #{StorageName => #{
+                <<"type">> => <<"posix">>,
+                <<"mountPoint">> => ?POSIX_MOUNTPOINT
+            }}
+        ),
+        api_test_memory:set(MemRef, storage_id, StorageId),
+
+        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+%% @private
+build_modify_posix_storage_prepare_args_fun(MemRef) ->
+    fun(#api_test_ctx{data = Data}) ->
+        StorageId = api_test_memory:get(MemRef, storage_id),
+        StorageName = api_test_memory:get(MemRef, storage_name),
+
+        api_test_memory:set(MemRef, storage_diff, Data),
+        RequestBody = #{StorageName => Data},
+
+        #rest_args{
+            method = patch,
+            path = <<"provider/storages/", StorageId/binary>>,
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+            body = json_utils:encode(RequestBody)}
+    end.
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
 
+
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "storages_api_tests",
+        onenv_scenario = "1op",
         envs = [{op_worker, op_worker, [{fuse_session_grace_period_seconds, 24 * 60 * 60}]}]
     }).
 

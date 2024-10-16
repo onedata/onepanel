@@ -479,7 +479,6 @@ run_expected_success_test_cases(#suite_spec{
     end,
 
     CorrectDataSets = correct_data_sets(DataSpec),
-    ct:pal("~p", [CorrectDataSets]),
 
     run_scenarios(
         ScenarioTemplates, TargetNodes, CorrectClients, CorrectDataSets,
@@ -605,7 +604,12 @@ correct_data_sets(DataSpec) ->
         maps:merge(AllRequiredParamsDataSet, OptionalDataSet)
     end, optional_data_sets(DataSpec)),
 
-    RequiredDataSets ++ AllRequiredWithOptionalDataSets.
+    case DataSpec#data_spec.at_least_one_optional_value_in_data_sets of
+        true ->
+            AllRequiredWithOptionalDataSets;
+        false ->
+            RequiredDataSets ++ AllRequiredWithOptionalDataSets
+    end.
 
 
 % Generates all combinations of "required" params and one "at_least_one" param
