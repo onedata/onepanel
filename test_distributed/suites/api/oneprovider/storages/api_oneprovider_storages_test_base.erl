@@ -20,14 +20,18 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 -export([
-    add_storage_test_base/1
+    add_storage_test_base/1,
+    modify_storage_test_base/1
 ]).
 
 -type storage_type() :: cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
 -type args_correctness() :: bad_args | correct_args.
+
 -type add_storage_test_spec() :: #add_storage_test_spec{}.
+-type modify_storage_test_spec() :: #modify_storage_test_spec{}.
 
 -type data_spec_builder() :: fun((_, _, _)-> api_test_runner:data_spec()).
+-type setup_fun_builder() :: fun((api_test_memory:env_ref()) -> api_test_runner:setup_fun_builder()).
 -type prepare_args_fun_builder() :: fun((_)-> api_test_runner:prepare_args_fun()).
 
 -type data_spec_random_coverage() :: 1..100.
@@ -39,12 +43,14 @@
     args_correctness/0,
     add_storage_test_spec/0,
     data_spec_builder/0,
+    setup_fun_builder/0,
     prepare_args_fun_builder/0,
     data_spec_random_coverage/0,
     storage_id/0
 ]).
 
 -define(DEFAULT_TEMP_CAVEAT_TTL, 360000).
+
 
 %%%===================================================================
 %%% API
@@ -57,8 +63,7 @@ add_storage_test_base(#add_storage_test_spec{
     args_correctness = ArgsCorrectness,
 
     data_spec_fun = DataSpecFun,
-    prepare_args_fun = PrepareArgsFun,
-    data_spec_random_coverage = DataSpecRandomCoverage
+    prepare_args_fun = PrepareArgsFun
 }) ->
 
     MemRef = api_test_memory:init(),
@@ -82,7 +87,6 @@ add_storage_test_base(#add_storage_test_spec{
                 ],
                 forbidden = [peer]
             },
-            data_spec_random_coverage = DataSpecRandomCoverage,
             data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
             prepare_args_fun = PrepareArgsFun(MemRef),
             validate_result_fun = build_add_storage_validate_result_fun(MemRef, ArgsCorrectness),
@@ -91,12 +95,54 @@ add_storage_test_base(#add_storage_test_spec{
     ])).
 
 
+-spec modify_storage_test_base(modify_storage_test_spec()) -> ok.
+modify_storage_test_base(#modify_storage_test_spec{
+    storage_type = StorageType,
+    args_correctness = ArgsCorrectness,
+
+    build_data_spec_fun = DataSpecFun,
+    build_setup_fun = SetupFun,
+    build_prepare_args_fun = PrepareArgsFun
+}) ->
+
+    MemRef = api_test_memory:init(),
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Modify storage using /provider/storages/{id} rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = #client_spec{
+                correct = [
+                    root,
+                    {member, [?CLUSTER_UPDATE]}
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [peer]
+            },
+
+            data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
+
+            setup_fun = SetupFun(MemRef),
+            prepare_args_fun = PrepareArgsFun(MemRef),
+            validate_result_fun = build_modify_storage_validate_result_fun(MemRef, ArgsCorrectness),
+            verify_fun = build_modify_storage_verify_fun(MemRef)
+        }
+    ])).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
 %% @private
--spec build_add_storage_validate_result_fun(
-    api_test_memory:env_ref(),
-    args_correctness()
-) ->
-    api_test_runner:validate_result_fun().
 build_add_storage_validate_result_fun(MemRef, correct_args) ->
     api_test_validate:http_200_ok(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
@@ -114,10 +160,6 @@ build_add_storage_validate_result_fun(MemRef, bad_args) ->
 
 
 %% @private
--spec build_add_storage_verify_fun(
-    api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:args_correctness()
-) -> api_test_runner:verify_fun().
 build_add_storage_verify_fun(_MemRef, bad_args) ->
     fun(_, _) ->
         true
@@ -133,3 +175,61 @@ build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
             true
     end.
 
+
+%% @private
+build_modify_storage_validate_result_fun(MemRef, correct_args) ->
+    api_test_validate:http_200_ok(fun(Response) ->
+        NewStorageName = maps:get(<<"name">>, Response),
+        api_test_memory:set(MemRef, storage_name, NewStorageName),
+
+        PrevStorageDetails = api_test_memory:get(MemRef, storage_details),
+        StorageDiff = api_test_memory:get(MemRef, storage_diff),
+
+        ExpNewStorageDetails = convert_fields_to_binary(json_utils:merge([
+            PrevStorageDetails, StorageDiff
+        ])),
+        api_test_memory:set(MemRef, storage_details, ExpNewStorageDetails#{
+            % TODO VFS-12391 Despite lumaFeed being changed to binary in response,
+            % when you later asks for details with rpc it is atom :)
+            <<"lumaFeed">> => binary_to_atom(maps:get(<<"lumaFeed">>, ExpNewStorageDetails))
+        }),
+
+        ExpResponse = ExpNewStorageDetails#{<<"verificationPassed">> => true},
+        ?assertEqual(ExpResponse, Response)
+    end);
+build_modify_storage_validate_result_fun(MemRef, bad_args) ->
+    api_test_validate:http_200_ok(fun(Response) ->
+        PrevStorageDetails = api_test_memory:get(MemRef, storage_details),
+        ExpStorageDetails = convert_fields_to_binary(PrevStorageDetails),
+        ExpResponse = ExpStorageDetails#{<<"verificationPassed">> => false},
+
+        ?assertEqual(ExpResponse, Response)
+    end).
+
+
+%% @private
+build_modify_storage_verify_fun(MemRef) ->
+    fun(_, _) ->
+        StorageId = api_test_memory:get(MemRef, storage_id),
+        ExpStorageDetails = api_test_memory:get(MemRef, storage_details),
+        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        ?assertEqual(ExpStorageDetails, StorageDetails),
+
+        ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS),
+        true
+    end.
+
+
+% TODO VFS-12391 storage update changes types of several fields to binary - it should not?
+%% @private
+convert_fields_to_binary(StorageDetails) ->
+    lists:foldl(fun(Key, DetailsAcc) ->
+        case maps:is_key(Key, DetailsAcc) of
+            true -> maps:update_with(Key, fun str_utils:to_binary/1, DetailsAcc);
+            false -> DetailsAcc
+        end
+    end, StorageDetails, [
+        <<"archiveStorage">>,  % TODO VFS-12391 boolean?
+        <<"lumaFeed">>,
+        <<"timeout">>  % TODO VFS-12391 integer?
+    ]).
