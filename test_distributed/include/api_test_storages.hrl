@@ -31,7 +31,9 @@
 
     build_data_spec_fun :: api_oneprovider_storages_test_base:data_spec_builder(),
     build_setup_fun :: api_oneprovider_storages_test_base:setup_fun_builder(),
-    build_prepare_args_fun :: api_oneprovider_storages_test_base:prepare_args_fun_builder()
+    build_prepare_args_fun :: api_oneprovider_storages_test_base:prepare_args_fun_builder(),
+
+    map_storage_description_to_exp_rest_response_fun = fun(Desc) -> Desc end :: fun((json_utils:json_map()) -> json_utils:json_map())
 }).
 
 -define(STORAGE_DETECTION_FILE_SIZE, 10000).

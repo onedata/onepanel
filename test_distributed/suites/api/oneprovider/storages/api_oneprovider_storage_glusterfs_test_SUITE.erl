@@ -69,9 +69,7 @@ add_glusterfs_storage_test_base(ArgsCorrectness) ->
             args_correctness = ArgsCorrectness,
 
             data_spec_fun = fun build_add_glusterfs_storage_data_spec/3,
-            prepare_args_fun = fun build_add_glusterfs_storage_prepare_args_fun/1,
-
-            data_spec_random_coverage = 10
+            prepare_args_fun = fun build_add_glusterfs_storage_prepare_args_fun/1
         }).
 
 
