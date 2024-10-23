@@ -170,20 +170,9 @@
     verify_fun = fun(_, _) -> true end :: api_test_runner:verify_fun(),
 
     scenario_templates = [] :: [api_test_runner:scenario_template()],
-    % If set then instead of running all scenarios for all clients and data sets
-    % only one scenario will be drawn from 'scenario_templates' for client and
-    % data set combination. For 2 clients (client1, client2), 2 data sets (data1,
-    % data2), 2 providers (provider1, provider2) and 2 scenario_templates (A, B)
-    % only 4 testcase will be run (instead of 8 in case of flag not set), e.g.:
-    % - client1 makes call with data1 on provider1 using scenario B
-    % - client1 makes call with data2 on provider2 using scenario A
-    % - client2 makes call with data1 on provider2 using scenario A
-    % - client2 makes call with data2 on provider1 using scenario B
-    randomly_select_scenarios = false,
+    test_case_generation_policy = full :: api_test_runner:test_case_generation_policy(),
 
     test_proxied_onepanel_rest_endpoint = true :: boolean(),
-
-    data_spec_random_coverage  = 100 :: 1..100,
 
     data_spec = undefined :: undefined | api_test_runner:data_spec()
 }).

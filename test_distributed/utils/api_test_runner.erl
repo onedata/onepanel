@@ -69,6 +69,19 @@
 % Function called after testcase to validate returned call/request result.
 -type validate_call_result_fun() :: fun((api_test_ctx(), Result :: term()) -> ok | no_return()).
 
+% Controls what test cases will be generated. Possible options:
+% - full - all combinations of data sets, clients and scenarios will
+%          be tested (data_sets * clients * scenarios)
+% - randomly_select_scenarios - for each clients tests all data sets, with
+%                               random scenarios each (data_sets * clients)
+% - randomly_select_scenarios_and_clients - tests will be run for each
+%                                           data set, with random client
+%                                           and scenario (data sets)
+-type test_case_generation_policy() ::
+    full |
+    randomly_select_scenarios |
+    randomly_select_scenarios_and_clients.
+
 -type scenario_spec() :: #scenario_spec{}.
 -type scenario_template() :: #scenario_template{}.
 -type suite_spec() :: #suite_spec{}.
@@ -81,6 +94,7 @@
     api_test_ctx/0,
     setup_fun/0, teardown_fun/0, verify_fun/0,
     prepare_args_fun/0, validate_call_result_fun/0,
+    test_case_generation_policy/0,
     scenario_spec/0, scenario_template/0, suite_spec/0
 ]).
 
@@ -421,7 +435,38 @@ run_expected_success_test_cases(#suite_spec{
     verify_fun = VerifyFun,
 
     scenario_templates = ScenarioTemplates,
-    randomly_select_scenarios = true,
+    test_case_generation_policy = randomly_select_scenarios_and_clients,
+
+    data_spec = DataSpec
+}) ->
+    CorrectDataSets = correct_data_sets(DataSpec),
+
+    lists_utils:foldl_while(fun(DataSet, Acc) ->
+        Client = ?RAND_ELEMENT(CorrectClients),
+        Scenario = ?RAND_ELEMENT(ScenarioTemplates),
+        TargetNode = ?RAND_ELEMENT(TargetNodes),
+
+        SetupFun(),
+        TestCasePassed = run_exp_success_testcase(
+            TargetNode, Client, DataSet, VerifyFun, Scenario
+        ),
+        TeardownFun(),
+
+        case Acc and TestCasePassed of
+            true -> {cont, true};
+            false -> {halt, false}
+        end
+    end, true, CorrectDataSets);
+run_expected_success_test_cases(#suite_spec{
+    target_nodes = TargetNodes,
+    client_spec = #client_spec{correct = CorrectClients},
+
+    setup_fun = SetupFun,
+    teardown_fun = TeardownFun,
+    verify_fun = VerifyFun,
+
+    scenario_templates = ScenarioTemplates,
+    test_case_generation_policy = randomly_select_scenarios,
 
     data_spec = DataSpec
 }) ->
@@ -464,7 +509,7 @@ run_expected_success_test_cases(#suite_spec{
     verify_fun = VerifyFun,
 
     scenario_templates = ScenarioTemplates,
-    randomly_select_scenarios = false,
+    test_case_generation_policy = full,
 
     data_spec = DataSpec
 }) ->
@@ -797,7 +842,7 @@ scenario_spec_to_suite_spec(#scenario_spec{
             validate_result_fun = ValidateResultFun,
             test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
         }],
-        randomly_select_scenarios = false,
+        test_case_generation_policy = full,
 
         test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint,
 
