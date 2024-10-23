@@ -125,16 +125,16 @@ update(OpNode, Id, NewParams) ->
     Readonly = maps:get(readonly, NewParams, CurrentReadonly),
     Imported = maps:get(importedStorage, NewParams, CurrentImported),
 
-    % fill params with current configuration for the verification function
-    VerificationParams1 = maps:merge(maps:remove(qosParameters, Storage), PlainValueNewParams),
-
     % TODO VFS-6951 refactor storage configuration API
     {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
     CurrentAdminCtx = onepanel_utils:convert(
         maps_utils:undefined_to_null(op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper)),
         {keys, atom}
     ),
-    VerificationParams2 = maps:merge(CurrentAdminCtx, VerificationParams1),
+
+    % fill params with current configuration for the verification function
+    VerificationParams1 = maps:merge(maps:remove(qosParameters, Storage), CurrentAdminCtx),
+    VerificationParams2 = maps:merge(VerificationParams1, PlainValueNewParams),
 
     UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
