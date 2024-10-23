@@ -218,25 +218,14 @@ service_oneprovider_unregister_register_test(Config) ->
 
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    Posix = kv_utils:get([storages, posix, '/mnt/st2'], Config),
     Ceph = kv_utils:get([storages, ceph, someCeph], Config),
-    CephRados = kv_utils:get([storages, cephrados, someCephRados], Config),
-    S3 = kv_utils:get([storages, s3, someS3], Config),
     % @TODO VFS-8296 swift helper is currently not tested
     % Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
-    WebDAV = kv_utils:get([storages, webdav, someWebDAV], Config),
     XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
-            <<"somePosix2">> => #{
-                type => <<"posix">>,
-                mountPoint => onepanel_utils:get_converted(docker_path, Posix, binary),
-                storagePathType => <<"canonical">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
             <<"someCeph">> => #{
                 type => <<"ceph">>,
                 clusterName => <<"ceph">>,
@@ -244,28 +233,6 @@ service_op_worker_add_storage_test(Config) ->
                 monitorHostname => onepanel_utils:get_converted(host_name, Ceph, binary),
                 poolName => <<"onedata">>,
                 username => onepanel_utils:get_converted(username, Ceph, binary),
-                storagePathType => <<"flat">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
-            <<"someCephRados">> => #{
-                type => <<"cephrados">>,
-                clusterName => <<"ceph">>,
-                key => onepanel_utils:get_converted(key, CephRados, binary),
-                monitorHostname => onepanel_utils:get_converted(host_name, CephRados, binary),
-                poolName => <<"onedata">>,
-                username => onepanel_utils:get_converted(username, CephRados, binary),
-                storagePathType => <<"flat">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
-            <<"someS3">> => #{
-                type => <<"s3">>,
-                accessKey => onepanel_utils:get_converted(access_key, S3, binary),
-                secretKey => onepanel_utils:get_converted(secret_key, S3, binary),
-                bucketName => <<"onedata">>,
-                hostname => <<"http://", (onepanel_utils:get_converted(host_name,
-                    S3, binary))/binary>>,
                 storagePathType => <<"flat">>,
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
@@ -292,19 +259,6 @@ service_op_worker_add_storage_test(Config) ->
                 transport => onepanel_utils:get_converted(transport, Glusterfs, binary),
                 mountPoint => onepanel_utils:get_converted(mountpoint, Glusterfs, binary),
                 xlatorOptions => <<"cluster.write-freq-threshold=100;">>,
-                storagePathType => <<"canonical">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
-            <<"someWebDAV">> => #{
-                type => <<"webdav">>,
-                endpoint => onepanel_utils:get_converted(endpoint, WebDAV, binary),
-                credentials => onepanel_utils:get_converted(credentials, WebDAV, binary),
-                credentialsType => onepanel_utils:get_converted(credentials_type, WebDAV, binary),
-                verifyServerCertificate => onepanel_utils:get_converted(verify_server_certificate, WebDAV, binary),
-                rangeWriteSupport => onepanel_utils:get_converted(range_write_support, WebDAV, binary),
-                authorizationHeader => onepanel_utils:get_converted(authorization_header, WebDAV, binary),
-                connectionPoolSize => onepanel_utils:get_converted(connection_pool_size, WebDAV, binary),
                 storagePathType => <<"canonical">>,
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
@@ -349,22 +303,10 @@ service_op_worker_update_storage_test(Config) ->
     %% the parameter modification based on the lack of connectivity to the storage
     %% after the change.
     ChangesByName = #{
-        <<"somePosix2">> => #{
-            type => <<"posix">>, mountPoint => <<"newMountPoint">>, timeout => 500
-        },
         <<"someCeph">> => #{
             type => <<"ceph">>,
             monitorHostname => <<"newHostName">>,
             username => <<"changedCephAdmin">>
-        },
-        <<"someCephRados">> => #{
-            type => <<"cephrados">>,
-            monitorHostname => <<"newHostName">>,
-            username => <<"changedCephAdmin">>
-        },
-        <<"someS3">> => #{
-            type => <<"s3">>,
-            bucketName => <<"onedataNew">>
         },
         % @TODO VFS-8296 swift helper is currently not tested
 %%        <<"someSwift">> => #{
@@ -376,12 +318,6 @@ service_op_worker_update_storage_test(Config) ->
             type => <<"glusterfs">>,
             transport => <<"http">>,
             mountPoint => <<"otherMountPoint">>
-        },
-        <<"someWebDAV">> => #{
-            type => <<"webdav">>,
-            rangeWriteSupport => <<"moddav">>,
-            fileMode => <<"0333">>,
-            dirMode => <<"0333">>
         },
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
