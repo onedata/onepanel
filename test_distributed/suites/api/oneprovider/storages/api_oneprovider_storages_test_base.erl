@@ -71,9 +71,7 @@ add_storage_test_base(#add_storage_test_spec{
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
     ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Add storage using /provider/storages rest endpoint">>,
-            type = rest,
+        #suite_spec{
             target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
@@ -87,16 +85,23 @@ add_storage_test_base(#add_storage_test_spec{
                 ],
                 forbidden = [peer]
             },
+
+            scenario_templates = [#scenario_template{
+                name = <<"Add storage using /provider/storages rest endpoint">>,
+                type = rest,
+                prepare_args_fun = PrepareArgsFun(MemRef),
+                validate_result_fun = build_add_storage_validate_result_fun(MemRef, ArgsCorrectness)
+            }],
+            test_case_generation_policy = randomly_select_scenarios_and_clients,
+
             data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
-            prepare_args_fun = PrepareArgsFun(MemRef),
-            validate_result_fun = build_add_storage_validate_result_fun(MemRef, ArgsCorrectness),
             verify_fun = build_add_storage_verify_fun(MemRef, ArgsCorrectness)
         }
     ])).
 
 
 -spec modify_storage_test_base(modify_storage_test_spec()) -> ok.
-modify_storage_test_base(#modify_storage_test_spec{
+modify_storage_test_base(TestSpec = #modify_storage_test_spec{
     storage_type = StorageType,
     args_correctness = ArgsCorrectness,
 
@@ -110,9 +115,7 @@ modify_storage_test_base(#modify_storage_test_spec{
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
 
     ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Modify storage using /provider/storages/{id} rest endpoint">>,
-            type = rest,
+        #suite_spec{
             target_nodes = ProviderPanelNodes,
             client_spec = #client_spec{
                 correct = [
@@ -127,12 +130,18 @@ modify_storage_test_base(#modify_storage_test_spec{
                 forbidden = [peer]
             },
 
-            data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
-
             setup_fun = SetupFun(MemRef),
-            prepare_args_fun = PrepareArgsFun(MemRef),
-            validate_result_fun = build_modify_storage_validate_result_fun(MemRef, ArgsCorrectness),
-            verify_fun = build_modify_storage_verify_fun(MemRef)
+            verify_fun = build_modify_storage_verify_fun(MemRef),
+
+            scenario_templates = [#scenario_template{
+                name = <<"Modify storage using /provider/storages/{id} rest endpoint">>,
+                type = rest,
+                prepare_args_fun = PrepareArgsFun(MemRef),
+                validate_result_fun = build_modify_storage_validate_result_fun(MemRef, TestSpec)
+            }],
+            test_case_generation_policy = randomly_select_scenarios_and_clients,
+
+            data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness)
         }
     ])).
 
@@ -177,7 +186,10 @@ build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
 
 
 %% @private
-build_modify_storage_validate_result_fun(MemRef, correct_args) ->
+build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
+    args_correctness = correct_args,
+    map_storage_description_to_exp_rest_response_fun = MappingFun
+}) ->
     api_test_validate:http_200_ok(fun(Response) ->
         NewStorageName = maps:get(<<"name">>, Response),
         api_test_memory:set(MemRef, storage_name, NewStorageName),
@@ -194,14 +206,17 @@ build_modify_storage_validate_result_fun(MemRef, correct_args) ->
             <<"lumaFeed">> => binary_to_atom(maps:get(<<"lumaFeed">>, ExpNewStorageDetails))
         }),
 
-        ExpResponse = ExpNewStorageDetails#{<<"verificationPassed">> => true},
+        ExpResponse = MappingFun(ExpNewStorageDetails#{<<"verificationPassed">> => true}),
         ?assertEqual(ExpResponse, Response)
     end);
-build_modify_storage_validate_result_fun(MemRef, bad_args) ->
+build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
+    args_correctness = bad_args,
+    map_storage_description_to_exp_rest_response_fun = MappingFun
+}) ->
     api_test_validate:http_200_ok(fun(Response) ->
         PrevStorageDetails = api_test_memory:get(MemRef, storage_details),
         ExpStorageDetails = convert_fields_to_binary(PrevStorageDetails),
-        ExpResponse = ExpStorageDetails#{<<"verificationPassed">> => false},
+        ExpResponse = MappingFun(ExpStorageDetails#{<<"verificationPassed">> => false}),
 
         ?assertEqual(ExpResponse, Response)
     end).
@@ -231,5 +246,9 @@ convert_fields_to_binary(StorageDetails) ->
     end, StorageDetails, [
         <<"archiveStorage">>,  % TODO VFS-12391 boolean?
         <<"lumaFeed">>,
-        <<"timeout">>  % TODO VFS-12391 integer?
+        <<"timeout">>,  % TODO VFS-12391 integer?
+        <<"maximumCanonicalObjectSize">>,  % TODO VFS-12391 integer?
+        <<"verifyServerCertificate">>,  % TODO VFS-12391 boolean?
+        <<"connectionPoolSize">>,  % TODO VFS-12391 int?
+        <<"maximumUploadSize">>  % TODO VFS-12391 int?
     ]).
