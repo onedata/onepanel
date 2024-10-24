@@ -178,7 +178,8 @@ build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
         (expected_success, _) ->
             NewStorageId = api_test_memory:get(MemRef, storage_id),
             ?assertEqual(true, lists:member(NewStorageId, opw_test_rpc:get_storages(krakow)), ?ATTEMPTS),
-            ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(NewStorageId), ?ATTEMPTS),
+            StorageDetails = opw_test_rpc:storage_describe(krakow, NewStorageId),
+            check_io_on_storage_if_not_nulldevice(NewStorageId, StorageDetails),
             true;
         (expected_failure, _) ->
             true
@@ -229,10 +230,16 @@ build_modify_storage_verify_fun(MemRef) ->
         ExpStorageDetails = api_test_memory:get(MemRef, storage_details),
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
         ?assertEqual(ExpStorageDetails, StorageDetails),
-
-        ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS),
+        check_io_on_storage_if_not_nulldevice(StorageId, StorageDetails),
         true
     end.
+
+
+check_io_on_storage_if_not_nulldevice(_StorageId, #{<<"type">> := <<"nulldevice">>}) ->
+    ok;
+check_io_on_storage_if_not_nulldevice(StorageId, _StorageDetails) ->
+    ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS).
+
 
 
 % TODO VFS-12391 storage update changes types of several fields to binary - it should not?
@@ -250,5 +257,12 @@ convert_fields_to_binary(StorageDetails) ->
         <<"maximumCanonicalObjectSize">>,  % TODO VFS-12391 integer?
         <<"verifyServerCertificate">>,  % TODO VFS-12391 boolean?
         <<"connectionPoolSize">>,  % TODO VFS-12391 int?
-        <<"maximumUploadSize">>  % TODO VFS-12391 int?
+        <<"maximumUploadSize">>,  % TODO VFS-12391 int?
+        <<"latencyMin">>,
+        <<"latencyMax">>,
+        <<"timeoutProbability">>,
+        <<"filter">>,
+        <<"simulatedFilesystemParameters">>,
+        <<"simulatedFilesystemGrowSpeed">>,
+        <<"enableDataVerification">>
     ]).

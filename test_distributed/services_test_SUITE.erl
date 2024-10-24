@@ -271,21 +271,6 @@ service_op_worker_add_storage_test(Config) ->
                 storagePathType => <<"canonical">>,
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
-            },
-            <<"someNullDevice">> => #{
-                type => <<"nulldevice">>,
-                name => <<"someNullDevice">>,
-                latencyMin => 25,
-                latencyMax => 75,
-                timeoutProbability => 0.0,
-                filter => <<"*">>,
-                simulatedFilesystemParameters => <<>>,
-                simulatedFilesystemGrowSpeed => 0.0,
-                storagePathType => <<"canonical">>,
-                importedStorage => true,
-                readonly => true,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
             }
         }
     }),
@@ -322,11 +307,6 @@ service_op_worker_update_storage_test(Config) ->
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
             url => <<"root://domain.invalid:1094/data/">>
-        },
-        <<"someNullDevice">> => #{
-            type => <<"nulldevice">>,
-            latencyMin => 100,
-            latencyMax => 150
         }
     },
 
@@ -335,20 +315,16 @@ service_op_worker_update_storage_test(Config) ->
         (#{id := Id, type := _Type, name := Name} = Storage) ->
             case maps:find(Name, ChangesByName) of
                 {ok, Changes} ->
-                    ChangesBinary = onepanel_utils:convert(Changes, {values, binary}),
-                    Expected = case Name of
-                        <<"someNullDevice">> ->
-                            maps:merge(Storage, ChangesBinary#{verificationPassed => true});
-                        _ ->
-                            Storage#{verificationPassed => false}
-                    end,
+                    Expected = Storage#{verificationPassed => false},
 
                     Results = onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
                         hosts => [Host], storage => Changes, id => Id
                     }),
                     assert_expected_result(service:get_module(op_worker),
-                        update_storage, [Node], Expected, Results);
-                error -> skip
+                        update_storage, [Node], Expected, Results
+                    );
+                error ->
+                    skip
             end
     end, ExistingStorages).
 
