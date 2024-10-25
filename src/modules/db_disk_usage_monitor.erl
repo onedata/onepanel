@@ -236,13 +236,14 @@ format_offenders(Offenders) ->
     str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
         str_utils:format(
             "~n> Host: ~ts"
-            "~n> DB root directory size: ~ts - ~ts"
+            "~n> DB root directory path: ~ts"
+            "~n> DB root directory size: ~ts"
             "~n> Available disk size: ~ts"
             "~n> Usage percent: ~.2f%",
             [
                 Host,
-                str_utils:format_byte_size(UsageInfo#usage_info.db_root_dir_size),
                 ?ROOT_DIR,
+                str_utils:format_byte_size(UsageInfo#usage_info.db_root_dir_size),
                 str_utils:format_byte_size(UsageInfo#usage_info.available_disk_size),
                 100 * UsageInfo#usage_info.usage
             ]
