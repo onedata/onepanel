@@ -365,8 +365,15 @@ add(OpNode, Name, StorageType, Params) ->
 
     try
         ?info("Verifying storage access: '~ts' (~ts)", [Name, StorageType]),
-        % Treat this storage as not imported, because it is not supporting any spaces yet and all tests can be performed.
-        verify_availability(Helper, LumaFeed, not_imported),
+        ImportedFlag = case Readonly of
+            true ->
+                imported;
+            false ->
+                % Treat this storage as not imported, because it is not supporting any spaces yet
+                % and all tests can be performed.
+                not_imported
+        end,
+        verify_availability(Helper, LumaFeed, ImportedFlag),
         ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
         op_worker_rpc:storage_create(
             Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
