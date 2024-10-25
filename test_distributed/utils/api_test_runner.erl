@@ -742,11 +742,16 @@ bad_data_sets(#data_spec{
     required = Required,
     at_least_one = AtLeastOne,
     optional = Optional,
-    bad_values = BadValues
+    bad_values = BadValues,
+    selecting_correct_values_for_bad_data_sets_policy = CorrectDataSelectingPolicy
 } = DataSpec) ->
 
     AllCorrect = lists:foldl(fun(Param, Acc) ->
-        Acc#{Param => ?RAND_ELEMENT(get_correct_value(Param, DataSpec))}
+        CorrectValues = get_correct_value(Param, DataSpec),
+        Acc#{Param => case CorrectDataSelectingPolicy of
+            random -> ?RAND_ELEMENT(CorrectValues);
+            first -> hd(CorrectValues)
+        end}
     end, #{}, ?REQUIRED_KEYS(Required) ++ AtLeastOne ++ Optional),
 
     lists:map(fun({Param, InvalidValue, ExpError}) ->
