@@ -139,12 +139,9 @@ update(OpNode, Id, NewParams) ->
     UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
     try
-        ImportedIndicator = case Imported of
-            true -> imported;
-            false -> not_imported
-        end,
         verify_configuration(OpNode, Id, VerificationParams2, Helper),
-        verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto), ImportedIndicator),
+        verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto),
+            #{read_write_test => not Imported}),
 
         % @TODO VFS-5513 Modify everything in a single datastore operation
         % TODO VFS-6951 refactor storage configuration API
@@ -365,15 +362,7 @@ add(OpNode, Name, StorageType, Params) ->
 
     try
         ?info("Verifying storage access: '~ts' (~ts)", [Name, StorageType]),
-        ImportedFlag = case Readonly of
-            true ->
-                imported;
-            false ->
-                % Treat this storage as not imported, because it is not supporting any spaces yet
-                % and all tests can be performed.
-                not_imported
-        end,
-        verify_availability(Helper, LumaFeed, ImportedFlag),
+        verify_availability(Helper, LumaFeed, #{read_write_test => not Readonly}),
         ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
         op_worker_rpc:storage_create(
             Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
@@ -431,8 +420,8 @@ verify_configuration(OpNode, NameOrId, StorageParams, Helper) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
-verify_availability(Helper, LumaFeed, Imported) ->
-    case op_worker_rpc:verify_storage_availability_on_all_nodes(Helper, LumaFeed, Imported) of
+verify_availability(Helper, LumaFeed, Opts) ->
+    case op_worker_rpc:storage_detector_run_diagnostics(Helper, LumaFeed, Opts) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
     end.
