@@ -140,8 +140,9 @@ update(OpNode, Id, NewParams) ->
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
     try
         verify_configuration(OpNode, Id, VerificationParams2, Helper),
-        verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto),
-            #{read_write_test => not Imported}),
+        IgnoreReadWriteTest = Readonly orelse (Imported andalso op_worker_rpc:storage_supports_any_space(Id)),
+        run_storage_diagnostics(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto),
+            #{read_write_test => not IgnoreReadWriteTest}),
 
         % @TODO VFS-5513 Modify everything in a single datastore operation
         % TODO VFS-6951 refactor storage configuration API
@@ -362,7 +363,7 @@ add(OpNode, Name, StorageType, Params) ->
 
     try
         ?info("Verifying storage access: '~ts' (~ts)", [Name, StorageType]),
-        verify_availability(Helper, LumaFeed, #{read_write_test => not Readonly}),
+        run_storage_diagnostics(Helper, LumaFeed, #{read_write_test => not Readonly}),
         ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
         op_worker_rpc:storage_create(
             Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
@@ -420,7 +421,7 @@ verify_configuration(OpNode, NameOrId, StorageParams, Helper) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
-verify_availability(Helper, LumaFeed, Opts) ->
+run_storage_diagnostics(Helper, LumaFeed, Opts) ->
     case op_worker_rpc:storage_detector_run_diagnostics(Helper, LumaFeed, Opts) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
