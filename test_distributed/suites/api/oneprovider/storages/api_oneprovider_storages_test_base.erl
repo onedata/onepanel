@@ -106,8 +106,7 @@ modify_storage_test_base(TestSpec = #modify_storage_test_spec{
     args_correctness = ArgsCorrectness,
 
     build_data_spec_fun = DataSpecFun,
-    build_setup_fun = SetupFun,
-    build_prepare_args_fun = PrepareArgsFun
+    build_setup_fun = SetupFun
 }) ->
 
     MemRef = api_test_memory:init(),
@@ -136,7 +135,7 @@ modify_storage_test_base(TestSpec = #modify_storage_test_spec{
             scenario_templates = [#scenario_template{
                 name = <<"Modify storage using /provider/storages/{id} rest endpoint">>,
                 type = rest,
-                prepare_args_fun = PrepareArgsFun(MemRef),
+                prepare_args_fun = build_modify_storage_prepare_args_fun(MemRef),
                 validate_result_fun = build_modify_storage_validate_result_fun(MemRef, TestSpec)
             }],
             test_case_generation_policy = randomly_select_scenarios_and_clients,
@@ -183,6 +182,23 @@ build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
             true;
         (expected_failure, _) ->
             true
+    end.
+
+
+%% @private
+build_modify_storage_prepare_args_fun(MemRef) ->
+    fun(#api_test_ctx{data = Data}) ->
+        StorageId = api_test_memory:get(MemRef, storage_id),
+        StorageName = api_test_memory:get(MemRef, storage_name),
+
+        api_test_memory:set(MemRef, storage_diff, Data),
+        RequestBody = #{StorageName => Data},
+
+        #rest_args{
+            method = patch,
+            path = <<"provider/storages/", StorageId/binary>>,
+            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+            body = json_utils:encode(RequestBody)}
     end.
 
 
@@ -242,7 +258,7 @@ check_io_on_storage_if_not_nulldevice(StorageId, _StorageDetails) ->
 
 
 
-% TODO VFS-12391 storage update changes types of several fields to binary - it should not?
+% TODO VFS-12391 storage update changes types of several fields to binary - debug
 %% @private
 convert_fields_to_binary(StorageDetails) ->
     lists:foldl(fun(Key, DetailsAcc) ->
@@ -251,13 +267,13 @@ convert_fields_to_binary(StorageDetails) ->
             false -> DetailsAcc
         end
     end, StorageDetails, [
-        <<"archiveStorage">>,  % TODO VFS-12391 boolean?
+        <<"archiveStorage">>,  % TODO VFS-12391 boolean
         <<"lumaFeed">>,
-        <<"timeout">>,  % TODO VFS-12391 integer?
-        <<"maximumCanonicalObjectSize">>,  % TODO VFS-12391 integer?
-        <<"verifyServerCertificate">>,  % TODO VFS-12391 boolean?
-        <<"connectionPoolSize">>,  % TODO VFS-12391 int?
-        <<"maximumUploadSize">>,  % TODO VFS-12391 int?
+        <<"timeout">>,  % TODO VFS-12391 integer
+        <<"maximumCanonicalObjectSize">>,  % TODO VFS-12391 integer
+        <<"verifyServerCertificate">>,  % TODO VFS-12391 boolean
+        <<"connectionPoolSize">>,  % TODO VFS-12391 int
+        <<"maximumUploadSize">>,  % TODO VFS-12391 int
         <<"latencyMin">>,
         <<"latencyMax">>,
         <<"timeoutProbability">>,

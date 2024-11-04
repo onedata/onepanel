@@ -173,8 +173,7 @@ modify_posix_storage_test_base(ArgsCorrectness) ->
             args_correctness = ArgsCorrectness,
 
             build_data_spec_fun = fun build_modify_posix_storage_data_spec/3,
-            build_setup_fun = fun build_modify_posix_storage_setup_fun/1,
-            build_prepare_args_fun = fun build_modify_posix_storage_prepare_args_fun/1
+            build_setup_fun = fun build_modify_posix_storage_setup_fun/1
         }).
 
 
@@ -259,23 +258,6 @@ build_modify_posix_storage_setup_fun(MemRef) ->
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
-    end.
-
-
-%% @private
-build_modify_posix_storage_prepare_args_fun(MemRef) ->
-    fun(#api_test_ctx{data = Data}) ->
-        StorageId = api_test_memory:get(MemRef, storage_id),
-        StorageName = api_test_memory:get(MemRef, storage_name),
-
-        api_test_memory:set(MemRef, storage_diff, Data),
-        RequestBody = #{StorageName => Data},
-
-        #rest_args{
-            method = patch,
-            path = <<"provider/storages/", StorageId/binary>>,
-            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-            body = json_utils:encode(RequestBody)}
     end.
 
 

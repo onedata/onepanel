@@ -31,9 +31,4 @@ spaces: true
 
 storages:
   - posix
-  - s3
-  - ceph
   - gluster
-  - webdav
-  # @TODO VFS-8296 swift helper is currently not tested
-  # - swift

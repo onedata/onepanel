@@ -123,7 +123,7 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             {<<"filter">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"filter">>))},
             {<<"simulatedFilesystemParameters">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"simulatedFilesystemParameters">>))},
             {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERROR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
-            %% TODO VFS-12391 return bad_value_string?! XD
+            %% TODO VFS-12391 debug why it returns bad_value_string
 %%            {<<"enableDataVerification">>, 5, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
         ]
     }.
@@ -156,8 +156,7 @@ modify_storage_test(_Config) ->
             args_correctness = correct_args,
 
             build_data_spec_fun = fun build_modify_nulldevice_storage_data_spec/3,
-            build_setup_fun = fun build_modify_nulldevice_storage_setup_fun/1,
-            build_prepare_args_fun = fun build_modify_nulldevice_storage_prepare_args_fun/1
+            build_setup_fun = fun build_modify_nulldevice_storage_setup_fun/1
         }).
 
 
@@ -222,7 +221,7 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             {<<"filter">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"filter">>))},
             {<<"simulatedFilesystemParameters">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"simulatedFilesystemParameters">>))},
             {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERROR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
-            %% TODO VFS-12391 return bad_value_string?! XD
+            %% TODO VFS-12391 debug why it returns bad_value_string
 %%            {<<"enableDataVerification">>, 5, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
         ]
     }.
@@ -242,23 +241,6 @@ build_modify_nulldevice_storage_setup_fun(MemRef) ->
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
-    end.
-
-
-%% @private
-build_modify_nulldevice_storage_prepare_args_fun(MemRef) ->
-    fun(#api_test_ctx{data = Data}) ->
-        StorageId = api_test_memory:get(MemRef, storage_id),
-        StorageName = api_test_memory:get(MemRef, storage_name),
-
-        api_test_memory:set(MemRef, storage_diff, Data),
-        RequestBody = #{StorageName => Data},
-
-        #rest_args{
-            method = patch,
-            path = <<"provider/storages/", StorageId/binary>>,
-            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-            body = json_utils:encode(RequestBody)}
     end.
 
 

@@ -108,7 +108,7 @@
     % NOTE: calculation of all combinations can take same time (because of naïve implementation),
     % so it is not recommended to use with more than 10 total correct values for optional keys.
     optional_values_data_sets = relaxed :: relaxed | all_combinations,
-    % Control how correct value is chosen for each parameter when building bad data sets
+    % Controls how correct value is chosen for each parameter when building bad data sets
     % (data sets with all values correct but one with substituted bad value)
     selecting_correct_values_for_bad_data_sets_policy = random :: first | random
 }).

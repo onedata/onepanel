@@ -176,7 +176,7 @@ build_add_glusterfs_storage_prepare_args_fun(MemRef) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "storages_api_tests",
+        onenv_scenario = "1op_gluster",
         envs = [{op_worker, op_worker, [{fuse_session_grace_period_seconds, 24 * 60 * 60}]}]
     }).
 

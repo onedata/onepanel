@@ -190,8 +190,7 @@ modify_ceph_storage_test_base(ArgsCorrectness) ->
             args_correctness = ArgsCorrectness,
 
             build_data_spec_fun = fun build_modify_ceph_storage_data_spec/3,
-            build_setup_fun = fun build_modify_ceph_storage_setup_fun/1,
-            build_prepare_args_fun = fun build_modify_ceph_storage_prepare_args_fun/1
+            build_setup_fun = fun build_modify_ceph_storage_setup_fun/1
         }).
 
 
@@ -212,7 +211,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             <<"qosParameters">>,
             <<"archiveStorage">>
 
-            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes?!
+            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">>
         ],
         correct_values = #{
@@ -223,7 +222,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [?RAND_BOOL()]
 
-            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes?!
+            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">> => [<<"dummy">>]
         },
 
@@ -252,7 +251,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
         ],
         optional = [
             <<"name">>,
-            %% TODO VFS-12391 changing hostname always timeout??
+            %% TODO VFS-12391 changing hostname always timeouts
 %%            <<"monitorHostname">>,
             <<"poolName">>,
             <<"username">>,
@@ -261,7 +260,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
         correct_values = #{
             <<"type">> => [<<"cephrados">>],
             <<"name">> => [<<"a">>],
-            %% TODO VFS-12391 changing hostname always timeout??
+            %% TODO VFS-12391 changing hostname always timeouts
 %%            <<"monitorHostname">> => [<<"0.0.0.0">>],
             <<"poolName">> => [<<"dummy">>],
             <<"username">> => [<<"dummy">>],
@@ -290,23 +289,6 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
-    end.
-
-
-%% @private
-build_modify_ceph_storage_prepare_args_fun(MemRef) ->
-    fun(#api_test_ctx{data = Data}) ->
-        StorageId = api_test_memory:get(MemRef, storage_id),
-        StorageName = api_test_memory:get(MemRef, storage_name),
-
-        api_test_memory:set(MemRef, storage_diff, Data),
-        RequestBody = #{StorageName => Data},
-
-        #rest_args{
-            method = patch,
-            path = <<"provider/storages/", StorageId/binary>>,
-            headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-            body = json_utils:encode(RequestBody)}
     end.
 
 
