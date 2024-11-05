@@ -83,6 +83,12 @@ stages:
         - Coverage report
 Build:
   key: JOB1
+  other: &common-opts
+    clean-working-dir: true
+    all-other-apps:
+      custom:
+        auto: { }
+        buildHangingConfig.enabled: 'false'
   tasks:
     - script:
         interpreter: SHELL
@@ -153,6 +159,7 @@ Build:
 
 _Codetag Tracker:
   key: CT
+  other: *common-opts
   tasks:
     # A workaround to disable the implicit checkout task
     - checkout: &fake-checkout
@@ -183,6 +190,7 @@ _Codetag Tracker:
 
 _Dialyze:
   key: DO
+  other: *common-opts
   tasks:
     - checkout: *fake-checkout
     - script: *unpack
@@ -209,12 +217,7 @@ _Dialyze:
 
 _Unit Test:
   key: UTOP
-  other: &common-opts
-    clean-working-dir: true
-    all-other-apps:
-      custom:
-        auto: { }
-        buildHangingConfig.enabled: 'false'
+  other: *common-opts
   tasks:
     - checkout: *fake-checkout
     - script: *unpack
