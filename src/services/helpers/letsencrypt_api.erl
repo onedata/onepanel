@@ -196,6 +196,7 @@ challenge_types() ->
 
 -spec get_root_ca() -> pem().
 get_root_ca() ->
+    % TODO VFS-12241 in case of test env - use insecure connection for Pebble server
     {ok, ?HTTP_200_OK, _, Pem} = http_client:get(?ROOT_CA_URL, #{}, <<>>, ?HTTP_OPTS),
     Pem.
 

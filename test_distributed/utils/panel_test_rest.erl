@@ -67,6 +67,8 @@
 
 -spec set_insecure_flag() -> ok.
 set_insecure_flag() ->
+    % This is set in test code to allow tests to connect to a panel with
+    % invalid or frequently changing certificates.
     application:set_env(ctool, force_insecure_connections, true).
 
 

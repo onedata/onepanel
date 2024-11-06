@@ -123,6 +123,7 @@ init_per_suite(Config) ->
         onenv_scenario = "1op_2nodes_not_deployed",
         envs = [
             {op_panel, ctool, [
+                % Allow Onezone panel to connect with Pebble server
                 {force_insecure_connections, true}
             ]}
         ],
