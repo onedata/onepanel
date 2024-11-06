@@ -58,6 +58,7 @@ stages:
         - api_oneprovider_provider
         - api_oneprovider_spaces_basic
         - api_oneprovider_storage_ceph
+        - api_oneprovider_storage_nulldevice
         - api_oneprovider_storage_posix
         - api_oneprovider_storage_s3
         - api_oneprovider_storage_webdav
@@ -342,6 +343,13 @@ api_oneprovider_storage_ceph:
     - <<: *ct_logs
       name: ct_logs_api_oneprovider_storage_ceph.tar.gz
 
+api_oneprovider_storage_nulldevice:
+  <<: *ct-onenv-job
+  key: APISTORAGENULLDEVICE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storage_nulldevice.tar.gz
+
 api_oneprovider_storage_posix:
   <<: *ct-onenv-job
   key: APSP
@@ -549,6 +557,7 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_provider.tar.gz
     - artifact: ct_logs_api_oneprovider_spaces_basic.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_ceph.tar.gz
+    - artifact: ct_logs_api_oneprovider_storage_nulldevice.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_posix.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_s3.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_webdav.tar.gz

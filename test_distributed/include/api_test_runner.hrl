@@ -83,7 +83,34 @@
     optional = [] :: [Key :: binary()],
     at_least_one = [] :: [Key :: binary()],
     correct_values = #{} :: #{Key :: binary() => Values :: [binary()]},
-    bad_values = [] :: [{Key :: binary(), Value :: term(), errors:error()}]
+    bad_values = [] :: [{Key :: binary(), Value :: term(), errors:error()}],
+
+    % flag telling whether some optional value should be added to required only data sets
+    at_least_one_optional_value_in_data_sets = false :: boolean(),
+    % by default (`relaxed`) datasets from the optional values are generated as follows:
+    % - one dataset for each key-value pair
+    % - one dataset containing each key with randomly selected value;
+    % e.g:
+    % given
+    %   optional = [<<"key1">>, <<"key2">>]
+    %   correct_values = #{<<"key1">> => [<<"value1">>, <<"value2">>], <<"key2">> => [<<"value1">>]}
+    % following datasets could be generated:
+    %  #{<<"key1">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value2">>},
+    %  #{<<"key2">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value1">>, #{<<"key2">> => <<"value1">>}
+    % with `all_combinations` option following datasets will be generated (empty dataset is omitted):
+    %  #{<<"key1">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value2">>},
+    %  #{<<"key2">> => <<"value1">>},
+    %  #{<<"key1">> => <<"value1">>, #{<<"key2">> => <<"value1">>}
+    %  #{<<"key1">> => <<"value2">>, #{<<"key2">> => <<"value1">>}
+    % NOTE: calculation of all combinations can take same time (because of naïve implementation),
+    % so it is not recommended to use with more than 10 total correct values for optional keys.
+    optional_values_data_sets = relaxed :: relaxed | all_combinations,
+    % Controls how correct value is chosen for each parameter when building bad data sets
+    % (data sets with all values correct but one with substituted bad value)
+    selecting_correct_values_for_bad_data_sets_policy = random :: first | random
 }).
 
 -record(rest_args, {
@@ -119,10 +146,7 @@
     % When enabled, REST requests to onepanel will be made randomly
     % on the native onepanel endpoint (port 9443), or via the proxy hosted by op-worker/oz-worker.
     % When disabled, only the native endpoint will be tested (use for tests on undeployed environment)
-    test_proxied_onepanel_rest_endpoint = true :: boolean(),
-
-    % Percentage of all data sets to be tested.
-    data_spec_random_coverage = 100 :: 1..100
+    test_proxied_onepanel_rest_endpoint = true :: boolean()
 }).
 
 % Template used to create scenario_spec(). It contains scenario specific data
@@ -133,8 +157,7 @@
     type :: api_test_runner:scenario_type(),
     prepare_args_fun :: api_test_runner:prepare_args_fun(),
     validate_result_fun :: api_test_runner:validate_call_result_fun(),
-    test_proxied_onepanel_rest_endpoint = true :: boolean(),
-    data_spec_random_coverage  = 100 :: 1..100
+    test_proxied_onepanel_rest_endpoint = true :: boolean()
 }).
 
 % Record used to group scenarios having common parameters like target nodes,
@@ -150,20 +173,9 @@
     verify_fun = fun(_, _) -> true end :: api_test_runner:verify_fun(),
 
     scenario_templates = [] :: [api_test_runner:scenario_template()],
-    % If set then instead of running all scenarios for all clients and data sets
-    % only one scenario will be drawn from 'scenario_templates' for client and
-    % data set combination. For 2 clients (client1, client2), 2 data sets (data1,
-    % data2), 2 providers (provider1, provider2) and 2 scenario_templates (A, B)
-    % only 4 testcase will be run (instead of 8 in case of flag not set), e.g.:
-    % - client1 makes call with data1 on provider1 using scenario B
-    % - client1 makes call with data2 on provider2 using scenario A
-    % - client2 makes call with data1 on provider2 using scenario A
-    % - client2 makes call with data2 on provider1 using scenario B
-    randomly_select_scenarios = false,
+    test_case_generation_policy = full :: api_test_runner:test_case_generation_policy(),
 
     test_proxied_onepanel_rest_endpoint = true :: boolean(),
-
-    data_spec_random_coverage  = 100 :: 1..100,
 
     data_spec = undefined :: undefined | api_test_runner:data_spec()
 }).
