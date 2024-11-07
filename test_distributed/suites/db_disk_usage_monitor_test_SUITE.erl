@@ -59,9 +59,8 @@ panel_rest_block_test(_Config) ->
 
 
 worker_rest_block_test(_Config) ->
-    worker_rest_block_test_base(?SERVICE_OZW).
-    %% TODO VFS-10787 test blocking operation in op
-    %% worker_rest_block_test_base(?SERVICE_OPW).
+    worker_rest_block_test_base(?SERVICE_OZW),
+    worker_rest_block_test_base(?SERVICE_OPW).
 
 
 reliability_of_service_circuit_breaker_state_variable_setting_test(_Config) ->
@@ -152,7 +151,7 @@ worker_rest_block_test_base(Service) ->
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
-    ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _},  http_client:get(Url, #{}, <<>>, Opts), ?ATTEMPTS),
+    ?assertMatch({ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, _},  http_client:get(Url, #{}, <<>>, Opts)),
 
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
     assert_cluster_wide_circuit_breaker_state(closed, Service),
