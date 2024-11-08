@@ -1,8 +1,18 @@
-Release notes for project onepanel
-==================================
+# Release notes for project onepanel
 
-CHANGELOG
----------
+## CHANGELOG
+
+### 21.02.7
+
+-   **VFS-12080** Web GUI: Added support for creating custom login view
+    pages.
+
+### 21.02.6
+
+-   **VFS-12110** Added a circuit breaker mechanism that disables all
+    Onezone services when the database is close to running out of disk
+    space.
+-   **VFS-12052** Web GUI: Removed skipStorageDetection option.
 
 ### 21.02.5
 

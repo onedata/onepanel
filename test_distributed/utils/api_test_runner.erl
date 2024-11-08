@@ -69,6 +69,19 @@
 % Function called after testcase to validate returned call/request result.
 -type validate_call_result_fun() :: fun((api_test_ctx(), Result :: term()) -> ok | no_return()).
 
+% Controls what test cases will be generated. Possible options:
+% - full - all combinations of data sets, clients and scenarios will
+%          be tested (data_sets * clients * scenarios)
+% - randomly_select_scenarios - for each clients tests all data sets, with
+%                               random scenarios each (data_sets * clients)
+% - randomly_select_scenarios_and_clients - tests will be run for each
+%                                           data set, with random client
+%                                           and scenario (data sets)
+-type test_case_generation_policy() ::
+    full |
+    randomly_select_scenarios |
+    randomly_select_scenarios_and_clients.
+
 -type scenario_spec() :: #scenario_spec{}.
 -type scenario_template() :: #scenario_template{}.
 -type suite_spec() :: #suite_spec{}.
@@ -81,6 +94,7 @@
     api_test_ctx/0,
     setup_fun/0, teardown_fun/0, verify_fun/0,
     prepare_args_fun/0, validate_call_result_fun/0,
+    test_case_generation_policy/0,
     scenario_spec/0, scenario_template/0, suite_spec/0
 ]).
 
@@ -295,8 +309,7 @@ run_malformed_data_test_cases(#suite_spec{
 
     scenario_templates = ScenarioTemplates,
 
-    data_spec = DataSpec,
-    data_spec_random_coverage = DataSpecRandomCoverage
+    data_spec = DataSpec
 }) ->
     TestCaseFun = fun
         (_TargetNode, _Client, ?NO_DATA, _) ->
@@ -324,7 +337,7 @@ run_malformed_data_test_cases(#suite_spec{
 
     SetupFun(),
     TestsPassed = run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, bad_data_sets(DataSpec, DataSpecRandomCoverage),
+        ScenarioTemplates, TargetNodes, CorrectClients, bad_data_sets(DataSpec),
         TestCaseFun
     ),
     TeardownFun(),
@@ -422,12 +435,42 @@ run_expected_success_test_cases(#suite_spec{
     verify_fun = VerifyFun,
 
     scenario_templates = ScenarioTemplates,
-    randomly_select_scenarios = true,
+    test_case_generation_policy = randomly_select_scenarios_and_clients,
 
-    data_spec = DataSpec,
-    data_spec_random_coverage = DataSpecRandomCoverage
+    data_spec = DataSpec
 }) ->
-    CorrectDataSets = correct_data_sets(DataSpec, DataSpecRandomCoverage),
+    CorrectDataSets = correct_data_sets(DataSpec),
+
+    lists_utils:foldl_while(fun(DataSet, Acc) ->
+        Client = ?RAND_ELEMENT(CorrectClients),
+        Scenario = ?RAND_ELEMENT(ScenarioTemplates),
+        TargetNode = ?RAND_ELEMENT(TargetNodes),
+
+        SetupFun(),
+        TestCasePassed = run_exp_success_testcase(
+            TargetNode, Client, DataSet, VerifyFun, Scenario
+        ),
+        TeardownFun(),
+
+        case Acc and TestCasePassed of
+            true -> {cont, true};
+            false -> {halt, false}
+        end
+    end, true, CorrectDataSets);
+run_expected_success_test_cases(#suite_spec{
+    target_nodes = TargetNodes,
+    client_spec = #client_spec{correct = CorrectClients},
+
+    setup_fun = SetupFun,
+    teardown_fun = TeardownFun,
+    verify_fun = VerifyFun,
+
+    scenario_templates = ScenarioTemplates,
+    test_case_generation_policy = randomly_select_scenarios,
+
+    data_spec = DataSpec
+}) ->
+    CorrectDataSets = correct_data_sets(DataSpec),
 
     lists:foldl(fun(Client, OuterAcc) ->
         CorrectDataSetsNum = length(CorrectDataSets),
@@ -466,10 +509,9 @@ run_expected_success_test_cases(#suite_spec{
     verify_fun = VerifyFun,
 
     scenario_templates = ScenarioTemplates,
-    randomly_select_scenarios = false,
+    test_case_generation_policy = full,
 
-    data_spec = DataSpec,
-    data_spec_random_coverage = DataSpecRandomCoverage
+    data_spec = DataSpec
 }) ->
     TestCaseFun = fun(TargetNode, Client, DataSet, ScenarioTemplate) ->
         SetupFun(),
@@ -481,8 +523,10 @@ run_expected_success_test_cases(#suite_spec{
         TestCasePassed
     end,
 
+    CorrectDataSets = correct_data_sets(DataSpec),
+
     run_scenarios(
-        ScenarioTemplates, TargetNodes, CorrectClients, correct_data_sets(DataSpec, DataSpecRandomCoverage),
+        ScenarioTemplates, TargetNodes, CorrectClients, CorrectDataSets,
         TestCaseFun
     ).
 
@@ -592,22 +636,25 @@ log_failure(ScenarioName, #api_test_ctx{
 
 
 % Returns data sets that are correct
-correct_data_sets(undefined, _DataSpecRandomCoverage) ->
+correct_data_sets(undefined) ->
     [?NO_DATA];
-correct_data_sets(DataSpec, DataSpecRandomCoverage) ->
+correct_data_sets(DataSpec) ->
     RequiredDataSets = required_data_sets(DataSpec),
 
     AllRequiredParamsDataSet = case RequiredDataSets of
         [] -> #{};
-        _ -> hd(RequiredDataSets)
+        _ -> ?RAND_ELEMENT(RequiredDataSets)
     end,
     AllRequiredWithOptionalDataSets = lists:map(fun(OptionalDataSet) ->
         maps:merge(AllRequiredParamsDataSet, OptionalDataSet)
     end, optional_data_sets(DataSpec)),
 
-    AllDataSets = RequiredDataSets ++ AllRequiredWithOptionalDataSets,
-    SelectedDatasetsSize = round(DataSpecRandomCoverage/100 * length(AllDataSets)),
-    lists_utils:random_sublist(AllDataSets, SelectedDatasetsSize, SelectedDatasetsSize).
+    case DataSpec#data_spec.at_least_one_optional_value_in_data_sets of
+        true ->
+            AllRequiredWithOptionalDataSets;
+        false ->
+            RequiredDataSets ++ AllRequiredWithOptionalDataSets
+    end.
 
 
 % Generates all combinations of "required" params and one "at_least_one" param
@@ -653,44 +700,64 @@ required_data_sets(DataSpec) ->
 
 
 % Generates all combinations for optional params
+%% @private
+-spec optional_data_sets
+    (undefined) -> [?NO_DATA];
+    (data_spec()) -> [Data :: map()].
 optional_data_sets(undefined) ->
     [?NO_DATA];
 optional_data_sets(#data_spec{optional = []}) ->
     [];
-optional_data_sets(#data_spec{optional = Optional} = DataSpec) ->
+optional_data_sets(#data_spec{optional = Optional, optional_values_data_sets = Method} = DataSpec) ->
     OptionalParamsWithValues = lists:flatten(lists:map(fun(Key) ->
         [#{Key => Val} || Val <- get_correct_value(Key, DataSpec)]
     end, Optional)),
 
-    OptionalParamsCombinations = lists:usort(lists:foldl(fun(ParamWithValue, Acc) ->
-        [maps:merge(Combination, ParamWithValue) || Combination <- Acc] ++ Acc
-    end, [#{}], OptionalParamsWithValues)),
+    case Method of
+        relaxed ->
+            AllKeysDataset = lists:foldl(fun(KeyVal, Acc) ->
+                maps:merge(Acc, KeyVal)
+            end, #{}, lists_utils:shuffle(OptionalParamsWithValues)),
 
-    lists:delete(#{}, OptionalParamsCombinations).
+            % run all keys dataset as the last one
+            OptionalParamsWithValues ++ [AllKeysDataset];
+        all_combinations ->
+            OptionalParamsCombinations = lists:usort(lists:foldl(fun(ParamWithValue, Acc) ->
+                [maps:merge(Combination, ParamWithValue) || Combination <- Acc] ++ Acc
+            end, [#{}], OptionalParamsWithValues)),
 
+            lists:delete(#{}, OptionalParamsCombinations)
+    end.
 
 
 % Generates combinations of bad data sets by adding wrong values to
 % correct data set (one set with correct values for all params).
-bad_data_sets(undefined, _DataSpecRandomCoverage) ->
+%% @private
+-spec bad_data_sets
+    (undefined) -> [?NO_DATA];
+    (data_spec()) -> [{Data :: map(), InvalidParam :: binary(), ExpError :: errors:error()}].
+bad_data_sets(undefined) ->
     [?NO_DATA];
 bad_data_sets(#data_spec{
     required = Required,
     at_least_one = AtLeastOne,
     optional = Optional,
-    bad_values = BadValues
-} = DataSpec, DataSpecRandomCoverage) ->
+    bad_values = BadValues,
+    selecting_correct_values_for_bad_data_sets_policy = CorrectDataSelectingPolicy
+} = DataSpec) ->
 
     AllCorrect = lists:foldl(fun(Param, Acc) ->
-        Acc#{Param => hd(get_correct_value(Param, DataSpec))}
+        CorrectValues = get_correct_value(Param, DataSpec),
+        Acc#{Param => case CorrectDataSelectingPolicy of
+            random -> ?RAND_ELEMENT(CorrectValues);
+            first -> hd(CorrectValues)
+        end}
     end, #{}, ?REQUIRED_KEYS(Required) ++ AtLeastOne ++ Optional),
 
-    AllDataSets = lists:map(fun({Param, InvalidValue, ExpError}) ->
+    lists:map(fun({Param, InvalidValue, ExpError}) ->
         Data = AllCorrect#{Param => InvalidValue},
         {Data, Param, ExpError}
-    end, BadValues),
-    SelectedDataSetsSize = round(DataSpecRandomCoverage/100 * length(AllDataSets)),
-    lists_utils:random_sublist(AllDataSets, SelectedDataSetsSize, SelectedDataSetsSize).
+    end, BadValues).
 
 
 % Converts correct value spec into a value
@@ -761,7 +828,6 @@ scenario_spec_to_suite_spec(#scenario_spec{
     prepare_args_fun = PrepareArgsFun,
     validate_result_fun = ValidateResultFun,
 
-    data_spec_random_coverage = DataSpecRandomCoverage,
     data_spec = DataSpec,
 
     test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
@@ -779,13 +845,11 @@ scenario_spec_to_suite_spec(#scenario_spec{
             type = ScenarioType,
             prepare_args_fun = PrepareArgsFun,
             validate_result_fun = ValidateResultFun,
-            data_spec_random_coverage = DataSpecRandomCoverage,
             test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint
         }],
-        randomly_select_scenarios = false,
+        test_case_generation_policy = full,
 
         test_proxied_onepanel_rest_endpoint = TestProxiedOnepanelRestEndpoint,
-        data_spec_random_coverage = DataSpecRandomCoverage,
 
         data_spec = DataSpec
     }.

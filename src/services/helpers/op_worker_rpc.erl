@@ -112,7 +112,7 @@
 -export([new_helper/3, new_helper/4]).
 -export([new_luma_config/1, new_luma_config/2]).
 -export([new_luma_config_with_external_feed/2, new_luma_config_with_external_feed/3]).
--export([verify_storage_availability_on_all_nodes/2, verify_storage_availability_on_all_nodes/3]).
+-export([storage_detector_run_diagnostics/3, storage_detector_run_diagnostics/4]).
 -export([prepare_helper_args/2, prepare_helper_args/3]).
 -export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
 -export([get_helper_args/1, get_helper_args/2]).
@@ -554,13 +554,14 @@ new_luma_config_with_external_feed(Node, URL, ApiKey) ->
     ?CALL(Node, [URL, ApiKey]).
 
 
--spec verify_storage_availability_on_all_nodes(helper(), luma_feed()) -> ok | errors:error().
-verify_storage_availability_on_all_nodes(Helper, LumaFeed) ->
-    ?CALL([Helper, LumaFeed]).
+-spec storage_detector_run_diagnostics(helper(), luma_feed(), #{read_write_test := boolean()}) -> ok | errors:error().
+storage_detector_run_diagnostics(Helper, LumaFeed, Opts) ->
+    ?CALL([Helper, LumaFeed, Opts]).
 
--spec verify_storage_availability_on_all_nodes(node(), helper(), luma_feed()) -> ok | errors:error().
-verify_storage_availability_on_all_nodes(Node, Helper, LumaFeed) ->
-    ?CALL(Node, [Helper, LumaFeed]).
+-spec storage_detector_run_diagnostics(node(), helper(), luma_feed(), #{read_write_test := boolean()}) ->
+    ok | errors:error().
+storage_detector_run_diagnostics(Node, Helper, LumaFeed, Opts) ->
+    ?CALL(Node, [Helper, LumaFeed, Opts]).
 
 
 -spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().

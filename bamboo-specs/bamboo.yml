@@ -58,6 +58,7 @@ stages:
         - api_oneprovider_provider
         - api_oneprovider_spaces_basic
         - api_oneprovider_storage_ceph
+        - api_oneprovider_storage_nulldevice
         - api_oneprovider_storage_posix
         - api_oneprovider_storage_s3
         - api_oneprovider_storage_webdav
@@ -83,6 +84,12 @@ stages:
         - Coverage report
 Build:
   key: JOB1
+  other: &common-opts
+    clean-working-dir: true
+    all-other-apps:
+      custom:
+        auto: { }
+        buildHangingConfig.enabled: 'false'
   tasks:
     - script:
         interpreter: SHELL
@@ -153,6 +160,7 @@ Build:
 
 _Codetag Tracker:
   key: CT
+  other: *common-opts
   tasks:
     # A workaround to disable the implicit checkout task
     - checkout: &fake-checkout
@@ -183,6 +191,7 @@ _Codetag Tracker:
 
 _Dialyze:
   key: DO
+  other: *common-opts
   tasks:
     - checkout: *fake-checkout
     - script: *unpack
@@ -209,12 +218,7 @@ _Dialyze:
 
 _Unit Test:
   key: UTOP
-  other: &common-opts
-    clean-working-dir: true
-    all-other-apps:
-      custom:
-        auto: { }
-        buildHangingConfig.enabled: 'false'
+  other: *common-opts
   tasks:
     - checkout: *fake-checkout
     - script: *unpack
@@ -338,6 +342,13 @@ api_oneprovider_storage_ceph:
   artifacts:
     - <<: *ct_logs
       name: ct_logs_api_oneprovider_storage_ceph.tar.gz
+
+api_oneprovider_storage_nulldevice:
+  <<: *ct-onenv-job
+  key: APISTORAGENULLDEVICE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_oneprovider_storage_nulldevice.tar.gz
 
 api_oneprovider_storage_posix:
   <<: *ct-onenv-job
@@ -546,6 +557,7 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_provider.tar.gz
     - artifact: ct_logs_api_oneprovider_spaces_basic.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_ceph.tar.gz
+    - artifact: ct_logs_api_oneprovider_storage_nulldevice.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_posix.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_s3.tar.gz
     - artifact: ct_logs_api_oneprovider_storage_webdav.tar.gz

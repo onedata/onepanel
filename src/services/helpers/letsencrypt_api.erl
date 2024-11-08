@@ -479,7 +479,7 @@ handle_challenge(#flow_state{challenge = #challenge{type = http}} = State) ->
     } = State,
     AuthString = make_auth_string(Token, State),
 
-    ok = Service:set_http_record(Token, AuthString),
+    ok = set_http_record(Token, AuthString),
 
     {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2};
@@ -948,6 +948,18 @@ parse_challenge(_) -> false.
 challenge_type_to_atom(<<"dns-01">>) -> dns;
 challenge_type_to_atom(<<"http-01">>) -> http;
 challenge_type_to_atom(_) -> unknown.
+
+
+%% @private
+
+-spec set_http_record(Name :: binary(), Value :: binary()) -> ok.
+set_http_record(Name, Value) ->
+    Nodes = service_onepanel:get_nodes(),
+    {Results, []} = utils:rpc_multicall(
+        Nodes, http_listener, set_response_to_letsencrypt_challenge, [Name, Value]
+    ),
+    lists:foreach(fun(R) -> ok = R end, Results),
+    ok.
 
 
 %%--------------------------------------------------------------------

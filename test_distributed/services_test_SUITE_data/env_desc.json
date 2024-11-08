@@ -34,30 +34,12 @@
           "storagePathType": "flat"
         },
         {
-          "type": "cephrados",
-          "name": "someCephRados",
-          "pool": "onedata:8",
-          "storagePathType": "flat"
-        },
-        {
-          "type": "s3",
-          "name": "someS3",
-          "bucket": "onedata",
-          "storagePathType": "flat",
-          "disable_iam_mock": false
-        },
-        {
           "type": "glusterfs",
           "name": "someGlusterfs",
           "volume": "data",
           "transport": "tcp",
           "mountpoint": "/",
           "xlatorOptions": "",
-          "storagePathType": "canonical"
-        },
-        {
-          "type": "webdav",
-          "name": "someWebDAV",
           "storagePathType": "canonical"
         },
         {

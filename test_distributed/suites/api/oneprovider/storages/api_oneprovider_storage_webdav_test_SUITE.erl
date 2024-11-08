@@ -42,13 +42,19 @@
 
 -export([
     add_correct_storage_test/1,
-    add_bad_storage_test/1
+    add_bad_storage_test/1,
+
+    modify_correct_storage_test/1,
+    modify_bad_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
         add_correct_storage_test,
-        add_bad_storage_test
+        add_bad_storage_test,
+
+        modify_correct_storage_test,
+        modify_bad_storage_test
     ]}
 ].
 
@@ -82,11 +88,8 @@ add_webdav_storage_test_base(ArgsCorrectness) ->
             args_correctness = ArgsCorrectness,
 
             data_spec_fun = fun build_add_webdav_storage_data_spec/3,
-            prepare_args_fun = fun build_add_webdav_storage_prepare_args_fun/1,
-
-            data_spec_random_coverage = 10
+            prepare_args_fun = fun build_add_webdav_storage_prepare_args_fun/1
         }).
-
 
 
 %% @private
@@ -185,6 +188,122 @@ build_add_webdav_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+modify_correct_storage_test(_Config) ->
+    modify_webdav_storage_test_base(correct_args).
+
+
+modify_bad_storage_test(_Config) ->
+    modify_webdav_storage_test_base(bad_args).
+
+
+%% @private
+modify_webdav_storage_test_base(ArgsCorrectness) ->
+    api_oneprovider_storages_test_base:modify_storage_test_base(
+        #modify_storage_test_spec{
+            storage_type = webdav,
+            args_correctness = ArgsCorrectness,
+
+            build_data_spec_fun = fun build_modify_webdav_storage_data_spec/3,
+            build_setup_fun = fun build_modify_webdav_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_modify_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
+    StorageName = str_utils:rand_hex(10),
+    api_test_memory:set(MemRef, storage_name, StorageName),
+
+    K = fun(Field) -> ?STORAGE_DATA_KEY(StorageName, Field) end,
+
+    #data_spec{
+        required = [
+            {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
+        ],
+        optional = [
+            <<"name">>,
+            <<"timeout">>,
+            <<"qosParameters">>,
+            <<"archiveStorage">>,
+            <<"verifyServerCertificate">>,
+            <<"connectionPoolSize">>,
+            <<"maximumUploadSize">>
+        ],
+        correct_values = #{
+            <<"type">> => [<<"webdav">>],
+            <<"name">> => [?RAND_STR(10)],
+            <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
+            <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
+            <<"archiveStorage">> => [?RAND_BOOL()],
+            <<"verifyServerCertificate">> => [?RAND_BOOL()],
+            <<"connectionPoolSize">> => [40],
+            <<"maximumUploadSize">> => [512]
+        },
+
+        bad_values = [
+            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
+            {<<"name">>, 1, ?ERROR_BAD_VALUE_BINARY(K(<<"name">>))},
+            % TODO VFS-12391 timeout is being changed to binary and not validated
+%%            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
+            {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERROR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
+            {<<"verifyServerCertificate">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"verifyServerCertificate">>))},
+            {<<"connectionPoolSize">>, <<"not_an_interger">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"connectionPoolSize">>))},
+            {<<"maximumUploadSize">>, <<"not_an_interger">>, ?ERROR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumUploadSize">>))}
+        ]
+    };
+
+build_modify_webdav_storage_data_spec(MemRef, webdav, bad_args) ->
+    StorageName = str_utils:rand_hex(10),
+    api_test_memory:set(MemRef, storage_name, StorageName),
+
+    #data_spec{
+        required = [
+            {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
+        ],
+        optional = [
+            <<"name">>,
+            <<"endpoint">>,
+            <<"credentials">>,
+            <<"rangeWriteSupport">>
+        ],
+        correct_values = #{
+            <<"type">> => [<<"webdav">>],
+            <<"name">> => [<<"a">>],
+            <<"endpoint">> => [<<"http://0.0.0.0">>],
+            <<"credentials">> => [<<"dummy:dummy">>],
+            <<"rangeWriteSupport">> => [<<"moddav">>]
+        },
+        at_least_one_optional_value_in_data_sets = true
+    }.
+
+
+%% @private
+build_modify_webdav_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = api_test_memory:get(MemRef, storage_name),
+
+        StorageId = panel_test_rpc:add_storage(krakow,
+            #{StorageName => #{
+                <<"type">> => <<"webdav">>,
+                <<"endpoint">> => ?WEBDAV_ENDPOINT,
+                <<"rangeWriteSupport">> => <<"sabredav">>,
+                <<"credentials">> => ?WEBDAV_BASIC_CREDENTIALS,
+                <<"credentialsType">> => <<"basic">>
+            }}
+        ),
+        api_test_memory:set(MemRef, storage_id, StorageId),
+
+        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -192,7 +311,7 @@ build_add_webdav_storage_prepare_args_fun(MemRef) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "storages_api_tests",
+        onenv_scenario = "1op_webdav",
         envs = [{op_worker, op_worker, [{fuse_session_grace_period_seconds, 24 * 60 * 60}]}]
     }).
 

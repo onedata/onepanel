@@ -253,7 +253,8 @@ build_support_space_data_spec(StorageId, OpWorkerNodes) ->
                 ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)}
-        ]
+        ],
+        selecting_correct_values_for_bad_data_sets_policy = first
     }.
 
 
@@ -383,7 +384,8 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
             {bad_id, <<"inexistentSpaceId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
-        ]
+        ],
+        selecting_correct_values_for_bad_data_sets_policy = first
     }.
 
 
