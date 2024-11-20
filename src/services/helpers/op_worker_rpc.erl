@@ -554,12 +554,13 @@ new_luma_config_with_external_feed(Node, URL, ApiKey) ->
     ?CALL(Node, [URL, ApiKey]).
 
 
--spec storage_detector_run_diagnostics(helper(), luma_feed(), #{read_write_test := boolean()}) -> ok | errors:error().
+-spec storage_detector_run_diagnostics(helper(), luma_feed(), #{read_write_test := boolean()}) ->
+    ok | {errors:error(), any()}.
 storage_detector_run_diagnostics(Helper, LumaFeed, Opts) ->
     ?CALL([Helper, LumaFeed, Opts]).
 
 -spec storage_detector_run_diagnostics(node(), helper(), luma_feed(), #{read_write_test := boolean()}) ->
-    ok | errors:error().
+    ok | {errors:error() | any()}.
 storage_detector_run_diagnostics(Node, Helper, LumaFeed, Opts) ->
     ?CALL(Node, [Helper, LumaFeed, Opts]).
 
