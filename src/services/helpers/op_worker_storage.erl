@@ -98,9 +98,7 @@ add(#{name := Name, params := Params}) ->
                 StorageName, StorageType, AddedStorageId
             ]);
         {error, _} = Error ->
-            ?error("Failed to add storage '~ts' (~ts) due to ~tp", [
-                StorageName, StorageType, Error
-            ])
+            ?error(?autoformat_with_msg("Failed to add storage '~ts' (~ts)", [StorageName, StorageType], Error))
     end,
     {StorageName, Result}.
 
