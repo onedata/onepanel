@@ -246,12 +246,16 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
 
 -spec start(service:step_ctx()) -> ok | no_return().
 start(#{name := ServiceName} = Ctx) ->
+    DbUser = onepanel_env:typed_get(couchbase_user, list),
+    onepanel_env:write([name(), couchbase_user], DbUser, ServiceName),
+    DbPassword = onepanel_env:typed_get(couchbase_password, list),
+    onepanel_env:write([name(), couchbase_password], DbPassword, ServiceName),
+
     service:update_status(ServiceName, starting),
     service_cli:start(ServiceName, Ctx),
     service:update_status(ServiceName, unhealthy),
     service:register_healthcheck(ServiceName, Ctx),
     ok.
-
 
 -spec stop(service:step_ctx()) -> ok.
 stop(#{name := ServiceName} = Ctx) ->
