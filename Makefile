@@ -38,6 +38,9 @@ OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
 
 BUILD_VERSION := $(subst $(shell git describe --tags --abbrev=0)-,,$(shell git describe --tags --long))
 
+PKG_CONFIG	= rel/pkg.vars.config.template
+ESL_ERLANG_VERSION ?= none
+
 all: rel
 
 .PHONY: get-deps
@@ -145,6 +148,18 @@ else
 	@echo "Building package for distribution $(DISTRIBUTION)"
 endif
 
+check_erlang:
+ifeq ($(ESL_ERLANG_VERSION), none)
+	@echo "WARNING: ESL_ERLANG_VERSION is not set and will not be checked against the version in $(PKG_CONFIG)"
+	@echo "         Be sure to have the desired version in $(PKG_CONFIG)"
+else 
+	@if ! grep -E 'esl-erlang.*$(ESL_ERLANG_VERSION)' $(PKG_CONFIG); then \
+	    echo "ERROR: The specified esl-erlang version ($(ESL_ERLANG_VERSION)) was not found in $(PKG_CONFIG)"; \
+	    echo "       Please, correct the esl-erlang version in $(PKG_CONFIG)"; \
+	    exit 1; \
+	fi
+endif
+
 package/$(PKG_ID).tar.gz:
 	mkdir -p package
 	rm -rf package/$(PKG_ID)
@@ -163,7 +178,7 @@ package/$(PKG_ID).tar.gz:
 dist: package/$(PKG_ID).tar.gz
 	cp package/$(PKG_ID).tar.gz .
 
-package: check_distribution package/$(PKG_ID).tar.gz
+package: check_distribution check_erlang package/$(PKG_ID).tar.gz
 	${MAKE} -C package -f $(PKG_ID)/node_package/Makefile
 
 pkgclean:
