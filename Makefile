@@ -13,6 +13,7 @@ ONEDATA_GIT_URL := $(shell if [ "${ONEDATA_GIT_URL}" = "" ]; then echo ${GIT_URL
 export ONEDATA_GIT_URL
 
 RELEASE         ?= 2202
+ESL_ERLANG_VERSION ?= none
 PKG_REVISION    ?= $(shell git describe --tags --always)
 PKG_VERSION     ?= $(shell git describe --tags --always | tr - .)
 PKG_BUILD       := 1
@@ -39,7 +40,6 @@ OVERLAY_VARS    ?= --overlay_vars=rel/vars.config
 BUILD_VERSION := $(subst $(shell git describe --tags --abbrev=0)-,,$(shell git describe --tags --long))
 
 PKG_CONFIG	= rel/pkg.vars.config.template
-ESL_ERLANG_VERSION ?= none
 
 all: rel
 
@@ -150,12 +150,15 @@ endif
 
 check_erlang:
 ifeq ($(ESL_ERLANG_VERSION), none)
-	@echo "WARNING: ESL_ERLANG_VERSION is not set and will not be checked against the version in $(PKG_CONFIG)"
-	@echo "         Be sure to have the desired version in $(PKG_CONFIG)"
-else 
-	@if ! grep -E 'esl-erlang.*$(ESL_ERLANG_VERSION)' $(PKG_CONFIG); then \
-	    echo "ERROR: The specified esl-erlang version ($(ESL_ERLANG_VERSION)) was not found in $(PKG_CONFIG)"; \
-	    echo "       Please, correct the esl-erlang version in $(PKG_CONFIG)"; \
+	@echo "ERROR: ESL_ERLANG_VERSION is not set."
+	@exit 1
+else
+	@G1=`grep -E 'esl-erlang' $(PKG_CONFIG)`; \
+	G2=`grep -E 'esl-erlang.*$(ESL_ERLANG_VERSION)' $(PKG_CONFIG)`; \
+	if [ "$$G1" != "$$G2" ]; then \
+	    echo "ERROR: Some of the esl-erlang versions in $(PKG_CONFIG) do not correspond"; \
+            echo "       to the ESL_ERLANG_VERSION ($(ESL_ERLANG_VERSION)) passed to the make command."; \
+	    echo "       Please, correct the esl-erlang versions for deb and rpm in $(PKG_CONFIG)"; \
 	    exit 1; \
 	fi
 endif
