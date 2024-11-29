@@ -35,7 +35,7 @@
 -spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"GET">>, Req) ->
     ApiOrigin = str_utils:format_bin("~ts:~B", [
-        cowboy_req:host(Req), https_listener:port()
+        cowboy_req:host(Req), cowboy_req:port(Req)
     ]),
     % get_id/0 throws in an unregistered Oneprovider
     ClusterId = try clusters:get_id() catch _:_ -> null end,
