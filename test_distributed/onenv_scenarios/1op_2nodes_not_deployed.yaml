@@ -36,6 +36,9 @@ onezone:
         - name:  DEV_PEBBLE_COREDNS_SERVICE_HOST
           value: "dev-onezone"
 
+    corefileSegment: |-
+      forward dev-onezone.{$PEBBLE_NAMESPACE}.svc.cluster.local dev-onezone.{$PEBBLE_NAMESPACE}.svc.cluster.local
+
 oneprovider-1:
   batchConfig: false
 

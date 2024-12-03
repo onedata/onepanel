@@ -32,6 +32,9 @@ onezone:
         - name:  DEV_PEBBLE_COREDNS_SERVICE_HOST
           value: "dev-onezone"
 
+    corefileSegment: |-
+      forward dev-onezone.{$PEBBLE_NAMESPACE}.svc.cluster.local dev-onezone.{$PEBBLE_NAMESPACE}.svc.cluster.local
+
   panelOverlayConfig: |-
     [{onepanel, [
       {letsencrypt_root_ca_url, "https://dev-pebble:8444/roots/0"},

@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("cert_test_utils.hrl").
+-include("deployment_progress.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -79,6 +80,10 @@ all() -> [
 % (not offering challenge, etc.) which is even better as it lets
 % us tests certification retries
 -define(CERTIFICATION_ATTEMPTS, 10).
+
+-define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
+
+-define(PROVIDER_NAME, <<"krakow">>).
 
 
 %%%===================================================================
@@ -156,8 +161,12 @@ failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op",
+        onenv_scenario = "1op_2nodes_not_deployed",
         envs = [
+            {op_panel, ctool, [
+                % Allow Oneprovider panel to connect with Pebble server
+                {force_insecure_connections, true}
+            ]},
             {op_panel, onepanel, [
                 {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
                 % Increase certification attempts as pebble likes to fail from time to time
@@ -168,8 +177,11 @@ init_per_suite(Config) ->
             % Requests should be made without cert verification due to possibly
             % incorrect certificates (tests will mess with them)
             panel_test_rest:set_insecure_flag(),
+            dns_test_utils:update_zone_subdomain_delegation(true),
 
-            NewConfig
+            NewConfig2 = perhaps_deploy(NewConfig),
+            ensure_etc_hosts_entries(NewConfig2),
+            NewConfig2
         end
     }).
 
@@ -257,7 +269,7 @@ end_per_testcase(_Testcase, Config) ->
 -spec build_test_spec(test_config:config()) -> le_test_base:test_spec().
 build_test_spec(Config) ->
     OpDomain = get_domain(),
-    OneS3Domain = <<"s3.", OpDomain/binary>>,
+    OneS3Domain = get_s3_domain(),
 
     #le_test_spec{
         entity_selector = krakow,
@@ -269,7 +281,130 @@ build_test_spec(Config) ->
 
 
 %% @private
+-spec get_s3_domain() -> binary().
+get_s3_domain() ->
+    OpDomain = get_domain(),
+    <<"s3.", OpDomain/binary>>.
+
+
+%% @private
 -spec get_domain() -> binary().
 get_domain() ->
-    % TODO VFS-12241 Deploy op with subdomain delegation and get its domain
-    <<"krakow.dev-onezone.default.svc.cluster.local">>.
+    ProviderName = ?PROVIDER_NAME,
+    OzDomain = oct_background:get_zone_domain(),
+    <<ProviderName/binary, ".", OzDomain/binary>>.
+
+
+%% @private
+perhaps_deploy(Config) ->
+    OpPanelNodes = ?config(op_panel_nodes, Config),
+
+    IsDeploymentReadyFun = fun(PanelNode) ->
+        panel_test_rpc:call(PanelNode, onepanel_deployment, is_set, [?PROGRESS_READY])
+    end,
+
+    case lists:all(IsDeploymentReadyFun, OpPanelNodes) of
+        true ->
+            Config;
+        false ->
+            deploy_using_batch_config(Config),
+            NewConfig1 = oct_nodes:refresh_config(Config),
+            NewConfig2 = oct_nodes:connect_with_nodes(NewConfig1),
+            oct_background:update_environment(NewConfig2)
+    end.
+
+
+%% @private
+deploy_using_batch_config(Config) ->
+    AdminUserId = oct_background:get_user_id(admin),
+    RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
+
+    OpPanelNodes = ?config(op_panel_nodes, Config),
+    [OpIpHost1, _OpIpHost2] = OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+    [OpIpHost1Bin, OpIpHost2Bin] = lists:map(fun ip_test_utils:encode_ip/1, OpIps),
+    [OpHost1, OpHost2] = hosts:from_nodes(OpPanelNodes),
+
+    OpPanelNode1 = hd(OpPanelNodes),
+    panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
+
+    BatchConfig = #{
+        <<"cluster">> => #{
+            <<"nodes">> => #{
+                <<"node-1">> => #{
+                    <<"hostname">> => str_utils:to_binary(OpHost1),
+                    <<"externalIp">> => OpIpHost1Bin
+                },
+                <<"node-2">> => #{
+                    <<"hostname">> => str_utils:to_binary(OpHost2),
+                    <<"externalIp">> => OpIpHost2Bin
+                }
+            },
+            <<"managers">> => #{
+                <<"mainNode">> => <<"node-1">>,
+                <<"nodes">> => [<<"node-1">>, <<"node-2">>]
+            },
+            <<"workers">> => #{
+                <<"nodes">> => [<<"node-1">>]
+            },
+            <<"oneS3">> => #{
+                <<"nodes">> => [<<"node-1">>]
+            },
+            <<"databases">> => #{
+                <<"nodes">> => [<<"node-1">>]
+            }
+        },
+        <<"oneprovider">> => #{
+            <<"register">> => true,
+            <<"token">> => RegistrationToken,
+
+            <<"name">> => <<"krakow">>,
+            <<"adminEmail">> => <<"admin@example.eu">>,
+            <<"subdomainDelegation">> => true,
+            <<"subdomain">> => ?PROVIDER_NAME,
+            <<"letsEncryptEnabled">> => true
+        }
+    },
+
+    OpRequestOpts = #{
+        auth => root,
+        hostname => OpIpHost1Bin
+    },
+    {ok, ?HTTP_202_ACCEPTED, _, Resp} = panel_test_rest:post(
+        OpPanelNode1, <<"/provider/configuration">>, OpRequestOpts#{json => BatchConfig}
+    ),
+    TaskId = maps:get(<<"taskId">>, Resp),
+
+    ?assertMatch(
+        {ok, ?HTTP_200_OK, _, #{<<"status">> := <<"ok">>}},
+        panel_test_rest:get(OpPanelNode1, <<"/tasks/", TaskId/binary>>, OpRequestOpts),
+        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
+    ),
+
+    OneS3Port = panel_test_rpc:call(OpPanelNode1, service_ones3, get_port, []),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost1, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+
+
+%% @private
+ensure_etc_hosts_entries(Config) ->
+    OpPanelNodes = ?config(op_panel_nodes, Config),
+    OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+    [OpIpHost1Bin, OpIpHost2Bin] = lists:map(fun ip_test_utils:encode_ip/1, OpIps),
+
+    EntriesToAdd = lists:map(fun({Domain, Ip}) ->
+        str_utils:format_bin("~ts\t~ts", [Ip, Domain])
+    end, [
+        {get_domain(), OpIpHost1Bin},
+        {get_domain(), OpIpHost2Bin},
+        {get_s3_domain(), OpIpHost1Bin}
+    ]),
+
+    {ok, RawFile} = file:read_file("/etc/hosts"),
+    EntriesToPreserve = binary:split(RawFile, <<"\n">>, [global]),
+
+    {ok, File} = file:open("/etc/hosts", [write]),
+
+    lists:foreach(fun(Entry) ->
+        io:fwrite(File, "~ts~n", [Entry])
+    end, EntriesToPreserve ++ EntriesToAdd),
+
+    file:close(File).

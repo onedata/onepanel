@@ -46,7 +46,7 @@ all() -> [
 
 deploy_using_batch_config_test(Config) ->
     AdminUserId = oct_background:get_user_id(admin),
-    RegistrationToken = create_provider_registration_token(AdminUserId),
+    RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
 
     OpPanelNodes = ?config(op_panel_nodes, Config),
     [OpIpHost1, OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
@@ -69,7 +69,7 @@ deploy_using_batch_config_test(Config) ->
             },
             <<"managers">> => #{
                 <<"mainNode">> => <<"node-1">>,
-                <<"nodes">> => [<<"node-1">>]
+                <<"nodes">> => [<<"node-1">>, <<"node-2">>]
             },
             <<"workers">> => #{
                 <<"nodes">> => [<<"node-1">>]
@@ -140,20 +140,3 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
-
-
-%%%===================================================================
-%%% Helper functions
-%%%===================================================================
-
-
-%% @private
-create_provider_registration_token(AdminUserId) ->
-    Now = ozw_test_rpc:timestamp_seconds(),
-
-    Token = ozw_test_rpc:create_user_temporary_token(?USER(AdminUserId), AdminUserId, #{
-        <<"type">> => ?INVITE_TOKEN(?REGISTER_ONEPROVIDER, AdminUserId),
-        <<"caveats">> => [#cv_time{valid_until = Now + ?DEFAULT_TEMP_CAVEAT_TTL}]
-    }),
-    {ok, SerializedToken} = tokens:serialize(Token),
-    SerializedToken.
