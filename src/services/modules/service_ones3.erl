@@ -214,7 +214,8 @@ supports_letsencrypt_challenge(Challenge) ->
 reload_webcert(Ctx) ->
     % OneS3 can not live reload certs - it must be restarted
     ok = stop(Ctx),
-    ok = start(Ctx).
+    ok = start(Ctx),
+    ok = wait_for_init(Ctx).
 
 
 %%%===================================================================
