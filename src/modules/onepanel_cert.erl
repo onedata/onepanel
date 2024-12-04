@@ -218,7 +218,8 @@ list_certificate_files() ->
     lists:filter(fun filelib:is_regular/1, [
         onepanel_env:get(web_key_file),
         onepanel_env:get(web_cert_file),
-        onepanel_env:get(web_cert_chain_file)
+        onepanel_env:get(web_cert_chain_file),
+        onepanel_env:get(web_cert_full_chain_file)
         | filelib:wildcard([onepanel_env:get(letsencrypt_keys_dir), "/**"])
     ]).
 

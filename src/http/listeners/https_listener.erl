@@ -248,8 +248,9 @@ maybe_generate_test_cert() ->
                 "Use only for test purposes.~n"
                 "    ~ts~n"
                 "    ~ts~n"
+                "    ~ts~n"
                 "    ~ts",
-                [Domain, WebKeyPath, WebCertPath, WebChainPath]
+                [Domain, WebKeyPath, WebCertPath, WebChainPath, WebFullChainPath]
             ),
             % Do not generate new certificates upon listener restart
             onepanel_env:set(generate_test_web_cert, false),
