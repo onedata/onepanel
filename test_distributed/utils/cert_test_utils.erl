@@ -147,19 +147,24 @@ deploy_certs(EntitySelector, CertDirName, Config) ->
     Nodes = panel_test_utils:get_panel_nodes(EntitySelector),
     ExpResult = lists:duplicate(length(Nodes), ok),
 
-    lists:foreach(fun({FileType, Path}) ->
+    lists:foreach(fun
+        ({web_cert_full_chain_file, _Path}) when EntitySelector =:= zone ->
+            % Onezone does not use web_full_chain - only OneS3 needs it
+            ok;
 
-        {ok, Content} = file:read_file(?TEST_FILE(Config, Path)),
-        {Result, []} = utils:rpc_multicall(Nodes, erlang, apply, [fun() ->
-            Dest = onepanel_env:get(FileType),
-            file:write_file(Dest, Content)
-        end, []]),
-        ?assertEqual(ExpResult, Result)
+        ({FileType, Path}) ->
+            {ok, Content} = file:read_file(?TEST_FILE(Config, Path)),
+            {Result, []} = utils:rpc_multicall(Nodes, erlang, apply, [fun() ->
+                Dest = onepanel_env:get(FileType),
+                file:write_file(Dest, Content)
+            end, []]),
+            ?assertEqual(ExpResult, Result)
 
     end, [
         {web_cert_file, str_utils:format("~ts/web_cert.pem", [CertDirName])},
         {web_key_file, str_utils:format("~ts/web_key.pem", [CertDirName])},
-        {web_cert_chain_file, str_utils:format("~ts/web_chain.pem", [CertDirName])}
+        {web_cert_chain_file, str_utils:format("~ts/web_chain.pem", [CertDirName])},
+        {web_cert_full_chain_file, str_utils:format("~ts/web_full_chain.pem", [CertDirName])}
     ]),
 
     reload_certs(EntitySelector).
@@ -167,12 +172,23 @@ deploy_certs(EntitySelector, CertDirName, Config) ->
 
 -spec reload_certs(oct_background:entity_selector()) -> ok.
 reload_certs(EntitySelector) ->
+    PanelNodes = panel_test_utils:get_panel_nodes(EntitySelector),
+    case EntitySelector of
+        zone ->
+            ok;
+        _ ->
+            panel_test_rpc:call(?RAND_ELEMENT(PanelNodes), fun() ->
+                Ctx = #{hosts => service_ones3:get_hosts()},
+                service:apply_sync(?SERVICE_ONES3, reload_webcert, Ctx)
+            end)
+    end,
+
     lists:foreach(fun(Nodes) ->
         ExpResult = lists:duplicate(length(Nodes), ok),
         {Result, []} = utils:rpc_multicall(Nodes, https_listener, reload_web_certs, []),
         ?assertEqual(ExpResult, Result)
     end, [
-        panel_test_utils:get_panel_nodes(EntitySelector),
+        PanelNodes,
         panel_test_utils:get_worker_nodes(EntitySelector)
     ]).
 
