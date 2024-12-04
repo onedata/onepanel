@@ -170,7 +170,9 @@ init_per_suite(Config) ->
             {op_panel, onepanel, [
                 {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
                 % Increase certification attempts as pebble likes to fail from time to time
-                {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS}
+                {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS},
+
+                {ones3_verbose_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->
@@ -179,8 +181,9 @@ init_per_suite(Config) ->
             panel_test_rest:set_insecure_flag(),
             dns_test_utils:update_zone_subdomain_delegation(true),
 
+            add_op_etc_hosts_entries_on_testmaster(NewConfig),
+            add_op_etc_hosts_entries_on_ones3_node(NewConfig),
             NewConfig2 = perhaps_deploy(NewConfig),
-            ensure_etc_hosts_entries(NewConfig2),
             NewConfig2
         end
     }).
@@ -319,12 +322,11 @@ deploy_using_batch_config(Config) ->
     AdminUserId = oct_background:get_user_id(admin),
     RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
 
-    OpPanelNodes = ?config(op_panel_nodes, Config),
-    [OpIpHost1, _OpIpHost2] = OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+    [OpPanelNode1, OpPanelNode2] = OpPanelNodes = ?config(op_panel_nodes, Config),
+    [_OpIpHost1, OpIpHost2] = OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
     [OpIpHost1Bin, OpIpHost2Bin] = lists:map(fun ip_test_utils:encode_ip/1, OpIps),
     [OpHost1, OpHost2] = hosts:from_nodes(OpPanelNodes),
 
-    OpPanelNode1 = hd(OpPanelNodes),
     panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
     BatchConfig = #{
@@ -347,7 +349,7 @@ deploy_using_batch_config(Config) ->
                 <<"nodes">> => [<<"node-1">>]
             },
             <<"oneS3">> => #{
-                <<"nodes">> => [<<"node-1">>]
+                <<"nodes">> => [<<"node-2">>]
             },
             <<"databases">> => #{
                 <<"nodes">> => [<<"node-1">>]
@@ -380,31 +382,45 @@ deploy_using_batch_config(Config) ->
         ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
     ),
 
-    OneS3Port = panel_test_rpc:call(OpPanelNode1, service_ones3, get_port, []),
-    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost1, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+    OneS3Port = panel_test_rpc:call(OpPanelNode2, service_ones3, get_port, []),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 %% @private
-ensure_etc_hosts_entries(Config) ->
+add_op_etc_hosts_entries_on_testmaster(Config) ->
     OpPanelNodes = ?config(op_panel_nodes, Config),
-    OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
-    [OpIpHost1Bin, OpIpHost2Bin] = lists:map(fun ip_test_utils:encode_ip/1, OpIps),
+    [OpIpHost1, OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
 
-    EntriesToAdd = lists:map(fun({Domain, Ip}) ->
-        str_utils:format_bin("~ts\t~ts", [Ip, Domain])
-    end, [
-        {get_domain(), OpIpHost1Bin},
-        {get_domain(), OpIpHost2Bin},
-        {get_s3_domain(), OpIpHost1Bin}
-    ]),
+    add_entries_to_etc_hosts([
+        {get_domain(), OpIpHost1},
+        {get_domain(), OpIpHost2},
+        {get_s3_domain(), OpIpHost2}
+    ]).
+
+
+%% @private
+add_op_etc_hosts_entries_on_ones3_node(Config) ->
+    [_OpPanelNode1, OpPanelNode2] = OpPanelNodes = ?config(op_panel_nodes, Config),
+    [OpIpHost1, _OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+
+    EntriesToAdd = [{get_domain(), OpIpHost1}],
+    panel_test_rpc:call(OpPanelNode2, fun() -> add_entries_to_etc_hosts(EntriesToAdd) end).
+
+
+%% @private
+-spec add_entries_to_etc_hosts([{binary(), inet:ip_address()}]) -> ok.
+add_entries_to_etc_hosts(NewEntries) ->
+    LinesToAdd = lists:map(fun({Domain, Ip}) ->
+        str_utils:format_bin("~ts\t~ts", [ip_test_utils:encode_ip(Ip), Domain])
+    end, NewEntries),
 
     {ok, RawFile} = file:read_file("/etc/hosts"),
-    EntriesToPreserve = binary:split(RawFile, <<"\n">>, [global]),
+    LinesToPreserve = binary:split(RawFile, <<"\n">>, [global]),
 
     {ok, File} = file:open("/etc/hosts", [write]),
 
     lists:foreach(fun(Entry) ->
         io:fwrite(File, "~ts~n", [Entry])
-    end, EntriesToPreserve ++ EntriesToAdd),
+    end, LinesToPreserve ++ LinesToAdd),
 
     file:close(File).
