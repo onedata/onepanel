@@ -329,8 +329,12 @@ obtain_cert(Ctx) ->
     ok = letsencrypt_api:run_certification_flow(get_plugin_module()),
 
     case service_ones3:exists() of
-        true -> service:apply_sync(?SERVICE_ONES3, reload_webcert, #{});
-        false -> ok
+        true ->
+            service:apply_sync(?SERVICE_ONES3, reload_webcert, #{
+                hosts => service_ones3:get_hosts()
+            });
+        false ->
+            ok
     end,
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
     service:apply_sync(?SERVICE_PANEL, reload_webcert, #{}),

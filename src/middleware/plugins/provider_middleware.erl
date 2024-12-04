@@ -263,7 +263,8 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         {[oneprovider, geoLongitude], oneprovider_geo_longitude}
     ], Data, #{
         hosts => OpwHosts,
-        cluster_ips => ClusterIPs
+        cluster_ips => ClusterIPs,
+        deploy_ones3 => OneS3Hosts /= []
     }),
 
     CommonCtx = #{cluster => ClusterCtx, ?SERVICE_OP => OpwCtx},

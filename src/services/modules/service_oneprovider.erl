@@ -199,12 +199,13 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OPW, action = deploy, ctx = OpwCtx},
         S#step{service = ?SERVICE_OPW, function = status, ctx = OpwCtx},
-        Ss#steps{service = ?SERVICE_ONES3, action = create, ctx = OneS3Ctx},
+        Ss#steps{service = ?SERVICE_ONES3, action = create, ctx = OneS3Ctx,
+            condition = should_run_ones3_step(OpCtx)},
         S#step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
         Ss#steps{service = ?SERVICE_LE, action = deploy, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,
             args = [?PROGRESS_CLUSTER], hosts = [SelfHost]},
-        Ss#steps{action = register, ctx = OpCtx, condition = Register},
+        Ss#steps{action = register, ctx = OpCtx#{ones3_ctx => OneS3Ctx}, condition = Register},
         Ss#steps{service = ?SERVICE_OPW, action = add_storages, ctx = StorageCtx},
         Ss#steps{service = ?SERVICE_LE, action = update, ctx = LeCtx3},
         S#step{module = onepanel_deployment, function = set_marker,
@@ -215,10 +216,11 @@ get_steps(deploy, Ctx) ->
             end}
     ];
 
-get_steps(stop, _Ctx) ->
+get_steps(stop, Ctx) ->
     [
         #steps{service = ?SERVICE_ONES3, action = stop,
-            condition = fun(_) -> service_ones3:exists() end},
+            ctx = #{hosts => [service_ones3:get_hosts()]},
+            condition = should_run_ones3_step(Ctx)},
         #steps{service = ?SERVICE_OPW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
         #steps{service = ?SERVICE_CB, action = stop}
@@ -258,7 +260,8 @@ get_steps(manage_restart, Ctx) ->
             },
             #steps{service = ?SERVICE_OPW, action = finalize_resume},
             #steps{service = ?SERVICE_ONES3, action = resume,
-                condition = fun(_) -> service_ones3:exists() end},
+                ctx = #{hosts => [service_ones3:get_hosts()]},
+                condition = service_ones3:exists()},
             #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
             #steps{
@@ -278,10 +281,17 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_CM, action = status},
         #steps{service = ?SERVICE_OPW, action = status},
         #steps{service = ?SERVICE_ONES3, action = status,
-            condition = fun(_) -> service_ones3:exists() end}
+            ctx = #{hosts => [service_ones3:get_hosts()]},
+            condition = service_ones3:exists()}
     ];
 
-get_steps(register, #{hosts := _Hosts}) ->
+get_steps(register, Ctx = #{hosts := _Hosts}) ->
+    % In case of batch deployment 'ones3_ctx' is attached in 'deploy' step.
+    % As all steps are resolved before the first one is run, there are no
+    % ones3 hosts (service_ones3 is not yet created and has no hosts).
+    % In case of gui, step by step, deploy ones3 hosts can be fetched.
+    OneS3Ctx = maps:get(ones3_ctx, Ctx, #{hosts => service_ones3:get_hosts()}),
+
     [
         #step{function = resolve_registration_token, hosts = [hosts:self()]},
         #step{function = check_oz_availability, attempts = onepanel_env:get(connect_to_onezone_attempts)},
@@ -292,8 +302,9 @@ get_steps(register, #{hosts := _Hosts}) ->
             attempts = onepanel_env:get(connect_to_onezone_attempts)},
         #steps{action = set_cluster_ips},
         #steps{service = ?SERVICE_ONES3, action = resume,
+            ctx = OneS3Ctx,
             % Starting OneS3 requires registered Oneprovider
-            condition = fun(_) -> service_ones3:exists() end}
+            condition = should_run_ones3_step(Ctx)}
     ];
 get_steps(register, Ctx) ->
     get_steps(register, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
@@ -848,7 +859,7 @@ get_manual_storage_import_example(#{space_id := SpaceId}) ->
 set_cluster_ips(Ctx) ->
     ?info("Configuring provider ips"),
 
-    global:trans({set_cluster_ips, self()}, fun() ->
+    global:trans({set_cluster_ips, ?MODULE}, fun() ->
         CurrentOpwIps = maps:from_list(service_cluster_worker:get_hosts_ips(Ctx#{name => ?SERVICE_OPW})),
         CurrentOneS3Ips = maps:from_list(service_ones3:get_hosts_ips()),
         CurrentIps = maps_utils:undefined_to_null(maps:merge(CurrentOneS3Ips, CurrentOpwIps)),
@@ -1128,6 +1139,17 @@ store_absolute_auth_file_path() ->
 %%%===================================================================
 %%% Internal RPC functions
 %%%===================================================================
+
+
+%% @private
+-spec should_run_ones3_step(service:step_ctx()) -> boolean().
+should_run_ones3_step(Ctx) ->
+    % In case of batch deployment 'deploy_ctx' is attached in provider_middleware.
+    % As all steps are resolved before the first one is run, service_ones3
+    % does not exist yet, so checking it alone may fail.
+    % In case of gui, step by step, deploy ones3 hosts can be fetched.
+    maps:get(deploy_ones3, Ctx, false) orelse service_ones3:exists().
+
 
 %%--------------------------------------------------------------------
 %% @private
