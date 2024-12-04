@@ -72,8 +72,7 @@ stages:
         - dns_op
         - dns_oz
         - model
-# TODO VFS-12241 add ones3 deployment
-#        - le_op
+        - le_op
         - le_oz
         - rest_clusters
         - rest_onepanel
@@ -441,13 +440,12 @@ dns_oz:
     - <<: *ct_logs
       name: ct_logs_dns_oz.tar.gz
 
-# TODO VFS-12241 add ones3 deployment
-#le_op:
-#  <<: *ct-onenv-job
-#  key: LETSENCRYPTOP
-#  artifacts:
-#    - <<: *ct_logs
-#      name: ct_logs_le_op.tar.gz
+le_op:
+  <<: *ct-onenv-job
+  key: LETSENCRYPTOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_le_op.tar.gz
 
 le_oz:
   <<: *ct-onenv-job
@@ -620,8 +618,7 @@ Coverage report:
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz
     - artifact: ct_logs_dns_oz.tar.gz
-    # TODO VFS-12241 add ones3 deployment
-#    - artifact: ct_logs_le_op.tar.gz
+    - artifact: ct_logs_le_op.tar.gz
     - artifact: ct_logs_le_oz.tar.gz
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
