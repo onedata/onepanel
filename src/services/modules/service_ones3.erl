@@ -260,6 +260,7 @@ set_node_ip(Ctx) ->
 
     {ok, Ip} = case kv_utils:find([cluster_ips, Host], Ctx) of
         {ok, NewIp} ->
+            % TODO VFS-12379 ?PROGRESS_CLUSTER_IPS is set in cw also. Check if this can stay as is or should be done only once
             onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             ip_utils:to_ip4_address(NewIp);
         _ ->

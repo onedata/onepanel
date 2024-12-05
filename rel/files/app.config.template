@@ -385,7 +385,7 @@
         %% OneS3 configuration
         %% ===================================================================
 
-        {ones3_http_port, 6443},
+        {ones3_http_port, 4443},
 
         {ones3_verbose_log_level, 1},
 
