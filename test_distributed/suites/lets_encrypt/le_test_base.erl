@@ -395,20 +395,22 @@ automatic_certification_renewal_test_base(TestSpec = #le_test_spec{
         <<"status">> => <<"near_expiration">>,
         <<"letsEncrypt">> => true
     },
-    #{<<"creationTime">> := CertCreationTime} = cert_test_utils:assert_cert_details(
+    #{<<"lastRenewalSuccess">> := LastRenewalSuccessTime} = cert_test_utils:assert_cert_details(
         EntitySelector, ExpPebbleCertDetails
     ),
     PreFirstCertReloadSslCtx = start_ssl_conn(EntitySelector),
+    ?assert(LastRenewalSuccessTime == get_cert_Last_renewal_success_time(EntitySelector), ?ATTEMPTS),
     cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
-    ?assertNot(CertCreationTime == get_cert_creation_time(EntitySelector), ?ATTEMPTS),
+    ?assertNot(LastRenewalSuccessTime == get_cert_Last_renewal_success_time(EntitySelector), ?ATTEMPTS),
     check_ssl_conn_after_cert_reload(PreFirstCertReloadSslCtx, TestSpec),
 
-    #{<<"creationTime">> := CertCreationTime2} = cert_test_utils:assert_cert_details(
+    #{<<"lastRenewalSuccess">> := LastRenewalSuccessTime2} = cert_test_utils:assert_cert_details(
         EntitySelector, ExpPebbleCertDetails
     ),
     PreSecondCertReloadSslCtx = start_ssl_conn(EntitySelector),
+    ?assert(LastRenewalSuccessTime2 == get_cert_Last_renewal_success_time(EntitySelector), ?ATTEMPTS),
     cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
-    ?assertNot(CertCreationTime2 == get_cert_creation_time(EntitySelector), ?ATTEMPTS),
+    ?assertNot(LastRenewalSuccessTime2 == get_cert_Last_renewal_success_time(EntitySelector), ?ATTEMPTS),
     check_ssl_conn_after_cert_reload(PreSecondCertReloadSslCtx, TestSpec),
 
     ok.
@@ -457,9 +459,9 @@ failed_certification_attempt_leaves_lets_encrypt_intact_test_base(#le_test_spec{
 
 
 %% @private
--spec get_cert_creation_time(oct_background:entity_selector()) -> binary().
-get_cert_creation_time(EntitySelector) ->
-    maps:get(<<"creationTime">>, cert_test_utils:get_cert_details(EntitySelector)).
+-spec get_cert_Last_renewal_success_time(oct_background:entity_selector()) -> binary().
+get_cert_Last_renewal_success_time(EntitySelector) ->
+    maps:get(<<"lastRenewalSuccess">>, cert_test_utils:get_cert_details(EntitySelector)).
 
 
 %% @private
