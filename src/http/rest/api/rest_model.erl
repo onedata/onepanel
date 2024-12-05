@@ -1632,7 +1632,7 @@ web_cert_model() ->
         %% **DEPRECATED** The domain (Common Name) for which current certificate
         %% was issued.
         domain => string,
-        %% List of dns names included in certificate's Subject Alternative
+        %% List of DNS names included in certificate's Subject Alternative
         %% Name extension.
         dnsNames => {[string], optional},
         %% Issuer value of the current certificate.
@@ -2622,8 +2622,7 @@ nulldevice_model() ->
         %% \&quot;nulldevice\&quot;`  POSIX compatible storage which
         %% emulates behavior of `/dev/null` on local filesystem.
         %% Allows running various performance tests, which are not impacted by
-        %% actual storage latency. Skip storage detection option is obligatory
-        %% for this type of storage.
+        %% actual storage latency.
         type => {discriminator, <<"nulldevice">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2753,8 +2752,7 @@ nulldevice_modify_model() ->
         %% \&quot;nulldevice\&quot;`  POSIX compatible storage which
         %% emulates behavior of `/dev/null` on local filesystem.
         %% Allows running various performance tests, which are not impacted by
-        %% actual storage latency. Skip storage detection option is obligatory
-        %% for this type of storage.
+        %% actual storage latency.
         type => {discriminator, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.

@@ -159,7 +159,7 @@ failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
 
 
 init_per_suite(Config) ->
-    ModulesToLoad = [?MODULE, ip_test_utils, cert_test_utils],
+    ModulesToLoad = [?MODULE, le_test_base, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
         onenv_scenario = "1op_2nodes_not_deployed",
         envs = [

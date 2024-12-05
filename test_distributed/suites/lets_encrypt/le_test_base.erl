@@ -96,7 +96,7 @@ init_failed_certification_attempt_test(EntitySelector, LetsEncryptPolicy, Config
     cert_test_utils:deploy_certs(EntitySelector, ?PEBBLE_EXPIRED_CERT_DIR_NAME, Config),
 
     PanelNodes = panel_test_utils:get_panel_nodes(EntitySelector),
-    test_utils:mock_new(PanelNodes, [letsencrypt_api], [passthrough]),
+    test_utils:mock_new(PanelNodes, letsencrypt_api, [passthrough]),
     test_utils:mock_expect(PanelNodes, letsencrypt_api, run_certification_flow, fun(_) ->
         throw(?CERTIFICATION_FLOW_ERROR)
     end),
