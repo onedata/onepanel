@@ -13,12 +13,13 @@
 
 -behaviour(listener_behaviour).
 
--include("http/rest.hrl").
--include("names.hrl").
 -include("http/gui_paths.hrl").
--include_lib("gui/include/gui.hrl").
+-include("http/rest.hrl").
+-include("middleware/middleware.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/http/headers.hrl").
+-include_lib("gui/include/gui.hrl").
 
 -define(PORT, application:get_env(onepanel, rest_port, 443)).
 -define(ACCEPTORS_NUM, application:get_env(onepanel, rest_https_acceptors, 100)).
@@ -69,7 +70,7 @@ stop() ->
 %%--------------------------------------------------------------------
 -spec reload_web_certs() -> ok | {error, term()}.
 reload_web_certs() ->
-    gui:reload_web_certs(gui_config()).
+    gui:reload_web_certs(onepanel_env:get(web_cert_chain_file)).
 
 
 %%--------------------------------------------------------------------
@@ -115,6 +116,193 @@ gui_package_path() ->
 %%%===================================================================
 
 
+%% @private
+-spec gui_config() -> gui:gui_config().
+gui_config() ->
+    deploy_standalone_gui_files(),
+    prepare_test_env_certs(),
+
+    KeyFile = onepanel_env:get(web_key_file),
+    CertFile = onepanel_env:get(web_cert_file),
+    ChainFile = onepanel_env:get(web_cert_chain_file),
+    GuiStaticRoot = onepanel_env:get(gui_static_root),
+
+    CommonRoutes = lists:flatten([
+        cluster_rest_routes:routes(),
+        security_rest_routes:routes(),
+        dns_rest_routes:routes(),
+        current_user_rest_routes:routes(),
+        internal_rest_routes:routes()
+    ]),
+    SpecificRoutes = case onepanel_env:get_cluster_type() of
+        oneprovider ->
+            lists:flatten([
+                oneprovider_cluster_rest_routes:routes(),
+                oneprovider_identity_rest_routes:routes(),
+                storages_rest_routes:routes(),
+                storage_import_rest_routes:routes(),
+                space_support_rest_routes:routes(),
+                luma_db_rest_routes:routes(),
+                luma_db_local_feed_rest_routes:routes(),
+                file_popularity_rest_routes:routes(),
+                auto_cleaning_rest_routes:routes(),
+                debug_rest_routes:routes()
+            ]);
+        onezone ->
+            lists:flatten([
+                onezone_cluster_rest_routes:routes(),
+                service_configuration_rest_routes:routes(),
+                user_management_rest_routes:routes()
+            ])
+    end,
+    Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
+
+    DynamicPages = [
+        {?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration},
+        {?LOGIN_PATH, [<<"POST">>], page_basic_auth_login},
+        {?LOGOUT_PATH, [<<"POST">>], page_logout},
+        {?GUI_CONTEXT_PATH, [<<"GET">>], page_gui_context},
+        {?GUI_PREAUTHORIZE_PATH, [<<"POST">>], page_gui_preauthorize}
+    ],
+
+    #gui_config{
+        port = port(),
+        key_file = KeyFile,
+        cert_file = CertFile,
+        chain_file = ChainFile,
+        number_of_acceptors = ?ACCEPTORS_NUM,
+        request_timeout = ?REQUEST_TIMEOUT,
+        inactivity_timeout = ?INACTIVITY_TIMEOUT,
+        custom_cowboy_routes = Routes,
+        dynamic_pages = DynamicPages,
+        static_root = GuiStaticRoot
+    }.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Deploys standalone GUI - the GUI served by onepanel and reachable on port 9443.
+%% Static GUI files are taken from GUI package tarball.
+%% @end
+%%--------------------------------------------------------------------
+-spec deploy_standalone_gui_files() -> ok.
+deploy_standalone_gui_files() ->
+    utils:run_with_tempdir(fun(TempDir) ->
+        GuiRoot = onepanel_env:get(gui_static_root),
+        {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
+
+        file_utils:recursive_del(GuiRoot),
+        ok = file_utils:move(ExtractedPath, GuiRoot),
+        ?info("Deployed standalone GUI files in ~ts", [GuiRoot])
+    end),
+    ok.
+
+
+%% @private
+-spec prepare_test_env_certs() -> ok.
+prepare_test_env_certs() ->
+    maybe_generate_test_cert(),
+    maybe_trust_onedata_test_ca().
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Generates a new test web server cert, given that this option is enabled in
+%% env config. The generated cert should be used only for test purposes.
+%% NOTE: for multi-node onepanel cluster, each node will generate its own cert
+%% (for the same domain) - this is not a problem since these are test
+%% certificates.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_generate_test_cert() -> ok.
+maybe_generate_test_cert() ->
+    WebKeyPath = onepanel_env:get(web_key_file),
+    WebCertPath = onepanel_env:get(web_cert_file),
+    WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
+
+    case onepanel_env:get(generate_test_web_cert) of
+        false ->
+            ok;
+        true ->
+            % Back up any pre-existing certs
+            onepanel_cert:backup_exisiting_certs(),
+            % Both key and cert are expected in the same file
+            CAPath = onepanel_env:get(test_web_cert_ca_path),
+            Domain = str_utils:to_binary(onepanel_env:get(test_web_cert_domain)),
+            % At the time of starting listeners it may not be known which
+            % services will be started. Just in case generate cert for all of them
+            Subdomains = case onepanel_env:get_cluster_type() of
+                ?ONEPROVIDER ->
+                    [<<"s3.", Domain/binary>>];
+                ?ONEZONE ->
+                    []
+            end,
+            cert_utils:create_signed_webcert(
+                WebKeyPath, WebCertPath, Domain, Subdomains, CAPath, CAPath
+            ),
+            file:copy(CAPath, WebChainPath),
+            generate_web_full_chain(WebCertPath, WebChainPath, WebFullChainPath),
+            ?warning(
+                "Generated a new cert for domain '~ts'. "
+                "Use only for test purposes.~n"
+                "    ~ts~n"
+                "    ~ts~n"
+                "    ~ts~n"
+                "    ~ts",
+                [Domain, WebKeyPath, WebCertPath, WebChainPath, WebFullChainPath]
+            ),
+            % Do not generate new certificates upon listener restart
+            onepanel_env:set(generate_test_web_cert, false),
+            onepanel_env:write([?APP_NAME, generate_test_web_cert], false),
+            ok
+    end.
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Generate full chain containing beside chain certificates also leaf certificate.
+%% @end
+%%--------------------------------------------------------------------
+-spec generate_web_full_chain(file:filename_all(), file:filename_all(), file:filename_all()) ->
+    ok.
+generate_web_full_chain(WebCertPath, WebChainPath, WebFullChainPath) ->
+    CertDers = cert_utils:load_ders(WebCertPath),
+    ChainDers = cert_utils:load_ders(WebChainPath),
+    FullChainDers = CertDers ++ ChainDers,
+    FullChainPem = cert_utils:ders_to_pem(FullChainDers),
+    ok = file:write_file(WebFullChainPath, FullChainPem).
+
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Adds Onedata test CA to trusted certificates, given that this option is
+%% enabled in env config.
+%% @end
+%%--------------------------------------------------------------------
+-spec maybe_trust_onedata_test_ca() -> ok.
+maybe_trust_onedata_test_ca() ->
+    case onepanel_env:get(treat_test_ca_as_trusted) of
+        false ->
+            ok;
+        true ->
+            trust_onedata_test_ca()
+    end.
+
+
+%% @private
+-spec trust_onedata_test_ca() -> ok.
+trust_onedata_test_ca() ->
+    CaFilePath = onepanel_env:get(test_web_cert_ca_path),
+    CaFileName = filename:basename(CaFilePath),
+    TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), CaFileName),
+    file:copy(CaFilePath, TargetCaFilePath),
+
+    ?warning("Added '~ts' to trusted certificates. Use only for test purposes.", [CaFileName]),
+
+    ok.
+
+
 %%--------------------------------------------------------------------
 %% @private @doc Converts routes generated by swagger to format expected
 %% by cowboy router.
@@ -141,151 +329,3 @@ merge_routes(AllRoutes) ->
     lists:map(fun({Path, RoutesForPath}) ->
         {<<Prefix/binary, Path/binary>>, ?REST_HANDLER_MODULE, RoutesForPath}
     end, AggregatedRoutes).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc
-%% Deploys standalone GUI - the GUI served by onepanel and reachable on port 9443.
-%% Static GUI files are taken from GUI package tarball.
-%% @end
-%%--------------------------------------------------------------------
--spec deploy_standalone_gui_files() -> ok.
-deploy_standalone_gui_files() ->
-    utils:run_with_tempdir(fun(TempDir) ->
-        GuiRoot = onepanel_env:get(gui_static_root),
-        {ok, ExtractedPath} = gui:extract_package(gui_package_path(), TempDir),
-
-        file_utils:recursive_del(GuiRoot),
-        ok = file_utils:move(ExtractedPath, GuiRoot),
-        ?info("Deployed standalone GUI files in ~ts", [GuiRoot])
-    end),
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc
-%% Generates a new test web server cert, given that this option is enabled in
-%% env config. The generated cert should be used only for test purposes.
-%% NOTE: for multi-node onepanel cluster, each node will generate its own cert
-%% (for the same domain) - this is not a problem since these are test
-%% certificates.
-%% @end
-%%--------------------------------------------------------------------
--spec maybe_generate_web_cert() -> ok.
-maybe_generate_web_cert() ->
-    WebKeyPath = onepanel_env:get(web_key_file),
-    WebCertPath = onepanel_env:get(web_cert_file),
-    WebChainPath = onepanel_env:get(web_cert_chain_file),
-
-    case onepanel_env:get(generate_test_web_cert) of
-        false ->
-            ok;
-        true ->
-            % Back up any pre-existing certs
-            onepanel_cert:backup_exisiting_certs(),
-            % Both key and cert are expected in the same file
-            CAPath = onepanel_env:get(test_web_cert_ca_path),
-            Domain = str_utils:to_binary(onepanel_env:get(test_web_cert_domain)),
-            cert_utils:create_signed_webcert(
-                WebKeyPath, WebCertPath, Domain, CAPath, CAPath
-            ),
-            file:copy(CAPath, WebChainPath),
-            ?warning(
-                "Generated a new cert for domain '~ts'. "
-                "Use only for test purposes.~n"
-                "    ~ts~n"
-                "    ~ts~n"
-                "    ~ts",
-                [Domain, WebKeyPath, WebCertPath, WebChainPath]
-            ),
-            % Do not generate new certificates upon listener restart
-            onepanel_env:set(generate_test_web_cert, false),
-            onepanel_env:write([?APP_NAME, generate_test_web_cert], false),
-            ok
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc
-%% Adds Onedata test CA to trusted certificates, given that this option is
-%% enabled in env config.
-%% @end
-%%--------------------------------------------------------------------
--spec maybe_trust_test_ca() -> ok.
-maybe_trust_test_ca() ->
-    case onepanel_env:get(treat_test_ca_as_trusted) of
-        false ->
-            ok;
-        true ->
-            CAPath = onepanel_env:get(test_web_cert_ca_path),
-            CaFile = filename:basename(CAPath),
-            TargetCaFile = filename:join(onepanel_env:get(cacerts_dir), CaFile),
-            file:copy(CAPath, TargetCaFile),
-            ?warning("Added '~ts' to trusted certificates. Use only for test purposes.", [
-                CaFile
-            ])
-    end.
-
-
-%% @private
--spec gui_config() -> gui:gui_config().
-gui_config() ->
-    deploy_standalone_gui_files(),
-    maybe_generate_web_cert(),
-    maybe_trust_test_ca(),
-    KeyFile = onepanel_env:get(web_key_file),
-    CertFile = onepanel_env:get(web_cert_file),
-    ChainFile = onepanel_env:get(web_cert_chain_file),
-    GuiStaticRoot = onepanel_env:get(gui_static_root),
-
-    CommonRoutes = lists:flatten([
-        cluster_rest_routes:routes(),
-        security_rest_routes:routes(),
-        dns_rest_routes:routes(),
-        current_user_rest_routes:routes(),
-        internal_rest_routes:routes()
-    ]),
-
-    SpecificRoutes = case onepanel_env:get_cluster_type() of
-        oneprovider ->
-            lists:flatten([
-                oneprovider_cluster_rest_routes:routes(),
-                oneprovider_identity_rest_routes:routes(),
-                storages_rest_routes:routes(),
-                storage_import_rest_routes:routes(),
-                space_support_rest_routes:routes(),
-                luma_db_rest_routes:routes(),
-                luma_db_local_feed_rest_routes:routes(),
-                file_popularity_rest_routes:routes(),
-                auto_cleaning_rest_routes:routes(),
-                debug_rest_routes:routes()
-            ]);
-        onezone ->
-            lists:flatten([
-                onezone_cluster_rest_routes:routes(),
-                service_configuration_rest_routes:routes(),
-                user_management_rest_routes:routes()
-            ])
-    end,
-
-    Routes = merge_routes(CommonRoutes ++ SpecificRoutes),
-    DynamicPages = [
-        {?CONFIGURATION_PATH, [<<"GET">>], page_panel_configuration},
-        {?LOGIN_PATH, [<<"POST">>], page_basic_auth_login},
-        {?LOGOUT_PATH, [<<"POST">>], page_logout},
-        {?GUI_CONTEXT_PATH, [<<"GET">>], page_gui_context},
-        {?GUI_PREAUTHORIZE_PATH, [<<"POST">>], page_gui_preauthorize}
-    ],
-
-    #gui_config{
-        port = port(),
-        key_file = KeyFile,
-        cert_file = CertFile,
-        chain_file = ChainFile,
-        number_of_acceptors = ?ACCEPTORS_NUM,
-        request_timeout = ?REQUEST_TIMEOUT,
-        inactivity_timeout = ?INACTIVITY_TIMEOUT,
-        custom_cowboy_routes = Routes,
-        dynamic_pages = DynamicPages,
-        static_root = GuiStaticRoot
-    }.

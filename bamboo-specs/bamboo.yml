@@ -65,10 +65,16 @@ stages:
         - api_oneprovider_storages
         - api_onezone_service_configuration
         - api_onezone_user_management
+        - cluster_op_batch_deployment
+        - cluster_oz_batch_deployment
+        - cluster_misc
         - db_disk_usage_monitor
+        - dns_op
+        - dns_oz
         - model
+        - le_op
+        - le_oz
         - rest_clusters
-        - rest_letsencrypt
         - rest_onepanel
         - rest_onepanel_user
         - rest_oneprovider
@@ -392,12 +398,61 @@ api_onezone_user_management:
     - <<: *ct_logs
       name: ct_logs_api_onezone_user_management.tar.gz
 
+cluster_op_batch_deployment:
+  <<: *ct-onenv-job
+  key: CLUSTEROPBATCHDEPLOYMENT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_op_batch_deployment.tar.gz
+
+cluster_oz_batch_deployment:
+  <<: *ct-onenv-job
+  key: CLUSTEROZBATCHDEPLOYMENT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_oz_batch_deployment.tar.gz
+
+cluster_misc:
+  <<: *ct-onenv-job
+  key: CLUSTERMISC
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_misc.tar.gz
+
 db_disk_usage_monitor:
   <<: *ct-onenv-job
   key: DBDISKMONITOR
   artifacts:
     - <<: *ct_logs
       name: ct_logs_db_disk_usage_monitor.tar.gz
+
+dns_op:
+  <<: *ct-onenv-job
+  key: DNSOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_dns_op.tar.gz
+
+dns_oz:
+  <<: *ct-onenv-job
+  key: DNSOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_dns_oz.tar.gz
+
+le_op:
+  <<: *ct-onenv-job
+  key: LETSENCRYPTOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_le_op.tar.gz
+
+le_oz:
+  <<: *ct-onenv-job
+  key: LETSENCRYPTOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_le_oz.tar.gz
 
 model: &ct-job
   key: MOD
@@ -424,13 +479,6 @@ rest_clusters:
   artifacts:
     - <<: *ct_logs
       name: ct_logs_rest_clusters.tar.gz
-
-rest_letsencrypt:
-  <<: *ct-job
-  key: LE
-  artifacts:
-    - <<: *ct_logs
-      name: ct_logs_rest_letsencrypt.tar.gz
 
 rest_onepanel:
   <<: *ct-job
@@ -564,10 +612,16 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_storages.tar.gz
     - artifact: ct_logs_api_onezone_service_configuration.tar.gz
     - artifact: ct_logs_api_onezone_user_management.tar.gz
+    - artifact: ct_logs_cluster_op_batch_deployment.tar.gz
+    - artifact: ct_logs_cluster_oz_batch_deployment.tar.gz
+    - artifact: ct_logs_cluster_misc.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
+    - artifact: ct_logs_dns_op.tar.gz
+    - artifact: ct_logs_dns_oz.tar.gz
+    - artifact: ct_logs_le_op.tar.gz
+    - artifact: ct_logs_le_oz.tar.gz
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
-    - artifact: ct_logs_rest_letsencrypt.tar.gz
     - artifact: ct_logs_rest_onepanel.tar.gz
     - artifact: ct_logs_rest_onepanel_user.tar.gz
     - artifact: ct_logs_rest_oneprovider.tar.gz

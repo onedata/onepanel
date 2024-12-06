@@ -60,7 +60,7 @@
     import_files/1]).
 
 %% Private function exported for rpc
--export([local_cert_status/1, is_local_cert_letsencrypt/0]).
+-export([local_cert_status/0, is_local_cert_letsencrypt/0]).
 
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
@@ -72,6 +72,8 @@
     ?APP_NAME, web_cert_renewal_days, 7) * 24 * 3600).
 -define(CERTIFICATION_ATTEMPTS, application:get_env(
     ?APP_NAME, letsencrypt_attempts, 1)).
+
+-define(TEST_CA_FILE_NAME, "LetsEncryptTestRootCa.pem").
 
 -type status() :: regenerating | valid | near_expiration
 | expired | domain_mismatch | unknown.
@@ -160,6 +162,8 @@ get_steps(import_files, #{reference_host := _}) ->
 %%--------------------------------------------------------------------
 -spec create(#{letsencrypt_plugin := service:name(), _ => _}) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
+    onepanel_env:get(treat_test_ca_as_trusted) andalso trust_test_ca(),
+
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
     ServiceCtx = #{
         letsencrypt_plugin => Plugin,
@@ -169,6 +173,20 @@ create(#{letsencrypt_plugin := Plugin}) ->
         {ok, _} -> ok;
         ?ERR_ALREADY_EXISTS -> ok
     end.
+
+
+%% @private
+-spec trust_test_ca() -> ok.
+trust_test_ca() ->
+    Nodes = nodes:all(?SERVICE_PANEL),
+    TestCaPem = letsencrypt_api:get_root_ca(),
+    TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME),
+    ok = utils:save_file_on_hosts(Nodes, TargetCaFilePath, TestCaPem),
+
+    ?warning(
+        "Added '~ts' to trusted certificates. Use only for test purposes.",
+        [?TEST_CA_FILE_NAME]
+    ).
 
 
 %%--------------------------------------------------------------------
@@ -212,6 +230,7 @@ get_details() ->
     {ok, Cert} = onepanel_cert:read(?CERT_PATH),
     {Since, Until} = onepanel_cert:get_times(Cert),
     Domain = onepanel_cert:get_subject_cn(Cert),
+    DnsNames = lists:sort(onepanel_cert:get_dns_names(Cert)),
     Issuer = onepanel_cert:get_issuer_cn(Cert),
 
     Optional = case Enabled of
@@ -221,7 +240,6 @@ get_details() ->
         };
         false -> #{}
     end,
-
 
     Optional#{
         letsEncrypt => is_enabled(#{}),
@@ -233,6 +251,7 @@ get_details() ->
             chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary))
         },
         domain => Domain,
+        dnsNames => DnsNames,
         issuer => Issuer,
         status => Status
     }.
@@ -299,9 +318,6 @@ is_enabled(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec obtain_cert(#{renewal => boolean(), _ => _}) -> ok | no_return().
 obtain_cert(Ctx) ->
-    Plugin = get_plugin_module(),
-    <<Domain/binary>> = Plugin:get_domain(),
-
     case maps:get(renewal, Ctx, false) of
         false ->
             onepanel_cert:backup_exisiting_certs();
@@ -310,16 +326,18 @@ obtain_cert(Ctx) ->
             ok
     end,
 
-    ok = letsencrypt_api:run_certification_flow(Domain, get_plugin_module()),
+    ok = letsencrypt_api:run_certification_flow(get_plugin_module()),
 
+    case service_ones3:exists() of
+        true ->
+            service:apply_sync(?SERVICE_ONES3, reload_webcert, #{
+                hosts => service_ones3:get_hosts()
+            });
+        false ->
+            ok
+    end,
     service:apply_sync(get_plugin_name(), reload_webcert, #{}),
-
-    % Reloading webcerts stops https_listener and kills all connections. To ensure
-    % that response to PATCH /web_certs is sent rather than doing it synchronously
-    % spawn separate process that will do it with delay
-    timer:apply_after(timer:seconds(5), service, apply_sync, [
-        ?SERVICE_PANEL, reload_webcert, #{}
-    ]),
+    service:apply_sync(?SERVICE_PANEL, reload_webcert, #{}),
 
     ok.
 
@@ -398,9 +416,8 @@ global_cert_status() ->
         true -> regenerating;
         _ ->
             Nodes = get_nodes(),
-            Domain = (get_plugin_module()):get_domain(),
             lists_utils:foldl_while(fun(Node, _) ->
-                case rpc:call(Node, ?MODULE, local_cert_status, [Domain]) of
+                case rpc:call(Node, ?MODULE, local_cert_status, []) of
                     valid -> {cont, valid};
                     Problem -> {halt, Problem}
                 end
@@ -414,10 +431,10 @@ global_cert_status() ->
 %% Checks cert status on the current node.
 %% @end
 %%--------------------------------------------------------------------
--spec local_cert_status(ExpectedDomain :: binary()) -> status().
-local_cert_status(ExpectedDomain) ->
+-spec local_cert_status() -> status().
+local_cert_status() ->
     case onepanel_cert:read(?CERT_PATH) of
-        {ok, Cert} -> cert_status(Cert, ExpectedDomain);
+        {ok, Cert} -> cert_status(Cert);
         {error, _} -> unknown
     end.
 
@@ -428,14 +445,30 @@ local_cert_status(ExpectedDomain) ->
 %% Checks status of given cert.
 %% @end
 %%--------------------------------------------------------------------
--spec cert_status(Cert :: onepanel_cert:cert(), ExpectedDomain :: binary()) ->
-    status().
-cert_status(Cert, ExpectedDomain) ->
-    case onepanel_cert:verify_hostname(Cert, ExpectedDomain) of
+-spec cert_status(onepanel_cert:cert()) -> status().
+cert_status(Cert) ->
+    case dns_names_status(Cert) of
         error -> unknown;
         invalid -> domain_mismatch;
         valid -> expiration_status(Cert)
     end.
+
+
+%% @private
+-spec dns_names_status(Cert :: onepanel_cert:cert()) -> valid | invalid | error.
+dns_names_status(Cert) ->
+    Domain = (get_plugin_module()):get_domain(),
+    DnsNames = case service_ones3:exists() of
+        true -> [Domain, service_ones3:get_domain()];
+        false -> [Domain]
+    end,
+
+    lists_utils:foldl_while(fun
+        (DnsName, valid) ->
+            {cont, onepanel_cert:verify_hostname(Cert, DnsName)};
+        (_, Acc) ->
+            {halt, Acc}
+    end, valid, DnsNames).
 
 
 %% @private

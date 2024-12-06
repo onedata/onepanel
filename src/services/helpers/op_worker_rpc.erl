@@ -145,12 +145,10 @@
 -export([get_space_dir_stats_service_status/2]).
 -export([get_provider_details/0, get_provider_details/1]).
 -export([is_subdomain_delegated/0, is_subdomain_delegated/1]).
--export([set_delegated_subdomain/1, set_delegated_subdomain/2]).
--export([set_domain/1, set_domain/2]).
+-export([update_domain_config/1, update_domain_config/2]).
 -export([space_quota_current_size/1, space_quota_current_size/2]).
 -export([update_space_support_size/2, update_space_support_size/3]).
 -export([update_space_support_parameters/3]).
--export([update_subdomain_delegation_ips/0, update_subdomain_delegation_ips/1]).
 -export([force_oz_connection_start/0, force_oz_connection_start/1]).
 -export([provider_auth_save/2, provider_auth_save/3]).
 -export([get_root_token_file_path/0, get_root_token_file_path/1]).
@@ -163,7 +161,7 @@
 -export([storage_import_get_info/1, storage_import_get_info/2]).
 -export([storage_import_get_manual_example/1, storage_import_get_manual_example/2]).
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
--export([set_txt_record/3, set_txt_record/4]).
+-export([update_txt_records/1, update_txt_records/2]).
 -export([remove_txt_record/1, remove_txt_record/2]).
 
 %%%===================================================================
@@ -833,24 +831,14 @@ is_subdomain_delegated(Node) ->
     ?CALL(Node, []).
 
 
--spec set_delegated_subdomain(binary()) ->
-    ok | {error, subdomain_exists} | {error, term()}.
-set_delegated_subdomain(Subdomain) ->
-    ?CALL([Subdomain]).
-
--spec set_delegated_subdomain(node(), binary()) ->
-    ok | {error, subdomain_exists} | {error, term()}.
-set_delegated_subdomain(Node, Subdomain) ->
-    ?CALL(Node, [Subdomain]).
+-spec update_domain_config(json_utils:json_map()) -> ok | errors:error().
+update_domain_config(Data) ->
+    ?CALL([Data]).
 
 
--spec set_domain(binary()) -> ok | {error, term()}.
-set_domain(Domain) ->
-    ?CALL([Domain]).
-
--spec set_domain(node(), binary()) -> ok | {error, term()}.
-set_domain(Node, Domain) ->
-    ?CALL(Node, [Domain]).
+-spec update_domain_config(node(), json_utils:json_map()) -> ok | errors:error().
+update_domain_config(Node, Data) ->
+    ?CALL(Node, [Data]).
 
 
 -spec space_quota_current_size(space_quota_id()) -> non_neg_integer().
@@ -877,15 +865,6 @@ update_space_support_size(Node, SpaceId, NewSupportSize) ->
     ok | errors:error().
 update_space_support_parameters(Node, SpaceId, SupportOpts) ->
     ?CALL(Node, [SpaceId, SupportOpts]).
-
-
--spec update_subdomain_delegation_ips() -> ok | error.
-update_subdomain_delegation_ips() ->
-    ?CALL([]).
-
--spec update_subdomain_delegation_ips(node()) -> ok | error.
-update_subdomain_delegation_ips(Node) ->
-    ?CALL(Node, []).
 
 
 -spec autocleaning_list_reports(od_space_id(),
@@ -1064,15 +1043,14 @@ restart_rtransfer_link(Node) ->
     ?CALL(Node, []).
 
 
--spec set_txt_record(Name :: binary(), Content :: binary(),
-    TTL :: time:seconds() | undefined) -> ok | no_return().
-set_txt_record(Name, Content, TTL) ->
-    ?CALL([Name, Content, TTL]).
+-spec update_txt_records(map()) -> ok | no_return().
+update_txt_records(Data) ->
+    ?CALL([Data]).
 
--spec set_txt_record(node(), Name :: binary(), Content :: binary(),
-    TTL :: time:seconds() | undefined) -> ok | no_return().
-set_txt_record(Node, Name, Content, TTL) ->
-    ?CALL(Node, [Name, Content, TTL]).
+
+-spec update_txt_records(node(), map()) -> ok | no_return().
+update_txt_records(Node, Data) ->
+    ?CALL(Node, [Data]).
 
 
 -spec remove_txt_record(Name :: binary()) -> ok | no_return().

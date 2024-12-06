@@ -21,20 +21,20 @@
     auto_storage_import_stats_model/0,
     block_devices_model/0,
     block_devices_block_devices_model/0,
-    cluster_configuration_details_model/0,
     cluster_databases_model/0,
     cluster_details_model/0,
     cluster_ips_model/0,
     cluster_managers_model/0,
     cluster_members_summary_model/0,
+    cluster_one_s3_model/0,
     cluster_workers_model/0,
     configuration_model/0,
     current_user_model/0,
     data_usage_model/0,
     database_hosts_model/0,
-    dns_check_model/0,
     dns_check_configuration_model/0,
     dns_check_result_model/0,
+    dns_check_summary_model/0,
     emergency_passphrase_change_request_model/0,
     emergency_passphrase_status_model/0,
     error_model/0,
@@ -56,6 +56,7 @@
     manual_storage_import_example_model/0,
     modify_cluster_ips_model/0,
     node_model/0,
+    one_s3_hosts_model/0,
     onezone_info_model/0,
     onezone_user_model/0,
     onezone_user_create_request_model/0,
@@ -65,6 +66,7 @@
     progress_model/0,
     progress_modify_model/0,
     provider_cluster_configuration_model/0,
+    provider_cluster_configuration_details_model/0,
     provider_configuration_model/0,
     provider_configuration_details_model/0,
     provider_configuration_details_oneprovider_model/0,
@@ -107,6 +109,7 @@
     web_cert_paths_model/0,
     worker_hosts_model/0,
     zone_cluster_configuration_model/0,
+    zone_cluster_configuration_details_model/0,
     zone_cluster_configuration_nodes_model/0,
     zone_configuration_model/0,
     zone_configuration_details_model/0,
@@ -272,23 +275,6 @@ block_devices_block_devices_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc The cluster configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec cluster_configuration_details_model() -> onepanel_parser:object_spec().
-cluster_configuration_details_model() ->
-    #{
-        %% Host responsible for deploying cluster and coordinating cluster
-        %% restarts.
-        master => string,
-        %% List of hosts belonging to the Onepanel cluster.
-        hosts => [string],
-        databases => database_hosts_model(),
-        managers => manager_hosts_model(),
-        workers => worker_hosts_model()
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc The cluster database service configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -375,6 +361,17 @@ cluster_members_summary_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The OneS3 service configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec cluster_one_s3_model() -> onepanel_parser:object_spec().
+cluster_one_s3_model() ->
+    #{
+        %% The list of aliases of OneS3 nodes.
+        nodes => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc The cluster worker service configuration.
 %% @end
 %%--------------------------------------------------------------------
@@ -435,26 +432,6 @@ database_hosts_model() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @doc Gathers results of DNS checks for various aspects of the cluster domain.
-%% Both Oneprovider and Onezone return field 'domain' for checking if
-%% cluster's domain can be resolved. In Onezone there is additional field
-%% 'dnsZone' for checking whether DNS zone management for the
-%% Onezone's domain has been delegated to Onezone server (SOA and NS
-%% records) allowing for subdomain delegation. If the cluster is configured with
-%% an IP neither 'domain' nor 'dnsZone' is returned.
-%% @end
-%%--------------------------------------------------------------------
--spec dns_check_model() -> onepanel_parser:object_spec().
-dns_check_model() ->
-    #{
-        domain => {dns_check_result_model(), optional},
-        dnsZone => {dns_check_result_model(), optional},
-        %% Time at which the DNS check was perfmormed. Formatted according to
-        %% ISO 8601.
-        timestamp => string
-    }.
-
-%%--------------------------------------------------------------------
 %% @doc Configuration of the 'dns_check' method calls.
 %% @end
 %%--------------------------------------------------------------------
@@ -495,6 +472,29 @@ dns_check_result_model() ->
         %% List of suggested DNS records to set at your DNS provider to fulfill
         %% this check. Each record is provided in the format of BIND server.
         recommended => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc Gathers results of DNS checks for various aspects of the cluster domain.
+%% Both Oneprovider and Onezone return field 'domain' for checking if
+%% cluster's domain can be resolved. In Oneprovider there may be additional
+%% field 'oneS3Subdomain' for checking if  OneS3 domain can be resolved
+%% if said service is enabled. In Onezone there is additional field
+%% 'dnsZone' for checking whether DNS zone management for the
+%% Onezone's domain has been delegated to Onezone server (SOA and NS
+%% records) allowing for subdomain delegation. If the cluster is configured with
+%% an IP neither 'domain' nor 'dnsZone' is returned.
+%% @end
+%%--------------------------------------------------------------------
+-spec dns_check_summary_model() -> onepanel_parser:object_spec().
+dns_check_summary_model() ->
+    #{
+        domain => {dns_check_result_model(), optional},
+        oneS3Subdomain => {dns_check_result_model(), optional},
+        dnsZone => {dns_check_result_model(), optional},
+        %% Time at which the DNS check was perfmormed. Formatted according to
+        %% ISO 8601.
+        timestamp => string
     }.
 
 %%--------------------------------------------------------------------
@@ -738,6 +738,17 @@ node_model() ->
     }.
 
 %%--------------------------------------------------------------------
+%% @doc The OneS3 service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec one_s3_hosts_model() -> onepanel_parser:object_spec().
+one_s3_hosts_model() ->
+    #{
+        %% The list of service hosts.
+        hosts => [string]
+    }.
+
+%%--------------------------------------------------------------------
 %% @doc Information which can be obtained about remote Onezone.
 %% @end
 %%--------------------------------------------------------------------
@@ -890,8 +901,27 @@ provider_cluster_configuration_model() ->
         nodes => #{'_' => zone_cluster_configuration_nodes_model()},
         databases => cluster_databases_model(),
         managers => cluster_managers_model(),
+        oneS3 => {cluster_one_s3_model(), optional},
         workers => cluster_workers_model(),
         storages => {storage_create_request_model(), optional}
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The provider cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec provider_cluster_configuration_details_model() -> onepanel_parser:object_spec().
+provider_cluster_configuration_details_model() ->
+    #{
+        %% Host responsible for deploying cluster and coordinating cluster
+        %% restarts.
+        master => string,
+        %% List of hosts belonging to the Onepanel cluster.
+        hosts => [string],
+        databases => database_hosts_model(),
+        managers => manager_hosts_model(),
+        oneS3 => one_s3_hosts_model(),
+        workers => worker_hosts_model()
     }.
 
 %%--------------------------------------------------------------------
@@ -913,7 +943,7 @@ provider_configuration_model() ->
 -spec provider_configuration_details_model() -> onepanel_parser:object_spec().
 provider_configuration_details_model() ->
     #{
-        cluster => cluster_configuration_details_model(),
+        cluster => provider_cluster_configuration_details_model(),
         oneprovider => {provider_configuration_details_oneprovider_model(), optional}
     }.
 
@@ -1475,8 +1505,8 @@ storage_import_model() ->
         %% `manual` mode, the files must be registered manually by the
         %% space users with REST API. Registration of directories is not
         %% supported. For more info please read:
-        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag
-        %% /File-registration
+        %% https://onedata.org/#/home/api/stable/oneprovider?anchor=tag/File-
+        %% registration
         mode => {{enum, string, [<<"auto">>, <<"manual">>]}, {optional, <<"auto">>}},
         autoStorageImportConfig => {auto_storage_import_config_model(), optional}
     }.
@@ -1599,8 +1629,12 @@ web_cert_model() ->
         %% Describes certificate validity status.
         status => {enum, string, [<<"valid">>, <<"near_expiration">>, <<"expired">>, <<"domain_mismatch">>, <<"regenerating">>, <<"unknown">>]},
         paths => {web_cert_paths_model(), optional},
-        %% The domain (Common Name) for which current certificate was issued.
+        %% **DEPRECATED** The domain (Common Name) for which current certificate
+        %% was issued.
         domain => string,
+        %% List of DNS names included in certificate's Subject Alternative
+        %% Name extension.
+        dnsNames => {[string], optional},
         %% Issuer value of the current certificate.
         issuer => string,
         %% Date and time in ISO 8601 format. Represents last successful
@@ -1670,6 +1704,23 @@ zone_cluster_configuration_model() ->
         workers => cluster_workers_model()
     }.
 
+%%--------------------------------------------------------------------
+%% @doc The cluster configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec zone_cluster_configuration_details_model() -> onepanel_parser:object_spec().
+zone_cluster_configuration_details_model() ->
+    #{
+        %% Host responsible for deploying cluster and coordinating cluster
+        %% restarts.
+        master => string,
+        %% List of hosts belonging to the Onepanel cluster.
+        hosts => [string],
+        databases => database_hosts_model(),
+        managers => manager_hosts_model(),
+        workers => worker_hosts_model()
+    }.
+
 -spec zone_cluster_configuration_nodes_model() -> onepanel_parser:object_spec().
 zone_cluster_configuration_nodes_model() ->
     #{
@@ -1698,7 +1749,7 @@ zone_configuration_model() ->
 -spec zone_configuration_details_model() -> onepanel_parser:object_spec().
 zone_configuration_details_model() ->
     #{
-        cluster => cluster_configuration_details_model(),
+        cluster => zone_cluster_configuration_details_model(),
         onezone => {zone_configuration_details_onezone_model(), optional}
     }.
 
@@ -2571,8 +2622,7 @@ nulldevice_model() ->
         %% \&quot;nulldevice\&quot;`  POSIX compatible storage which
         %% emulates behavior of `/dev/null` on local filesystem.
         %% Allows running various performance tests, which are not impacted by
-        %% actual storage latency. Skip storage detection option is obligatory
-        %% for this type of storage.
+        %% actual storage latency.
         type => {discriminator, <<"nulldevice">>},
         %% Storage operation timeout in milliseconds.
         timeout => {integer, optional},
@@ -2702,8 +2752,7 @@ nulldevice_modify_model() ->
         %% \&quot;nulldevice\&quot;`  POSIX compatible storage which
         %% emulates behavior of `/dev/null` on local filesystem.
         %% Allows running various performance tests, which are not impacted by
-        %% actual storage latency. Skip storage detection option is obligatory
-        %% for this type of storage.
+        %% actual storage latency.
         type => {discriminator, <<"nulldevice">>},
         %% Minimum latency in milliseconds, which should be simulated for
         %% selected operations.
