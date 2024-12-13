@@ -257,12 +257,16 @@ set_service_circuit_breaker_state(State) ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
     ?catch_exceptions(onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
     ClusterType = onepanel_env:get_cluster_type(),
-    ServiceName = onedata:service_by_type(ClusterType, worker),
-    ServiceNodes = case ClusterType of
-        ?ONEZONE ->  service_oz_worker:get_nodes();
-        ?ONEPROVIDER -> service_op_worker:get_nodes()
+    case ClusterType of
+        ?ONEZONE ->
+            lists:map(fun(Node) ->
+                oz_worker_rpc:circuit_breaker_toggle(Node, State)
+            end, service_oz_worker:get_nodes());
+        ?ONEPROVIDER ->
+            lists:map(fun(Node) ->
+                op_worker_rpc:circuit_breaker_toggle(Node, State)
+            end, service_op_worker:get_nodes())
     end,
-    ?catch_exceptions(onepanel_env:set_remote(ServiceNodes, [service_circuit_breaker_state], State, ServiceName)),
     ok.
 
 

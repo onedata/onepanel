@@ -71,6 +71,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test(_Config) ->
 %% @private
 -spec db_disk_usage_periodic_check_test_base(oct_background:node()) -> ok.
 db_disk_usage_periodic_check_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -90,6 +91,7 @@ db_disk_usage_periodic_check_test_base(Service) ->
 %% @private
 -spec panel_rest_block_test_base(oct_background:node()) -> ok.
 panel_rest_block_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -135,6 +137,7 @@ panel_rest_block_test_base(Service) ->
 %% @private
 -spec worker_rest_block_test_base(oct_background:node()) -> ok.
 worker_rest_block_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -162,6 +165,7 @@ worker_rest_block_test_base(Service) ->
 %% @private
 -spec reliability_of_service_circuit_breaker_state_variable_setting_test_base(oct_background:node()) -> ok.
 reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -171,8 +175,11 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
     assert_cluster_wide_circuit_breaker_state(closed, Service),
 
-    test_utils:mock_new(TargetPanelNodes, [onepanel_env]),
-    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(error({badrpc, nodedown})) end),
+%%    test_utils:mock_new(TargetPanelNodes, [onepanel_env]),
+%%    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(error({badrpc, nodedown})) end),
+%%    TODO mock per Service
+    mock_new_circuit_breaker_toggle(Service, TargetPanelNodes),
+    mock_expect_circuit_breaker_toggle(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
 
     assert_panel_service_circuit_breaker_state(open, Service),
@@ -189,7 +196,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     set_worker_env(TargetPanelNodes, service_circuit_breaker_state, closed, Service),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
-    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(error({badrpc, nodedown})) end),
+    mock_expect_circuit_breaker_toggle(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
 
     assert_panel_service_circuit_breaker_state(closed, Service),
@@ -299,4 +306,24 @@ get_worker_env(Node, Env, Service, Value) ->
 %% @private
 set_worker_env(Node, Env, Service, Value) ->
     onepanel_env:set_remote(Node, [Env], Value, Service).
+
+
+%% @private
+mock_new_circuit_breaker_toggle(op_worker, TargetPanelNodes) ->
+    test_utils:mock_new(TargetPanelNodes, [op_worker_rpc]);
+mock_new_circuit_breaker_toggle(oz_worker, TargetPanelNodes) ->
+    test_utils:mock_new(TargetPanelNodes, [oz_worker_rpc]).
+
+
+%% @private
+mock_expect_circuit_breaker_toggle(op_worker, TargetPanelNodes) ->
+    test_utils:mock_expect(
+        TargetPanelNodes, op_worker_rpc, circuit_breaker_toggle,
+        fun(_, _) -> throw(error({badrpc, nodedown})) end
+    );
+mock_expect_circuit_breaker_toggle(oz_worker, TargetPanelNodes) ->
+    test_utils:mock_expect(
+        TargetPanelNodes, oz_worker_rpc, circuit_breaker_toggle,
+        fun(_, _) -> throw(error({badrpc, nodedown})) end
+    ).
 

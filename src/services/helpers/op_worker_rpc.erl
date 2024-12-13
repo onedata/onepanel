@@ -163,6 +163,7 @@
 -export([restart_rtransfer_link/0, restart_rtransfer_link/1]).
 -export([update_txt_records/1, update_txt_records/2]).
 -export([remove_txt_record/1, remove_txt_record/2]).
+-export([circuit_breaker_toggle/2]).
 
 %%%===================================================================
 %%% API functions
@@ -1060,3 +1061,8 @@ remove_txt_record(Name) ->
 -spec remove_txt_record(node(), Name :: binary()) -> ok | no_return().
 remove_txt_record(Node, Name) ->
     ?CALL(Node, [Name]).
+
+
+-spec circuit_breaker_toggle(node(), open | closed) -> ok.
+circuit_breaker_toggle(Node, State) ->
+    ?CALL(Node, [State]).
