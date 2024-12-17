@@ -47,7 +47,7 @@
 
 -define(WARNING_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_warning_threshold, 0.45)).
 -define(ALERT_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_alert_threshold, 0.75)).
--define(CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD, application:get_env(
+-define(CIRCUIT_BREAKER_ACTIVATION_THRESHOLD, application:get_env(
     ?APP_NAME, db_disk_usage_circuit_breaker_activation_threshold, 0.9
 )).
 
@@ -103,8 +103,8 @@ run_periodic_check() ->
         Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
         Results = utils:erpc_multicall(Nodes, fun check_usage_on_host/0),
         CircuitBreakerState = get_service_circuit_breaker_state(),
-        NewCircuitBreakerState = handle_offenders(
-            CircuitBreakerState, group_offenders(lists:zip(Hosts, Results))
+        NewCircuitBreakerState = handle_state_transition(
+            CircuitBreakerState, group_cb_hosts_by_thresholds(lists:zip(Hosts, Results))
         ),
         set_service_circuit_breaker_state(NewCircuitBreakerState),
         true
@@ -138,7 +138,12 @@ get_db_root_dir_size() ->
 -spec parse_du_cmd_output(binary()) -> non_neg_integer() | no_return().
 parse_du_cmd_output(DuOutput) ->
     {match, [SizeStr]} = re:run(DuOutput, "^(?P<size>\\d+)\t.*$", [{capture, [size], list}]),
-    list_to_integer(SizeStr).
+    Size = list_to_integer(SizeStr),
+    case Size =< 0 of
+        true -> ?warning(?autoformat_with_msg("Got an unexpected result from the du command", [DuOutput]));
+        false -> ok
+    end,
+    Size.
 
 
 %% @private
@@ -152,17 +157,23 @@ get_available_disk_size() ->
 -spec parse_df_cmd_output(binary()) -> non_neg_integer() | no_return().
 parse_df_cmd_output(DfOutput) ->
     {match, [SizeStr]} = re:run(DfOutput, "^\s*Avail\n(?P<size>\\d+)$", [{capture, [size], list}]),
-    list_to_integer(SizeStr).
+    Size = list_to_integer(SizeStr),
+    case Size < 0 of
+        true -> ?warning(?autoformat_with_msg("Got an unexpected result from the df command", [DfOutput]));
+        false -> ok
+    end,
+    Size.
 
 
 %% @private
--spec group_offenders([{service:host(), {ok, usage_info()} | term()}]) ->
+-spec group_cb_hosts_by_thresholds([{service:host(), {ok, usage_info()} | term()}]) ->
     #{atom() => [{service:host(), usage_info()}]}.
-group_offenders(ResultPerHost) ->
+group_cb_hosts_by_thresholds(ResultPerHost) ->
     ThresholdsByPriority = [
-        {circuit_breaker_activation_threshold, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD},
+        {circuit_breaker_activation_threshold, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD},
         {alert_threshold, ?ALERT_THRESHOLD},
-        {warning_threshold, ?WARNING_THRESHOLD}
+        {warning_threshold, ?WARNING_THRESHOLD},
+        {safe_threshold, 0}
     ],
 
     lists:foldl(fun
@@ -195,46 +206,53 @@ find_first_exceeded_threshold(Usage, [_ | ThresholdsByPriority]) ->
 
 
 %% @private
--spec handle_offenders(circuit_breaker_state(), #{atom() => [{service:host(), usage_info()}]}) ->
+-spec handle_state_transition(circuit_breaker_state(), #{atom() => [{service:host(), usage_info()}]}) ->
     circuit_breaker_state().
-handle_offenders(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
+handle_state_transition(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
     closed;
 
-handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
+handle_state_transition(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
     ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~ts", [
-        format_offenders(Offenders)
+        format_cb_hosts(Offenders)
     ]),
-    handle_offenders(CircuitBreakerState, maps:remove(warning_threshold, OffendersPerThreshold));
+    handle_state_transition(CircuitBreakerState, maps:remove(warning_threshold, OffendersPerThreshold));
 
-handle_offenders(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
+handle_state_transition(CircuitBreakerState = closed, OffendersPerThreshold = #{alert_threshold := Offenders}) ->
     ?alert(
         "DB disk usage is very high. Provide more space for the DB as soon as possible. "
         "When the usage reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts",
-        [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD_THRESHOLD * 100, format_offenders(Offenders)]
+        [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_cb_hosts(Offenders)]
     ),
-    handle_offenders(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
+    handle_state_transition(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
 
-handle_offenders(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
+handle_state_transition(closed, #{safe_threshold := _Offenders}) ->
+    closed;
+
+handle_state_transition(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
     ?emergency(
         "DB disk space is nearly exhausted! All services will now stop processing requests until the problem is resolved.~ts",
-        [format_offenders(Offenders)]
+        [format_cb_hosts(Offenders)]
     ),
     open;
 
-handle_offenders(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
+handle_state_transition(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
     % service_circuit_breaker must have been opened on previous check
     open;
 
-handle_offenders(open, OffendersPerThreshold) ->
-    ?notice("DB disk space is no longer near exhaustion. All services will now resume processing requests."),
-    handle_offenders(closed, OffendersPerThreshold).
+handle_state_transition(open, OffendersPerThreshold = #{safe_threshold := Offenders}) ->
+    ?notice("DB disk space is no longer near exhaustion. All services will now resume processing requests.~ts",
+        [format_cb_hosts(Offenders)]
+    ),
+    handle_state_transition(closed, maps:remove(safe_threshold, OffendersPerThreshold)).
 
 
 %% @private
--spec format_offenders([{service:host(), usage_info()}]) -> binary().
-format_offenders(Offenders) ->
+-spec format_cb_hosts([{service:host(), usage_info()}]) -> binary().
+format_cb_hosts(Offenders) ->
+    ?warning("OFFENDERS ~tp ~n", [Offenders]),
     str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
-        str_utils:format(
+        ?warning("Host ~tp~n, UsageInfo ~tp ~n", [Host, UsageInfo]),
+        str_utils:format_bin(
             "~n> Host: ~ts"
             "~n> DB root directory path: ~ts"
             "~n> DB root directory size: ~ts"
@@ -248,7 +266,7 @@ format_offenders(Offenders) ->
                 100 * UsageInfo#usage_info.usage
             ]
         )
-    end, Offenders)).
+    end, Offenders), <<"~n---------------">>).
 
 
 %% @private

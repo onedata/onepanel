@@ -175,9 +175,6 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
     assert_cluster_wide_circuit_breaker_state(closed, Service),
 
-%%    test_utils:mock_new(TargetPanelNodes, [onepanel_env]),
-%%    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(error({badrpc, nodedown})) end),
-%%    TODO mock per Service
     mock_new_circuit_breaker_toggle(Service, TargetPanelNodes),
     mock_expect_circuit_breaker_toggle(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
@@ -222,7 +219,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op"
+        onenv_scenario = "1oz_2nodes_1op_2nodes"
     }).
 
 
@@ -285,7 +282,7 @@ assert_panel_service_circuit_breaker_state(ExpState, Service) ->
 assert_worker_service_circuit_breaker_state(ExpState, Service) ->
     lists:foreach(fun(Worker) ->
         ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, closed), ?ATTEMPTS)
-    end, get_worker_nodes(Service)).
+end, get_worker_nodes(Service)).
 
 
 %% @private

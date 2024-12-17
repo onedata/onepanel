@@ -208,6 +208,7 @@ set_remote(Nodes, Keys, Value, AppName) ->
             {badrpc, _} = Error -> error(Error);
             Result -> kv_utils:put(Keys, Value, Result)
         end,
+
         lists:foreach(fun({K, V}) ->
             ok = rpc:call(Node, application, set_env, [AppName, K, V])
         end, NewEnv)
