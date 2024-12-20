@@ -84,6 +84,7 @@ db_disk_usage_periodic_check_test_base(Service) ->
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
+    set_panel_env(TargetPanelNodes, db_disk_usage_warning_threshold, 0.00001),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
     assert_cluster_wide_circuit_breaker_state(closed, Service).
 
@@ -176,7 +177,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     assert_cluster_wide_circuit_breaker_state(closed, Service),
 
     mock_new_circuit_breaker_toggle(Service, TargetPanelNodes),
-    mock_expect_circuit_breaker_toggle(Service, TargetPanelNodes),
+    mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
 
     assert_panel_service_circuit_breaker_state(open, Service),
@@ -193,7 +194,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     set_worker_env(TargetPanelNodes, service_circuit_breaker_state, closed, Service),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
-    mock_expect_circuit_breaker_toggle(Service, TargetPanelNodes),
+    mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
 
     assert_panel_service_circuit_breaker_state(closed, Service),
@@ -282,7 +283,7 @@ assert_panel_service_circuit_breaker_state(ExpState, Service) ->
 assert_worker_service_circuit_breaker_state(ExpState, Service) ->
     lists:foreach(fun(Worker) ->
         ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, closed), ?ATTEMPTS)
-end, get_worker_nodes(Service)).
+    end, get_worker_nodes(Service)).
 
 
 %% @private
@@ -313,14 +314,13 @@ mock_new_circuit_breaker_toggle(oz_worker, TargetPanelNodes) ->
 
 
 %% @private
-mock_expect_circuit_breaker_toggle(op_worker, TargetPanelNodes) ->
+mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes) ->
+    Module = case Service of
+        op_worker -> op_worker_rpc;
+        oz_worker -> oz_worker_rpc
+    end,
     test_utils:mock_expect(
-        TargetPanelNodes, op_worker_rpc, circuit_breaker_toggle,
-        fun(_, _) -> throw(error({badrpc, nodedown})) end
-    );
-mock_expect_circuit_breaker_toggle(oz_worker, TargetPanelNodes) ->
-    test_utils:mock_expect(
-        TargetPanelNodes, oz_worker_rpc, circuit_breaker_toggle,
+        TargetPanelNodes, Module, circuit_breaker_toggle,
         fun(_, _) -> throw(error({badrpc, nodedown})) end
     ).
 

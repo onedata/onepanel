@@ -235,9 +235,21 @@ handle_state_transition(closed, #{circuit_breaker_activation_threshold := Offend
     ),
     open;
 
+handle_state_transition(open, OffendersPerThreshold = #{warning_threshold := _Offenders}) ->
+    % service_circuit_breaker must have been opened on previous check
+    handle_state_transition(open, maps:remove(warning_threshold, OffendersPerThreshold));
+
+handle_state_transition(open, OffendersPerThreshold = #{alert_threshold := _Offenders}) ->
+    % service_circuit_breaker must have been opened on previous check
+    handle_state_transition(open, maps:remove(alert_threshold, OffendersPerThreshold));
+
 handle_state_transition(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
     % service_circuit_breaker must have been opened on previous check
     open;
+
+handle_state_transition(open, #{}) ->
+    % service_circuit_breaker must have been opened on previous check
+    closed;
 
 handle_state_transition(open, OffendersPerThreshold = #{safe_threshold := Offenders}) ->
     ?notice("DB disk space is no longer near exhaustion. All services will now resume processing requests.~ts",
@@ -249,9 +261,7 @@ handle_state_transition(open, OffendersPerThreshold = #{safe_threshold := Offend
 %% @private
 -spec format_cb_hosts([{service:host(), usage_info()}]) -> binary().
 format_cb_hosts(Offenders) ->
-    ?warning("OFFENDERS ~tp ~n", [Offenders]),
     str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
-        ?warning("Host ~tp~n, UsageInfo ~tp ~n", [Host, UsageInfo]),
         str_utils:format_bin(
             "~n> Host: ~ts"
             "~n> DB root directory path: ~ts"
