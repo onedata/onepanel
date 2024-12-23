@@ -74,7 +74,7 @@ create_test(Config) ->
 
 get_test(Config) ->
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},
-    ?assertMatch(?ERR_DOC_NOT_FOUND, ?callAny(Config, model, get, [?MODEL, 1])),
+    ?assertMatch(?ONP_ERR_DOC_NOT_FOUND, ?callAny(Config, model, get, [?MODEL, 1])),
     ?assertEqual({ok, 1}, ?callAny(Config, model, create, [?MODEL, Record])),
     ?assertEqual({ok, Record}, ?callAny(Config, model, get, [?MODEL, 1])).
 
@@ -90,7 +90,7 @@ save_test(Config) ->
 
 
 update_test(Config) ->
-    ?assertMatch(?ERR_DOC_NOT_FOUND,
+    ?assertMatch(?ONP_ERR_DOC_NOT_FOUND,
         ?callAny(Config, model, update, [?MODEL, 1, #{}])),
 
     Record = #?MODEL{field1 = 1, field2 = <<"field2">>, field3 = field3},

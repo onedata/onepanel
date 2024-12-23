@@ -93,12 +93,12 @@ get_remote_op_details_test_base(_Config, TargetPanelType, TargetEntitySelector, 
                 correct = [member],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [
                     peer,
-                    {root, ?ERROR_NOT_FOUND}
+                    {root, ?ERR_NOT_FOUND}
                 ]
             },
             data_spec = build_get_remote_op_details_data_spec(),
@@ -117,7 +117,7 @@ get_remote_op_details_test_base(_Config, TargetPanelType, TargetEntitySelector, 
 build_get_remote_op_details_data_spec() ->
     #data_spec{
         bad_values = [
-            {bad_id, <<"inexistentProviderId">>, ?ERROR_NOT_FOUND}
+            {bad_id, <<"inexistentProviderId">>, ?ERR_NOT_FOUND}
         ]
     }.
 
@@ -192,7 +192,7 @@ get_test_image_test_base(_Config, PanelType, EntitySelector) ->
                     peer
                 ],
                 unauthorized = [
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ]
             },

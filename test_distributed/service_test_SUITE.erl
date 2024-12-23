@@ -45,7 +45,7 @@ all() ->
 service_should_be_not_found(Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     lists:foreach(fun(Node) ->
-        ?assertMatch(?ERROR_INTERNAL_SERVER_ERROR,
+        ?assertMatch(?ERR_INTERNAL_SERVER_ERROR(_),
             rpc:call(Node, service, apply, [example, some_action, #{}]))
     end, Nodes).
 
@@ -90,7 +90,7 @@ service_should_notify_caller(Config) ->
 
 service_get_steps_error_test(Config) ->
     [Node | _] = ?config(onepanel_nodes, Config),
-    ?assertMatch(?ERROR_NOT_SUPPORTED,
+    ?assertMatch(?ERR_NOT_SUPPORTED,
         rpc:call(Node, service, apply, [example, some_action, #{}])).
 
 
@@ -151,7 +151,7 @@ init_per_testcase(service_get_steps_error_test, Config) ->
     Nodes = ?config(onepanel_nodes, Config),
     test_utils:mock_new(Nodes, service_example, [non_strict]),
     test_utils:mock_expect(Nodes, service_example, get_steps, fun(some_action, _) ->
-        meck:exception(throw, ?ERROR_NOT_SUPPORTED)
+        meck:exception(throw, ?ERR_NOT_SUPPORTED)
     end),
     Config;
 

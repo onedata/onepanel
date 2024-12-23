@@ -208,7 +208,8 @@ get_hosts(Keys, Data) ->
         case maps:find(Alias, HostsMap) of
             {ok, Host} -> onepanel_utils:convert(Host, list);
             error ->
-                throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
+                throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(
+                    ?err_ctx(),
                     str_utils:join_as_binaries(Keys, <<".">>),
                     maps:keys(HostsMap)
                 ))

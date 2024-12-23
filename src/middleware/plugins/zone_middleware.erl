@@ -117,27 +117,27 @@ authorize(#onp_req{client = Client,
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
 validate(#onp_req{operation = create, gri = #gri{aspect = cluster}, data = Data}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
-        true -> throw(?ERROR_ALREADY_EXISTS);
+        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
         false -> ok
     end,
     % This check should be done by the data spec, but swagger's erlang
     % generator is buggy and does not enforce presence of the "onezone" key.
     case maps:find(onezone, Data) of
         {ok, Map} when is_map(Map) -> ok;
-        _ -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"onezone">>))
+        _ -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"onezone">>))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = instance}, data = Data}, _) ->
     case {service_oneprovider:is_registered(), Data} of
         {true, _} -> ok;
         {false, #{token := _}} -> ok;
-        {false, _} -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
+        {false, _} -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"token">>))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = cluster}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = Op, gri = #gri{aspect = policies}}, _) when
@@ -146,7 +146,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = policies}}, _) when
 ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{
@@ -157,12 +157,12 @@ validate(#onp_req{
 ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end,
     case service:get_hosts(?SERVICE_OZW) /= []
         andalso oz_worker_rpc:gui_message_exists(Id) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end.
 
 
@@ -270,7 +270,7 @@ update(#onp_req{gri = #gri{aspect = {gui_message, Id}}, data = Data}) ->
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERROR_NOT_SUPPORTED.
+    ?ERR_NOT_SUPPORTED(?err_ctx()).
 
 
 %%%===================================================================

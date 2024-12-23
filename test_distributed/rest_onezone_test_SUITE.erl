@@ -240,7 +240,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, service, get, fun
         (onezone) -> {ok, #service{}};
         (oz_worker) -> {ok, #service{hosts = Hosts}};
-        (_) -> ?ERR_DOC_NOT_FOUND
+        (_) -> ?ONP_ERR_DOC_NOT_FOUND
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},

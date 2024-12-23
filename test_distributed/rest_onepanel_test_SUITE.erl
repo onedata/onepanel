@@ -208,7 +208,7 @@ passphrase_update_requires_previous_passphrase(Config) ->
         }
     )),
     onepanel_test_rest:assert_body(JsonBody,
-        #{<<"error">> => errors:to_json(?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS))}),
+        #{<<"error">> => errors:to_json(?ERR_UNAUTHORIZED(?ERR_BAD_BASIC_CREDENTIALS))}),
     ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
@@ -268,7 +268,7 @@ post_as_admin_should_return_invite_token(Config) ->
 
     lists:foreach(fun(Auth) ->
         ExpErrorDescription = json_utils:encode(#{
-            <<"error">> => errors:to_json(?ERROR_FORBIDDEN)
+            <<"error">> => errors:to_json(?ERR_FORBIDDEN)
         }),
         ?assertMatch(
             {ok, ?HTTP_403_FORBIDDEN, _, ExpErrorDescription},
@@ -325,7 +325,7 @@ delete_as_admin_should_fail_if_node_is_used(Config) ->
         ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
     )),
     onepanel_test_rest:assert_body(JsonBody,
-        #{<<"error">> => errors:to_json(?ERROR_NOT_SUPPORTED)}).
+        #{<<"error">> => errors:to_json(?ERR_NOT_SUPPORTED)}).
 
 %%%===================================================================
 %%% SetUp and TearDown functions

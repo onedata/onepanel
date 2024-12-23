@@ -132,7 +132,7 @@ validate(#onp_req{
     case lists:any(fun(NewHost) ->
         lists:member(NewHost, ExistingHosts)
     end, NewHosts) of
-        true -> throw(?ERROR_ALREADY_EXISTS);
+        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
         false -> ok
     end;
 
@@ -149,13 +149,13 @@ validate(#onp_req{
 validate(#onp_req{operation = get, gri = #gri{aspect = {nagios, <<"op_worker">>}}}, _) ->
     case service_op_worker:get_hosts() /= [] of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = {nagios, <<"oz_worker">>}}}, _) ->
     case service_oz_worker:get_hosts() /= [] of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{
@@ -216,7 +216,7 @@ get(#onp_req{gri = #gri{aspect = {all_hosts_status, ServiceBin}}}, _) ->
     Results = service:apply_sync(Service, status, #{}),
 
     HostToStatus = case service_utils:results_contain_error(Results) of
-        {true, ?ERROR_NO_SERVICE_NODES(_)} -> #{};
+        {true, ?ERR_NO_SERVICE_NODES(_)} -> #{};
         {true, Error} -> throw(Error);
         false ->
             {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
@@ -235,7 +235,7 @@ get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
         ),
         {ok, value, #{code => Code, headers => Headers, body => Body}}
     catch _:_ ->
-        throw(?ERROR_SERVICE_UNAVAILABLE)
+        throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
     end.
 
 
@@ -268,7 +268,7 @@ update(#onp_req{
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERROR_NOT_SUPPORTED.
+    ?ERR_NOT_SUPPORTED(?err_ctx()).
 
 
 %%%===================================================================
@@ -279,6 +279,6 @@ delete(#onp_req{}) ->
 ensure_has_host(Service, Host) ->
     case service:has_host(Service, Host) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end.
 

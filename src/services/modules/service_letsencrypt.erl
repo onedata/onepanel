@@ -171,7 +171,7 @@ create(#{letsencrypt_plugin := Plugin}) ->
     },
     case service:create(#service{name = name(), ctx = ServiceCtx}) of
         {ok, _} -> ok;
-        ?ERR_ALREADY_EXISTS -> ok
+        ?ONP_ERR_ALREADY_EXISTS -> ok
     end.
 
 

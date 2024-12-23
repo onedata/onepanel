@@ -124,13 +124,13 @@ authorize(#onp_req{
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
 validate(#onp_req{operation = create, gri = #gri{aspect = instance}}, _) ->
     case service_oneprovider:is_registered() of
-        true -> throw(?ERROR_ALREADY_EXISTS);
+        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
         false -> ok
     end;
 
 validate(#onp_req{operation = create, gri = #gri{aspect = cluster}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
-        true -> throw(?ERROR_ALREADY_EXISTS);
+        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
         false -> ok
     end;
 
@@ -139,7 +139,7 @@ validate(#onp_req{
 }, _) ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER)
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end;
 
 validate(#onp_req{
@@ -148,13 +148,13 @@ validate(#onp_req{
 }, _) ->
     case Client of
         #client{role = member} -> ok;
-        #client{role = root} -> throw(?ERROR_NOT_FOUND)
+        #client{role = root} -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = cluster}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = Op, gri = #gri{aspect = transfers_mock}}, _) when
@@ -162,7 +162,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = transfers_mock}}, _) when
     Op == update
 ->
     case service:get_hosts(?SERVICE_OPW) of
-        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_OPW));
+        [] -> throw(?ERR_NO_SERVICE_NODES(?err_ctx(), ?SERVICE_OPW));
         _ -> ok
     end;
 
@@ -171,13 +171,13 @@ validate(#onp_req{
 }, _) ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER)
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end;
 
 validate(#onp_req{operation = delete, gri = #gri{aspect = instance}}, _) ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER)
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end.
 
 

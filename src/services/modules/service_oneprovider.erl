@@ -369,12 +369,12 @@ get_steps(Action, Ctx) when
 %%--------------------------------------------------------------------
 -spec get_id() -> id().
 get_id() ->
-    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered() orelse throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx())),
     case op_worker_rpc:get_provider_id() of
         {ok, <<ProviderId/binary>>} ->
             ProviderId;
-        ?ERROR_UNREGISTERED_ONEPROVIDER ->
-            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
+        ?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider ->
+            throw(ErrorUnregisteredOneprovider);
         _ ->
             FileContents = read_auth_file(),
             maps:get(provider_id, FileContents)
@@ -387,7 +387,7 @@ get_id() ->
 %%--------------------------------------------------------------------
 -spec get_oz_domain() -> string().
 get_oz_domain() ->
-    is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    is_registered() orelse throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx())),
     case service:get_ctx(name()) of
         #{onezone_domain := OnezoneDomain} ->
             unicode:characters_to_list(OnezoneDomain);
@@ -436,8 +436,8 @@ get_access_token() ->
     case op_worker_rpc:get_access_token() of
         {ok, <<Token/binary>>} ->
             Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER ->
-            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
+        ?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider ->
+            throw(ErrorUnregisteredOneprovider);
         _ ->
             root_token_from_file()
     end.
@@ -448,8 +448,8 @@ get_identity_token() ->
     case op_worker_rpc:get_identity_token() of
         {ok, <<Token/binary>>} ->
             Token;
-        ?ERROR_UNREGISTERED_ONEPROVIDER = ?ERROR_UNREGISTERED_ONEPROVIDER ->
-            throw(?ERROR_UNREGISTERED_ONEPROVIDER);
+        ?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider ->
+            throw(ErrorUnregisteredOneprovider);
         _ ->
             case clusters:acquire_provider_identity_token() of
                 {ok, T} -> T;
@@ -472,7 +472,7 @@ resolve_registration_token(Ctx) ->
                 {ok, Token} ->
                     sanitize_registration_token(Token);
                 error ->
-                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
+                    throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"token">>))
             end;
         <<"fromFile">> ->
             case kv_utils:find(oneprovider_token_file, Ctx) of
@@ -489,13 +489,14 @@ resolve_registration_token(Ctx) ->
                             "Registration failed - timeout waiting for a suitable registration "
                             "token to be present in file ~ts", [FilePath]
                         ),
-                        throw(?ERROR_BAD_DATA(
+                        throw(?ERR_BAD_DATA(
+                            ?err_ctx(),
                             <<"tokenFile">>,
                             <<"timeout waiting for a suitable registration token to be present in the file">>
                         ))
                     end;
                 error ->
-                    throw(?ERROR_MISSING_REQUIRED_VALUE(<<"tokenFile">>))
+                    throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"tokenFile">>))
             end
     end,
 
@@ -544,11 +545,11 @@ check_oz_availability(_Ctx) ->
                     ok;
                 _ ->
                     ?debug("Onezone availability check failed - nagios status was ~tp", [Status]),
-                    throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+                    throw(?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), OzDomain))
             end;
         Other ->
             ?debug("Onezone availability check failed - ~tp", [Other]),
-            throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+            throw(?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), OzDomain))
     end.
 
 
@@ -560,7 +561,7 @@ check_oz_availability(_Ctx) ->
 check_oneprovider_gs_connection() ->
     case service_op_worker:is_connected_to_oz() of
         true -> ok;
-        false -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+        false -> throw(?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), get_oz_domain()))
     end.
 
 
@@ -664,8 +665,8 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:?ERROR_UNREGISTERED_ONEPROVIDER:Stacktrace ->
-            erlang:raise(Type, ?ERROR_UNREGISTERED_ONEPROVIDER, Stacktrace);
+        Type:?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider:Stacktrace ->
+            erlang:raise(Type, ErrorUnregisteredOneprovider, Stacktrace);
         Type:Error:Stacktrace ->
             case service:get_ctx(name()) of
                 #{?DETAILS_PERSISTENCE := Cached} -> Cached;
@@ -1208,7 +1209,7 @@ sanitize_registration_token(Token) ->
             Error;
         Class:Reason:Stacktrace ->
             ?debug_exception("Registration token sanitization failed", Class, Reason, Stacktrace),
-            throw(?ERROR_BAD_DATA(<<"token">>))
+            throw(?ERR_BAD_DATA(?err_ctx(), <<"token">>, undefined))
     end.
 
 
@@ -1379,7 +1380,7 @@ read_auth_file(Node, AuthFilePath, current) ->
                 {<<"root_token">>, root_token}
             ], json_utils:decode(Json), #{})};
         {error, Error} ->
-            ?ERROR_FILE_ACCESS(AuthFilePath, Error)
+            ?ERR_FILE_ACCESS(?err_ctx(), AuthFilePath, Error)
     end;
 read_auth_file(Node, AuthFilePath, legacy) ->
     LegacyAuthFilePath = filename:join(filename:dirname(AuthFilePath), ?LEGACY_AUTH_FILE_NAME),
@@ -1390,7 +1391,7 @@ read_auth_file(Node, AuthFilePath, legacy) ->
                 {root_macaroon, root_token}
             ], Map, #{})};
         {error, Error} ->
-            ?ERROR_FILE_ACCESS(LegacyAuthFilePath, Error)
+            ?ERR_FILE_ACCESS(?err_ctx(), LegacyAuthFilePath, Error)
     end.
 
 
@@ -1544,7 +1545,7 @@ update_domain_config(OpNode, Data) ->
 assert_storage_exists(Node, StorageId) ->
     case op_worker_rpc:storage_exists(Node, StorageId) of
         true -> ok;
-        _ -> throw(?ERROR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>))
+        _ -> throw(?ERR_BAD_VALUE_ID_NOT_FOUND(?err_ctx(), <<"storageId">>))
     end.
 
 %%--------------------------------------------------------------------
@@ -1591,7 +1592,7 @@ update_version_info(GuiHash) ->
     case Result of
         {ok, ?HTTP_204_NO_CONTENT, _, _} -> ok;
         {ok, ?HTTP_400_BAD_REQUEST, _, _} -> {error, inexistent_gui_version};
-        {error, _} -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+        {error, _} -> throw(?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), get_oz_domain()))
     end.
 
 

@@ -64,7 +64,7 @@ fetch_entity(#onp_req{gri = #gri{id = Id}}) ->
     Host = binary_to_list(Id),
     case lists:member(Host, service_onepanel:get_hosts()) of
         true -> {ok, {undefined, 1}};
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end.
 
 
@@ -112,7 +112,7 @@ validate(#onp_req{operation = create, gri = #gri{aspect = instance}}, _) ->
 validate(#onp_req{operation = create, gri = #gri{aspect = join_cluster}}, _) ->
     case service_onepanel:available_for_clustering() of
         true -> ok;
-        false -> throw(?ERROR_NODE_ALREADY_IN_CLUSTER(hosts:self()))
+        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = As}}, _) when
@@ -130,9 +130,9 @@ validate(#onp_req{
 }, _) ->
     Host = binary_to_list(HostBin),
     lists:member(Host, service_onepanel:get_hosts())
-        orelse throw(?ERROR_NOT_FOUND),
+        orelse throw(?ERR_NOT_FOUND(?err_ctx())),
     service_onepanel:is_host_used(Host)
-        andalso throw(?ERROR_NOT_SUPPORTED),
+        andalso throw(?ERR_NOT_SUPPORTED(?err_ctx())),
     ok.
 
 

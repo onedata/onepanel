@@ -129,7 +129,7 @@ handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
             ?error_stacktrace("Unexpected error in ~tp - ~tp:~tp", [
                 ?MODULE, Type, Reason
             ], Stacktrace),
-            ?ERROR_INTERNAL_SERVER_ERROR
+            ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)
     end.
 
 
@@ -148,7 +148,7 @@ get_plugin(onp_space) -> space_middleware;
 get_plugin(onp_storage) -> storage_middleware;
 get_plugin(onp_user) -> user_middleware;
 get_plugin(onp_zone) -> zone_middleware;
-get_plugin(_) -> throw(?ERROR_NOT_SUPPORTED).
+get_plugin(_) -> throw(?ERR_NOT_SUPPORTED(?err_ctx())).
 
 
 %%--------------------------------------------------------------------
@@ -165,12 +165,12 @@ ensure_operation_supported(#req_ctx{plugin = Plugin, req = #onp_req{
 }}) ->
     try Plugin:operation_supported(Op, Asp, Scp) of
         true -> ok;
-        false -> throw(?ERROR_NOT_SUPPORTED)
+        false -> throw(?ERR_NOT_SUPPORTED(?err_ctx()))
     catch
         error:_ ->
             % No need for log here, 'operation_supported' may crash depending on
             % what the request contains and this is expected.
-            throw(?ERROR_NOT_SUPPORTED)
+            throw(?ERR_NOT_SUPPORTED(?err_ctx()))
     end.
 
 
@@ -189,7 +189,7 @@ ensure_availability(#req_ctx{plugin = Plugin, req = #onp_req{
     Requirements = Plugin:required_availability(Op, Asp, Scp),
     case lists:all(fun is_availability_satisfied/1, Requirements) of
         true -> ok;
-        false -> throw(?ERROR_SERVICE_UNAVAILABLE)
+        false -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
     end.
 
 
@@ -289,11 +289,11 @@ ensure_authorized(#req_ctx{
             case Client of
                 #client{role = guest} ->
                     % The client was not authenticated -> unauthorized
-                    throw(?ERROR_UNAUTHORIZED);
+                    throw(?ERR_UNAUTHORIZED(?err_ctx(), undefined));
                 #client{} ->
                     % The client was authenticated but cannot access the
                     % aspect -> forbidden
-                    throw(?ERROR_FORBIDDEN)
+                    throw(?ERR_FORBIDDEN(?err_ctx()))
             end
     end.
 

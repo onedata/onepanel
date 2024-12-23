@@ -123,7 +123,7 @@ get_record_version() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(1, _Record) ->
-    error(?ERROR_NOT_SUPPORTED).
+    error(?ERR_NOT_SUPPORTED(?err_ctx())).
 
 
 %%--------------------------------------------------------------------
@@ -197,7 +197,7 @@ get(Key) ->
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
     no_return().
 update(_Key, _Diff) ->
-    error(?ERROR_NOT_SUPPORTED).
+    error(?ERR_NOT_SUPPORTED(?err_ctx())).
 
 
 %%--------------------------------------------------------------------

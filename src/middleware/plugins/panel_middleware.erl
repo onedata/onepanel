@@ -154,19 +154,19 @@ validate(#onp_req{
 validate(#onp_req{operation = get, gri = #gri{aspect = web_cert}}, _) ->
     case service:exists(?SERVICE_LE) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = dns_check}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = {task, Id}}}, _) ->
     case service:exists_task(Id) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = Aspect}}, _) when
@@ -229,7 +229,7 @@ get(#onp_req{gri = #gri{aspect = health}}, _) ->
 
     case AllHealthyFun(http_listener) andalso AllHealthyFun(https_listener) of
         true -> {ok, value, #{<<"status">> => <<"healthy">>}};
-        false -> throw(?ERROR_INTERNAL_SERVER_ERROR)
+        false -> throw(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))
     end;
 
 
@@ -295,7 +295,7 @@ update(#onp_req{
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERROR_NOT_SUPPORTED.
+    ?ERR_NOT_SUPPORTED(?err_ctx()).
 
 
 %%%===================================================================
@@ -410,7 +410,7 @@ format_service_task_results({Results, TotalSteps}) ->
 %%--------------------------------------------------------------------
 -spec format_error(Reason :: term()) -> json_utils:json_map().
 format_error({error, #exception{}}) ->
-    #{<<"error">> => errors:to_json(?ERROR_INTERNAL_SERVER_ERROR)};
+    #{<<"error">> => errors:to_json(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))};
 format_error(Reason) ->
     #{<<"error">> => errors:to_json(Reason)}.
 

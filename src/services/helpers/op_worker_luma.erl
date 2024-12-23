@@ -27,7 +27,7 @@
 %% This function calls Operation associated with LUMA DB in op-worker.
 %% If isLocalFeedLumaRequest flag is set to true in Ctx it checks
 %% whether feed for corresponding LUMA DB is currently set to `local`.
-%% In case it is not `local` it throws ?ERROR_NOT_FOUND exception.
+%% In case it is not `local` it throws ?ERR_NOT_FOUND exception.
 %% @end
 %%--------------------------------------------------------------------
 -spec execute(function(), service:step_ctx()) -> ok | {ok, term()} | {error, term()}.
@@ -42,5 +42,5 @@ execute(Operation, Ctx) ->
             {ok, Result} -> Result;
             Error -> throw(Error)
         end;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
     end.

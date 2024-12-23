@@ -70,7 +70,7 @@ get_record_version() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(1, _Record) ->
-    error(?ERROR_NOT_SUPPORTED).
+    error(?ERR_NOT_SUPPORTED(?err_ctx())).
 
 
 %%--------------------------------------------------------------------

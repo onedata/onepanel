@@ -214,7 +214,7 @@ init_per_testcase(method_should_return_not_found_error, Config) ->
 
     test_utils:mock_expect(Nodes, rpc, call, fun
         (_, rpc_api, apply, [get_user_details, [_Auth, UserId]]) ->
-            ?ERROR_NOT_FOUND;
+            ?ERR_NOT_FOUND;
         (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
     end),
     Config2;
