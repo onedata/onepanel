@@ -84,7 +84,7 @@ db_disk_usage_periodic_check_test_base(Service) ->
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
-    set_panel_env(TargetPanelNodes, db_disk_usage_warning_threshold, 0.00001),
+    set_panel_env(TargetPanelNodes, db_disk_usage_warning_threshold, 0.1),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
     assert_cluster_wide_circuit_breaker_state(closed, Service).
 

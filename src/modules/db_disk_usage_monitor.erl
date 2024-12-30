@@ -139,10 +139,7 @@ get_db_root_dir_size() ->
 parse_du_cmd_output(DuOutput) ->
     {match, [SizeStr]} = re:run(DuOutput, "^(?P<size>\\d+)\t.*$", [{capture, [size], list}]),
     Size = list_to_integer(SizeStr),
-    case Size =< 0 of
-        true -> ?warning(?autoformat_with_msg("Got an unexpected result from the du command", [DuOutput]));
-        false -> ok
-    end,
+    Size =< 0 andalso ?warning(?autoformat_with_msg("Got an unexpected result from the du command", [DuOutput])),
     Size.
 
 
@@ -158,10 +155,7 @@ get_available_disk_size() ->
 parse_df_cmd_output(DfOutput) ->
     {match, [SizeStr]} = re:run(DfOutput, "^\s*Avail\n(?P<size>\\d+)$", [{capture, [size], list}]),
     Size = list_to_integer(SizeStr),
-    case Size < 0 of
-        true -> ?warning(?autoformat_with_msg("Got an unexpected result from the df command", [DfOutput]));
-        false -> ok
-    end,
+    Size < 0 andalso ?warning(?autoformat_with_msg("Got an unexpected result from the df command", [DfOutput])),
     Size.
 
 
@@ -211,6 +205,12 @@ find_first_exceeded_threshold(Usage, [_ | ThresholdsByPriority]) ->
 handle_state_transition(closed, OffendersPerThreshold) when map_size(OffendersPerThreshold) == 0 ->
     closed;
 
+handle_state_transition(CircuitBreakerState = closed, OffendersPerThreshold = #{safe_threshold := Offenders}) ->
+    ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~ts", [
+        format_cb_hosts(Offenders)
+    ]),
+    handle_state_transition(CircuitBreakerState, maps:remove(safe_threshold, OffendersPerThreshold));
+
 handle_state_transition(CircuitBreakerState = closed, OffendersPerThreshold = #{warning_threshold := Offenders}) ->
     ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to ensure uninterrupted services.~ts", [
         format_cb_hosts(Offenders)
@@ -225,9 +225,6 @@ handle_state_transition(CircuitBreakerState = closed, OffendersPerThreshold = #{
     ),
     handle_state_transition(CircuitBreakerState, maps:remove(alert_threshold, OffendersPerThreshold));
 
-handle_state_transition(closed, #{safe_threshold := _Offenders}) ->
-    closed;
-
 handle_state_transition(closed, #{circuit_breaker_activation_threshold := Offenders}) ->
     ?emergency(
         "DB disk space is nearly exhausted! All services will now stop processing requests until the problem is resolved.~ts",
@@ -235,27 +232,13 @@ handle_state_transition(closed, #{circuit_breaker_activation_threshold := Offend
     ),
     open;
 
-handle_state_transition(open, OffendersPerThreshold = #{warning_threshold := _Offenders}) ->
-    % service_circuit_breaker must have been opened on previous check
-    handle_state_transition(open, maps:remove(warning_threshold, OffendersPerThreshold));
-
-handle_state_transition(open, OffendersPerThreshold = #{alert_threshold := _Offenders}) ->
-    % service_circuit_breaker must have been opened on previous check
-    handle_state_transition(open, maps:remove(alert_threshold, OffendersPerThreshold));
-
 handle_state_transition(open, #{circuit_breaker_activation_threshold := _Offenders}) ->
     % service_circuit_breaker must have been opened on previous check
     open;
 
 handle_state_transition(open, #{}) ->
-    % service_circuit_breaker must have been opened on previous check
-    closed;
-
-handle_state_transition(open, OffendersPerThreshold = #{safe_threshold := Offenders}) ->
-    ?notice("DB disk space is no longer near exhaustion. All services will now resume processing requests.~ts",
-        [format_cb_hosts(Offenders)]
-    ),
-    handle_state_transition(closed, maps:remove(safe_threshold, OffendersPerThreshold)).
+    % service_circuit_breaker is closed when no thresholds are exceeded
+    closed.
 
 
 %% @private
@@ -287,15 +270,14 @@ set_service_circuit_breaker_state(State) ->
     ClusterType = onepanel_env:get_cluster_type(),
     case ClusterType of
         ?ONEZONE ->
-            lists:map(fun(Node) ->
-                oz_worker_rpc:circuit_breaker_toggle(Node, State)
+            lists:foreach(fun(Node) ->
+                ?catch_exceptions(oz_worker_rpc:circuit_breaker_toggle(Node, State))
             end, service_oz_worker:get_nodes());
         ?ONEPROVIDER ->
-            lists:map(fun(Node) ->
-                op_worker_rpc:circuit_breaker_toggle(Node, State)
+            lists:foreach(fun(Node) ->
+                ?catch_exceptions(op_worker_rpc:circuit_breaker_toggle(Node, State))
             end, service_op_worker:get_nodes())
-    end,
-    ok.
+    end.
 
 
 %% @private
