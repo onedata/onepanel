@@ -124,6 +124,7 @@ Build:
         interpreter: BINSH_OR_CMDEXE
         scripts:
           - |-
+            set -e
             ./make.py -e REBAR_PROFILE=bamboo_default_rel -r ${bamboo.agentWorkingDirectory} rel
             ./make.py -e REBAR_PROFILE=bamboo_oz_rel -r ${bamboo.agentWorkingDirectory} -c "make REL_TYPE=onezone rel"
             ./make.py -e REBAR_PROFILE=bamboo_op_rel -r ${bamboo.agentWorkingDirectory} -c "make REL_TYPE=oneprovider rel"
