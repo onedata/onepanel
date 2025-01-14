@@ -53,7 +53,8 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:develop",
+      "fixme": "bring back develop",
+      "image": "docker.onedata.org/onezone-dev:VFS-12098-test-couchbase-upgrade-to-6.x-from-4.1",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -81,7 +82,8 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:develop",
+      "fixme": "bring back develop",
+      "image": "docker.onedata.org/oneprovider-dev:VFS-12098-test-couchbase-upgrade-to-6.x-from-4.1",
       "onepanel": {
         "node1": {
           "vm.args": {
