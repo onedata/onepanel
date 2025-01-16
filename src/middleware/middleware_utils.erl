@@ -152,19 +152,32 @@ format_service_configuration(SModule) ->
         null -> null;
         MasterHost -> onepanel_utils:convert(MasterHost, binary)
     end,
-    #{
-        <<"cluster">> => #{
-            <<"master">> => MasterHostBin,
-            <<"hosts">> =>
-                onepanel_utils:convert(service_onepanel:get_hosts(), {seq, binary}),
-            <<"databases">> => #{
-                <<"hosts">> => onepanel_utils:convert(DbHosts, {seq, binary})},
-            <<"managers">> => #{
-                <<"mainHost">> => onepanel_utils:convert(MainCmHost, binary),
-                <<"hosts">> => onepanel_utils:convert(CmHosts, {seq, binary})},
-            <<"workers">> => #{
-                <<"hosts">> => onepanel_utils:convert(WrkHosts, {seq, binary})}
+
+    CommonClusterConfiguration = #{
+        <<"master">> => MasterHostBin,
+        <<"hosts">> => onepanel_utils:convert(service_onepanel:get_hosts(), {seq, binary}),
+        <<"databases">> => #{
+            <<"hosts">> => onepanel_utils:convert(DbHosts, {seq, binary})
         },
+        <<"managers">> => #{
+            <<"mainHost">> => onepanel_utils:convert(MainCmHost, binary),
+            <<"hosts">> => onepanel_utils:convert(CmHosts, {seq, binary})
+        },
+        <<"workers">> => #{
+            <<"hosts">> => onepanel_utils:convert(WrkHosts, {seq, binary})
+        }
+    },
+    ClusterConfiguration = case SModule of
+        service_onezone ->
+            CommonClusterConfiguration;
+        service_oneprovider ->
+            CommonClusterConfiguration#{<<"oneS3">> => #{
+                <<"hosts">> => onepanel_utils:convert(hosts:all(?SERVICE_ONES3), {seq, binary})
+            }}
+    end,
+
+    #{
+        <<"cluster">> => ClusterConfiguration,
         SModule:name() => Details#{
             <<"name">> => SName,
             <<"configured">> => is_service_configured()

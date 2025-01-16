@@ -98,9 +98,7 @@ add(#{name := Name, params := Params}) ->
                 StorageName, StorageType, AddedStorageId
             ]);
         {error, _} = Error ->
-            ?error("Failed to add storage '~ts' (~ts) due to ~tp", [
-                StorageName, StorageType, Error
-            ])
+            ?error(?autoformat_with_msg("Failed to add storage '~ts' (~ts)", [StorageName, StorageType], Error))
     end,
     {StorageName, Result}.
 
@@ -113,7 +111,6 @@ add(#{name := Name, params := Params}) ->
     storage_details().
 update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
-    Id = maps:get(id, Storage),
     Name = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
     CurrentReadonly = maps:get(readonly, Storage),
@@ -142,7 +139,8 @@ update(OpNode, Id, NewParams) ->
         verify_configuration(OpNode, Id, VerificationParams2, Helper),
         IgnoreReadWriteTest = Readonly orelse (Imported andalso op_worker_rpc:storage_supports_any_space(Id)),
         run_storage_diagnostics(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto),
-            #{read_write_test => not IgnoreReadWriteTest}),
+            #{read_write_test => not IgnoreReadWriteTest},
+            str_utils:format("Modification of storage ~ts (~ts) failed", [Name, Id])),
 
         % @TODO VFS-5513 Modify everything in a single datastore operation
         % TODO VFS-6951 refactor storage configuration API
@@ -161,10 +159,14 @@ update(OpNode, Id, NewParams) ->
         Details = ?MODULE:get(Id),
         ?info("Modified storage ~tp (~tp)", [Name, Id]),
         Details#{verificationPassed => true}
-    catch Class:Reason:Stacktrace ->
-        Details2 = ?MODULE:get(Id),
-        ?error_exception(?autoformat_with_msg("Storage modification failed", [Id, Name]), Class, Reason, Stacktrace),
-        Details2#{verificationPassed => false}
+    catch
+        throw:?ERROR_STORAGE_TEST_FAILED(_) ->
+            Details2 = ?MODULE:get(Id),
+            Details2#{verificationPassed => false};
+        Class:Reason:Stacktrace ->
+            Details2 = ?MODULE:get(Id),
+            ?error_exception(?autoformat_with_msg("Storage modification failed", [Id, Name]), Class, Reason, Stacktrace),
+            Details2#{verificationPassed => false}
     end.
 
 
@@ -363,7 +365,8 @@ add(OpNode, Name, StorageType, Params) ->
 
     try
         ?info("Verifying storage access: '~ts' (~ts)", [Name, StorageType]),
-        run_storage_diagnostics(Helper, LumaFeed, #{read_write_test => not Readonly}),
+        run_storage_diagnostics(Helper, LumaFeed, #{read_write_test => not Readonly},
+            str_utils:format("Verification of storage '~ts' (~ts)  failed", [Name, StorageType])),
         ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
         op_worker_rpc:storage_create(
             Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
@@ -421,10 +424,12 @@ verify_configuration(OpNode, NameOrId, StorageParams, Helper) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
-run_storage_diagnostics(Helper, LumaFeed, Opts) ->
+run_storage_diagnostics(Helper, LumaFeed, Opts, ErrorLog) ->
     case op_worker_rpc:storage_detector_run_diagnostics(Helper, LumaFeed, Opts) of
         ok -> ok;
-        {error, _} = Error -> throw(Error)
+        {{error, _} = Error, Reason} ->
+            ?error(?autoformat_with_msg(ErrorLog, [Reason])),
+            throw(Error)
     end.
 
 

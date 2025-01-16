@@ -208,8 +208,12 @@ get_or_create_client({member, Privileges}, _PanelNodes) ->
     lists:foreach(fun(PanelNode) ->
         ClusterId = panel_test_rpc:get_cluster_id(PanelNode),
         ozw_test_rpc:add_user_to_cluster(ClusterId, UserId, Privileges)
-    end, oct_background:get_all_panels()),
-
+    end, lists:flatten([
+        ?RAND_ELEMENT(oct_background:get_zone_panels()),
+        lists:map(fun(ProviderId) ->
+            ?RAND_ELEMENT(oct_background:get_provider_panels(ProviderId))
+        end, oct_background:get_provider_ids())
+    ])),
 
     Token = create_oz_temp_token(OzNode, UserId),
 

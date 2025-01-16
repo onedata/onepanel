@@ -179,7 +179,7 @@ set(Keys, Value) ->
 set(Keys, Value, AppName) ->
     lists:foreach(fun({K, V}) ->
         application:set_env(AppName, K, V)
-    end, kv_utils:put(Keys, Value, application:get_all_env())).
+    end, kv_utils:put(Keys, Value, application:get_all_env(AppName))).
 
 
 %%--------------------------------------------------------------------

@@ -124,7 +124,8 @@ deploy_oneprovider(Passphrase, Storages, Config) ->
             ?SERVICE_LE => #{
                 hosts => OpHosts,
                 letsencrypt_enabled => false
-            }
+            },
+            ?SERVICE_ONES3 => #{hosts => []}
         },
         ?SERVICE_OP => #{
             hosts => OpwHosts,

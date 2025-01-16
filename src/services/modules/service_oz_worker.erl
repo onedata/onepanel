@@ -487,19 +487,8 @@ supports_letsencrypt_challenge(Challenge) when
     Challenge == http;
     Challenge == dns
 ->
-    OzNode = case nodes:any(name()) of
-        {ok, N} -> N;
-        Error -> throw(Error)
-    end,
     service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
-    case Challenge of
-        http -> true;
-        dns ->
-            case onepanel_env:get_remote(OzNode, [subdomain_delegation_supported], name()) of
-                true -> true;
-                false -> false
-            end
-    end;
+    true;
 
 supports_letsencrypt_challenge(_) -> false.
 

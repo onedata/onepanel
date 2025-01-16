@@ -16,6 +16,7 @@
 
 %% API
 -export([
+    get_service_hosts/1,
     get_op_worker_nodes/0,
     get_cert_chain_ders/0,
     get_cluster_id/0,
@@ -34,6 +35,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec get_service_hosts(service:name()) -> [service:host()].
+get_service_hosts(Service) ->
+    service:get_hosts(Service).
 
 
 -spec get_op_worker_nodes() -> [node()].

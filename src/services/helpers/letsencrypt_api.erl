@@ -29,6 +29,9 @@
 -define(PRODUCTION_DIRECTORY_URL, application:get_env(?APP_NAME,
     letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory")).
 
+-define(ROOT_CA_URL, application:get_env(?APP_NAME,
+    letsencrypt_root_ca_url, "https://letsencrypt.org/certs/isrgrootx1.pem")).
+
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(LETSENCRYPT_KEYS_DIR, application:get_env(?APP_NAME, letsencrypt_keys_dir,
     % default
@@ -91,7 +94,8 @@
 
 -record(authorization, {
     identifier :: #{type := binary(), value := binary()},
-    challenges :: [#challenge{}]
+    challenges :: [#challenge{}],
+    service :: plugin_service() | service_ones3
 }).
 
 % Record for storing progress in the certification process
@@ -101,12 +105,14 @@
     service :: plugin_service(),
     % Common Name for the certificate
     domain :: binary(),
+    subdomains :: #{binary() => plugin_service() | service_ones3},
     % Whether to save obtained certificate on disk
     save_cert :: boolean(),
     % Paths for saving resulting key and cert
     cert_path :: string(),
     cert_private_key_path :: string(),
     chain_path :: string(),
+    full_chain_path :: string(),
     % Directory for keys used in communication with Let's Encrypt
     jws_keys_dir :: string(),
     % Mode of the current run (used in logs)
@@ -155,8 +161,9 @@
 
 -export_type([challenge_type/0]).
 
--export([run_certification_flow/2]).
+-export([run_certification_flow/1]).
 -export([challenge_types/0]).
+-export([get_root_ca/0]).
 
 %%%===================================================================
 %%% Public API
@@ -170,9 +177,9 @@
 %% Plugin is a service module for interacting with the oneprovider or onezone.
 %% @end
 %%--------------------------------------------------------------------
--spec run_certification_flow(Domain :: binary(), Plugin :: module()) -> ok | no_return().
-run_certification_flow(Domain, Plugin) ->
-    run_certification_flow(Domain, Plugin, resolve_run_mode()).
+-spec run_certification_flow(module()) -> ok | no_return().
+run_certification_flow(Plugin) ->
+    run_certification_flow(Plugin, resolve_run_mode()).
 
 
 %%--------------------------------------------------------------------
@@ -183,7 +190,15 @@ run_certification_flow(Domain, Plugin) ->
 %%--------------------------------------------------------------------
 -spec challenge_types() -> [challenge_type()].
 challenge_types() ->
+    % Http challenge is preferred if possible as it is more versatile and simpler.
     [http, dns].
+
+
+-spec get_root_ca() -> pem().
+get_root_ca() ->
+    % TODO VFS-12381 in case of test env - use insecure connection for Pebble server
+    {ok, ?HTTP_200_OK, _, Pem} = http_client:get(?ROOT_CA_URL, #{}, <<>>, ?HTTP_OPTS),
+    Pem.
 
 
 %%%===================================================================
@@ -203,9 +218,8 @@ challenge_types() ->
 %%                from the production server
 %% @end
 %%--------------------------------------------------------------------
--spec run_certification_flow(Domain :: binary(), Plugin :: module(),
-    Mode :: run_mode()) -> ok | no_return().
-run_certification_flow(Domain, Plugin, Mode) ->
+-spec run_certification_flow(Plugin :: module(), Mode :: run_mode()) -> ok | no_return().
+run_certification_flow(Plugin, Mode) ->
     % When called with 'full' mode, first complete the staging flow
     % and then recurse with Mode 'production'.
     CurrentMode = case Mode of
@@ -213,7 +227,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
         _ -> Mode
     end,
 
-    {ok, State} = initial_state(Domain, Plugin, Mode, CurrentMode),
+    {ok, State} = initial_state(Plugin, Mode, CurrentMode),
     KeysDir = State#flow_state.jws_keys_dir,
 
     case Mode of
@@ -254,7 +268,7 @@ run_certification_flow(Domain, Plugin, Mode) ->
     catch clean_txt_record(Plugin),
 
     case Mode of
-        full -> run_certification_flow(Domain, Plugin, production);
+        full -> run_certification_flow(Plugin, production);
         _ -> ok
     end.
 
@@ -317,7 +331,8 @@ attempt_certification(#flow_state{service = Service} = State) ->
     % internal server error: there should never be a case that no challenge
     % is supported by the plugin module, and no better error reason is thrown
     % from supports_letsencrypt_challenge.
-    end, {?ERROR_INTERNAL_SERVER_ERROR, State}, challenge_types()),
+    % NOTE: challenge_types() called via ?MODULE to allow mocking in tests
+    end, {?ERROR_INTERNAL_SERVER_ERROR, State}, ?MODULE:challenge_types()),
 
     case Result of
         {ok, NewState} -> {ok, NewState};
@@ -351,12 +366,15 @@ obtain_certificate(ChallengeType, State) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create_order(#flow_state{}) -> {ok, #flow_state{}}.
-create_order(#flow_state{domain = Domain} = State) ->
-    #flow_state{directory = #directory{new_order = NewOrderURL}} = State,
-    Payload = #{<<"identifiers">> => [#{
-        <<"type">> => <<"dns">>,
-        <<"value">> => Domain
-    }]},
+create_order(State = #flow_state{
+    domain = Domain,
+    subdomains = Subdomains,
+    directory = #directory{new_order = NewOrderURL}
+}) ->
+    Payload = #{<<"identifiers">> => [
+        build_order_dns_identifier(Domain)
+        | [build_order_dns_identifier(Subdomain) || Subdomain <- maps:keys(Subdomains)]
+    ]},
 
     {ok, Response, Headers, State2} = post(NewOrderURL, Payload, ?HTTP_201_CREATED, State),
     #{
@@ -364,11 +382,17 @@ create_order(#flow_state{domain = Domain} = State) ->
         <<"finalize">> := FinalizeURL
     } = Response,
 
-    {ok, State3} = fetch_authorizations(AuthorizationURLs, State2),
+    {ok, State3} = fetch_pending_authorizations(AuthorizationURLs, State2),
     {ok, State3#flow_state{
         finalize_url = FinalizeURL,
         order_url = maps:get(<<"Location">>, Headers)
     }}.
+
+
+%% @private
+-spec build_order_dns_identifier(binary()) -> json_utils:json_map().
+build_order_dns_identifier(Domain) ->
+    #{<<"type">> => <<"dns">>, <<"value">> => Domain}.
 
 
 %%--------------------------------------------------------------------
@@ -377,37 +401,50 @@ create_order(#flow_state{domain = Domain} = State) ->
 %% Obtains authorization objects given by URLs.
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_authorizations(AuthorizationURLs :: [url()], State :: #flow_state{}) ->
+-spec fetch_pending_authorizations([url()], #flow_state{}) ->
     {ok, #flow_state{}}.
-fetch_authorizations(AuthorizationURLs, State) ->
+fetch_pending_authorizations(AuthorizationURLs, State) ->
     State2 = lists:foldl(fun(AuthURL, StateAcc) ->
-        AuthzAcc = StateAcc#flow_state.authorizations,
-        {ok, Authz, StateAcc2} = fetch_authorization(AuthURL, StateAcc),
-        StateAcc2#flow_state{authorizations = [Authz | AuthzAcc]}
+        fetch_pending_authorization(AuthURL, StateAcc)
     end, State#flow_state{authorizations = []}, AuthorizationURLs),
+
     {ok, State2}.
 
 
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Obtains authorization object given by URL.
+%% Obtains authorization if it is pending. Otherwise it may have been already
+%% fulfilled (ACME servers may choose to reuse authorizations from previous
+%% orders in new orders).
 %% @end
 %%--------------------------------------------------------------------
--spec fetch_authorization(url(), #flow_state{}) ->
-    {ok, #authorization{}, #flow_state{}}.
-fetch_authorization(URL, State) ->
+-spec fetch_pending_authorization(url(), #flow_state{}) -> #flow_state{}.
+fetch_pending_authorization(URL, State = #flow_state{
+    service = Plugin,
+    domain = Domain,
+    subdomains = Subdomains,
+    authorizations = Authz
+}) ->
     {ok, Body, _, State2} = post_as_get(URL, State),
 
-    #{<<"type">> := IdType,
-        <<"value">> := IdValue} = maps:get(<<"identifier">>, Body),
-    ChallengeList = maps:get(<<"challenges">>, Body),
+    case maps:get(<<"status">>, Body) of
+        <<"valid">> ->
+            State2;
+        _ ->
+            #{<<"type">> := IdType, <<"value">> := IdValue} = maps:get(<<"identifier">>, Body),
+            ChallengeList = maps:get(<<"challenges">>, Body),
 
-    Authorization = #authorization{
-        challenges = lists:filtermap(fun parse_challenge/1, ChallengeList),
-        identifier = #{type => IdType, value => IdValue}
-    },
-    {ok, Authorization, State2}.
+            Authorization = #authorization{
+                challenges = lists:filtermap(fun parse_challenge/1, ChallengeList),
+                identifier = #{type => IdType, value => IdValue},
+                service = case IdValue == Domain of
+                    true -> Plugin;
+                    false -> maps:get(IdValue, Subdomains)
+                end
+            },
+            State2#flow_state{authorizations = [Authorization | Authz]}
+    end.
 
 
 %%--------------------------------------------------------------------
@@ -437,9 +474,9 @@ fulfill_authorizations(ChallengeType, #flow_state{authorizations = Authorization
 %%--------------------------------------------------------------------
 -spec fulfill_challenge(challenge_type(), #authorization{}, #flow_state{}) ->
     {ok, #flow_state{}}.
-fulfill_challenge(ChallengeType, #authorization{challenges = Challenges}, State) ->
+fulfill_challenge(ChallengeType, Authz = #authorization{challenges = Challenges}, State) ->
     {ok, Challenge} = find_challenge(ChallengeType, Challenges),
-    {ok, State2} = handle_challenge(State#flow_state{challenge = Challenge}),
+    {ok, State2} = handle_challenge(Authz, State#flow_state{challenge = Challenge}),
     {ok, State3, _} = poll_status(Challenge#challenge.url, State2),
     {ok, State3}.
 
@@ -468,15 +505,15 @@ find_challenge(Type, ChallengeList) ->
 %% Sets up challenge response and triggers validation.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_challenge(State :: #flow_state{}) -> {ok, #flow_state{}}.
-handle_challenge(#flow_state{challenge = #challenge{type = http}} = State) ->
+-spec handle_challenge(#authorization{}, State :: #flow_state{}) -> {ok, #flow_state{}}.
+handle_challenge(_Authz, #flow_state{challenge = #challenge{type = http}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
             url = URL
-        },
-        service = Service
+        }
     } = State,
+
     AuthString = make_auth_string(Token, State),
 
     ok = set_http_record(Token, AuthString),
@@ -484,14 +521,16 @@ handle_challenge(#flow_state{challenge = #challenge{type = http}} = State) ->
     {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2};
 
-handle_challenge(#flow_state{challenge = #challenge{type = dns}} = State) ->
+handle_challenge(Authz, #flow_state{challenge = #challenge{type = dns}} = State) ->
     #flow_state{
         challenge = #challenge{
             token = Token,
             url = URL
-        },
-        service = Service
-    } = State,
+        }
+   } = State,
+    Service = Authz#authorization.service,
+    Domain = maps:get(value, Authz#authorization.identifier),
+
     AuthString = make_auth_string(Token, State),
     TxtValue = base64url:encode(crypto:hash(sha256, AuthString)),
     ok = Service:set_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME,
@@ -499,8 +538,7 @@ handle_challenge(#flow_state{challenge = #challenge{type = dns}} = State) ->
 
     % Do not fail here even if TXT cannot be resolved
     % as there is no harm in attempting certification anyway
-    wait_for_txt_propagation(?LETSENCRYPT_TXT_NAME, State#flow_state.domain,
-        TxtValue, State#flow_state.service),
+    wait_for_txt_propagation(?LETSENCRYPT_TXT_NAME, Domain, TxtValue, Service),
 
     {ok, _, _, State2} = post(URL, #{}, ?HTTP_200_OK, State),
     {ok, State2}.
@@ -562,11 +600,11 @@ fetch_certificate(#flow_state{order_url = OrderURL} = State) ->
             {ok, State3, #{<<"certificate">> := URL}} = poll_status(OrderURL, State2),
             {URL, State3}
     end,
-    {ok, {raw, CertAndChainPem}, _, State5} = post_as_get(CertURL, State4),
+    {ok, {raw, FullChainPem}, _, State5} = post_as_get(CertURL, State4),
 
     case State5#flow_state.save_cert of
         true ->
-            save_cert(CertAndChainPem, KeyPem, State5),
+            save_cert(FullChainPem, KeyPem, State5),
             ?info("Let's Encrypt ~ts run: saved new certificate at ~ts",
                 [State#flow_state.current_mode, filename:absname(State5#flow_state.cert_path)]),
             {ok, State5};
@@ -584,11 +622,13 @@ fetch_certificate(#flow_state{order_url = OrderURL} = State) ->
 -spec request_certificate(#flow_state{}) ->
     {ok, #flow_state{}, Order :: map(), pem()}.
 request_certificate(State) ->
-    #flow_state{domain = Domain, finalize_url = FinalizeURL} = State,
+    #flow_state{domain = Domain, subdomains = Subdomains, finalize_url = FinalizeURL} = State,
 
     % The CSR does not contain Alt Name extension request, but Let's Encrypt
     % adds one for the requested domain, which is the desired result.
-    {ok, CSRPem, KeyPem} = onepanel_cert:generate_csr_and_key(binary_to_list(Domain)),
+    {ok, CSRPem, KeyPem} = onepanel_cert:generate_csr_and_key(
+        binary_to_list(Domain), [binary_to_list(Subdomain) || Subdomain <- maps:keys(Subdomains)]
+    ),
     [{'CertificationRequest', CSRDer, not_encrypted}] = public_key:pem_decode(CSRPem),
     CSRB64 = base64url:encode(CSRDer),
 
@@ -636,12 +676,12 @@ resolve_run_mode() ->
 %% CurrentMode - mode of the current run
 %% @end
 %%--------------------------------------------------------------------
--spec initial_state(Domain :: binary(), Plugin :: plugin_service(),
-    Mode :: run_mode(), CurrentMode :: run_mode()) -> {ok, #flow_state{}}.
-initial_state(Domain, Plugin, Mode, CurrentMode) ->
+-spec initial_state(plugin_service(), run_mode(), run_mode()) -> {ok, #flow_state{}}.
+initial_state(Plugin, Mode, CurrentMode) ->
     CertPath = onepanel_env:get(web_cert_file),
     KeyPath = onepanel_env:get(web_key_file),
     ChainPath = onepanel_env:get(web_cert_chain_file),
+    FullChainPath = onepanel_env:get(web_cert_full_chain_file),
     KeysDir = filename:join(?LETSENCRYPT_KEYS_DIR, atom_to_list(CurrentMode)),
 
     % save cert only in the final run and not in 'dry' mode
@@ -652,6 +692,12 @@ initial_state(Domain, Plugin, Mode, CurrentMode) ->
         _ -> ?STAGING_DIRECTORY_URL
     end,
 
+    Domain = Plugin:get_domain(),
+    Subdomains = case service_ones3:exists() of
+        true -> #{service_ones3:get_domain() => service_ones3};
+        false -> #{}
+    end,
+
     % passing state around is useful for managing anti-replay nonces
     {ok, #flow_state{
         service = Plugin,
@@ -660,8 +706,10 @@ initial_state(Domain, Plugin, Mode, CurrentMode) ->
         cert_path = CertPath,
         cert_private_key_path = KeyPath,
         chain_path = ChainPath,
+        full_chain_path = FullChainPath,
         save_cert = SaveCert,
         domain = Domain,
+        subdomains = Subdomains,
         current_mode = CurrentMode
     }}.
 
@@ -931,7 +979,8 @@ clean_keys(KeysDir) ->
 parse_challenge(#{
     <<"type">> := Type,
     <<"token">> := Token,
-    <<"url">> := URL}) ->
+    <<"url">> := URL
+}) ->
     TypeAtom = challenge_type_to_atom(Type),
     {true, #challenge{token = Token, url = URL, type = TypeAtom}};
 
@@ -1005,8 +1054,11 @@ wait_for_txt_propagation(TxtName, Domain, Expected, Plugin) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec clean_txt_record(Service :: module()) -> ok.
-clean_txt_record(Service) ->
-    ok = Service:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME}).
+clean_txt_record(service_oz_worker) ->
+    ok = service_oz_worker:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME});
+clean_txt_record(service_op_worker) ->
+    ok = service_op_worker:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME}),
+    ok = service_ones3:remove_txt_record(#{txt_name => ?LETSENCRYPT_TXT_NAME}).
 
 
 %%--------------------------------------------------------------------
@@ -1034,18 +1086,20 @@ make_auth_string(Token, #flow_state{jws_keys_dir = KeysDir}) ->
 %%--------------------------------------------------------------------
 -spec save_cert(CertAndChainPem :: onepanel_cert:pem(),
     KeyPem :: onepanel_cert:pem(), #flow_state{}) -> ok.
-save_cert(CertAndChainPem, KeyPem, State) ->
+save_cert(FullChainPem, KeyPem, State) ->
     #flow_state{
         cert_private_key_path = KeyPath,
         cert_path = CertPath,
-        chain_path = ChainPath
+        chain_path = ChainPath,
+        full_chain_path = FullChainPath
     } = State,
     Nodes = nodes:all(?SERVICE_PANEL),
 
-    {ok, CertPem, ChainPem} = split_chain(CertAndChainPem),
+    {ok, CertPem, ChainPem} = split_full_chain(FullChainPem),
     ok = utils:save_file_on_hosts(Nodes, KeyPath, KeyPem),
     ok = utils:save_file_on_hosts(Nodes, CertPath, CertPem),
-    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem).
+    ok = utils:save_file_on_hosts(Nodes, ChainPath, ChainPem),
+    ok = utils:save_file_on_hosts(Nodes, FullChainPath, FullChainPem).
 
 
 %%--------------------------------------------------------------------
@@ -1055,9 +1109,9 @@ save_cert(CertAndChainPem, KeyPem, State) ->
 %% chain certificates.
 %% @end
 %%--------------------------------------------------------------------
--spec split_chain(PemData :: pem()) ->
+-spec split_full_chain(PemData :: pem()) ->
     {ok, EndCert :: pem(), ChainCerts :: pem()}.
-split_chain(PemData) ->
+split_full_chain(PemData) ->
     [CertDer | ChainDers] = cert_utils:pem_to_ders(PemData),
     CertPem = cert_utils:ders_to_pem(CertDer),
     ChainPem = cert_utils:ders_to_pem(ChainDers),
