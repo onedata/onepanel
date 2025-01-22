@@ -45,11 +45,13 @@ operation_supported(create, oz_worker_instances, private) -> onepanel:is_oz_pane
 
 operation_supported(get, {all_hosts_status, <<"cluster_manager">>}, private) -> true;
 operation_supported(get, {all_hosts_status, <<"couchbase">>}, private) -> true;
+operation_supported(get, {all_hosts_status, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {all_hosts_status, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {all_hosts_status, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
 operation_supported(get, {host_status, <<"cluster_manager">>}, private) -> true;
 operation_supported(get, {host_status, <<"couchbase">>}, private) -> true;
+operation_supported(get, {host_status, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {host_status, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {host_status, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
@@ -60,12 +62,14 @@ operation_supported(get, {nagios, <<"oz_worker">>}, private) -> onepanel:is_oz_p
 % Start/stop all hosts
 operation_supported(update, {start_stop_all, <<"couchbase">>}, private) -> true;
 operation_supported(update, {start_stop_all, <<"cluster_manager">>}, private) -> true;
+operation_supported(update, {start_stop_all, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop_all, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop_all, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
 % Start/stop a single host
 operation_supported(update, {start_stop, <<"couchbase">>}, private) -> true;
 operation_supported(update, {start_stop, <<"cluster_manager">>}, private) -> true;
+operation_supported(update, {start_stop, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
