@@ -30,6 +30,8 @@
 -endif.
 
 -record(usage_info, {
+    status :: status(),
+    host :: service:host(),
     db_root_dir_size :: non_neg_integer(),
     available_disk_size :: non_neg_integer(),
     usage :: float()  %% [0..1]
@@ -53,6 +55,13 @@
 
 -define(CMD_OUTPUT_TRIM_THRESHOLD, 997).
 
+-define(STATUS_DISK_CRITICALLY_LOW, 0).
+-define(STATUS_ALERT, 1).
+-define(STATUS_WARNING, 2).
+-define(STATUS_OK, 3).
+
+% represents the severity of disk space availability status, 0 being the most critical one
+-type status() :: non_neg_integer().
 
 %%%===================================================================
 %%% API
@@ -101,11 +110,16 @@ run_periodic_check() ->
         ?debug("Running periodic db disk usage check for hosts: ~tp", [Hosts]),
 
         Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
-        Results = utils:erpc_multicall(Nodes, fun check_usage_on_host/0),
+        Results = lists:foldl(fun
+            ({ok, UsageInfo = #usage_info{}}, Acc) ->
+                [UsageInfo | Acc];
+            (ErrorReason, Acc) ->
+                ?error(?autoformat_with_msg("Failed to check db usage:", [hosts:self(), ErrorReason])),
+                Acc
+        end, [], utils:erpc_multicall(Nodes, fun check_usage_on_host/0)),
+
         CircuitBreakerState = get_service_circuit_breaker_state(),
-        NewCircuitBreakerState = handle_state_transition(
-            CircuitBreakerState, group_cb_hosts_by_thresholds(lists:zip(Hosts, Results))
-        ),
+        NewCircuitBreakerState = handle_state_transition(CircuitBreakerState, Results),
         set_service_circuit_breaker_state(NewCircuitBreakerState),
         true
     catch Class:Reason:Stacktrace ->
@@ -119,11 +133,21 @@ run_periodic_check() ->
 check_usage_on_host() ->
     DBRootDirSize = get_db_root_dir_size(),
     AvailableDiskSize = get_available_disk_size(),
+    Usage = DBRootDirSize / (DBRootDirSize + AvailableDiskSize),
+
+    [{Status, _} | _]  = lists:dropwhile(fun({_, ThresholdValue}) -> Usage < ThresholdValue end, [
+        {?STATUS_DISK_CRITICALLY_LOW, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD},
+        {?STATUS_ALERT, ?ALERT_THRESHOLD},
+        {?STATUS_WARNING, ?WARNING_THRESHOLD},
+        {?STATUS_OK, 0}
+    ]),
 
     #usage_info{
+        status = Status,
+        host = hosts:self(),
         db_root_dir_size = DBRootDirSize,
         available_disk_size = AvailableDiskSize,
-        usage = DBRootDirSize / (DBRootDirSize + AvailableDiskSize)
+        usage = Usage
     }.
 
 
@@ -160,125 +184,57 @@ parse_df_cmd_output(DfOutput) ->
 
 
 %% @private
--spec group_cb_hosts_by_thresholds([{service:host(), {ok, usage_info()} | term()}]) ->
-    #{atom() => [{service:host(), usage_info()}]}.
-group_cb_hosts_by_thresholds(ResultPerHost) ->
-    ThresholdsByPriority = [
-        {circuit_breaker_activation_threshold, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD},
-        {alert_threshold, ?ALERT_THRESHOLD},
-        {warning_threshold, ?WARNING_THRESHOLD},
-        {safe_threshold, 0}
-    ],
-
-    lists:foldl(fun
-        ({Host, {ok, UsageInfo = #usage_info{usage = Usage}}}, Acc) ->
-            case find_first_exceeded_threshold(Usage, ThresholdsByPriority) of
-                {ok, ThresholdKey} ->
-                    Offender = {Host, UsageInfo},
-
-                    maps:update_with(ThresholdKey, fun(Offenders) ->
-                        [Offender | Offenders]
-                    end, [Offender], Acc);
-                error ->
-                    Acc
-            end;
-
-        ({Host, ErrorReason}, Acc) ->
-            ?error(?autoformat_with_msg("Failed to check db usage:", [Host, ErrorReason])),
-            Acc
-    end, #{}, ResultPerHost).
-
-
-%% @private
--spec find_first_exceeded_threshold(float(), [{atom(), float()}]) -> {ok, atom()} | error.
-find_first_exceeded_threshold(_Usage, []) ->
-    error;
-find_first_exceeded_threshold(Usage, [{ThresholdKey, ThresholdValue} | _]) when Usage >= ThresholdValue ->
-    {ok, ThresholdKey};
-find_first_exceeded_threshold(Usage, [_ | ThresholdsByPriority]) ->
-    find_first_exceeded_threshold(Usage, ThresholdsByPriority).
-
-
-%% @private
--spec handle_state_transition(circuit_breaker_state(), #{atom() => [{service:host(), usage_info()}]}) ->
+-spec handle_state_transition(circuit_breaker_state(),[usage_info()]) ->
     circuit_breaker_state().
-handle_state_transition(CurrentState, OffendersPerThreshold) ->
-    {WorstStatus, Log} = collect_hosts_status(OffendersPerThreshold),
-    log_state_transition(CurrentState, WorstStatus, Log).
+handle_state_transition(CurrentState, UsageInfos) ->
+    [#usage_info{status=WorstStatus} | _] = SortedUsageInfos = lists:sort(UsageInfos),
+    handle_state_transition(CurrentState, WorstStatus, SortedUsageInfos).
 
 
 %% @private
--spec collect_hosts_status(#{atom() => [{service:host(), usage_info()}]}) -> {atom(), binary()}.
-collect_hosts_status(OffendersPerThreshold) ->
-    [{WorstStatus, _} | _] = OffendersPerThresholdStr = lists:keysort(1, lists:map(fun({Threshold, Offenders}) ->
-        {threshold_to_level(Threshold), format_cb_hosts(Threshold, Offenders)}
-    end, maps:to_list(OffendersPerThreshold))),
-
-    Log = str_utils:join_binary(lists:map(fun({_Level, OffenderStr}) ->
-        OffenderStr
-    end, OffendersPerThresholdStr), <<"~n---------------">>),
-    {level_to_threshold(WorstStatus), Log}.
-
-
-%% @private
--spec threshold_to_level(atom()) -> integer().
-threshold_to_level(safe_threshold) -> 4;
-threshold_to_level(warning_threshold) -> 3;
-threshold_to_level(alert_threshold) -> 2;
-threshold_to_level(circuit_breaker_activation_threshold) -> 1.
-
-
-%% @private
--spec level_to_threshold(integer()) -> atom().
-level_to_threshold(4) -> safe_threshold;
-level_to_threshold(3) -> warning_threshold;
-level_to_threshold(2) -> alert_threshold;
-level_to_threshold(1) -> circuit_breaker_activation_threshold.
-
-
-%% @private
--spec log_state_transition(circuit_breaker_state(), atom(), binary()) -> circuit_breaker_state().
-log_state_transition(closed, Threshold, Log) ->
-    case Threshold of
-        circuit_breaker_activation_threshold ->
-            ?emergency("DB disk space is nearly exhausted! All services will now stop processing "
-                "requests until the problem is resolved.~ts~n", [Log]
-            ),
-            open;
-        alert_threshold ->
-            ?alert("DB disk usage is very high. Provide more space for the DB as soon as possible. "
-                "When the usage reaches ~.2f%, all services will stop processing requests to prevent "
-                "database corruption.~ts~n", [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, Log]
-            ),
+-spec handle_state_transition(circuit_breaker_state(), status(), [usage_info()]) -> circuit_breaker_state().
+handle_state_transition(closed, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
+        ?emergency("DB disk space is nearly exhausted! All services will now stop processing "
+            "requests until the problem is resolved.~ts~n", [format_usage_info(SortedUsageInfos)]),
+        open;
+handle_state_transition(closed, ?STATUS_ALERT, SortedUsageInfos) ->
+        ?alert("DB disk usage is very high. Provide more space for the DB as soon as possible. "
+            "When the usage reaches ~.2f%, all services will stop processing requests to prevent "
+            "database corruption.~ts~n", [
+            ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_usage_info(SortedUsageInfos)
+        ]),
+        closed;
+handle_state_transition(closed, ?STATUS_WARNING, SortedUsageInfos) ->
+        ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to "
+            "ensure uninterrupted services.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ),
+        closed;
+handle_state_transition(closed, ?STATUS_OK, SortedUsageInfos) ->
+            ?warning("DB disk usage is within safe thresholds.~ts~n", [format_usage_info(SortedUsageInfos)]),
             closed;
-        warning_threshold ->
-            ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to "
-                "ensure uninterrupted services.~ts~n", [Log]
-            ),
-            closed;
-        safe_threshold ->
-            ?warning("DB disk usage is within safe thresholds.~ts~n", [Log]),
-            closed
-    end;
-log_state_transition(open, Threshold, Log) ->
-    case Threshold of
-        circuit_breaker_activation_threshold ->
-            ?emergency("DB disk space is still critically low. All services remain stopped until "
-                "the issue is resolved.~ts~n", [Log]
-            ),
-            open;
-        _ ->
-            ?info("DB disk usage has returned to acceptable levels. Services have resumed "
-                "normal functionality.~ts~n", [Log]
-            ),
-            closed
-    end.
+
+handle_state_transition(open, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
+        ?emergency("DB disk space is still critically low. All services remain stopped until "
+            "the issue is resolved.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ),
+        open;
+handle_state_transition(open, _Status, SortedUsageInfos) ->
+        ?info("DB disk usage has returned to acceptable levels. Services have resumed "
+            "normal functionality.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ),
+        closed.
 
 
 %% @private
--spec format_cb_hosts(atom(), [{service:host(), usage_info()}]) -> binary().
-format_cb_hosts(Threshold, Offenders) ->
-    str_utils:join_binary(lists:map(fun({Host, UsageInfo}) ->
+-spec format_usage_info([usage_info()]) -> binary().
+format_usage_info(SortedUsageInfos) ->
+    str_utils:join_binary(lists:map(fun(#usage_info{
+        status = Status,
+        host = Host,
+        db_root_dir_size = DBRootDirSize,
+        available_disk_size = AvailableDiskSize,
+        usage =  Usage
+    }) ->
         str_utils:format_bin(
             "~n> Host: ~ts"
             "~n> DB root directory path: ~ts"
@@ -289,19 +245,21 @@ format_cb_hosts(Threshold, Offenders) ->
             [
                 Host,
                 ?ROOT_DIR,
-                str_utils:format_byte_size(UsageInfo#usage_info.db_root_dir_size),
-                str_utils:format_byte_size(UsageInfo#usage_info.available_disk_size),
-                100 * UsageInfo#usage_info.usage,
-                threshold_to_status(Threshold)
+                str_utils:format_byte_size(DBRootDirSize),
+                str_utils:format_byte_size(AvailableDiskSize),
+                100 * Usage,
+                status_to_label(Status)
             ]
         )
-    end, Offenders), <<"\n-------------------------------">>).
+    end, SortedUsageInfos), <<"\n---------------">>).
 
 
-threshold_to_status(safe_threshold) -> "OK";
-threshold_to_status(warning_threshold) -> "WARNING";
-threshold_to_status(alert_threshold) -> "ALERT";
-threshold_to_status(circuit_breaker_activation_threshold) -> "DISK SPACE CRITICALLY LOW".
+%% @private
+-spec status_to_label(status()) -> string().
+status_to_label(?STATUS_DISK_CRITICALLY_LOW) -> "DISK SPACE CRITICALLY LOW";
+status_to_label(?STATUS_ALERT) -> "ALERT";
+status_to_label(?STATUS_WARNING) -> "WARNING";
+status_to_label(?STATUS_OK) -> "OK".
 
 
 %% @private
