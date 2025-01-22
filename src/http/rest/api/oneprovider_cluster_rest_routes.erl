@@ -58,6 +58,19 @@ routes() ->
             data_spec = (rest_model:manager_hosts_model())
         }},
 
+        %% Add provider OneS3
+        {<<"/provider/ones3">>, #rest_req{
+            method = 'POST',
+            b_gri = #b_gri{
+                type = onp_service,
+                id = undefined,
+                aspect = ones3_instances,
+                scope = private
+            },
+            %% The OneS3 service hosts configuration.
+            data_spec = (rest_model:service_hosts_model())
+        }},
+
         %% Add provider cluster workers
         {<<"/provider/workers">>, #rest_req{
             method = 'POST',
@@ -132,6 +145,18 @@ routes() ->
             produces = [<<"application/json">>]
         }},
 
+        %% Get provider host OneS3 status
+        {<<"/provider/ones3/:host">>, #rest_req{
+            method = 'GET',
+            b_gri = #b_gri{
+                type = onp_service,
+                id = ?BINDING(host),
+                aspect = {host_status, <<"ones3">>},
+                scope = private
+            },
+            produces = [<<"application/json">>]
+        }},
+
         %% Get provider cluster manager status
         {<<"/provider/managers/:host">>, #rest_req{
             method = 'GET',
@@ -166,6 +191,18 @@ routes() ->
                 scope = private
             },
             produces = [<<"text/xml">>]
+        }},
+
+        %% Get provider host OneS3 status on all hosts
+        {<<"/provider/ones3">>, #rest_req{
+            method = 'GET',
+            b_gri = #b_gri{
+                type = onp_service,
+                id = undefined,
+                aspect = {all_hosts_status, <<"ones3">>},
+                scope = private
+            },
+            produces = [<<"application/json">>]
         }},
 
         %% Get provider cluster worker status
@@ -239,6 +276,23 @@ routes() ->
             }
         }},
 
+        %% Start/stop provider host OneS3
+        {<<"/provider/ones3/:host">>, #rest_req{
+            method = 'PATCH',
+            b_gri = #b_gri{
+                type = onp_service,
+                id = ?BINDING(host),
+                aspect = {start_stop, <<"ones3">>},
+                scope = private
+            },
+            data_spec = #{
+                %% Defines the intended state of the OneS3 service. The service
+                %% will be started or stopped in order to match the requested
+                %% state.
+                started => {boolean, {optional, true}}
+            }
+        }},
+
         %% Start/stop provider cluster manager
         {<<"/provider/managers/:host">>, #rest_req{
             method = 'PATCH',
@@ -268,6 +322,23 @@ routes() ->
             data_spec = #{
                 %% Defines the intended state of the cluster manager service.
                 %% The service will be started or stopped in order to match the
+                %% requested state.
+                started => {boolean, {optional, true}}
+            }
+        }},
+
+        %% Start/stop provider OneS3
+        {<<"/provider/ones3">>, #rest_req{
+            method = 'PATCH',
+            b_gri = #b_gri{
+                type = onp_service,
+                id = undefined,
+                aspect = {start_stop_all, <<"ones3">>},
+                scope = private
+            },
+            data_spec = #{
+                %% Defines the intended state of the OneS3 server service. The
+                %% service  will be started or stopped in order to match the
                 %% requested state.
                 started => {boolean, {optional, true}}
             }
