@@ -40,6 +40,7 @@
 % Plural names, since multiple nodes are deployed in a single request.
 operation_supported(create, couchbase_instances, private) -> true;
 operation_supported(create, cluster_manager_instances, private) -> true;
+operation_supported(create, ones3_instances, private) -> onepanel:is_op_panel();
 operation_supported(create, op_worker_instances, private) -> onepanel:is_op_panel();
 operation_supported(create, oz_worker_instances, private) -> onepanel:is_oz_panel();
 
@@ -93,6 +94,7 @@ authorize(#onp_req{
 }, _) when
     As == couchbase_instances;
     As == cluster_manager_instances;
+    As == ones3_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
@@ -122,12 +124,14 @@ validate(#onp_req{
 }, _) when
     As == couchbase_instances;
     As == cluster_manager_instances;
+    As == ones3_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
     Service = case As of
         couchbase_instances -> ?SERVICE_CB;
         cluster_manager_instances -> ?SERVICE_CM;
+        ones3_instances -> ?SERVICE_ONES3;
         op_worker_instances -> ?SERVICE_OPW;
         oz_worker_instances -> ?SERVICE_OZW
     end,
@@ -191,10 +195,12 @@ create(#onp_req{gri = #gri{aspect = cluster_manager_instances}, data = Data}) ->
     {ok, value, _TaskId = service:apply_async(?SERVICE_CM, deploy, Ctx)};
 
 create(#onp_req{gri = #gri{aspect = As}, data = Data}) when
+    As == ones3_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
     Service = case As of
+        ones3_instances -> ?SERVICE_ONES3;
         op_worker_instances -> ?SERVICE_OPW;
         oz_worker_instances -> ?SERVICE_OZW
     end,

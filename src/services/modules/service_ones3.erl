@@ -110,6 +110,21 @@ get_steps(create, #{hosts := Hosts}) ->
         #step{hosts = NewHosts, function = add_service_host}
     ];
 
+get_steps(add_nodes, #{new_hosts := _NewHosts} = Ctx) ->
+    {ok, Ctx2} = kv_utils:move(new_hosts, hosts, Ctx),
+
+    case service_oneprovider:is_registered() of
+        true ->
+            [
+                #steps{action = create, ctx = Ctx2},
+                #steps{service = ?SERVICE_OP, action = set_cluster_ips},
+                #steps{action = resume, ctx = Ctx2},
+                #steps{service = ?SERVICE_LE, action = update}
+            ];
+        false ->
+            [#steps{action = create, ctx = Ctx2}]
+    end;
+
 get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
 get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
