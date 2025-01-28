@@ -231,7 +231,7 @@
         {cron_period, 1000}, % 1 second
 
         %% ===================================================================
-        %% Open Data
+        %% OAI-PMH (Public Data advertisement)
         %% ===================================================================
 
         %% Prefix to the OAI-PMH API - all paths must begin with it
