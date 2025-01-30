@@ -54,7 +54,7 @@ operation_supported(_, _, _) -> false.
 required_availability(_, _, _) ->
     case onepanel_env:get_cluster_type() of
         oneprovider -> [];
-        onezone -> [?SERVICE_OZW, all_healthy]
+        onezone -> [?SERVICE_OZW, all_healthy_ignoring_ones3]
     end.
 
 

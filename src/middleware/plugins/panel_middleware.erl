@@ -75,7 +75,7 @@ required_availability(get, emergency_passphrase, private) -> [];
 required_availability(get, {task, _Id}, private) -> [];
 
 required_availability(update, progress, private) -> [];
-required_availability(update, web_cert, private) -> [all_healthy];
+required_availability(update, web_cert, private) -> [all_healthy_ignoring_ones3];
 required_availability(update, dns_check_configuration, private) -> [].
 
 

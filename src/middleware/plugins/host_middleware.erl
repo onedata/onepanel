@@ -54,7 +54,7 @@ operation_supported(_, _, _) -> false.
 
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
-required_availability(update, external_ips, private) -> [all_healthy];
+required_availability(update, external_ips, private) -> [all_healthy_ignoring_ones3];
 required_availability(_, _, _) -> [].
 
 

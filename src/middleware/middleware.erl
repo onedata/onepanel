@@ -366,7 +366,7 @@ client_to_string(?USER(Id)) -> str_utils:format("user:~ts", [Id]).
 
 %% @private
 -spec is_availability_satisfied(availability_level()) -> boolean().
-is_availability_satisfied(all_healthy) ->
-    service:all_healthy();
+is_availability_satisfied(all_healthy_ignoring_ones3) ->
+    service:all_healthy_ignoring_ones3();
 is_availability_satisfied(Service) ->
     service:is_healthy(Service).

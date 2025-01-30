@@ -62,22 +62,22 @@ operation_supported(_, _, _) -> false.
 
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
-required_availability(create, instance, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(create, instance, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3];
 required_availability(create, cluster, private) -> [];
 
 required_availability(get, instance, private) -> [];
 required_availability(get, remote_instance, private) ->
     case onepanel_env:get_cluster_type() of
         ?ONEPROVIDER -> [];
-        ?ONEZONE -> [all_healthy]
+        ?ONEZONE -> [all_healthy_ignoring_ones3]
     end;
 required_availability(get, cluster, private) -> [];
 required_availability(get, transfers_mock, private) -> [];
 
-required_availability(update, instance, private) -> [?SERVICE_OPW, all_healthy];
-required_availability(update, transfers_mock, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(update, instance, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3];
+required_availability(update, transfers_mock, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3];
 
-required_availability(delete, instance, private) -> [?SERVICE_OPW, all_healthy].
+required_availability(delete, instance, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3].
 
 
 

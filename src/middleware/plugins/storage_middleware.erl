@@ -123,7 +123,7 @@ required_availability(get, As, private) when
     As == instance;
     As == luma_configuration
 ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 required_availability(get, {As, _Id}, private) when
     As == local_feed_luma_onedata_user_to_credentials_mapping;
     As == local_feed_luma_default_posix_credentials;
@@ -138,13 +138,13 @@ required_availability(get, {As, _Id}, private) when
     As == luma_acl_user_to_onedata_user_mapping;
     As == luma_acl_group_to_onedata_group_mapping
 ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 
 required_availability(create, As, private) when
     As == instances;
     As == local_feed_luma_onedata_user_to_credentials_mapping
 ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 required_availability(create, {As, _Id}, private) when
     As == local_feed_luma_default_posix_credentials;
     As == local_feed_luma_display_credentials;
@@ -152,20 +152,20 @@ required_availability(create, {As, _Id}, private) when
     As == local_feed_luma_acl_user_to_onedata_user_mapping;
     As == local_feed_luma_acl_group_to_onedata_group_mapping
 ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 
 required_availability(update, instance, private) ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 required_availability(update, {As, _}, private) when
     As == local_feed_luma_onedata_user_to_credentials_mapping
 ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 
 required_availability(delete, As, private) when
     As == instance;
     As == luma_db
 ->
-    [?SERVICE_OPW, all_healthy];
+    [?SERVICE_OPW, all_healthy_ignoring_ones3];
 required_availability(delete, {As, _Id}, private) when
     As == local_feed_luma_onedata_user_to_credentials_mapping;
     As == local_feed_luma_default_posix_credentials;
@@ -180,7 +180,7 @@ required_availability(delete, {As, _Id}, private) when
     As == luma_acl_user_to_onedata_user_mapping;
     As == luma_acl_group_to_onedata_group_mapping
 ->
-    [?SERVICE_OPW, all_healthy].
+    [?SERVICE_OPW, all_healthy_ignoring_ones3].
 
 
 -spec fetch_entity(middleware:req()) ->
