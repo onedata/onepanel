@@ -401,7 +401,7 @@ api_onezone_user_management:
 
 cluster_deployment_op_add_ones3_before_registration:
   <<: *ct-onenv-job
-  key: CLUSTERDEPLOYMENTOPADDONES#BEFOREREGISTRATION
+  key: CLUSTERDEPLOYMENTOPADDONES3BEFOREREGISTRATION
   artifacts:
     - <<: *ct_logs
       name: ct_logs_cluster_deployment_op_add_ones3_before_registration.tar.gz

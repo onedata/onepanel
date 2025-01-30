@@ -664,7 +664,7 @@ init_per_testcase(Case, Config) when
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
+    test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> false end),
     NewConfig;
 
 init_per_testcase(method_should_return_not_found_error, Config) ->
