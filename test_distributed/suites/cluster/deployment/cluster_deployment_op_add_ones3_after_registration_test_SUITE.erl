@@ -6,11 +6,11 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Integration tests of Oneprovider deployment with adding ones3 before
+%%% Integration tests of Oneprovider deployment with adding ones3 after
 %%% registration in oz.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_deployment_op_add_ones3_before_registration_test_SUITE).
+-module(cluster_deployment_op_add_ones3_after_registration_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -86,21 +86,18 @@ deploy_test(Config) ->
     },
     cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
 
-    % Deploying OneS3 on proper host before provider registration enables the
-    % service on selected host but DOES NOT start it!
-    % Also, no changes to certificates are made
+    cluster_deployment_test_utils:register_provider(OpClusterConfig),
+    ?assertEqual(#{}, cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)),
+    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails#{
+        <<"status">> => <<"domain_mismatch">>
+    }),
+
+    % Deploying OneS3 on proper host after provider registration enables the
+    % service on selected host and immediately start it but no changes
+    % to certificates are made
     cluster_deployment_test_utils:deploy_ones3(OpClusterConfig#op_cluster_config{
         ones3_nodes = [2]
     }),
-    ?assertEqual(
-        #{OpPanelNode2Host => <<"stopped">>},
-        cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)
-    ),
-    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
-
-    % Enabled OneS3 are started right after provider is registered in oz.
-    % But still, no changes to certificates are made.
-    cluster_deployment_test_utils:register_provider(OpClusterConfig),
     ?assertEqual(
         #{OpPanelNode2Host => <<"healthy">>},
         cluster_deployment_test_utils:get_ones3_status(OpPanelNode1),

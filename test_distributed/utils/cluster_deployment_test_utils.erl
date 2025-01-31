@@ -35,7 +35,9 @@
 
     register_provider/1,
     configure_dns/1,
-    configure_web_cert/1
+    configure_web_cert/1,
+
+    get_ones3_status/1
 ]).
 
 -define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
@@ -187,6 +189,15 @@ configure_web_cert(#op_cluster_config{} = Config) ->
         })
     ),
     ok.
+
+
+-spec get_ones3_status(node()) -> map().
+get_ones3_status(PanelNode) ->
+    {ok, _, _, Resp} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _},
+        panel_test_rest:get(PanelNode, <<"/provider/ones3">>, #{auth => root})
+    ),
+    Resp.
 
 
 %%%===================================================================

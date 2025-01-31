@@ -65,6 +65,7 @@ stages:
         - api_oneprovider_storages
         - api_onezone_service_configuration
         - api_onezone_user_management
+        - cluster_deployment_op_add_ones3_after_registration
         - cluster_deployment_op_add_ones3_before_registration
         - cluster_op_batch_deployment
         - cluster_oz_batch_deployment
@@ -399,6 +400,13 @@ api_onezone_user_management:
     - <<: *ct_logs
       name: ct_logs_api_onezone_user_management.tar.gz
 
+cluster_deployment_op_add_ones3_after_registration:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERREGISTRATION
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_deployment_op_add_ones3_after_registration.tar.gz
+
 cluster_deployment_op_add_ones3_before_registration:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3BEFOREREGISTRATION
@@ -620,6 +628,7 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_storages.tar.gz
     - artifact: ct_logs_api_onezone_service_configuration.tar.gz
     - artifact: ct_logs_api_onezone_user_management.tar.gz
+    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_registration.tar.gz
     - artifact: ct_logs_cluster_deployment_op_add_ones3_before_registration.tar.gz
     - artifact: ct_logs_cluster_op_batch_deployment.tar.gz
     - artifact: ct_logs_cluster_oz_batch_deployment.tar.gz
