@@ -23,7 +23,8 @@
     toggle_ones3_all/2,
     toggle_ones3/3,
 
-    await_task_status/3
+    await_task_status/3,
+    await_task_status/4
 ]).
 
 -define(ATTEMPTS, 60).
@@ -84,9 +85,14 @@ toggle_ones3(PanelNode, Hostname, Action) ->
 
 -spec await_task_status(node(), binary(), binary()) -> ok.
 await_task_status(Node, TaskId, ExpStatus) ->
+    await_task_status(Node, TaskId, ExpStatus, ?ATTEMPTS).
+
+
+-spec await_task_status(node(), binary(), binary(), non_neg_integer()) -> ok.
+await_task_status(Node, TaskId, ExpStatus, Attempts) ->
     ?assertMatch(
         {ok, ?HTTP_200_OK, _, #{<<"status">> := ExpStatus}},
         panel_test_rest:get(Node, <<"/tasks/", TaskId/binary>>, #{auth => root}),
-        ?ATTEMPTS
+        Attempts
     ),
     ok.

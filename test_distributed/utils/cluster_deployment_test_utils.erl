@@ -69,7 +69,7 @@ deploy_batch(ClusterConfig) ->
             json => BatchConfig
         }
     ),
-    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>).
+    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 -spec deploy_cluster(op_cluster_config()) -> ok.
@@ -83,7 +83,7 @@ deploy_cluster(ClusterConfig) ->
             json => #{<<"cluster">> => ClusterConfig2}
         }
     ),
-    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>).
+    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 -spec deploy_ones3(op_cluster_config()) -> ok.
@@ -104,7 +104,7 @@ deploy_ones3(ClusterConfig = #op_cluster_config{
             json => #{<<"hosts">> => OneS3Hosts}
         }
     ),
-    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>).
+    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 -spec register_provider(op_cluster_config()) -> ok.
