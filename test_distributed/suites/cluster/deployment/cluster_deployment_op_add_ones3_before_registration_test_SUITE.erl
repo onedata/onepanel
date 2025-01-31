@@ -14,6 +14,7 @@
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
+-include("cert_test_utils.hrl").
 -include("cluster_deployment_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
@@ -35,10 +36,7 @@ all() -> [
     deploy_test
 ].
 
--define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
-
-% Time caveat is required in temporary tokens
--define(DEFAULT_TEMP_CAVEAT_TTL, 36000).
+-define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 60).
 
 
 %%%===================================================================
@@ -58,6 +56,7 @@ deploy_test(Config) ->
     OneS3Port = panel_test_rpc:call(OpPanelNode1, service_ones3, get_port, []),
     panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
+    ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
         nodes = #{
             1 => cluster_deployment_test_utils:infer_node_details(OpPanelNode1),
@@ -67,34 +66,69 @@ deploy_test(Config) ->
         main_manager = 1,
         workers = [1],
         databases = [1],
-        name = <<"krakow">>,
+        name = ProviderName,
         admin_email = <<"admin@example.eu">>,
         register = true,
         registration_token = RegistrationToken,
         subdomain_delegation = true,
-        subdomain = <<"krakow">>,
+        subdomain = ProviderName,
         lets_encrypt = true
     },
 
+    % Cluster deployed without OneS3 should have no host with OneS3
     cluster_deployment_test_utils:deploy_cluster(OpClusterConfig),
     ?assertEqual(#{}, get_ones3_status(OpPanelNode1)),
+    ExpOnedataTestCertDetails = #{
+        <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
+        % Domain status cannot be validated for not registered providers
+        % resulting in status unknown
+        <<"status">> => <<"unknown">>
+    },
+    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
 
+    % Deploying OneS3 on proper host before provider registration enables the
+    % service on selected host but DOES NOT start it!
+    % Also, no changes to certificates are made
     cluster_deployment_test_utils:deploy_ones3(OpClusterConfig#op_cluster_config{
         ones3_nodes = [2]
     }),
     ?assertEqual(#{OpPanelNode2Host => <<"stopped">>}, get_ones3_status(OpPanelNode1)),
+    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
 
+    % Enabled OneS3 are started right after provider is registered in oz.
+    % But still, no changes to certificates are made.
     cluster_deployment_test_utils:register_provider(OpClusterConfig),
-    ?assertEqual(#{OpPanelNode2Host => <<"healthy">>}, get_ones3_status(OpPanelNode1), 60),
+    ?assertEqual(
+        #{OpPanelNode2Host => <<"healthy">>},
+        get_ones3_status(OpPanelNode1),
+        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
+    ),
+    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails#{
+        <<"status">> => <<"domain_mismatch">>
+    }),
 
     cluster_deployment_test_utils:configure_dns(OpClusterConfig),
+
+    % Enabling Lets Encrypt should result in new certificates for op domain and s3 subdomain
     cluster_deployment_test_utils:configure_web_cert(OpClusterConfig),
+    OzDomain = oct_background:get_zone_domain(),
+    ProviderDomain = <<ProviderName/binary, ".", OzDomain/binary>>,
+    OneS3Domain = <<"s3.", ProviderDomain/binary>>,
+    ExpPebbleCertDetails = #{
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => true,
+        <<"domain">> => ProviderDomain,
+        <<"dnsNames">> => lists:sort([ProviderDomain, OneS3Domain])
+    },
+    AllPebbleCertDetails = cert_test_utils:assert_cert_details(OpPanelNode1, ExpPebbleCertDetails),
+    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails),
 
     ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode2Ip, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
     ok.
 
 
 %% @private
+-spec get_ones3_status(node()) -> map().
 get_ones3_status(PanelNode) ->
     {ok, _, _, Resp} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
