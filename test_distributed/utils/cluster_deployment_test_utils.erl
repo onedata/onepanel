@@ -178,14 +178,14 @@ configure_dns(#op_cluster_config{nodes = Nodes} = Config) ->
 
 
 -spec configure_web_cert(op_cluster_config()) -> ok.
-configure_web_cert(#op_cluster_config{} = Config) ->
+configure_web_cert(#op_cluster_config{lets_encrypt = LetsEncrypt} = Config) ->
     Node = get_main_node(Config),
 
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
         panel_test_rest:patch(Node, <<"/web_cert">>, #{
             auth => root,
-            json => #{<<"letsEncrypt">> => true}
+            json => #{<<"letsEncrypt">> => LetsEncrypt}
         })
     ),
     ok.
