@@ -35,9 +35,7 @@
 
     register_provider/1,
     configure_dns/1,
-    configure_web_cert/1,
-
-    get_ones3_status/1
+    configure_web_cert/1
 ]).
 
 -define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
@@ -71,7 +69,7 @@ deploy_batch(ClusterConfig) ->
             json => BatchConfig
         }
     ),
-    await_task_status(Node, TaskId, <<"ok">>).
+    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>).
 
 
 -spec deploy_cluster(op_cluster_config()) -> ok.
@@ -85,7 +83,7 @@ deploy_cluster(ClusterConfig) ->
             json => #{<<"cluster">> => ClusterConfig2}
         }
     ),
-    await_task_status(Node, TaskId, <<"ok">>).
+    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>).
 
 
 -spec deploy_ones3(op_cluster_config()) -> ok.
@@ -106,7 +104,7 @@ deploy_ones3(ClusterConfig = #op_cluster_config{
             json => #{<<"hosts">> => OneS3Hosts}
         }
     ),
-    await_task_status(Node, TaskId, <<"ok">>).
+    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>).
 
 
 -spec register_provider(op_cluster_config()) -> ok.
@@ -189,15 +187,6 @@ configure_web_cert(#op_cluster_config{lets_encrypt = LetsEncrypt} = Config) ->
         })
     ),
     ok.
-
-
--spec get_ones3_status(node()) -> map().
-get_ones3_status(PanelNode) ->
-    {ok, _, _, Resp} = ?assertMatch(
-        {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:get(PanelNode, <<"/provider/ones3">>, #{auth => root})
-    ),
-    Resp.
 
 
 %%%===================================================================
@@ -287,13 +276,3 @@ build_provider_config(#op_cluster_config{
 %% @private
 node_id_to_name(Id) ->
     <<"node-", (integer_to_binary(Id))/binary>>.
-
-
-%% @private
-await_task_status(Node, TaskId, ExpStatus) ->
-    ?assertMatch(
-        {ok, ?HTTP_200_OK, _, #{<<"status">> := ExpStatus}},
-        panel_test_rest:get(Node, <<"/tasks/", TaskId/binary>>, #{auth => root}),
-        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
-    ),
-    ok.

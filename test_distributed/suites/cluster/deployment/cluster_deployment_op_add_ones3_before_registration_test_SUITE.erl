@@ -77,7 +77,7 @@ deploy_test(Config) ->
 
     % Cluster deployed without OneS3 should have no host with OneS3
     cluster_deployment_test_utils:deploy_cluster(OpClusterConfig),
-    ?assertEqual(#{}, cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)),
+    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
     ExpOnedataTestCertDetails = #{
         <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
         % Domain status cannot be validated for not registered providers
@@ -94,7 +94,7 @@ deploy_test(Config) ->
     }),
     ?assertEqual(
         #{OpPanelNode2Host => <<"stopped">>},
-        cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)
+        cluster_test_utils:get_ones3_status_all(OpPanelNode1)
     ),
     cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
 
@@ -103,7 +103,7 @@ deploy_test(Config) ->
     cluster_deployment_test_utils:register_provider(OpClusterConfig),
     ?assertEqual(
         #{OpPanelNode2Host => <<"healthy">>},
-        cluster_deployment_test_utils:get_ones3_status(OpPanelNode1),
+        cluster_test_utils:get_ones3_status_all(OpPanelNode1),
         ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
     ),
     cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails#{

@@ -77,7 +77,7 @@ deploy_test(Config) ->
 
     % Cluster deployed without OneS3 should have no host with OneS3
     cluster_deployment_test_utils:deploy_cluster(OpClusterConfig),
-    ?assertEqual(#{}, cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)),
+    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
     ExpOnedataTestCertDetails = #{
         <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
         % Domain status cannot be validated for not registered providers
@@ -87,7 +87,7 @@ deploy_test(Config) ->
     cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
 
     cluster_deployment_test_utils:register_provider(OpClusterConfig),
-    ?assertEqual(#{}, cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)),
+    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
     cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails#{
         <<"status">> => <<"domain_mismatch">>
     }),
@@ -95,7 +95,7 @@ deploy_test(Config) ->
     cluster_deployment_test_utils:configure_dns(OpClusterConfig),
 
     cluster_deployment_test_utils:configure_web_cert(OpClusterConfig),
-    ?assertEqual(#{}, cluster_deployment_test_utils:get_ones3_status(OpPanelNode1)),
+    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
     OzDomain = oct_background:get_zone_domain(),
     ProviderDomain = <<ProviderName/binary, ".", OzDomain/binary>>,
     ExpPebbleCertDetails = #{
@@ -115,7 +115,7 @@ deploy_test(Config) ->
     }),
     ?assertEqual(
         #{OpPanelNode2Host => <<"healthy">>},
-        cluster_deployment_test_utils:get_ones3_status(OpPanelNode1),
+        cluster_test_utils:get_ones3_status_all(OpPanelNode1),
         ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
     ),
     OneS3Domain = <<"s3.", ProviderDomain/binary>>,
