@@ -124,13 +124,13 @@ authorize(#onp_req{
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
 validate(#onp_req{operation = create, gri = #gri{aspect = instance}}, _) ->
     case service_oneprovider:is_registered() of
-        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
+        true -> throw(?ERROR_ALREADY_EXISTS);
         false -> ok
     end;
 
 validate(#onp_req{operation = create, gri = #gri{aspect = cluster}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
-        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
+        true -> throw(?ERROR_ALREADY_EXISTS);
         false -> ok
     end;
 
@@ -148,13 +148,13 @@ validate(#onp_req{
 }, _) ->
     case Client of
         #client{role = member} -> ok;
-        #client{role = root} -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        #client{role = root} -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = cluster}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = Op, gri = #gri{aspect = transfers_mock}}, _) when

@@ -193,7 +193,7 @@ fetch_entity(#onp_req{gri = #gri{id = StorageId}}) ->
             ),
             {ok, {Storage, 1}};
         false ->
-            throw(?ERR_NOT_FOUND(?err_ctx()))
+            throw(?ERROR_NOT_FOUND)
     end.
 
 

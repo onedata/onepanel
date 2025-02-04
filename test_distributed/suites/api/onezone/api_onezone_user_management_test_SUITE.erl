@@ -112,8 +112,8 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
             {<<"fullName">>, <<>>, ?ERR_ON_NODES(?ERR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"fullName">>, TooShortFullname, ?ERR_ON_NODES(?ERR_BAD_VALUE_FULL_NAME, HostNames)},
             {<<"fullName">>, ?TOO_LONG_NAME, ?ERR_ON_NODES(?ERR_BAD_VALUE_FULL_NAME, HostNames)},
-            {<<"groups">>, [<<>>], ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)},
-            {<<"groups">>, [<<"inexistentGroupId">>], ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)}
+            {<<"groups">>, [<<>>], ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
+            {<<"groups">>, [<<"inexistentGroupId">>], ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]
     }.
 
@@ -230,7 +230,7 @@ build_get_user_details_setup_fun(MemRef) ->
 build_get_user_details_data_spec(OzWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     #data_spec{
-        bad_values = [{bad_id, <<"NonExistentUserId">>, ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)}]
+        bad_values = [{bad_id, <<"NonExistentUserId">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
 
 
@@ -301,7 +301,7 @@ build_set_user_password_data_spec(OzWorkerNodes) ->
             <<"newPassword">> => [new_password_placeholder, old_password_placeholder]
         },
         bad_values = [
-            {bad_id, <<"NonExistentUserId">>, ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)},
+            {bad_id, <<"NonExistentUserId">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
             {<<"newPassword">>, <<>>, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"newPassword">>, <<"">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
             {<<"newPassword">>, TooShortPassword, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)}

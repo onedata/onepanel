@@ -117,7 +117,7 @@ authorize(#onp_req{client = Client,
 -spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
 validate(#onp_req{operation = create, gri = #gri{aspect = cluster}, data = Data}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
-        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
+        true -> throw(?ERROR_ALREADY_EXISTS);
         false -> ok
     end,
     % This check should be done by the data spec, but swagger's erlang
@@ -137,7 +137,7 @@ validate(#onp_req{operation = get, gri = #gri{aspect = instance}, data = Data}, 
 validate(#onp_req{operation = get, gri = #gri{aspect = cluster}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = Op, gri = #gri{aspect = policies}}, _) when
@@ -146,7 +146,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = policies}}, _) when
 ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{
@@ -157,12 +157,12 @@ validate(#onp_req{
 ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end,
     case service:get_hosts(?SERVICE_OZW) /= []
         andalso oz_worker_rpc:gui_message_exists(Id) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -270,7 +270,7 @@ update(#onp_req{gri = #gri{aspect = {gui_message, Id}}, data = Data}) ->
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERR_NOT_SUPPORTED(?err_ctx()).
+    ?ERROR_NOT_SUPPORTED.
 
 
 %%%===================================================================

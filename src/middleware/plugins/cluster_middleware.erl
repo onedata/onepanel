@@ -95,7 +95,7 @@ validate(#onp_req{
     case Role of
         root ->
             % clusters must be fetched with Onezone user authorization
-            throw(?ERR_NOT_FOUND(?err_ctx()));
+            throw(?ERROR_NOT_FOUND);
         member ->
             ok
     end;
@@ -108,10 +108,10 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = Aspect}}, _) when
     case onepanel_env:get_cluster_type() of
         ?ONEPROVIDER ->
             service_oneprovider:is_registered()
-                orelse throw(?ERR_NOT_FOUND(?err_ctx()));
+                orelse throw(?ERROR_NOT_FOUND);
         ?ONEZONE ->
             onepanel_deployment:is_set(?PROGRESS_CLUSTER)
-                orelse throw(?ERR_NOT_FOUND(?err_ctx()))
+                orelse throw(?ERROR_NOT_FOUND)
     end,
     ok.
 
@@ -140,12 +140,12 @@ get(#onp_req{gri = #gri{aspect = current_cluster_members_summary}, client = #cli
 
 -spec update(middleware:req()) -> middleware:update_result().
 update(#onp_req{gri = #gri{}, data = _Data}) ->
-    ?ERR_NOT_SUPPORTED(?err_ctx()).
+    ?ERROR_NOT_SUPPORTED.
 
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERR_NOT_SUPPORTED(?err_ctx()).
+    ?ERROR_NOT_SUPPORTED.
 
 
 %%%===================================================================

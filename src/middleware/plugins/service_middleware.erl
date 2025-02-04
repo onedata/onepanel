@@ -132,7 +132,7 @@ validate(#onp_req{
     case lists:any(fun(NewHost) ->
         lists:member(NewHost, ExistingHosts)
     end, NewHosts) of
-        true -> throw(?ERR_ALREADY_EXISTS(?err_ctx()));
+        true -> throw(?ERROR_ALREADY_EXISTS);
         false -> ok
     end;
 
@@ -149,13 +149,13 @@ validate(#onp_req{
 validate(#onp_req{operation = get, gri = #gri{aspect = {nagios, <<"op_worker">>}}}, _) ->
     case service_op_worker:get_hosts() /= [] of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = {nagios, <<"oz_worker">>}}}, _) ->
     case service_oz_worker:get_hosts() /= [] of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{
@@ -268,7 +268,7 @@ update(#onp_req{
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERR_NOT_SUPPORTED(?err_ctx()).
+    ?ERROR_NOT_SUPPORTED.
 
 
 %%%===================================================================
@@ -279,6 +279,6 @@ delete(#onp_req{}) ->
 ensure_has_host(Service, Host) ->
     case service:has_host(Service, Host) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end.
 

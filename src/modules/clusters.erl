@@ -122,7 +122,7 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {ok, ListOfAtoms, ?ONEZONE_AUTH_CACHE_CACHE_TTL};
-            ?ERR_NOT_FOUND -> ?ERR_USER_NOT_IN_CLUSTER(?err_ctx());
+            ?ERROR_NOT_FOUND -> ?ERR_USER_NOT_IN_CLUSTER(?err_ctx());
             {error, _} = Error -> Error
         end
     end);
@@ -131,7 +131,7 @@ get_user_privileges({rpc, Auth}, OnezoneUserId) ->
     case oz_worker_rpc:cluster_get_eff_user_privileges(
         Auth, get_id(), OnezoneUserId
     ) of
-        ?ERR_NOT_FOUND -> ?ERR_USER_NOT_IN_CLUSTER(?err_ctx());
+        ?ERROR_NOT_FOUND -> ?ERR_USER_NOT_IN_CLUSTER(?err_ctx());
         {error, _} = Error -> Error;
         {ok, Privileges} -> {ok, Privileges}
     end.
@@ -205,7 +205,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
         {ok, ?HTTP_200_OK, _, BodyJson} ->
             format_provider_info(json_utils:decode(BodyJson));
         {ok, ?HTTP_404_NOT_FOUND, _, _} ->
-            throw(?ERR_NOT_FOUND(?err_ctx()));
+            throw(?ERROR_NOT_FOUND);
         {ok, ?HTTP_403_FORBIDDEN, _, BodyJson} ->
             throw(errors:from_json(json_utils:decode(BodyJson)));
         {error, _} ->

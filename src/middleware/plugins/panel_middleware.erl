@@ -154,19 +154,19 @@ validate(#onp_req{
 validate(#onp_req{operation = get, gri = #gri{aspect = web_cert}}, _) ->
     case service:exists(?SERVICE_LE) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = dns_check}}, _) ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = {task, Id}}}, _) ->
     case service:exists_task(Id) of
         true -> ok;
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = Aspect}}, _) when
@@ -295,7 +295,7 @@ update(#onp_req{
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERR_NOT_SUPPORTED(?err_ctx()).
+    ?ERROR_NOT_SUPPORTED.
 
 
 %%%===================================================================

@@ -36,7 +36,7 @@
 start_scan(Node, SpaceId) ->
     case op_worker_rpc:storage_import_start_scan(Node, SpaceId) of
         ok -> ok;
-        {error, already_started} -> throw(?ERR_ALREADY_EXISTS(?err_ctx()))
+        {error, already_started} -> throw(?ERROR_ALREADY_EXISTS)
     end.
 
 
@@ -44,7 +44,7 @@ start_scan(Node, SpaceId) ->
 stop_scan(Node, SpaceId) ->
     case op_worker_rpc:storage_import_stop_scan(Node, SpaceId) of
         ok -> ok;
-        {error, not_found} -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        {error, not_found} -> throw(?ERROR_NOT_FOUND)
     end.
 
 

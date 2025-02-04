@@ -98,7 +98,7 @@ get_remote_op_details_test_base(_Config, TargetPanelType, TargetEntitySelector, 
                 ],
                 forbidden = [
                     peer,
-                    {root, ?ERR_NOT_FOUND}
+                    {root, ?ERROR_NOT_FOUND}
                 ]
             },
             data_spec = build_get_remote_op_details_data_spec(),
@@ -117,7 +117,7 @@ get_remote_op_details_test_base(_Config, TargetPanelType, TargetEntitySelector, 
 build_get_remote_op_details_data_spec() ->
     #data_spec{
         bad_values = [
-            {bad_id, <<"inexistentProviderId">>, ?ERR_NOT_FOUND}
+            {bad_id, <<"inexistentProviderId">>, ?ERROR_NOT_FOUND}
         ]
     }.
 

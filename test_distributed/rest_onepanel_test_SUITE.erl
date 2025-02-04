@@ -325,7 +325,7 @@ delete_as_admin_should_fail_if_node_is_used(Config) ->
         ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
     )),
     onepanel_test_rest:assert_body(JsonBody,
-        #{<<"error">> => errors:to_json(?ERR_NOT_SUPPORTED)}).
+        #{<<"error">> => errors:to_json(?ERROR_NOT_SUPPORTED)}).
 
 %%%===================================================================
 %%% SetUp and TearDown functions

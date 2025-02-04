@@ -123,7 +123,7 @@ seed() ->
 -spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
     no_return().
 upgrade(_PreviousVsn, _PreviousRecord) ->
-    error(?ERR_NOT_SUPPORTED(?err_ctx())).
+    error(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------

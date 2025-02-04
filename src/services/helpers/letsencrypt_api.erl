@@ -560,7 +560,7 @@ poll_status(URL, #flow_state{} = State) ->
     {ok, #flow_state{}, LastResult :: api_response()} | no_return().
 poll_status(_URL, #flow_state{} = _State, 0) ->
     ?error("Let's Encrypt authorization timed out"),
-    throw(?ERR_TIMEOUT(?err_ctx()));
+    throw(?ERROR_TIMEOUT);
 poll_status(URL, #flow_state{} = State, Attempts) ->
     {ok, #{<<"status">> := Status} = Body, _, State2} = post_as_get(URL, State),
     case Status of

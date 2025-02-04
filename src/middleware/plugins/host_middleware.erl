@@ -64,7 +64,7 @@ fetch_entity(#onp_req{gri = #gri{id = Id}}) ->
     Host = binary_to_list(Id),
     case lists:member(Host, service_onepanel:get_hosts()) of
         true -> {ok, {undefined, 1}};
-        false -> throw(?ERR_NOT_FOUND(?err_ctx()))
+        false -> throw(?ERROR_NOT_FOUND)
     end.
 
 
@@ -130,9 +130,9 @@ validate(#onp_req{
 }, _) ->
     Host = binary_to_list(HostBin),
     lists:member(Host, service_onepanel:get_hosts())
-        orelse throw(?ERR_NOT_FOUND(?err_ctx())),
+        orelse throw(?ERROR_NOT_FOUND),
     service_onepanel:is_host_used(Host)
-        andalso throw(?ERR_NOT_SUPPORTED(?err_ctx())),
+        andalso throw(?ERROR_NOT_SUPPORTED),
     ok.
 
 

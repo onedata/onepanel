@@ -102,7 +102,7 @@ validate(#onp_req{
 ->
     % root does not have Onezone user parameters
     Client#client.role == member
-        orelse throw(?ERR_NOT_FOUND(?err_ctx())),
+        orelse throw(?ERROR_NOT_FOUND),
     ok;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = Aspect}}, _) when
@@ -162,5 +162,5 @@ update(#onp_req{gri = #gri{aspect = instance, id = Id}, data = Data}) ->
 
 -spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
-    ?ERR_NOT_SUPPORTED(?err_ctx()).
+    ?ERROR_NOT_SUPPORTED.
 

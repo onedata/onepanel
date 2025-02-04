@@ -163,7 +163,7 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
 build_get_space_details_data_spec(OpWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
-        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)}]
+        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
 
 
@@ -383,7 +383,7 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
                 ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
             {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
-            {bad_id, <<"inexistentSpaceId">>, ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)}
+            {bad_id, <<"inexistentSpaceId">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ],
         selecting_correct_values_for_bad_data_sets_policy = first
     }.
@@ -477,7 +477,7 @@ revoke_space_support_test(_Config) ->
 build_revoke_space_support_data_spec(OpWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
-        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERR_ON_NODES(?ERR_NOT_FOUND, HostNames)}]
+        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
 
 

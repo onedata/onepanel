@@ -126,7 +126,7 @@ receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
     after
-        Timeout -> ?ERR_TIMEOUT(?err_ctx())
+        Timeout -> ?ERROR_TIMEOUT
     end.
 
 %%--------------------------------------------------------------------
@@ -139,7 +139,7 @@ receive_count(TaskId, Timeout) ->
     receive
         {step_count, TaskId, Count} -> Count
     after
-        Timeout -> ?ERR_TIMEOUT(?err_ctx())
+        Timeout -> ?ERROR_TIMEOUT
     end.
 
 %%%===================================================================

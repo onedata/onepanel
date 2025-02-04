@@ -148,7 +148,7 @@ get_plugin(onp_space) -> space_middleware;
 get_plugin(onp_storage) -> storage_middleware;
 get_plugin(onp_user) -> user_middleware;
 get_plugin(onp_zone) -> zone_middleware;
-get_plugin(_) -> throw(?ERR_NOT_SUPPORTED(?err_ctx())).
+get_plugin(_) -> throw(?ERROR_NOT_SUPPORTED).
 
 
 %%--------------------------------------------------------------------
@@ -165,12 +165,12 @@ ensure_operation_supported(#req_ctx{plugin = Plugin, req = #onp_req{
 }}) ->
     try Plugin:operation_supported(Op, Asp, Scp) of
         true -> ok;
-        false -> throw(?ERR_NOT_SUPPORTED(?err_ctx()))
+        false -> throw(?ERROR_NOT_SUPPORTED)
     catch
         error:_ ->
             % No need for log here, 'operation_supported' may crash depending on
             % what the request contains and this is expected.
-            throw(?ERR_NOT_SUPPORTED(?err_ctx()))
+            throw(?ERROR_NOT_SUPPORTED)
     end.
 
 
