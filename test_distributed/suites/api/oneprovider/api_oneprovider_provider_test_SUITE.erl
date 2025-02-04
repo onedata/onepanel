@@ -153,7 +153,7 @@ build_modify_provider_details_data_spec(OpWorkerNodes) ->
         },
         bad_values = [
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(<<"name">>)},
-            {<<"name">>, <<"0">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_NAME, HostNames)},
+            {<<"name">>, <<"0">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_NAME(undefined), HostNames)},
             {<<"geoLatitude">>, <<"Nan">>, ?ERR_BAD_VALUE_FLOAT(<<"geoLatitude">>)},
             {<<"geoLatitude">>, 91, ?ERR_ON_NODES(?ERR_BAD_VALUE_NOT_IN_RANGE(<<"latitude">>, -90, 90), HostNames)},
             {<<"geoLongitude">>, <<"Nan">>, ?ERR_BAD_VALUE_FLOAT(<<"geoLongitude">>)},

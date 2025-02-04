@@ -260,7 +260,9 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes).
+    test_utils:mock_unload(Nodes, [
+        onepanel_parser, service, service_oz_worker, service_onezone, oz_worker_rpc
+    ]).
 
 
 end_per_suite(_Config) ->

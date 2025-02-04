@@ -459,7 +459,9 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes),
+    test_utils:mock_unload(Nodes, [
+        service, host_middleware, onepanel_parser, service_onepanel, service_oneprovider, oz_endpoint, onezone_tokens
+    ]),
     lists:foreach(fun(Model) ->
         ?callAll(Config, model, clear, [Model])
     end, [onepanel_user, onepanel_kv]).

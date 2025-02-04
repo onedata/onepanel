@@ -865,7 +865,10 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes),
+    test_utils:mock_unload(Nodes, [
+        service, service_oz_worker, service_oneprovider,
+        onepanel_parser, model, onepanel_deployment, dns_check
+    ]),
     ?callAll(Config, model, clear, [onepanel_user, service]).
 
 end_per_suite(_Config) ->
