@@ -18,7 +18,8 @@
 
 -export([
     restart_periodic_check/0,
-    run_periodic_check/0
+    run_periodic_check/0,
+    check_usage_on_host/1
 ]).
 
 -ifdef(TEST).
@@ -30,11 +31,12 @@
 -endif.
 
 -record(usage_info, {
+    %% status is first because of sorting — DO NOT CHANGE!
     status :: status(),
     host :: service:host(),
-    db_root_dir_size :: non_neg_integer(),
-    available_disk_size :: non_neg_integer(),
-    usage :: float()  %% [0..1]
+    db_root_dir_size = undefined :: non_neg_integer() | undefined,
+    available_disk_size = undefined :: non_neg_integer() | undefined,
+    usage = undefined :: float() | undefined %% [0..1]
 }).
 -type usage_info() :: #usage_info{}.
 -type circuit_breaker_state() :: open | closed.
@@ -59,9 +61,10 @@
 -define(STATUS_ALERT, 1).
 -define(STATUS_WARNING, 2).
 -define(STATUS_OK, 3).
+-define(STATUS_RPC_FAILED, 4).
 
 % represents the severity of disk space availability status, 0 being the most critical one
--type status() :: non_neg_integer().
+-type status() :: 0 | 1 | 2 | 3 | 4.
 
 %%%===================================================================
 %%% API
@@ -83,6 +86,39 @@ restart_periodic_check() ->
         true
     end),
     ok.
+
+
+-spec check_usage_on_host(service:host()) -> usage_info() | no_return().
+check_usage_on_host(Host) ->
+    DBRootDirSize = get_db_root_dir_size(),
+    AvailableDiskSize = get_available_disk_size(),
+    Usage = DBRootDirSize / (DBRootDirSize + AvailableDiskSize),
+
+    [{Status, Threshold} | _]  = lists:dropwhile(fun({_, ThresholdValue}) -> Usage < ThresholdValue end, [
+        {?STATUS_DISK_CRITICALLY_LOW, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD},
+        {?STATUS_ALERT, ?ALERT_THRESHOLD},
+        {?STATUS_WARNING, ?WARNING_THRESHOLD},
+        {?STATUS_OK, 0.0}
+    ]),
+    ?info(
+        "Disk usage check on ~ts:"
+        "~n> Usage percent ~.2f"
+        "~n> Threshold percent ~.2f"
+        "~n> Status ~ts",
+        [
+            Host,
+            100 * Usage,
+            100 * Threshold,
+            status_to_label(Status)
+        ]
+    ),
+    #usage_info{
+        status = Status,
+        host = Host,
+        db_root_dir_size = DBRootDirSize,
+        available_disk_size = AvailableDiskSize,
+        usage = Usage
+    }.
 
 
 %%%===================================================================
@@ -109,14 +145,19 @@ run_periodic_check() ->
         Hosts = service_couchbase:get_hosts(),
         ?debug("Running periodic db disk usage check for hosts: ~tp", [Hosts]),
 
-        Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
-        Results = lists:foldl(fun
-            ({ok, UsageInfo = #usage_info{}}, Acc) ->
-                [UsageInfo | Acc];
-            (ErrorReason, Acc) ->
-                ?error(?autoformat_with_msg("Failed to check db usage:", [hosts:self(), ErrorReason])),
-                Acc
-        end, [], utils:erpc_multicall(Nodes, fun check_usage_on_host/0)),
+        Results = lists:map(fun(Host) ->
+            Node = nodes:service_to_node(?APP_NAME, Host),
+            case rpc:call(Node, db_disk_usage_monitor, check_usage_on_host, [Host]) of
+                #usage_info{} = UsageInfo ->
+                    UsageInfo;
+                {badrpc, ErrorReason} ->
+                    ?error(?autoformat_with_msg("Failed to check db usage:", [Host, ErrorReason])),
+                    #usage_info{
+                        status = ?STATUS_RPC_FAILED,
+                        host = Host
+                    }
+            end
+        end, Hosts),
 
         CircuitBreakerState = get_service_circuit_breaker_state(),
         NewCircuitBreakerState = handle_state_transition(CircuitBreakerState, Results),
@@ -126,29 +167,6 @@ run_periodic_check() ->
         ?error_exception(Class, Reason, Stacktrace),
         false
     end.
-
-
-%% @private
--spec check_usage_on_host() -> usage_info() | no_return().
-check_usage_on_host() ->
-    DBRootDirSize = get_db_root_dir_size(),
-    AvailableDiskSize = get_available_disk_size(),
-    Usage = DBRootDirSize / (DBRootDirSize + AvailableDiskSize),
-
-    [{Status, _} | _]  = lists:dropwhile(fun({_, ThresholdValue}) -> Usage < ThresholdValue end, [
-        {?STATUS_DISK_CRITICALLY_LOW, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD},
-        {?STATUS_ALERT, ?ALERT_THRESHOLD},
-        {?STATUS_WARNING, ?WARNING_THRESHOLD},
-        {?STATUS_OK, 0}
-    ]),
-
-    #usage_info{
-        status = Status,
-        host = hosts:self(),
-        db_root_dir_size = DBRootDirSize,
-        available_disk_size = AvailableDiskSize,
-        usage = Usage
-    }.
 
 
 %% @private
@@ -184,7 +202,7 @@ parse_df_cmd_output(DfOutput) ->
 
 
 %% @private
--spec handle_state_transition(circuit_breaker_state(),[usage_info()]) ->
+-spec handle_state_transition(circuit_breaker_state(), [usage_info()]) ->
     circuit_breaker_state().
 handle_state_transition(CurrentState, UsageInfos) ->
     [#usage_info{status=WorstStatus} | _] = SortedUsageInfos = lists:sort(UsageInfos),
@@ -194,33 +212,40 @@ handle_state_transition(CurrentState, UsageInfos) ->
 %% @private
 -spec handle_state_transition(circuit_breaker_state(), status(), [usage_info()]) -> circuit_breaker_state().
 handle_state_transition(closed, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
-        ?emergency("DB disk space is nearly exhausted! All services will now stop processing "
-            "requests until the problem is resolved.~ts~n", [format_usage_info(SortedUsageInfos)]),
+        ?emergency(
+            "DB disk space is nearly exhausted! "
+            "All services will now stop processing requests until the problem is resolved.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
+        ),
         open;
 handle_state_transition(closed, ?STATUS_ALERT, SortedUsageInfos) ->
-        ?alert("DB disk usage is very high. Provide more space for the DB as soon as possible. "
-            "When the usage reaches ~.2f%, all services will stop processing requests to prevent "
-            "database corruption.~ts~n", [
-            ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_usage_info(SortedUsageInfos)
-        ]),
+        ?alert(
+            "DB disk usage is very high. Provide more space for the DB as soon as possible. When the usage "
+            "reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts~n",
+            [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_usage_info(SortedUsageInfos)]
+        ),
         closed;
 handle_state_transition(closed, ?STATUS_WARNING, SortedUsageInfos) ->
-        ?warning("DB disk usage exceeded safe thresholds. Provide more space for the DB to "
-            "ensure uninterrupted services.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ?warning(
+            "DB disk usage exceeded safe thresholds. "
+            "Provide more space for the DB to ensure uninterrupted services.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
         ),
         closed;
 handle_state_transition(closed, ?STATUS_OK, SortedUsageInfos) ->
-            ?warning("DB disk usage is within safe thresholds.~ts~n", [format_usage_info(SortedUsageInfos)]),
-            closed;
+        ?info("DB disk usage is within safe thresholds.~ts~n", [format_usage_info(SortedUsageInfos)]),
+        closed;
 
 handle_state_transition(open, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
-        ?emergency("DB disk space is still critically low. All services remain stopped until "
-            "the issue is resolved.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ?emergency(
+            "DB disk space is still critically low. All services remain stopped until the issue is resolved.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
         ),
         open;
 handle_state_transition(open, _Status, SortedUsageInfos) ->
-        ?info("DB disk usage has returned to acceptable levels. Services have resumed "
-            "normal functionality.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ?notice(
+            "DB disk usage has returned to acceptable levels. Services have resumed normal functionality.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
         ),
         closed.
 
@@ -228,29 +253,50 @@ handle_state_transition(open, _Status, SortedUsageInfos) ->
 %% @private
 -spec format_usage_info([usage_info()]) -> binary().
 format_usage_info(SortedUsageInfos) ->
-    str_utils:join_binary(lists:map(fun(#usage_info{
-        status = Status,
-        host = Host,
-        db_root_dir_size = DBRootDirSize,
-        available_disk_size = AvailableDiskSize,
-        usage =  Usage
-    }) ->
+    str_utils:join_binary(lists:map(fun
+        (#usage_info{
+            status = Status,
+            host = Host,
+            db_root_dir_size = undefined,
+            available_disk_size = undefined,
+            usage =  undefined
+        }) ->
         str_utils:format_bin(
             "~n> Host: ~ts"
+            "~n> Status: ~ts"
             "~n> DB root directory path: ~ts"
-            "~n> DB root directory size: ~ts"
-            "~n> Available disk size: ~ts"
-            "~n> Usage percent: ~.2f%"
-            "~n> Status: ~ts",
+            "~n> DB root directory size: ???"
+            "~n> Available disk size: ???"
+            "~n> Usage percent: ???",
             [
                 Host,
-                ?ROOT_DIR,
-                str_utils:format_byte_size(DBRootDirSize),
-                str_utils:format_byte_size(AvailableDiskSize),
-                100 * Usage,
-                status_to_label(Status)
+                status_to_label(Status),
+                ?ROOT_DIR
             ]
-        )
+        );
+        (#usage_info{
+            status = Status,
+            host = Host,
+            db_root_dir_size = DBRootDirSize,
+            available_disk_size = AvailableDiskSize,
+            usage =  Usage
+        }) ->
+            str_utils:format_bin(
+                "~n> Host: ~ts"
+                "~n> Status: ~ts"
+                "~n> DB root directory path: ~ts"
+                "~n> DB root directory size: ~ts"
+                "~n> Available disk size: ~ts"
+                "~n> Usage percent: ~.2f%",
+                [
+                    Host,
+                    status_to_label(Status),
+                    ?ROOT_DIR,
+                    str_utils:format_byte_size(DBRootDirSize),
+                    str_utils:format_byte_size(AvailableDiskSize),
+                    100 * Usage
+                ]
+            )
     end, SortedUsageInfos), <<"\n---------------">>).
 
 
@@ -259,7 +305,8 @@ format_usage_info(SortedUsageInfos) ->
 status_to_label(?STATUS_DISK_CRITICALLY_LOW) -> "DISK SPACE CRITICALLY LOW";
 status_to_label(?STATUS_ALERT) -> "ALERT";
 status_to_label(?STATUS_WARNING) -> "WARNING";
-status_to_label(?STATUS_OK) -> "OK".
+status_to_label(?STATUS_OK) -> "OK";
+status_to_label(?STATUS_RPC_FAILED) -> "RPC_FAILED".
 
 
 %% @private

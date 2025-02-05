@@ -293,17 +293,22 @@ get_panel_env(Node, Env, Default) ->
 
 %% @private
 set_panel_env(Nodes, Env, Value) ->
-    ?rpc(?RAND_ELEMENT(Nodes), onepanel_env:set(Nodes, Env, Value, ?APP_NAME)).
+    Result = lists:map(fun(Node) -> {Node, ok} end, Nodes),
+    Result = ?rpc(?RAND_ELEMENT(Nodes), onepanel_env:set(Nodes, Env, Value, ?APP_NAME)).
+
+
 
 
 %% @private
-get_worker_env(Node, Env, Service, Value) ->
-    onepanel_env:get_remote(Node, [Env], Service, Value).
+get_worker_env(Nodes, Env, Service, Default) ->
+    ?rpc(?RAND_ELEMENT(get_panel_nodes(Service)), onepanel_env:get_remote(Nodes, [Env], Service, Default)).
 
 
 %% @private
-set_worker_env(Node, Env, Service, Value) ->
-    onepanel_env:set_remote(Node, [Env], Value, Service).
+set_worker_env(Nodes, Env, Value, Service) ->
+    lists:foreach(fun(Worker) ->
+        ok = ?rpc(Worker, onepanel_env:set_remote(Nodes, [Env], Value, Service))
+    end, get_panel_nodes(Service)).
 
 
 %% @private
@@ -312,7 +317,7 @@ mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes) ->
         op_worker -> op_worker_rpc;
         oz_worker -> oz_worker_rpc
     end,
-    test_utils:mock_expect(
+    ok = test_utils:mock_expect(
         TargetPanelNodes, Module, circuit_breaker_toggle,
         fun(_, _) -> throw(error({badrpc, nodedown})) end
     ).
@@ -320,5 +325,5 @@ mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes) ->
 
 %% @private
 unmock_circuit_breaker_toggle(TargetPanelNodes) ->
-    test_utils:mock_unload(TargetPanelNodes).
+    ok = test_utils:mock_unload(TargetPanelNodes).
 
