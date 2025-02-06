@@ -98,9 +98,7 @@ add(#{name := Name, params := Params}) ->
                 StorageName, StorageType, AddedStorageId
             ]);
         {error, _} = Error ->
-            ?error("Failed to add storage '~ts' (~ts) due to ~tp", [
-                StorageName, StorageType, Error
-            ])
+            ?error(?autoformat_with_msg("Failed to add storage '~ts' (~ts)", [StorageName, StorageType], Error))
     end,
     {StorageName, Result}.
 
@@ -113,7 +111,6 @@ add(#{name := Name, params := Params}) ->
     storage_details().
 update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
-    Id = maps:get(id, Storage),
     Name = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
     CurrentReadonly = maps:get(readonly, Storage),
@@ -125,26 +122,25 @@ update(OpNode, Id, NewParams) ->
     Readonly = maps:get(readonly, NewParams, CurrentReadonly),
     Imported = maps:get(importedStorage, NewParams, CurrentImported),
 
-    % fill params with current configuration for the verification function
-    VerificationParams1 = maps:merge(maps:remove(qosParameters, Storage), PlainValueNewParams),
-
     % TODO VFS-6951 refactor storage configuration API
     {ok, CurrentHelper} = op_worker_rpc:storage_get_helper(OpNode, Id),
     CurrentAdminCtx = onepanel_utils:convert(
         maps_utils:undefined_to_null(op_worker_rpc:get_helper_admin_ctx(OpNode, CurrentHelper)),
         {keys, atom}
     ),
-    VerificationParams2 = maps:merge(CurrentAdminCtx, VerificationParams1),
+
+    % fill params with current configuration for the verification function
+    VerificationParams1 = maps:merge(maps:remove(qosParameters, Storage), CurrentAdminCtx),
+    VerificationParams2 = maps:merge(VerificationParams1, PlainValueNewParams),
 
     UserCtx = make_user_ctx(OpNode, StorageType, VerificationParams2),
     {ok, Helper} = make_helper(OpNode, StorageType, UserCtx, VerificationParams2),
     try
-        ImportedIndicator = case Imported of
-            true -> imported;
-            false -> not_imported
-        end,
         verify_configuration(OpNode, Id, VerificationParams2, Helper),
-        verify_availability(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto), ImportedIndicator),
+        IgnoreReadWriteTest = Readonly orelse (Imported andalso op_worker_rpc:storage_supports_any_space(Id)),
+        run_storage_diagnostics(Helper, onepanel_utils:get_converted(lumaFeed, NewParams, atom, auto),
+            #{read_write_test => not IgnoreReadWriteTest},
+            str_utils:format("Modification of storage ~ts (~ts) failed", [Name, Id])),
 
         % @TODO VFS-5513 Modify everything in a single datastore operation
         % TODO VFS-6951 refactor storage configuration API
@@ -163,10 +159,14 @@ update(OpNode, Id, NewParams) ->
         Details = ?MODULE:get(Id),
         ?info("Modified storage ~tp (~tp)", [Name, Id]),
         Details#{verificationPassed => true}
-    catch Class:Reason:Stacktrace ->
-        Details2 = ?MODULE:get(Id),
-        ?error_exception(?autoformat_with_msg("Storage modification failed", [Id, Name]), Class, Reason, Stacktrace),
-        Details2#{verificationPassed => false}
+    catch
+        throw:?ERROR_STORAGE_TEST_FAILED(_) ->
+            Details2 = ?MODULE:get(Id),
+            Details2#{verificationPassed => false};
+        Class:Reason:Stacktrace ->
+            Details2 = ?MODULE:get(Id),
+            ?error_exception(?autoformat_with_msg("Storage modification failed", [Id, Name]), Class, Reason, Stacktrace),
+            Details2#{verificationPassed => false}
     end.
 
 
@@ -365,8 +365,8 @@ add(OpNode, Name, StorageType, Params) ->
 
     try
         ?info("Verifying storage access: '~ts' (~ts)", [Name, StorageType]),
-        % Treat this storage as not imported, because it is not supporting any spaces yet and all tests can be performed.
-        verify_availability(Helper, LumaFeed, not_imported),
+        run_storage_diagnostics(Helper, LumaFeed, #{read_write_test => not Readonly},
+            str_utils:format("Verification of storage '~ts' (~ts)  failed", [Name, StorageType])),
         ?info("Adding storage: '~ts' (~ts)", [Name, StorageType]),
         op_worker_rpc:storage_create(
             Name, Helper, LumaConfig, ImportedStorage, Readonly, normalize_numeric_qos_parameters(QosParameters)
@@ -424,10 +424,12 @@ verify_configuration(OpNode, NameOrId, StorageParams, Helper) ->
 %% service nodes.
 %% @end
 %%--------------------------------------------------------------------
-verify_availability(Helper, LumaFeed, Imported) ->
-    case op_worker_rpc:verify_storage_availability_on_all_nodes(Helper, LumaFeed, Imported) of
+run_storage_diagnostics(Helper, LumaFeed, Opts, ErrorLog) ->
+    case op_worker_rpc:storage_detector_run_diagnostics(Helper, LumaFeed, Opts) of
         ok -> ok;
-        {error, _} = Error -> throw(Error)
+        {{error, _} = Error, Reason} ->
+            ?error(?autoformat_with_msg(ErrorLog, [Reason])),
+            throw(Error)
     end.
 
 

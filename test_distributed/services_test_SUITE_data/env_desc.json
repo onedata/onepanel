@@ -34,30 +34,12 @@
           "storagePathType": "flat"
         },
         {
-          "type": "cephrados",
-          "name": "someCephRados",
-          "pool": "onedata:8",
-          "storagePathType": "flat"
-        },
-        {
-          "type": "s3",
-          "name": "someS3",
-          "bucket": "onedata",
-          "storagePathType": "flat",
-          "disable_iam_mock": false
-        },
-        {
           "type": "glusterfs",
           "name": "someGlusterfs",
           "volume": "data",
           "transport": "tcp",
           "mountpoint": "/",
           "xlatorOptions": "",
-          "storagePathType": "canonical"
-        },
-        {
-          "type": "webdav",
-          "name": "someWebDAV",
           "storagePathType": "canonical"
         },
         {
@@ -71,7 +53,7 @@
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:develop",
+      "image": "docker.onedata.org/onezone-dev:VFS-12098-test-couchbase-upgrade-to-6.x-from-4.1",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -99,7 +81,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:develop",
+      "image": "docker.onedata.org/oneprovider-dev:VFS-12098-test-couchbase-upgrade-to-6.x-from-4.1",
       "onepanel": {
         "node1": {
           "vm.args": {

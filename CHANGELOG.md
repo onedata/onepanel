@@ -1,8 +1,23 @@
-Release notes for project onepanel
-==================================
+# Release notes for project onepanel
 
-CHANGELOG
----------
+## CHANGELOG
+
+### 21.02.8
+
+-   **VFS-12370** Web GUI: Changed default views which are opened using
+    tabs, remembering last used resource (eg. space), improved look of
+    main views loading indicators and added "recently used" space icons.
+-   **VFS-12137** Web GUI: Numerous improvements to the storage backend
+    creation form.
+-   **VFS-10787** Added a circuit breaker mechanism that disables
+    Oneprovider services when the database is close to running out of
+    disk space.
+-   **VFS-10341** Web GUI: Upgraded EmberJS to v3.16.
+
+### 21.02.7
+
+-   **VFS-12080** Web GUI: Added support for creating custom login view
+    pages.
 
 ### 21.02.6
 

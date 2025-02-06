@@ -206,6 +206,12 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
     [MainCmHost] = middleware_utils:get_hosts([cluster, managers, mainNode], Data),
     OpwHosts = middleware_utils:get_hosts([cluster, workers, nodes], Data),
 
+    OneS3NodesKey = [cluster, oneS3, nodes],
+    OneS3Hosts = case kv_utils:is_key(OneS3NodesKey, Data) of
+        true -> middleware_utils:get_hosts(OneS3NodesKey, Data);
+        false -> []
+    end,
+
     StorageCtx = kv_utils:copy_found([{[cluster, storages], storages}], Data),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts},
 
@@ -218,7 +224,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         {[cluster, databases, bucketQuota], couchbase_bucket_quota}
     ], Data, #{hosts => DbHosts}),
 
-    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts),
+    OpaHosts = lists:usort(DbHosts ++ CmHosts ++ OpwHosts ++ OneS3Hosts),
     OpaCtx = kv_utils:copy_found([
         {[onepanel, interactiveDeployment], interactive_deployment, true},
         {[onepanel, guiDebugMode], gui_debug_mode}
@@ -239,6 +245,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
             mark_cluster_ips_configured => IPsConfigured
         },
         ?SERVICE_LE => LetsencryptCtx#{hosts => OpaHosts},
+        ?SERVICE_ONES3 => #{hosts => OneS3Hosts},
         storages => StorageCtx2
     },
 
@@ -256,7 +263,8 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         {[oneprovider, geoLongitude], oneprovider_geo_longitude}
     ], Data, #{
         hosts => OpwHosts,
-        cluster_ips => ClusterIPs
+        cluster_ips => ClusterIPs,
+        deploy_ones3 => OneS3Hosts /= []
     }),
 
     CommonCtx = #{cluster => ClusterCtx, ?SERVICE_OP => OpwCtx},

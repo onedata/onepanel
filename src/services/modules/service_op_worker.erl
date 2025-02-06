@@ -678,7 +678,12 @@ supports_letsencrypt_challenge(_) -> false.
 %%--------------------------------------------------------------------
 -spec set_txt_record(Ctx :: service:step_ctx()) -> ok.
 set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
-    ok = op_worker_rpc:set_txt_record(Name, Value, TTL).
+    BasicRecordJson = #{
+        <<"name">> => Name,
+        <<"content">> => Value
+    },
+    RecordJson = maps_utils:put_if_defined(BasicRecordJson, <<"ttl">>, TTL),
+    ok = op_worker_rpc:update_txt_records(#{<<"setOpWorkerTxtRecord">> => RecordJson}).
 
 
 %%--------------------------------------------------------------------
@@ -688,7 +693,7 @@ set_txt_record(#{txt_name := Name, txt_value := Value, txt_ttl := TTL}) ->
 %%--------------------------------------------------------------------
 -spec remove_txt_record(Ctx :: service:step_ctx()) -> ok.
 remove_txt_record(#{txt_name := Name}) ->
-    ok = op_worker_rpc:remove_txt_record(Name).
+    ok = op_worker_rpc:update_txt_records(#{<<"unsetOpWorkerTxtRecordName">> => Name}).
 
 
 %%--------------------------------------------------------------------

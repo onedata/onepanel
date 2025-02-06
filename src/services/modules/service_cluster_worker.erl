@@ -131,9 +131,10 @@ get_steps(status, _Ctx) ->
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
-get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(set_cluster_ips, #{cluster_ips := HostsToIps, name := ServiceName} = Ctx) ->
     % execute only on nodes where ip is explicitly provided
-    get_steps(set_cluster_ips, Ctx#{hosts => maps:keys(HostsToIps)});
+    Hosts = lists_utils:intersect(hosts:all(ServiceName), maps:keys(HostsToIps)),
+    get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
 get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
     Hosts = hosts:all(ServiceName),
@@ -246,12 +247,16 @@ configure(#{name := ServiceName, main_cm_host := MainCmHost, cm_hosts := CmHosts
 
 -spec start(service:step_ctx()) -> ok | no_return().
 start(#{name := ServiceName} = Ctx) ->
+    DbUser = onepanel_env:typed_get(couchbase_user, list),
+    onepanel_env:write([name(), couchbase_user], DbUser, ServiceName),
+    DbPassword = onepanel_env:typed_get(couchbase_password, list),
+    onepanel_env:write([name(), couchbase_password], DbPassword, ServiceName),
+
     service:update_status(ServiceName, starting),
     service_cli:start(ServiceName, Ctx),
     service:update_status(ServiceName, unhealthy),
     service:register_healthcheck(ServiceName, Ctx),
     ok.
-
 
 -spec stop(service:step_ctx()) -> ok.
 stop(#{name := ServiceName} = Ctx) ->
@@ -366,11 +371,15 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
         {ok, NewIP} ->
             onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
             ip_utils:to_ip4_address(NewIP);
-        _ -> {ok, get_initial_ip(ServiceName)}
+        _ ->
+            {ok, get_initial_ip(ServiceName)}
     end,
 
+    onepanel_env:write([?SERVICE_PANEL, external_ip], IP, ?SERVICE_PANEL),
+    onepanel_env:set(external_ip, IP, ?SERVICE_PANEL),
     onepanel_env:write([name(), external_ip], IP, ServiceName),
     onepanel_env:set_remote(Node, [external_ip], IP, name()),
+
     dns_check:invalidate_cache(ServiceName).
 
 
@@ -472,9 +481,11 @@ setup_cert_paths(ServiceName, AppName) ->
 -spec get_initial_ip(service:name()) -> inet:ip4_address().
 get_initial_ip(ServiceName) ->
     case onepanel_env:read_effective([name(), external_ip], ServiceName) of
-        {ok, {_, _, _, _} = IP} -> IP;
+        {ok, {_, _, _, _} = IP} ->
+            IP;
         {ok, IPList} when is_list(IPList) ->
             {ok, IP} = ip_utils:to_ip4_address(IPList),
             IP;
-        _ -> onepanel_ip:determine_ip()
+        _ ->
+            onepanel_ip:determine_ip(ServiceName)
     end.

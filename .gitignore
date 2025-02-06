@@ -31,6 +31,9 @@ rebar3.crashdump
 *.iml
 .idea
 
+### vscode
+.vscode
+
 ## File-based project format:
 *.iws
 

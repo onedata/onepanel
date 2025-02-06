@@ -97,7 +97,7 @@ list_certificate_files_test() ->
             ok = file:write_file(Path, <<>>),
             ok = onepanel_env:set(Var, Path),
             Path
-        end, [web_key_file, web_cert_file, web_cert_chain_file]),
+        end, [web_key_file, web_cert_file, web_cert_chain_file, web_cert_full_chain_file]),
         Files2 = lists:sort([LECredentials | Files]),
 
         ?assertEqual(Files2, lists:sort(onepanel_cert:list_certificate_files()))

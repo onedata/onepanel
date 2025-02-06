@@ -261,12 +261,12 @@ init_cluster(Ctx) ->
     ),
 
     Cmd = [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
-        str_utils:format("--cluster-init-username=~ts", [User]),
-        str_utils:format("--cluster-init-ramsize=~B", [ServerQuota])
+        str_utils:format("--cluster-username=~ts", [User]),
+        str_utils:format("--cluster-ramsize=~B", [ServerQuota])
     ],
     shell_utils:ensure_success(
-        Cmd ++ ["--cluster-init-password=" ++ Password],
-        Cmd ++ ["--cluster-init-password=*****"]),
+        Cmd ++ ["--cluster-password=" ++ Password],
+        Cmd ++ ["--cluster-password=*****"]),
 
     ClusterType = onepanel_env:get_cluster_type(),
     Buckets = kv_utils:get(ClusterType, onepanel_env:get(couchbase_buckets)),
@@ -365,7 +365,7 @@ create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
     Cmd = [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
         "-u", User, "--bucket=" ++ Bucket,
         str_utils:format("--bucket-ramsize=~B", [BucketQuota]),
-        "--bucket-eviction-policy=fullEviction", "--wait"],
+        "--bucket-eviction-policy=fullEviction", "--bucket-type=couchbase", "--wait"],
     shell_utils:ensure_success(
         Cmd ++ ["-p", Password],
         Cmd ++ ["-p", "****"]

@@ -25,6 +25,8 @@
 -define(SERVICE_OZ, onezone).
 -define(SERVICE_OZW, oz_worker).
 
+-define(SERVICE_ONES3, ones3).
+
 -define(DNS_CHECK_TIMESTAMP_KEY, dns_check_attempt_timestamp).
 -define(DNS_CHECK_CACHE_KEY, dns_check).
 
