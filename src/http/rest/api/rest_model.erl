@@ -79,6 +79,7 @@
     remote_provider_details_model/0,
     service_databases_model/0,
     service_hosts_model/0,
+    service_ones3_model/0,
     service_status_model/0,
     service_status_host_model/0,
     space_auto_cleaning_configuration_model/0,
@@ -368,7 +369,9 @@ cluster_members_summary_model() ->
 cluster_one_s3_model() ->
     #{
         %% The list of aliases of OneS3 nodes.
-        nodes => [string]
+        nodes => [string],
+        %% The port on which the OneS3 service will be available.
+        port => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -745,7 +748,9 @@ node_model() ->
 one_s3_hosts_model() ->
     #{
         %% The list of service hosts.
-        hosts => [string]
+        hosts => [string],
+        %% The port on which the OneS3 service is available.
+        port => integer
     }.
 
 %%--------------------------------------------------------------------
@@ -1185,10 +1190,12 @@ service_databases_model() ->
         %% The server quota is the RAM memory in bytes that is allocated to the
         %% server when Couchbase Server is first installed. This sets the limit
         %% of RAM allocated by Couchbase for caching data for all buckets and is
-        %% configured on a per-node basis.
+        %% configured on a per-node basis. NOTE: This is used only for first
+        %% deployment and ignored when adding new  hosts for the service.
         serverQuota => {integer, optional},
         %% The bucket quota is the amount of RAM memory in bytes allocated to an
-        %% individual bucket for caching data.
+        %% individual bucket for caching data. NOTE: This is used only for first
+        %% deployment and ignored when adding new  hosts for the service.
         bucketQuota => {integer, optional}
     }.
 
@@ -1201,6 +1208,21 @@ service_hosts_model() ->
     #{
         %% The list of hosts where service should be deployed.
         hosts => [string]
+    }.
+
+%%--------------------------------------------------------------------
+%% @doc The service hosts configuration.
+%% @end
+%%--------------------------------------------------------------------
+-spec service_ones3_model() -> onepanel_parser:object_spec().
+service_ones3_model() ->
+    #{
+        %% The list of hosts where service should be deployed.
+        hosts => [string],
+        %% The port on which the OneS3 service will be available. NOTE: This is
+        %% used only for first deployment and ignored when adding new  hosts for
+        %% the service.
+        port => {integer, optional}
     }.
 
 %%--------------------------------------------------------------------

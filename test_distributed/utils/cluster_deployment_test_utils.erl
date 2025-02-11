@@ -89,7 +89,8 @@ deploy_cluster(ClusterConfig) ->
 -spec deploy_ones3(op_cluster_config()) -> ok.
 deploy_ones3(ClusterConfig = #op_cluster_config{
     nodes = Nodes,
-    ones3_nodes = OneS3Nodes
+    ones3_nodes = OneS3Nodes,
+    ones3_port = OneS3Port
 }) ->
     Node = get_main_node(ClusterConfig),
 
@@ -98,10 +99,12 @@ deploy_ones3(ClusterConfig = #op_cluster_config{
         NodeDetails#node_details.hostname
     end, OneS3Nodes),
 
+    Config = maps_utils:put_if_defined(#{<<"hosts">> => OneS3Hosts}, <<"port">>, OneS3Port),
+
     {ok, ?HTTP_202_ACCEPTED, _, #{<<"taskId">> := TaskId}} = panel_test_rest:post(
         Node, <<"/provider/ones3">>, #{
             auth => root,
-            json => #{<<"hosts">> => OneS3Hosts}
+            json => Config
         }
     ),
     cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
@@ -215,7 +218,8 @@ build_cluster_config(#op_cluster_config{
     main_manager = MainManager,
     workers = Workers,
     databases = Databases,
-    ones3_nodes = OneS3Nodes
+    ones3_nodes = OneS3Nodes,
+    ones3_port = OneS3Port
 }) ->
     #{
         <<"nodes">> => maps:fold(fun(Id, #node_details{hostname = Host, ip = Ip}, Acc) ->
@@ -234,9 +238,11 @@ build_cluster_config(#op_cluster_config{
         <<"databases">> => #{
             <<"nodes">> => lists:map(fun node_id_to_name/1, Databases)
         },
-        <<"oneS3">> => #{
-            <<"nodes">> => lists:map(fun node_id_to_name/1, OneS3Nodes)
-        }
+        <<"oneS3">> => maps_utils:put_if_defined(
+            #{<<"nodes">> => lists:map(fun node_id_to_name/1, OneS3Nodes)},
+            <<"port">>,
+            OneS3Port
+        )
     }.
 
 

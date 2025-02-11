@@ -16,6 +16,7 @@
 -include("api_test_runner.hrl").
 -include("cert_test_utils.hrl").
 -include("cluster_deployment_test_utils.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -49,12 +50,16 @@ deploy_test(Config) ->
     RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
 
     [OpPanelNode1, OpPanelNode2] = ?config(op_panel_nodes, Config),
+    OpPanelNode1Ip = ip_test_utils:get_node_ip(OpPanelNode1),
     OpPanelNode2Details = cluster_deployment_test_utils:infer_node_details(OpPanelNode2),
     OpPanelNode2Host = OpPanelNode2Details#node_details.hostname,
     OpPanelNode2Ip = OpPanelNode2Details#node_details.ip,
 
-    OneS3Port = panel_test_rpc:call(OpPanelNode1, service_ones3, get_port, []),
     panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
+
+    DefaultOneS3Port = ?rpc(OpPanelNode1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
+    OneS3PortToSet = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999]),
+    ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
 
     ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
@@ -111,7 +116,8 @@ deploy_test(Config) ->
     % service on selected host, immediately start it and regenerates certificate
     % (if lets encrypt is enabled)
     cluster_deployment_test_utils:deploy_ones3(OpClusterConfig#op_cluster_config{
-        ones3_nodes = [2]
+        ones3_nodes = [2],
+        ones3_port = OneS3PortToSet
     }),
     ?assertEqual(
         #{OpPanelNode2Host => <<"healthy">>},
@@ -124,7 +130,17 @@ deploy_test(Config) ->
     }),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails1),
 
-    ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode2Ip, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode2Ip, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
+
+    % Ensure adding oneS3 host to already deployed cluster with ones3 will ignore new port
+    OneS3PortToIgnore = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999] -- [OneS3PortToSet]),
+    cluster_deployment_test_utils:deploy_ones3(OpClusterConfig#op_cluster_config{
+        ones3_nodes = [1],
+        ones3_port = OneS3PortToIgnore
+    }),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode1Ip, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode2Ip, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
+
     ok.
 
 

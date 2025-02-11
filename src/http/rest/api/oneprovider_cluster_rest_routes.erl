@@ -68,7 +68,7 @@ routes() ->
                 scope = private
             },
             %% The OneS3 service hosts configuration.
-            data_spec = (rest_model:service_hosts_model())
+            data_spec = (rest_model:service_ones3_model())
         }},
 
         %% Add provider cluster workers
@@ -193,7 +193,7 @@ routes() ->
             produces = [<<"text/xml">>]
         }},
 
-        %% Get provider host OneS3 status on all hosts
+        %% Get provider OneS3 status on all hosts
         {<<"/provider/ones3">>, #rest_req{
             method = 'GET',
             b_gri = #b_gri{
@@ -337,9 +337,9 @@ routes() ->
                 scope = private
             },
             data_spec = #{
-                %% Defines the intended state of the OneS3 server service. The
-                %% service  will be started or stopped in order to match the
-                %% requested state.
+                %% Defines the intended state of the OneS3 service. The service
+                %% will be started or stopped in order to match the requested
+                %% state.
                 started => {boolean, {optional, true}}
             }
         }},

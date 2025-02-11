@@ -28,6 +28,7 @@
     workers :: [non_neg_integer()],
     databases :: [non_neg_integer()],
     ones3_nodes = [] :: [non_neg_integer()],
+    ones3_port = undefined :: undefined | non_neg_integer(),
 
     %% Provider configuration
     name :: binary(),

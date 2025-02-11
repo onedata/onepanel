@@ -41,6 +41,7 @@
     exists/0,
 
     get_port/0,
+    configure_port/1,
 
     create_service/1, add_service_host/1,
 
@@ -102,10 +103,16 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
-get_steps(create, #{hosts := Hosts}) ->
+get_steps(create, Ctx = #{hosts := Hosts}) ->
     NewHosts = lists_utils:subtract(Hosts, get_hosts()),
+    FirstDeployment = get_hosts() == [],
 
     [
+        #step{
+            function = configure_port,
+            selection = first,
+            condition = FirstDeployment and maps:is_key(port, Ctx)
+        },
         #step{function = create_service, selection = first},
         #step{hosts = NewHosts, function = add_service_host}
     ];
@@ -246,6 +253,14 @@ exists() ->
 -spec get_port() -> undefined | inet:port_number().
 get_port() ->
     onepanel_env:get(ones3_http_port, ?SERVICE_PANEL).
+
+
+-spec configure_port(service:step_ctx()) -> ok.
+configure_port(#{port := Port}) ->
+    PanelNodes = nodes:all(?SERVICE_PANEL),
+    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, ones3_http_port], Port, ?SERVICE_PANEL),
+    onepanel_env:set(PanelNodes, ones3_http_port, Port, ?APP_NAME),
+    ok.
 
 
 -spec create_service(service:step_ctx()) -> ok.

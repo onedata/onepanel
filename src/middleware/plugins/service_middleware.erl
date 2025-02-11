@@ -194,13 +194,16 @@ create(#onp_req{gri = #gri{aspect = cluster_manager_instances}, data = Data}) ->
     Ctx = #{main_host => MainHost, hosts => Hosts},
     {ok, value, _TaskId = service:apply_async(?SERVICE_CM, deploy, Ctx)};
 
+create(#onp_req{gri = #gri{aspect = ones3_instances}, data = Data}) ->
+    NewHosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
+    Ctx = kv_utils:copy_found([{port, port}], Data, #{new_hosts => NewHosts}),
+    {ok, value, _TaskId = service:apply_async(?SERVICE_ONES3, add_nodes, Ctx)};
+
 create(#onp_req{gri = #gri{aspect = As}, data = Data}) when
-    As == ones3_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
     Service = case As of
-        ones3_instances -> ?SERVICE_ONES3;
         op_worker_instances -> ?SERVICE_OPW;
         oz_worker_instances -> ?SERVICE_OZW
     end,

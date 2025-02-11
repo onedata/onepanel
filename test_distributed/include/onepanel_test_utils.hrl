@@ -11,6 +11,7 @@
 -ifndef(ONEPANEL_TEST_UTILS_HRL).
 -define(ONEPANEL_TEST_UTILS_HRL, 1).
 
+-include("names.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("ctool/include/test/performance.hrl").
 
@@ -46,5 +47,10 @@
     lists:foreach(fun(Expr) ->
         ?assertMatch(Expect, Expr)
     end, ExprList)).
+
+-define(rpc(__PANEL_SELECTOR, __EXPRESSION), panel_test_rpc:call(__PANEL_SELECTOR, fun() ->
+    __EXPRESSION
+end)).
+
 
 -endif.

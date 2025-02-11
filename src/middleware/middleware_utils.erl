@@ -172,7 +172,8 @@ format_service_configuration(SModule) ->
             CommonClusterConfiguration;
         service_oneprovider ->
             CommonClusterConfiguration#{<<"oneS3">> => #{
-                <<"hosts">> => onepanel_utils:convert(hosts:all(?SERVICE_ONES3), {seq, binary})
+                <<"hosts">> => onepanel_utils:convert(hosts:all(?SERVICE_ONES3), {seq, binary}),
+                <<"port">> => service_ones3:get_port()
             }}
     end,
 
