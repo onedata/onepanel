@@ -34,7 +34,7 @@
 %% Ensures given passphrase is valid and sets it as the new root passphrase.
 %% @end
 %%--------------------------------------------------------------------
--spec set(Passphrase :: binary()) -> ok | ?ERROR_BAD_VALUE_PASSWORD.
+-spec set(Passphrase :: binary()) -> ok | od_error_bad_value_password:t().
 set(Passphrase) ->
     case validate(Passphrase) of
         ok -> set_hash(onedata_passwords:create_hash(Passphrase));
@@ -82,11 +82,12 @@ change(OldPassphrase, NewPassphrase) ->
         false ->
             case OldPassphrase == undefined of
                 true ->
-                    ?ERROR_MISSING_REQUIRED_VALUE(<<"currentPassphrase">>);
+                    ?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"currentPassphrase">>);
                 false ->
                     ?info("Attempt to change emergency passphrase failed due to " ++
                     "incorrect previous passphrase given"),
-                    ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)
+                    ErrorCtx = ?err_ctx(),
+                    ?ERR_UNAUTHORIZED(ErrorCtx, ?ERR_BAD_BASIC_CREDENTIALS(?err_ctx()))
             end
     end.
 
@@ -100,7 +101,7 @@ verify(PlaintextPassphrase) when is_binary(PlaintextPassphrase) ->
     case get_hash() of
         {ok, Hash} ->
             onedata_passwords:verify(PlaintextPassphrase, Hash);
-        ?ERR_DOC_NOT_FOUND ->
+        ?ONP_ERR_DOC_NOT_FOUND ->
             false
     end;
 
@@ -151,9 +152,9 @@ set_hash(PassphraseHash) ->
 %% constraints.
 %% @end
 %%--------------------------------------------------------------------
--spec validate(Passphrase :: binary()) -> ok | ?ERROR_BAD_VALUE_PASSWORD.
+-spec validate(Passphrase :: binary()) -> ok | od_error_bad_value_password:t().
 validate(Passphrase) when size(Passphrase) < ?PASSWORD_MIN_LENGTH ->
-    ?ERROR_BAD_VALUE_PASSWORD;
+    ?ERR_BAD_VALUE_PASSWORD(?err_ctx());
 
 validate(Passphrase) when is_binary(Passphrase) ->
     ok.

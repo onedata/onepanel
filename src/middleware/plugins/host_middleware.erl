@@ -112,7 +112,7 @@ validate(#onp_req{operation = create, gri = #gri{aspect = instance}}, _) ->
 validate(#onp_req{operation = create, gri = #gri{aspect = join_cluster}}, _) ->
     case service_onepanel:available_for_clustering() of
         true -> ok;
-        false -> throw(?ERROR_NODE_ALREADY_IN_CLUSTER(hosts:self()))
+        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = As}}, _) when

@@ -139,7 +139,7 @@ validate(#onp_req{
 }, _) ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER)
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end;
 
 validate(#onp_req{
@@ -162,7 +162,7 @@ validate(#onp_req{operation = Op, gri = #gri{aspect = transfers_mock}}, _) when
     Op == update
 ->
     case service:get_hosts(?SERVICE_OPW) of
-        [] -> throw(?ERROR_NO_SERVICE_NODES(?SERVICE_OPW));
+        [] -> throw(?ERR_NO_SERVICE_NODES(?err_ctx(), ?SERVICE_OPW));
         _ -> ok
     end;
 
@@ -171,13 +171,13 @@ validate(#onp_req{
 }, _) ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER)
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end;
 
 validate(#onp_req{operation = delete, gri = #gri{aspect = instance}}, _) ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER)
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end.
 
 

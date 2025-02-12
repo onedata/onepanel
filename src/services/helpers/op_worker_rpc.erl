@@ -29,7 +29,7 @@
 
 -define(CALL(Node, Args),
     case ?NO_EXCEPTION_CALL(Node, Args) of
-        {badrpc, nodedown} -> throw(?ERROR_SERVICE_UNAVAILABLE);
+        {badrpc, nodedown} -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()));
         {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).

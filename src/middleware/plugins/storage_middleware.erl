@@ -347,10 +347,10 @@ validate(#onp_req{
     case CurrentDetails of
         #{name := OldName, type := Type} -> ok;
         #{name := ActualName, type := _} when ActualName /= OldName ->
-            throw(?ERROR_BAD_VALUE_NOT_ALLOWED(OldName, [ActualName]));
+            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), OldName, [ActualName]));
         #{name := OldName, type := ActualType} ->
             Key = str_utils:join_as_binaries([OldName, type], <<".">>),
-            throw(?ERROR_BAD_VALUE_NOT_ALLOWED(Key, [ActualType]))
+            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), Key, [ActualType]))
     end;
 validate(#onp_req{
     operation = update, gri = #gri{aspect = {As, _Id}}}, _) when
@@ -366,7 +366,7 @@ validate(#onp_req{operation = delete, gri = #gri{aspect = instance, id = Id}}, _
     ensure_registered(),
     case op_worker_storage:can_be_removed(Id) of
         true -> ok;
-        false -> throw(?ERROR_STORAGE_IN_USE)
+        false -> throw(?ERR_STORAGE_IN_USE(?err_ctx()))
     end;
 validate(#onp_req{
     operation = delete, gri = #gri{aspect = {As, _Id}}
@@ -653,7 +653,7 @@ delete(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}) when
 -spec ensure_registered() -> ok | no_return().
 ensure_registered() ->
     case service_oneprovider:is_registered() of
-        false -> throw(?ERROR_UNREGISTERED_ONEPROVIDER);
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()));
         true -> ok
     end.
 
@@ -663,7 +663,7 @@ convert_uid_to_integer(Value) ->
         binary_to_integer(Value)
     catch
         error:badarg ->
-            throw(?ERROR_BAD_VALUE_INTEGER(uid))
+            throw(?ERR_BAD_VALUE_INTEGER(?err_ctx(), uid))
     end.
 
 -spec is_local_feed_luma_request(atom()) -> boolean().
@@ -692,7 +692,7 @@ validate_storage_common_args(StorageName, StorageArgs) ->
     Timeout =  maps:get(timeout, StorageArgs, ?DEFAULT_STORAGE_TIMEOUT),
     case Timeout < ?MIN_STORAGE_TIMEOUT of
         true ->
-            throw(?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_KEY(StorageName, timeout), ?MIN_STORAGE_TIMEOUT));
+            throw(?ERR_BAD_VALUE_TOO_LOW(?err_ctx(), ?STORAGE_KEY(StorageName, timeout), ?MIN_STORAGE_TIMEOUT));
         false ->
             ok
     end.
@@ -707,24 +707,24 @@ validate_storage_custom_args(StorageName, Data = #{type := <<"s3">>}) ->
             {ok, Hostname} -> url_utils:infer_components(Hostname)
         end
     catch
-        _:_ -> throw(?ERROR_BAD_DATA(?STORAGE_KEY(StorageName, <<"hostname">>)))
+        _:_ -> throw(?ERR_BAD_DATA(?err_ctx(), ?STORAGE_KEY(StorageName, <<"hostname">>), undefined))
     end,
 
     SignatureVersion = maps:get(signatureVersion, Data, ?DEFAULT_S3_SIGNATURE_VERSION),
     case lists:member(SignatureVersion, ?ALLOWED_S3_SIGNATURE_VERSIONS) of
         true -> ok;
-        false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_KEY(StorageName, signatureVersion), ?ALLOWED_S3_SIGNATURE_VERSIONS))
+        false -> throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?err_ctx(), ?STORAGE_KEY(StorageName, signatureVersion), ?ALLOWED_S3_SIGNATURE_VERSIONS))
     end,
 
     BlockSize = maps:get(blockSize, Data, ?DEFAULT_S3_BLOCK_SIZE),
     case BlockSize < ?MIN_S3_BLOCK_SIZE of
-        true -> throw(?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_KEY(StorageName, blockSize), ?MIN_S3_BLOCK_SIZE));
+        true -> throw(?ERR_BAD_VALUE_TOO_LOW(?err_ctx(), ?STORAGE_KEY(StorageName, blockSize), ?MIN_S3_BLOCK_SIZE));
         false -> ok
     end,
 
     MaxCanonicalObjectSize = maps:get(maximumCanonicalObjectSize, Data, ?DEFAULT_S3_MAX_CANONICAL_OBJECT_SIZE),
     case MaxCanonicalObjectSize < ?MIN_S3_MAX_CANONICAL_OBJECT_SIZE of
-        true -> throw(?ERROR_BAD_VALUE_TOO_LOW(?STORAGE_KEY(StorageName, maximumCanonicalObjectSize), ?MIN_S3_MAX_CANONICAL_OBJECT_SIZE));
+        true -> throw(?ERR_BAD_VALUE_TOO_LOW(?err_ctx(), ?STORAGE_KEY(StorageName, maximumCanonicalObjectSize), ?MIN_S3_MAX_CANONICAL_OBJECT_SIZE));
         false -> ok
     end;
 

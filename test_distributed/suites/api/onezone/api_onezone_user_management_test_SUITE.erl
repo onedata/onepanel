@@ -68,7 +68,7 @@ create_user_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [
@@ -106,14 +106,14 @@ build_create_user_data_spec(OzWorkerNodes, GroupIds) ->
             <<"groups">> => [GroupIds]
         },
         bad_values = [
-            {<<"password">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
-            {<<"password">>, <<"">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
-            {<<"password">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
-            {<<"fullName">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
-            {<<"fullName">>, TooShortFullname, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
-            {<<"fullName">>, ?TOO_LONG_NAME, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_FULL_NAME, HostNames)},
-            {<<"groups">>, [<<>>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
-            {<<"groups">>, [<<"inexistentGroupId">>], ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
+            {<<"password">>, <<>>, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"password">>, <<"">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"password">>, TooShortPassword, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"fullName">>, <<>>, ?ERR_ON_NODES(?ERR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"fullName">>, TooShortFullname, ?ERR_ON_NODES(?ERR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"fullName">>, ?TOO_LONG_NAME, ?ERR_ON_NODES(?ERR_BAD_VALUE_FULL_NAME, HostNames)},
+            {<<"groups">>, [<<>>], ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
+            {<<"groups">>, [<<"inexistentGroupId">>], ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ]
     }.
 
@@ -187,7 +187,7 @@ get_user_details_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [
@@ -230,7 +230,7 @@ build_get_user_details_setup_fun(MemRef) ->
 build_get_user_details_data_spec(OzWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OzWorkerNodes),
     #data_spec{
-        bad_values = [{bad_id, <<"NonExistentUserId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
+        bad_values = [{bad_id, <<"NonExistentUserId">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
 
 
@@ -274,7 +274,7 @@ set_user_password_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [
@@ -301,10 +301,10 @@ build_set_user_password_data_spec(OzWorkerNodes) ->
             <<"newPassword">> => [new_password_placeholder, old_password_placeholder]
         },
         bad_values = [
-            {bad_id, <<"NonExistentUserId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
-            {<<"newPassword">>, <<>>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
-            {<<"newPassword">>, <<"">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)},
-            {<<"newPassword">>, TooShortPassword, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_PASSWORD, HostNames)}
+            {bad_id, <<"NonExistentUserId">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)},
+            {<<"newPassword">>, <<>>, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"newPassword">>, <<"">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)},
+            {<<"newPassword">>, TooShortPassword, ?ERR_ON_NODES(?ERR_BAD_VALUE_PASSWORD, HostNames)}
         ]
     }.
 

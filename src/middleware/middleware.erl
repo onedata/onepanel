@@ -129,7 +129,7 @@ handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
             ?error_stacktrace("Unexpected error in ~tp - ~tp:~tp", [
                 ?MODULE, Type, Reason
             ], Stacktrace),
-            ?ERROR_INTERNAL_SERVER_ERROR
+            ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)
     end.
 
 
@@ -189,7 +189,7 @@ ensure_availability(#req_ctx{plugin = Plugin, req = #onp_req{
     Requirements = Plugin:required_availability(Op, Asp, Scp),
     case lists:all(fun is_availability_satisfied/1, Requirements) of
         true -> ok;
-        false -> throw(?ERROR_SERVICE_UNAVAILABLE)
+        false -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
     end.
 
 
@@ -289,11 +289,11 @@ ensure_authorized(#req_ctx{
             case Client of
                 #client{role = guest} ->
                     % The client was not authenticated -> unauthorized
-                    throw(?ERROR_UNAUTHORIZED);
+                    throw(?ERR_UNAUTHORIZED(?err_ctx(), undefined));
                 #client{} ->
                     % The client was authenticated but cannot access the
                     % aspect -> forbidden
-                    throw(?ERROR_FORBIDDEN)
+                    throw(?ERR_FORBIDDEN(?err_ctx()))
             end
     end.
 

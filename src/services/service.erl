@@ -296,7 +296,7 @@ apply(Service, Action, Ctx, Notify) ->
         Type:Error:Stacktrace ->
             ?error_stacktrace("Error executing action ~tp:~tp: ~tp:~tp",
                 [Service, Action, Type, Error], Stacktrace),
-            ?ERROR_INTERNAL_SERVER_ERROR
+            ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)
     end,
     % If one of the steps failed, the action Result is {error, {Module, Function, Status}.
     % Result might of different format if steps resolution itself failed.
@@ -515,7 +515,7 @@ healthcheck_name(Service, _) ->
     (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
     (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
     % #service model is not created for service_onepanel module
-    (?SERVICE_PANEL) -> ?ERR_DOC_NOT_FOUND | {error, _}.
+    (?SERVICE_PANEL) -> ?ONP_ERR_DOC_NOT_FOUND | {error, _}.
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;
@@ -609,7 +609,7 @@ resolve_hosts(#step{hosts = undefined, service = Service} = Step) ->
         [] ->
             % do not silently skip steps because of empty list in service model,
             % unless it is explicitly given in step ctx or hosts field.
-            throw(?ERROR_NO_SERVICE_NODES(Service));
+            throw(?ERR_NO_SERVICE_NODES(?err_ctx(), Service));
         Hosts ->
             resolve_hosts(Step#step{hosts = Hosts})
     end;

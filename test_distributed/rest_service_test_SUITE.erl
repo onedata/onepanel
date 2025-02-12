@@ -315,7 +315,7 @@ get_should_return_service_task_results(Config) ->
             {<<"someTaskId3">>, [<<"error">>, <<"status">>, <<"steps">>],
                 #{<<"status">> => <<"error">>,
                     <<"error">> => errors:to_json(
-                        ?ERROR_ON_NODES(?ERROR_MALFORMED_DATA, [<<"host1">>])),
+                        ?ERR_ON_NODES(?ERR_MALFORMED_DATA, [<<"host1">>])),
                     <<"steps">> => [<<"module1:function1">>, <<"module2:function2">>,
                         <<"module3:function3">>]
                 }
@@ -778,14 +778,14 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
             #step_begin{module = module3, function = function3},
             #step_end{module = module3, function = function3,
                 good_bad_results = {[], [
-                    {'node@host1', ?ERROR_MALFORMED_DATA},
-                    {'node@host2', ?ERROR_INTERNAL_SERVER_ERROR}
+                    {'node@host1', ?ERR_MALFORMED_DATA},
+                    {'node@host2', ?ERR_INTERNAL_SERVER_ERROR(undefined)}
                 ]}
             },
-            #action_end{service = service, action = action, result = {error, ?ERROR_MALFORMED_DATA}}
+            #action_end{service = service, action = action, result = {error, ?ERR_MALFORMED_DATA}}
         ], 4};
         (<<"someTaskId4">>) -> {[
-            #action_end{service = service, action = action, result = ?ERROR_INTERNAL_SERVER_ERROR}
+            #action_end{service = service, action = action, result = ?ERR_INTERNAL_SERVER_ERROR(undefined)}
         ], _StepsCountError = {error, reason}}
     end),
     NewConfig;
@@ -865,7 +865,10 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes),
+    test_utils:mock_unload(Nodes, [
+        service, service_oz_worker, service_oneprovider,
+        onepanel_parser, model, onepanel_deployment, dns_check
+    ]),
     ?callAll(Config, model, clear, [onepanel_user, service]).
 
 end_per_suite(_Config) ->

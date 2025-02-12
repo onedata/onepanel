@@ -80,7 +80,7 @@ add_storage_test_base(#add_storage_test_spec{
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -123,7 +123,7 @@ modify_storage_test_base(TestSpec = #modify_storage_test_spec{
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -161,7 +161,7 @@ build_add_storage_validate_result_fun(MemRef, bad_args) ->
     api_test_validate:http_400_bad_request(fun(Body) ->
         StorageName = api_test_memory:get(MemRef, storage_name),
         ExpRespBody = #{
-            StorageName => ?REST_ERROR(?ERROR_STORAGE_TEST_FAILED(access))
+            StorageName => ?REST_ERROR(?ERR_STORAGE_TEST_FAILED(access))
         },
         ?assertEqual(ExpRespBody, Body)
     end).

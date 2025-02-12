@@ -42,7 +42,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate_user(tokens:serialized(), PeerIp :: ip_utils:ip()) ->
-    #client{} | errors:unauthorized_error().
+    #client{} | od_error:auth_error().
 authenticate_user(Token, PeerIp) ->
     ClusterType = onepanel_env:get_cluster_type(),
     case authenticate_user(ClusterType, Token, PeerIp) of
@@ -59,7 +59,7 @@ authenticate_user(Token, PeerIp) ->
 read_domain(RegistrationToken) ->
     case tokens:deserialize(RegistrationToken) of
         {ok, Token} -> Token#token.onezone_domain;
-        Error -> throw(?ERROR_BAD_VALUE_TOKEN(<<"token">>, Error))
+        Error -> throw(?ERR_BAD_VALUE_TOKEN(?err_ctx(), <<"token">>, Error))
     end.
 
 
@@ -75,14 +75,15 @@ read_domain(RegistrationToken) ->
 %%--------------------------------------------------------------------
 -spec authenticate_user(
     onedata:cluster_type(), tokens:serialized(), PeerIp :: ip_utils:ip()
-) -> #client{} | errors:unauthorized_error().
+) -> #client{} | od_error:auth_error().
 authenticate_user(onezone, Token, PeerIp) ->
     case service_oz_worker:get_auth_by_token(Token, PeerIp) of
         {ok, ?USER(_) = Auth} ->
             {ok, Details} = service_oz_worker:get_user_details(Auth),
             user_details_to_client(Details, Auth, {rpc, Auth});
         {ok, _} ->
-            ?ERROR_UNAUTHORIZED(?ERROR_TOKEN_SUBJECT_INVALID);
+            ErrorCtx = ?err_ctx(),
+            ?ERR_UNAUTHORIZED(ErrorCtx, ?ERR_TOKEN_SUBJECT_INVALID(ErrorCtx));
         {error, _} = Error ->
             Error
     end;
@@ -101,7 +102,7 @@ authenticate_user(oneprovider, SerializedToken, PeerIp) ->
             {ok, Details} = fetch_details(OzPluginAuth),
             {ok, {Details, AaiAuth, OzPluginAuth}, TTL}
         catch
-            error:{badmatch, {error, _} = Error} -> ?ERROR_UNAUTHORIZED(Error)
+            error:{badmatch, {error, _} = Error} -> ?ERR_UNAUTHORIZED(?err_ctx(), Error)
         end
     end,
 
@@ -152,7 +153,7 @@ verify_access_token(SerializedToken, PeerIp) ->
                     {ok, Auth, utils:null_to_undefined(TTL)}
             end;
         {error, _} ->
-            ?ERROR_NO_CONNECTION_TO_ONEZONE
+            ?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), service_oneprovider:get_oz_domain())
     end.
 
 
@@ -180,7 +181,7 @@ fetch_details(RestAuth) ->
             #{<<"error">> := Error} = json_utils:decode(ResponseBody),
             errors:from_json(Error);
         {error, _} ->
-            ?ERROR_NO_CONNECTION_TO_ONEZONE
+            ?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), service_oneprovider:get_oz_domain())
     end.
 
 
@@ -198,6 +199,8 @@ user_details_to_client(Details, Auth, ZoneCredentials) ->
                 zone_credentials = ZoneCredentials,
                 role = member
             };
-        ?ERROR_NO_CONNECTION_TO_ONEZONE -> throw(?ERROR_NO_CONNECTION_TO_ONEZONE);
-        _Error -> throw(?ERROR_FORBIDDEN)
+        ?ERR_NO_CONNECTION_TO_ONEZONE(_) = ErrorNoConnectionToOnezone ->
+            throw(ErrorNoConnectionToOnezone);
+        _Error ->
+            throw(?ERR_FORBIDDEN(?err_ctx()))
     end.

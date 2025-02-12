@@ -208,7 +208,7 @@ passphrase_update_requires_previous_passphrase(Config) ->
         }
     )),
     onepanel_test_rest:assert_body(JsonBody,
-        #{<<"error">> => errors:to_json(?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS))}),
+        #{<<"error">> => errors:to_json(?ERR_UNAUTHORIZED(?ERR_BAD_BASIC_CREDENTIALS))}),
     ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
         Config, "/emergency_passphrase", put, CorrectAuths, #{
             <<"newPassphrase">> => <<"willNotBeSet">>
@@ -268,7 +268,7 @@ post_as_admin_should_return_invite_token(Config) ->
 
     lists:foreach(fun(Auth) ->
         ExpErrorDescription = json_utils:encode(#{
-            <<"error">> => errors:to_json(?ERROR_FORBIDDEN)
+            <<"error">> => errors:to_json(?ERR_FORBIDDEN)
         }),
         ?assertMatch(
             {ok, ?HTTP_403_FORBIDDEN, _, ExpErrorDescription},
@@ -459,7 +459,9 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes),
+    test_utils:mock_unload(Nodes, [
+        service, host_middleware, onepanel_parser, service_onepanel, service_oneprovider, oz_endpoint, onezone_tokens
+    ]),
     lists:foreach(fun(Model) ->
         ?callAll(Config, model, clear, [Model])
     end, [onepanel_user, onepanel_kv]).

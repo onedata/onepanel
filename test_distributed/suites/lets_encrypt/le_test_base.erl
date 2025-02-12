@@ -52,7 +52,7 @@
 % us tests certification retries
 -define(CERTIFICATION_ATTEMPTS, 10).
 
--define(CERTIFICATION_FLOW_ERROR, ?ERROR_LETS_ENCRYPT_RESPONSE(<<>>, <<>>)).
+-define(CERTIFICATION_FLOW_ERROR, ?ERR_LETS_ENCRYPT_RESPONSE(<<>>, <<>>)).
 
 -define(ATTEMPTS, 60).
 
@@ -143,7 +143,7 @@ get_certificate_metadata_test_base(#le_test_spec{
             ],
             unauthorized = [
                 guest,
-                {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(Service)}
+                {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(Service)}
                 | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
             ],
             forbidden = [peer]
@@ -230,7 +230,7 @@ toggle_lets_encrypt_test_base(#le_test_spec{
             ],
             unauthorized = [
                 guest,
-                {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(Service)}
+                {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(Service)}
                 | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
             ],
             forbidden = [
@@ -241,7 +241,7 @@ toggle_lets_encrypt_test_base(#le_test_spec{
         data_spec = #data_spec{
             required = [<<"letsEncrypt">>],
             correct_values = #{<<"letsEncrypt">> => [true, false]},
-            bad_values = [{<<"letsEncrypt">>, bul, ?ERROR_BAD_VALUE_BOOLEAN(<<"letsEncrypt">>)}]
+            bad_values = [{<<"letsEncrypt">>, bul, ?ERR_BAD_VALUE_BOOLEAN(<<"letsEncrypt">>)}]
         },
         prepare_args_fun = fun(#api_test_ctx{data = Data}) ->
             #rest_args{
@@ -447,7 +447,7 @@ failed_certification_attempt_leaves_lets_encrypt_intact_test_base(#le_test_spec{
         {ok, ?HTTP_400_BAD_REQUEST, _, #{<<"error">> := _}},
         cert_test_utils:try_update_lets_encrypt(EntitySelector, enable)
     ),
-    ?assertMatch(?ERROR_ON_NODES(?CERTIFICATION_FLOW_ERROR, _), errors:from_json(RespError)),
+    ?assertMatch(?ERR_ON_NODES(?CERTIFICATION_FLOW_ERROR, _), errors:from_json(RespError)),
 
     cert_test_utils:assert_certs_on_disc_and_loaded_matches(EntitySelector),
     ?assertEqual(CertDetails, maps:remove(KeyToRm, cert_test_utils:get_cert_details(EntitySelector))).

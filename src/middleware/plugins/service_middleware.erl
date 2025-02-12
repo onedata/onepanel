@@ -216,7 +216,7 @@ get(#onp_req{gri = #gri{aspect = {all_hosts_status, ServiceBin}}}, _) ->
     Results = service:apply_sync(Service, status, #{}),
 
     HostToStatus = case service_utils:results_contain_error(Results) of
-        {true, ?ERROR_NO_SERVICE_NODES(_)} -> #{};
+        {true, ?ERR_NO_SERVICE_NODES(_)} -> #{};
         {true, Error} -> throw(Error);
         false ->
             {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
@@ -235,7 +235,7 @@ get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
         ),
         {ok, value, #{code => Code, headers => Headers, body => Body}}
     catch _:_ ->
-        throw(?ERROR_SERVICE_UNAVAILABLE)
+        throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
     end.
 
 

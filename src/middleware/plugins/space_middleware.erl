@@ -344,7 +344,7 @@ validate_metrics(Data) ->
     lists:foreach(fun(Metric) ->
         case is_supported_metric(Metric) of
             true -> ok;
-            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"metrics">>, supported_metrics()))
+            false -> throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?err_ctx(), <<"metrics">>, supported_metrics()))
         end
     end, binary:split(MetricsJoined, <<",">>, [global, trim])).
 
@@ -355,7 +355,7 @@ validate_period(Data) ->
     case is_supported_period(Period) of
         true -> ok;
         false ->
-        throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"period">>, supported_periods()))
+        throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?err_ctx(), <<"period">>, supported_periods()))
     end.
 
 

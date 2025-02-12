@@ -332,7 +332,7 @@ attempt_certification(#flow_state{service = Service} = State) ->
     % is supported by the plugin module, and no better error reason is thrown
     % from supports_letsencrypt_challenge.
     % NOTE: challenge_types() called via ?MODULE to allow mocking in tests
-    end, {?ERROR_INTERNAL_SERVER_ERROR, State}, ?MODULE:challenge_types()),
+    end, {?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined), State}, ?MODULE:challenge_types()),
 
     case Result of
         {ok, NewState} -> {ok, NewState};
@@ -494,7 +494,7 @@ find_challenge(Type, ChallengeList) ->
         [Challenge | _] -> {ok, Challenge};
         [] ->
             ?warning("Let's Encrypt did not offer challenge type ~ts", [Type]),
-            throw(?ERROR_LETS_ENCRYPT_RESPONSE(undefined, str_utils:format_bin(
+            throw(?ERR_LETS_ENCRYPT_RESPONSE(?err_ctx(), undefined, str_utils:format_bin(
                 "Let's Encrypt did not offer challenge type ~ts", [Type])))
     end.
 
@@ -578,7 +578,7 @@ poll_status(URL, #flow_state{} = State, Attempts) ->
                 #{<<"error">> := #{<<"detail">> := Description} = Error} -> {Error, Description};
                 _ -> {undefined, <<"Let's encrypt could not authorize domain.">>}
             end,
-            throw(?ERROR_LETS_ENCRYPT_RESPONSE(ErrorObject, Message))
+            throw(?ERR_LETS_ENCRYPT_RESPONSE(?err_ctx(), ErrorObject, Message))
     end.
 
 
@@ -745,7 +745,7 @@ decode_directory(Map) ->
 -spec http_get(url(), Attempts :: non_neg_integer()) ->
     {ok, http_client:code(), http_client:headers(), api_response()} | no_return().
 http_get(_URL, 0) ->
-    throw(?ERROR_LETS_ENCRYPT_NOT_REACHABLE);
+    throw(?ERR_LETS_ENCRYPT_NOT_REACHABLE(?err_ctx()));
 
 http_get(URL, Attempts) ->
     case http_client:get(URL, #{}, <<>>, ?HTTP_OPTS) of
@@ -788,7 +788,7 @@ post(URL, Payload, OkCode, State, Attempts) when is_integer(OkCode) ->
     post(URL, Payload, [OkCode], State, Attempts);
 
 post(_URL, _Payload, _OkCodes, _State, 0) ->
-    throw(?ERROR_LETS_ENCRYPT_NOT_REACHABLE);
+    throw(?ERR_LETS_ENCRYPT_NOT_REACHABLE(?err_ctx()));
 
 post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
     {ok, Body, State2} = encode(URL, Payload, State),
@@ -811,12 +811,12 @@ post(URL, Payload, OkCodes, #flow_state{} = State, Attempts) ->
                             ?error("Let's Encrypt response status: ~B, expected ~ts~n"
                             "Response headers: ~tp~nResponse body:~tp",
                                 [Status, OkCodesStr, Headers, Response]),
-                            throw(?ERROR_LETS_ENCRYPT_RESPONSE(Error, ErrorMessage));
+                            throw(?ERR_LETS_ENCRYPT_RESPONSE(?err_ctx(), Error, ErrorMessage));
                         {Code, Response} ->
                             ?error("Let's Encrypt response status: ~B, expected ~ts~n"
                             "Response headers: ~tp~nResponse body:~tp",
                                 [Status, OkCodesStr, Headers, Response]),
-                            throw(?ERROR_LETS_ENCRYPT_RESPONSE(undefined, str_utils:format_bin(
+                            throw(?ERR_LETS_ENCRYPT_RESPONSE(?err_ctx(), undefined, str_utils:format_bin(
                                 "Unexpected Let's Encrypt response with HTTP code ~b", [Code])))
                     end
             end;
@@ -1136,7 +1136,7 @@ ensure_files_access(Paths) ->
     lists:foreach(fun(Path) ->
         case check_write_access(Path) of
             ok -> ok;
-            {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
+            {error, Reason} -> throw(?ERR_FILE_ACCESS(?err_ctx(), Path, Reason))
         end
     end, Paths).
 

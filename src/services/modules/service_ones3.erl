@@ -237,7 +237,7 @@ get_port() ->
 create_service(_Ctx) ->
     case service:create(#service{name = name()}) of
         {ok, _} -> ok;
-        ?ERR_ALREADY_EXISTS -> ok
+        ?ONP_ERR_ALREADY_EXISTS -> ok
     end.
 
 

@@ -2027,7 +2027,9 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes).
+    test_utils:mock_unload(Nodes, [
+        space_middleware, onepanel_parser, service, service_oneprovider, op_worker_storage
+    ]).
 
 
 end_per_suite(_Config) ->
