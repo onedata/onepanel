@@ -395,7 +395,8 @@ infer_ip() ->
 -spec build_config() -> binary().
 build_config() ->
     BasicOpts = [
-        {"verbose_log_level", onepanel_env:get(ones3_verbose_log_level)},
+        {"log_dir", filename:absname(onepanel_env:get(ones3_log_dir))},
+        {"verbose_log_level", onepanel_env:get(ones3_log_level)},
         {"onezone_host", service_oneprovider:get_oz_domain()},
         {"provider_host", service_op_worker:get_domain()},
         {"ones3_https_port", get_port()},

@@ -387,7 +387,8 @@
 
         {ones3_http_port, 4443},
 
-        {ones3_verbose_log_level, 1},
+        {ones3_log_dir, "{{platform_log_dir}}/ones3/"},
+        {ones3_log_level, 1},
 
         % Path to OneS3 config file
         % NOTE: this value should mirror the one from /etc/init.d/ones3 script.
