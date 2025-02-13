@@ -123,12 +123,20 @@ get_steps(add_nodes, #{new_hosts := _NewHosts} = Ctx) ->
     case service_oneprovider:is_registered() of
         true ->
             [
+                % Register specified hosts as hosting ones3 service
                 #steps{action = create, ctx = Ctx2},
+                % Ensure hosts public ips will be propagated to Onezone for s3 subdomain
                 #steps{service = ?SERVICE_OP, action = set_cluster_ips},
+                % Start ones3 service
                 #steps{action = resume, ctx = Ctx2},
+                % Regenerates certificate if LE is enabled. Otherwise do nothing
                 #steps{service = ?SERVICE_LE, action = update}
             ];
         false ->
+            % If provider is not registered (provider is not yet fully deployed/configured)
+            % ones3 can not be started. Instead specified hosts will be registered as hosting
+            % ones3 and only after provider registration the service will be resumed
+            % (see register steps in service_oneprovider)
             [#steps{action = create, ctx = Ctx2}]
     end;
 

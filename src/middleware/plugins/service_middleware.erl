@@ -173,6 +173,12 @@ validate(#onp_req{
     Host = binary_to_list(HostBin),
     ensure_has_host(Service, Host);
 
+validate(#onp_req{operation = update, gri = #gri{aspect = {start_stop_all, <<"ones3">>}}}, _) ->
+    case service_oneprovider:is_registered() of
+        true -> ok;
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
+    end;
+
 validate(#onp_req{
     operation = update, gri = #gri{aspect = {start_stop_all, _Services}}
 }, _) ->
