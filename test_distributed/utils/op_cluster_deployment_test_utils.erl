@@ -9,7 +9,7 @@
 %%% This module contains utility functions for cluster deployment tests.
 %%% @end
 %%%--------------------------------------------------------------------
--module(cluster_deployment_test_utils).
+-module(op_cluster_deployment_test_utils).
 -author("Bartosz Walkowicz").
 
 -include("cluster_deployment_test_utils.hrl").
@@ -28,12 +28,12 @@
 -export([
     infer_node_details/1,
 
-    get_provider_registration_token/0,
+    get_registration_token/0,
 
     deploy_batch/1,
 
-    deploy_cluster/1,
-    deploy_ones3/1,
+    deploy_all_services/1,
+    deploy_ones3_service/1,
 
     register_provider/1,
     configure_dns/1,
@@ -60,8 +60,8 @@ infer_node_details(Node) ->
     }.
 
 
--spec get_provider_registration_token() -> tokens:serialized().
-get_provider_registration_token() ->
+-spec get_registration_token() -> tokens:serialized().
+get_registration_token() ->
     AdminUserId = oct_background:get_user_id(admin),
     tokens_test_utils:create_provider_registration_token(AdminUserId).
 
@@ -80,8 +80,8 @@ deploy_batch(ClusterConfig) ->
     cluster_management_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
--spec deploy_cluster(op_cluster_config()) -> ok.
-deploy_cluster(ClusterConfig) ->
+-spec deploy_all_services(op_cluster_config()) -> ok.
+deploy_all_services(ClusterConfig) ->
     Node = get_main_node(ClusterConfig),
     ClusterConfig2 = build_cluster_config(ClusterConfig),
 
@@ -94,8 +94,8 @@ deploy_cluster(ClusterConfig) ->
     cluster_management_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
--spec deploy_ones3(op_cluster_config()) -> ok.
-deploy_ones3(ClusterConfig = #op_cluster_config{
+-spec deploy_ones3_service(op_cluster_config()) -> ok.
+deploy_ones3_service(ClusterConfig = #op_cluster_config{
     nodes = Nodes,
     ones3_nodes = OneS3Nodes,
     ones3_port = OneS3Port

@@ -22,7 +22,7 @@
 
 -record(op_cluster_config, {
     %% Cluster topology
-    nodes :: #{non_neg_integer() => cluster_deployment_test_utils:node_details()},
+    nodes :: #{non_neg_integer() => op_cluster_deployment_test_utils:node_details()},
     managers :: [non_neg_integer()],
     main_manager :: non_neg_integer(),
     workers :: [non_neg_integer()],
