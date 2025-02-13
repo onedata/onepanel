@@ -28,6 +28,8 @@
 -export([
     infer_node_details/1,
 
+    get_provider_registration_token/0,
+
     deploy_batch/1,
 
     deploy_cluster/1,
@@ -58,6 +60,12 @@ infer_node_details(Node) ->
     }.
 
 
+-spec get_provider_registration_token() -> tokens:serialized().
+get_provider_registration_token() ->
+    AdminUserId = oct_background:get_user_id(admin),
+    tokens_test_utils:create_provider_registration_token(AdminUserId).
+
+
 -spec deploy_batch(op_cluster_config()) -> ok.
 deploy_batch(ClusterConfig) ->
     Node = get_main_node(ClusterConfig),
@@ -69,7 +77,7 @@ deploy_batch(ClusterConfig) ->
             json => BatchConfig
         }
     ),
-    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+    cluster_management_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 -spec deploy_cluster(op_cluster_config()) -> ok.
@@ -83,7 +91,7 @@ deploy_cluster(ClusterConfig) ->
             json => #{<<"cluster">> => ClusterConfig2}
         }
     ),
-    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+    cluster_management_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 -spec deploy_ones3(op_cluster_config()) -> ok.
@@ -107,7 +115,7 @@ deploy_ones3(ClusterConfig = #op_cluster_config{
             json => Config
         }
     ),
-    cluster_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+    cluster_management_test_utils:await_task_status(Node, TaskId, <<"ok">>, ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 -spec register_provider(op_cluster_config()) -> ok.

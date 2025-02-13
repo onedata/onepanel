@@ -38,7 +38,7 @@ all() -> [
     deploy_test
 ].
 
--define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 60).
+-define(ATTEMPTS, 60).
 
 
 %%%===================================================================
@@ -47,36 +47,28 @@ all() -> [
 
 
 deploy_test(Config) ->
-    AdminUserId = oct_background:get_user_id(admin),
-    RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
+    [Node1, Node2] = ?config(op_panel_nodes, Config),
+    Node1Ip = ip_test_utils:get_node_ip(Node1),
+    Node2Details = cluster_deployment_test_utils:infer_node_details(Node2),
+    Node2Ip = Node2Details#node_details.ip,
 
-    [OpPanelNode1, OpPanelNode2] = ?config(op_panel_nodes, Config),
-    OpPanelNode2Details = cluster_deployment_test_utils:infer_node_details(OpPanelNode2),
-    OpPanelNode2Host = OpPanelNode2Details#node_details.hostname,
-    OpPanelNode2Ip = OpPanelNode2Details#node_details.ip,
-
-    panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
-
-    DefaultOneS3Port = ?rpc(OpPanelNode1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
-    OneS3PortToSet = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999]),
-    ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
+    panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
 
     ProviderName = <<"krakow">>,
-    ProviderDomain = get_op_domain(OpPanelNode1),
+    ProviderDomain = get_op_domain(Node1),
 
     OpClusterConfig = #op_cluster_config{
         nodes = #{
-            1 => cluster_deployment_test_utils:infer_node_details(OpPanelNode1),
-            2 => OpPanelNode2Details
+            1 => cluster_deployment_test_utils:infer_node_details(Node1),
+            2 => Node2Details
         },
         managers = [1, 2],
         main_manager = 1,
         workers = [1],
         databases = [1],
         name = ProviderName,
-        admin_email = <<"admin@example.eu">>,
         register = true,
-        registration_token = RegistrationToken,
+        registration_token = cluster_deployment_test_utils:get_provider_registration_token(),
         subdomain_delegation = false,
         domain = ProviderDomain,
         lets_encrypt = false
@@ -84,7 +76,7 @@ deploy_test(Config) ->
 
     % Cluster deployed without OneS3 should have no host with OneS3
     cluster_deployment_test_utils:deploy_cluster(OpClusterConfig),
-    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
+    ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
     ExpOnedataTestCertDetails = #{
         <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
         <<"letsEncrypt">> => false,
@@ -94,39 +86,44 @@ deploy_test(Config) ->
         % resulting in status unknown
         <<"status">> => <<"unknown">>
     },
-    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
+    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails),
 
     cluster_deployment_test_utils:register_provider(OpClusterConfig),
-    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
-    AllCertDetails = cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails#{
+    ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
+    AllCertDetails = cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails#{
         <<"status">> => <<"valid">>
     }),
 
     cluster_deployment_test_utils:configure_dns(OpClusterConfig),
-
     cluster_deployment_test_utils:configure_web_cert(OpClusterConfig),
-    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
-    cert_test_utils:assert_cert_details(OpPanelNode1, AllCertDetails),
+    ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
+    cert_test_utils:assert_cert_details(Node1, AllCertDetails),
 
     % Deploying OneS3 on proper host after certification enables the
     % service on selected host and immediately start it BUT DOES NOT regenerates certificate
     % (if lets encrypt is disabled)
+    DefaultOneS3Port = cluster_management_test_utils:get_ones3_port(Node1),
+    OneS3PortToSet = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999]),
+    ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
+
     cluster_deployment_test_utils:deploy_ones3(OpClusterConfig#op_cluster_config{
         ones3_nodes = [2],
         ones3_port = OneS3PortToSet
     }),
     ?assertEqual(
-        #{OpPanelNode2Host => <<"healthy">>},
-        cluster_test_utils:get_ones3_status_all(OpPanelNode1),
-        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
+        #{Node2Details#node_details.hostname => <<"healthy">>},
+        cluster_management_test_utils:get_ones3_status_cluster_wide(Node1),
+        ?ATTEMPTS
     ),
-    cert_test_utils:assert_cert_details(OpPanelNode1, AllCertDetails#{
+    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+    ?assertMatch({ok, _}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+
+    cert_test_utils:assert_cert_details(Node1, AllCertDetails#{
         % Cert is no longer valid as it contains only op domain in DNS names
         % when also s3 subdomain is expected
         <<"status">> => <<"domain_mismatch">>
     }),
 
-    ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode2Ip, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
     ok.
 
 

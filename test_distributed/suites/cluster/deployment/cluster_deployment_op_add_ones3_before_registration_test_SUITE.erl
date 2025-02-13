@@ -37,7 +37,7 @@ all() -> [
     deploy_test
 ].
 
--define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 60).
+-define(ATTEMPTS, 60).
 
 
 %%%===================================================================
@@ -46,34 +46,31 @@ all() -> [
 
 
 deploy_test(Config) ->
-    AdminUserId = oct_background:get_user_id(admin),
-    RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
+    [Node1, Node2] = ?config(op_panel_nodes, Config),
+    Node1Ip = ip_test_utils:get_node_ip(Node1),
+    Node2Details = cluster_deployment_test_utils:infer_node_details(Node2),
+    Node2Host = Node2Details#node_details.hostname,
+    Node2Ip = Node2Details#node_details.ip,
 
-    [OpPanelNode1, OpPanelNode2] = ?config(op_panel_nodes, Config),
-    OpPanelNode2Details = cluster_deployment_test_utils:infer_node_details(OpPanelNode2),
-    OpPanelNode2Host = OpPanelNode2Details#node_details.hostname,
-    OpPanelNode2Ip = OpPanelNode2Details#node_details.ip,
+    panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
 
-    panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
-
-    DefaultOneS3Port = ?rpc(OpPanelNode1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
-    OneS3PortToSet = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999]),
+    DefaultOneS3Port = ?rpc(Node1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
+    OneS3PortToSet = ?RAND_ELEMENT([undefined, 16666, 17777, 18888, 19999]),
     ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
 
     ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
         nodes = #{
-            1 => cluster_deployment_test_utils:infer_node_details(OpPanelNode1),
-            2 => OpPanelNode2Details
+            1 => cluster_deployment_test_utils:infer_node_details(Node1),
+            2 => Node2Details
         },
         managers = [1, 2],
         main_manager = 1,
         workers = [1],
         databases = [1],
         name = ProviderName,
-        admin_email = <<"admin@example.eu">>,
         register = true,
-        registration_token = RegistrationToken,
+        registration_token = cluster_deployment_test_utils:get_provider_registration_token(),
         subdomain_delegation = true,
         subdomain = ProviderName,
         lets_encrypt = true
@@ -81,14 +78,14 @@ deploy_test(Config) ->
 
     % Cluster deployed without OneS3 should have no host with OneS3
     cluster_deployment_test_utils:deploy_cluster(OpClusterConfig),
-    ?assertEqual(#{}, cluster_test_utils:get_ones3_status_all(OpPanelNode1)),
+    ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
     ExpOnedataTestCertDetails = #{
         <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
         % Domain status cannot be validated for not registered providers
         % resulting in status unknown
         <<"status">> => <<"unknown">>
     },
-    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
+    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails),
 
     % Deploying OneS3 on proper host before provider registration enables the
     % service on selected host but DOES NOT start it!
@@ -98,20 +95,33 @@ deploy_test(Config) ->
         ones3_port = OneS3PortToSet
     }),
     ?assertEqual(
-        #{OpPanelNode2Host => <<"stopped">>},
-        cluster_test_utils:get_ones3_status_all(OpPanelNode1)
+        #{Node2Host => <<"stopped">>},
+        cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)
     ),
-    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails),
+    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+
+    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails),
+
+    % Assert it is not possible to start ones3 when oneprovider is still not registered
+    ExpError = #{<<"error">> => errors:to_json(?ERR_UNREGISTERED_ONEPROVIDER)},
+    ?assertMatch(
+        {ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, ExpError},
+        cluster_management_test_utils:try_toggle_ones3_cluster_wide(Node1, start)
+    ),
 
     % Enabled OneS3 are started right after provider is registered in oz.
     % But still, no changes to certificates are made.
     cluster_deployment_test_utils:register_provider(OpClusterConfig),
     ?assertEqual(
-        #{OpPanelNode2Host => <<"healthy">>},
-        cluster_test_utils:get_ones3_status_all(OpPanelNode1),
-        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
+        #{Node2Host => <<"healthy">>},
+        cluster_management_test_utils:get_ones3_status_cluster_wide(Node1),
+        ?ATTEMPTS
     ),
-    cert_test_utils:assert_cert_details(OpPanelNode1, ExpOnedataTestCertDetails#{
+    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+    ?assertMatch({ok, _}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+
+    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails#{
         <<"status">> => <<"domain_mismatch">>
     }),
 
@@ -128,10 +138,11 @@ deploy_test(Config) ->
         <<"domain">> => ProviderDomain,
         <<"dnsNames">> => lists:sort([ProviderDomain, OneS3Domain])
     },
-    AllPebbleCertDetails = cert_test_utils:assert_cert_details(OpPanelNode1, ExpPebbleCertDetails),
+    AllPebbleCertDetails = cert_test_utils:assert_cert_details(Node1, ExpPebbleCertDetails),
     cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails),
 
-    ?assertMatch({ok, _}, gen_tcp:connect(OpPanelNode2Ip, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
+    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+    ?assertMatch({ok, _}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
     ok.
 
 

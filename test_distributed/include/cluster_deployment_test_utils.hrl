@@ -32,7 +32,7 @@
 
     %% Provider configuration
     name :: binary(),
-    admin_email :: binary(),
+    admin_email = <<"admin@example.eu">> :: binary(),
 
     %% Registration
     register = false :: boolean(),

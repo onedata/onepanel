@@ -53,25 +53,25 @@ ones3_stop_start(Config) ->
             json => #{<<"hosts">> => [Host1, Host2]}
         }
     ),
-    cluster_test_utils:await_task_status(OpPanelNode1, TaskId, <<"ok">>),
+    cluster_management_test_utils:await_task_status(OpPanelNode1, TaskId, <<"ok">>),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"healthy">>, Host2 => <<"healthy">>}),
 
-    cluster_test_utils:toggle_ones3(OpPanelNode1, Host2, stop),
+    cluster_management_test_utils:toggle_ones3_on_host(OpPanelNode1, Host2, stop),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"healthy">>, Host2 => <<"stopped">>}),
 
-    cluster_test_utils:toggle_ones3_all(OpPanelNode1, start),
+    cluster_management_test_utils:toggle_ones3_cluster_wide(OpPanelNode1, start),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"healthy">>, Host2 => <<"healthy">>}),
 
-    cluster_test_utils:toggle_ones3_all(OpPanelNode1, stop),
+    cluster_management_test_utils:toggle_ones3_cluster_wide(OpPanelNode1, stop),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"stopped">>, Host2 => <<"stopped">>}),
 
-    cluster_test_utils:toggle_ones3(OpPanelNode1, Host1, start),
+    cluster_management_test_utils:toggle_ones3_on_host(OpPanelNode1, Host1, start),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"healthy">>, Host2 => <<"stopped">>}),
 
-    cluster_test_utils:toggle_ones3_all(OpPanelNode1, stop),
+    cluster_management_test_utils:toggle_ones3_cluster_wide(OpPanelNode1, stop),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"stopped">>, Host2 => <<"stopped">>}),
 
-    cluster_test_utils:toggle_ones3_all(OpPanelNode1, start),
+    cluster_management_test_utils:toggle_ones3_cluster_wide(OpPanelNode1, start),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"healthy">>, Host2 => <<"healthy">>}),
 
     ok.
@@ -100,8 +100,8 @@ end_per_suite(_Config) ->
 
 %% @private
 check_ones3_statuses(Node, StatusPerHost) ->
-    ?assertEqual(StatusPerHost, cluster_test_utils:get_ones3_status_all(Node), ?ATTEMPTS),
+    ?assertEqual(StatusPerHost, cluster_management_test_utils:get_ones3_status_cluster_wide(Node), ?ATTEMPTS),
 
     maps:foreach(fun(Host, ExpStatus) ->
-        ?assertEqual(ExpStatus, cluster_test_utils:get_ones3_status(Node, Host))
+        ?assertEqual(ExpStatus, cluster_management_test_utils:get_ones3_status_on_host(Node, Host))
     end, StatusPerHost).
