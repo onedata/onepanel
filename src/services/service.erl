@@ -34,7 +34,7 @@
 -export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
 -export([register_healthcheck/2, deregister_healthcheck/2]).
--export([update_status/2, update_status/3, all_healthy/0, is_healthy/1]).
+-export([update_status/2, update_status/3, all_healthy_ignoring_ones3/0, is_healthy/1]).
 -export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
 -export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
@@ -234,15 +234,18 @@ update_status(Service, Host, Status) ->
 %%--------------------------------------------------------------------
 %% @doc
 %% Checks if all deployed services have reported healthy status
-%% on last check.
+%% on last check ignoring ?SERVICE_ONES3.
 %% @end
 %%--------------------------------------------------------------------
--spec all_healthy() -> boolean().
-all_healthy() ->
-    lists:all(fun(#service{hosts = Hosts, ctx = Ctx}) ->
-        lists:all(fun(Status) ->
-            healthy == Status
-        end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))))
+-spec all_healthy_ignoring_ones3() -> boolean().
+all_healthy_ignoring_ones3() ->
+    lists:all(fun
+        (#service{name = ?SERVICE_ONES3}) ->
+            true;
+        (#service{hosts = Hosts, ctx = Ctx}) ->
+            lists:all(fun(Status) ->
+                healthy == Status
+            end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))))
     end, service:list()).
 
 

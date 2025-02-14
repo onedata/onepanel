@@ -65,14 +65,14 @@ required_availability(create, cluster, private) -> [];
 required_availability(get, instance, private) -> [];
 required_availability(get, cluster, private) -> [];
 required_availability(get, policies, private) ->
-    [?SERVICE_OZW, all_healthy];
+    [?SERVICE_OZW, all_healthy_ignoring_ones3];
 required_availability(get, {gui_message, _Id}, private) ->
-    [?SERVICE_OZW, all_healthy];
+    [?SERVICE_OZW, all_healthy_ignoring_ones3];
 
 required_availability(update, policies, private) ->
-    [?SERVICE_OZW, all_healthy];
+    [?SERVICE_OZW, all_healthy_ignoring_ones3];
 required_availability(update, {gui_message, _Id}, private) ->
-    [?SERVICE_OZW, all_healthy].
+    [?SERVICE_OZW, all_healthy_ignoring_ones3].
 
 
 

@@ -413,7 +413,8 @@ is_regenerating() ->
 -spec global_cert_status() -> status().
 global_cert_status() ->
     case is_regenerating() of
-        true -> regenerating;
+        true ->
+            regenerating;
         _ ->
             Nodes = get_nodes(),
             lists_utils:foldl_while(fun(Node, _) ->
@@ -457,18 +458,23 @@ cert_status(Cert) ->
 %% @private
 -spec dns_names_status(Cert :: onepanel_cert:cert()) -> valid | invalid | error.
 dns_names_status(Cert) ->
-    Domain = (get_plugin_module()):get_domain(),
-    DnsNames = case service_ones3:exists() of
-        true -> [Domain, service_ones3:get_domain()];
-        false -> [Domain]
-    end,
+    try
+        Domain = (get_plugin_module()):get_domain(),
+        DnsNames = case service_ones3:exists() of
+            true -> [Domain, service_ones3:get_domain()];
+            false -> [Domain]
+        end,
 
-    lists_utils:foldl_while(fun
-        (DnsName, valid) ->
-            {cont, onepanel_cert:verify_hostname(Cert, DnsName)};
-        (_, Acc) ->
-            {halt, Acc}
-    end, valid, DnsNames).
+        lists_utils:foldl_while(fun
+            (DnsName, valid) ->
+                {cont, onepanel_cert:verify_hostname(Cert, DnsName)};
+            (_, Acc) ->
+                {halt, Acc}
+        end, valid, DnsNames)
+    catch Class:Reason:Stacktrace ->
+        ?error_exception("Failed to validate certificate's DNS names status", Class, Reason, Stacktrace),
+        error
+    end.
 
 
 %% @private

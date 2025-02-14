@@ -40,16 +40,19 @@
 % Plural names, since multiple nodes are deployed in a single request.
 operation_supported(create, couchbase_instances, private) -> true;
 operation_supported(create, cluster_manager_instances, private) -> true;
+operation_supported(create, ones3_instances, private) -> onepanel:is_op_panel();
 operation_supported(create, op_worker_instances, private) -> onepanel:is_op_panel();
 operation_supported(create, oz_worker_instances, private) -> onepanel:is_oz_panel();
 
 operation_supported(get, {all_hosts_status, <<"cluster_manager">>}, private) -> true;
 operation_supported(get, {all_hosts_status, <<"couchbase">>}, private) -> true;
+operation_supported(get, {all_hosts_status, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {all_hosts_status, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {all_hosts_status, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
 operation_supported(get, {host_status, <<"cluster_manager">>}, private) -> true;
 operation_supported(get, {host_status, <<"couchbase">>}, private) -> true;
+operation_supported(get, {host_status, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {host_status, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(get, {host_status, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
@@ -60,12 +63,14 @@ operation_supported(get, {nagios, <<"oz_worker">>}, private) -> onepanel:is_oz_p
 % Start/stop all hosts
 operation_supported(update, {start_stop_all, <<"couchbase">>}, private) -> true;
 operation_supported(update, {start_stop_all, <<"cluster_manager">>}, private) -> true;
+operation_supported(update, {start_stop_all, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop_all, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop_all, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
 % Start/stop a single host
 operation_supported(update, {start_stop, <<"couchbase">>}, private) -> true;
 operation_supported(update, {start_stop, <<"cluster_manager">>}, private) -> true;
+operation_supported(update, {start_stop, <<"ones3">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop, <<"op_worker">>}, private) -> onepanel:is_op_panel();
 operation_supported(update, {start_stop, <<"oz_worker">>}, private) -> onepanel:is_oz_panel();
 
@@ -89,6 +94,7 @@ authorize(#onp_req{
 }, _) when
     As == couchbase_instances;
     As == cluster_manager_instances;
+    As == ones3_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
@@ -118,12 +124,14 @@ validate(#onp_req{
 }, _) when
     As == couchbase_instances;
     As == cluster_manager_instances;
+    As == ones3_instances;
     As == op_worker_instances;
     As == oz_worker_instances
 ->
     Service = case As of
         couchbase_instances -> ?SERVICE_CB;
         cluster_manager_instances -> ?SERVICE_CM;
+        ones3_instances -> ?SERVICE_ONES3;
         op_worker_instances -> ?SERVICE_OPW;
         oz_worker_instances -> ?SERVICE_OZW
     end,
@@ -165,6 +173,12 @@ validate(#onp_req{
     Host = binary_to_list(HostBin),
     ensure_has_host(Service, Host);
 
+validate(#onp_req{operation = update, gri = #gri{aspect = {start_stop_all, <<"ones3">>}}}, _) ->
+    case service_oneprovider:is_registered() of
+        true -> ok;
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
+    end;
+
 validate(#onp_req{
     operation = update, gri = #gri{aspect = {start_stop_all, _Services}}
 }, _) ->
@@ -185,6 +199,11 @@ create(#onp_req{gri = #gri{aspect = cluster_manager_instances}, data = Data}) ->
     MainHost = onepanel_utils:get_converted(mainHost, Data, list),
     Ctx = #{main_host => MainHost, hosts => Hosts},
     {ok, value, _TaskId = service:apply_async(?SERVICE_CM, deploy, Ctx)};
+
+create(#onp_req{gri = #gri{aspect = ones3_instances}, data = Data}) ->
+    NewHosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
+    Ctx = kv_utils:copy_found([{port, port}], Data, #{new_hosts => NewHosts}),
+    {ok, value, _TaskId = service:apply_async(?SERVICE_ONES3, add_nodes, Ctx)};
 
 create(#onp_req{gri = #gri{aspect = As}, data = Data}) when
     As == op_worker_instances;

@@ -63,7 +63,7 @@ operation_supported(_, _, _) -> false.
 
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
-required_availability(_, _, _) -> [?SERVICE_OPW, all_healthy].
+required_availability(_, _, _) -> [?SERVICE_OPW, all_healthy_ignoring_ones3].
 
 
 -spec fetch_entity(middleware:req()) ->

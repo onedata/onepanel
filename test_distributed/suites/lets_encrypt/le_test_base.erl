@@ -405,7 +405,7 @@ automatic_certification_renewal_test_base(TestSpec = #le_test_spec{
     check_ssl_conn_after_cert_reload(PreFirstCertReloadSslCtx, TestSpec),
 
     #{<<"lastRenewalSuccess">> := LastRenewalSuccessTime2} = cert_test_utils:assert_cert_details(
-        EntitySelector, ExpPebbleCertDetails
+        EntitySelector, ExpPebbleCertDetails, ?ATTEMPTS
     ),
     PreSecondCertReloadSslCtx = start_ssl_conn(EntitySelector),
     ?assert(LastRenewalSuccessTime2 == get_cert_Last_renewal_success_time(EntitySelector), ?ATTEMPTS),

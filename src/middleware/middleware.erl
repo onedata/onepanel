@@ -49,9 +49,10 @@
 % Conditions used to describe when a request can be processed by the cluster.
 % - Specifying service name indicates that there must exist a node
 %   with the service deployed and the service must have status 'healthy'.
-% - 'all_healthy' means that all deployed service nodes must have status 'healthy',
-%   does not enforce presence of all services.
--type availability_level() :: all_healthy | service:name().
+% - 'all_healthy_ignoring_ones3' means that all deployed service nodes,
+%   except ones3, must have status 'healthy'. Does not enforce presence
+%   of all services.
+-type availability_level() :: all_healthy_ignoring_ones3 | service:name().
 
 -export_type([
     client/0,
@@ -366,7 +367,7 @@ client_to_string(?USER(Id)) -> str_utils:format("user:~ts", [Id]).
 
 %% @private
 -spec is_availability_satisfied(availability_level()) -> boolean().
-is_availability_satisfied(all_healthy) ->
-    service:all_healthy();
+is_availability_satisfied(all_healthy_ignoring_ones3) ->
+    service:all_healthy_ignoring_ones3();
 is_availability_satisfied(Service) ->
     service:is_healthy(Service).

@@ -1459,7 +1459,7 @@ init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_new(Nodes, [onepanel_parser]),
     test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> false end),
-    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
+    test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> false end),
     % do not require valid payload in requests
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     NewConfig;

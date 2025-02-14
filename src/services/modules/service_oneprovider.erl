@@ -219,7 +219,7 @@ get_steps(deploy, Ctx) ->
 get_steps(stop, Ctx) ->
     [
         #steps{service = ?SERVICE_ONES3, action = stop,
-            ctx = #{hosts => [service_ones3:get_hosts()]},
+            ctx = #{hosts => service_ones3:get_hosts()},
             condition = should_run_ones3_step(Ctx)},
         #steps{service = ?SERVICE_OPW, action = stop},
         #steps{service = ?SERVICE_CM, action = stop},
@@ -260,7 +260,7 @@ get_steps(manage_restart, Ctx) ->
             },
             #steps{service = ?SERVICE_OPW, action = finalize_resume},
             #steps{service = ?SERVICE_ONES3, action = resume,
-                ctx = #{hosts => [service_ones3:get_hosts()]},
+                ctx = #{hosts => service_ones3:get_hosts()},
                 condition = service_ones3:exists()},
             #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #step{function = store_absolute_auth_file_path, args = [], selection = any},
@@ -281,7 +281,7 @@ get_steps(status, _Ctx) ->
         #steps{service = ?SERVICE_CM, action = status},
         #steps{service = ?SERVICE_OPW, action = status},
         #steps{service = ?SERVICE_ONES3, action = status,
-            ctx = #{hosts => [service_ones3:get_hosts()]},
+            ctx = #{hosts => service_ones3:get_hosts()},
             condition = service_ones3:exists()}
     ];
 

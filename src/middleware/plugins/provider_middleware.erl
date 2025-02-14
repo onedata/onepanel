@@ -62,22 +62,22 @@ operation_supported(_, _, _) -> false.
 
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
-required_availability(create, instance, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(create, instance, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3];
 required_availability(create, cluster, private) -> [];
 
 required_availability(get, instance, private) -> [];
 required_availability(get, remote_instance, private) ->
     case onepanel_env:get_cluster_type() of
         ?ONEPROVIDER -> [];
-        ?ONEZONE -> [all_healthy]
+        ?ONEZONE -> [all_healthy_ignoring_ones3]
     end;
 required_availability(get, cluster, private) -> [];
 required_availability(get, transfers_mock, private) -> [];
 
-required_availability(update, instance, private) -> [?SERVICE_OPW, all_healthy];
-required_availability(update, transfers_mock, private) -> [?SERVICE_OPW, all_healthy];
+required_availability(update, instance, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3];
+required_availability(update, transfers_mock, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3];
 
-required_availability(delete, instance, private) -> [?SERVICE_OPW, all_healthy].
+required_availability(delete, instance, private) -> [?SERVICE_OPW, all_healthy_ignoring_ones3].
 
 
 
@@ -211,6 +211,11 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
         true -> middleware_utils:get_hosts(OneS3NodesKey, Data);
         false -> []
     end,
+    OneS3Ctx = kv_utils:copy_found(
+        [{[cluster, oneS3, port], port}],
+        Data,
+        #{hosts => OneS3Hosts}
+    ),
 
     StorageCtx = kv_utils:copy_found([{[cluster, storages], storages}], Data),
     StorageCtx2 = StorageCtx#{hosts => OpwHosts},
@@ -245,7 +250,7 @@ create(#onp_req{gri = #gri{aspect = cluster}, data = Data}) ->
             mark_cluster_ips_configured => IPsConfigured
         },
         ?SERVICE_LE => LetsencryptCtx#{hosts => OpaHosts},
-        ?SERVICE_ONES3 => #{hosts => OneS3Hosts},
+        ?SERVICE_ONES3 => OneS3Ctx,
         storages => StorageCtx2
     },
 

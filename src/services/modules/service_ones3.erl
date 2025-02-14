@@ -41,6 +41,7 @@
     exists/0,
 
     get_port/0,
+    configure_port/1,
 
     create_service/1, add_service_host/1,
 
@@ -102,13 +103,42 @@ get_nodes() ->
 %%--------------------------------------------------------------------
 -spec get_steps(Action :: service:action(), Args :: service:step_ctx()) ->
     Steps :: [service:step()].
-get_steps(create, #{hosts := Hosts}) ->
+get_steps(create, Ctx = #{hosts := Hosts}) ->
     NewHosts = lists_utils:subtract(Hosts, get_hosts()),
+    FirstDeployment = get_hosts() == [],
 
     [
+        #step{
+            function = configure_port,
+            selection = first,
+            condition = FirstDeployment and maps:is_key(port, Ctx)
+        },
         #step{function = create_service, selection = first},
         #step{hosts = NewHosts, function = add_service_host}
     ];
+
+get_steps(add_nodes, #{new_hosts := _NewHosts} = Ctx) ->
+    {ok, Ctx2} = kv_utils:move(new_hosts, hosts, Ctx),
+
+    case service_oneprovider:is_registered() of
+        true ->
+            [
+                % Register specified hosts as hosting ones3 service
+                #steps{action = create, ctx = Ctx2},
+                % Ensure hosts public ips will be propagated to Onezone for s3 subdomain
+                #steps{service = ?SERVICE_OP, action = set_cluster_ips},
+                % Start ones3 service
+                #steps{action = resume, ctx = Ctx2},
+                % Regenerates certificate if LE is enabled. Otherwise do nothing
+                #steps{service = ?SERVICE_LE, action = update}
+            ];
+        false ->
+            % If provider is not registered (provider is not yet fully deployed/configured)
+            % ones3 can not be started. Instead specified hosts will be registered as hosting
+            % ones3 and only after provider registration the service will be resumed
+            % (see register steps in service_oneprovider)
+            [#steps{action = create, ctx = Ctx2}]
+    end;
 
 get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
@@ -231,6 +261,14 @@ exists() ->
 -spec get_port() -> undefined | inet:port_number().
 get_port() ->
     onepanel_env:get(ones3_http_port, ?SERVICE_PANEL).
+
+
+-spec configure_port(service:step_ctx()) -> ok.
+configure_port(#{port := Port}) ->
+    PanelNodes = nodes:all(?SERVICE_PANEL),
+    onepanel_env:write(PanelNodes, [?SERVICE_PANEL, ones3_http_port], Port, ?SERVICE_PANEL),
+    onepanel_env:set(PanelNodes, ones3_http_port, Port, ?APP_NAME),
+    ok.
 
 
 -spec create_service(service:step_ctx()) -> ok.
@@ -365,7 +403,8 @@ infer_ip() ->
 -spec build_config() -> binary().
 build_config() ->
     BasicOpts = [
-        {"verbose_log_level", onepanel_env:get(ones3_verbose_log_level)},
+        {"log_dir", filename:absname(onepanel_env:get(ones3_log_dir))},
+        {"verbose_log_level", onepanel_env:get(ones3_log_level)},
         {"onezone_host", service_oneprovider:get_oz_domain()},
         {"provider_host", service_op_worker:get_domain()},
         {"ones3_https_port", get_port()},

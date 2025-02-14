@@ -342,7 +342,7 @@ init_per_testcase(method_should_return_unauthorized_error, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_new(Nodes, [service, host_middleware, onepanel_parser]),
     test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> true end),
-    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
+    test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> true end),
     test_utils:mock_expect(Nodes, host_middleware, fetch_entity, fun
         (_) -> {ok, {undefined, 1}}
     end),
