@@ -275,14 +275,14 @@ assert_cluster_wide_circuit_breaker_state(ExpState, Service) ->
 %% @private
 assert_panel_service_circuit_breaker_state(ExpState, Service) ->
     lists:foreach(fun(Node) ->
-        ?assertEqual(ExpState, get_panel_env(Node, service_circuit_breaker_state, closed), ?ATTEMPTS)
+        ?assertEqual(ExpState, get_panel_env(Node, service_circuit_breaker_state, unknown), ?ATTEMPTS)
     end, get_panel_nodes(Service)).
 
 
 %% @private
 assert_worker_service_circuit_breaker_state(ExpState, Service) ->
     lists:foreach(fun(Worker) ->
-        ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, closed), ?ATTEMPTS)
+        ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, unknown), ?ATTEMPTS)
     end, get_worker_nodes(Service)).
 
 
@@ -295,8 +295,6 @@ get_panel_env(Node, Env, Default) ->
 set_panel_env(Nodes, Env, Value) ->
     Result = lists:map(fun(Node) -> {Node, ok} end, Nodes),
     Result = ?rpc(?RAND_ELEMENT(Nodes), onepanel_env:set(Nodes, Env, Value, ?APP_NAME)).
-
-
 
 
 %% @private
