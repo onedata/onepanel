@@ -63,7 +63,7 @@ operation_supported(_, _, _) -> false.
 
 -spec required_availability(middleware:operation(), gri:aspect(),
     middleware:scope()) -> [middleware:availability_level()].
-required_availability(_, _, _) -> [?SERVICE_OPW, all_healthy].
+required_availability(_, _, _) -> [?SERVICE_OPW, all_healthy_ignoring_ones3].
 
 
 -spec fetch_entity(middleware:req()) ->
@@ -344,7 +344,7 @@ validate_metrics(Data) ->
     lists:foreach(fun(Metric) ->
         case is_supported_metric(Metric) of
             true -> ok;
-            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"metrics">>, supported_metrics()))
+            false -> throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?err_ctx(), <<"metrics">>, supported_metrics()))
         end
     end, binary:split(MetricsJoined, <<",">>, [global, trim])).
 
@@ -355,7 +355,7 @@ validate_period(Data) ->
     case is_supported_period(Period) of
         true -> ok;
         false ->
-        throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(<<"period">>, supported_periods()))
+        throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?err_ctx(), <<"period">>, supported_periods()))
     end.
 
 

@@ -77,10 +77,11 @@ init(InitialReq, Opts) ->
     },
     case onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed) of
         open ->
+            Error = ?ERR_SERVICE_UNAVAILABLE(?err_ctx()),
             Req1 = cowboy_req:reply(
-                errors:to_http_code(?ERROR_SERVICE_UNAVAILABLE),
+                errors:to_http_code(Error),
                 #{?HDR_CONTENT_TYPE => <<"application/json">>},
-                json_utils:encode(#{<<"error">> => errors:to_json(?ERROR_SERVICE_UNAVAILABLE)}),
+                json_utils:encode(#{<<"error">> => errors:to_json(Error)}),
                 Req
             ),
             {ok, Req1, State};
@@ -200,7 +201,7 @@ process_request(Req, #state{} = State) ->
             ?error_stacktrace("Unexpected error in ~tp:process_request - ~tp:~tp", [
                 ?MODULE, Type, Message
             ], Stacktrace),
-            ErrorResp = rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR),
+            ErrorResp = rest_translator:error_response(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)),
             {stop, send_response(ErrorResp, Req), State}
     end.
 
@@ -261,7 +262,7 @@ handle_gri_request(#onp_req{operation = Operation, gri = GRI} = ElReq) ->
             "Error was: ~tp:~tp", [
                 Operation, GRI, Result, Type, Message
             ], Stacktrace),
-            rest_translator:error_response(?ERROR_INTERNAL_SERVER_ERROR)
+            rest_translator:error_response(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))
     end.
 
 
@@ -290,7 +291,7 @@ get_data(Req) ->
         end
     catch
         _:_ ->
-            throw(?ERROR_MALFORMED_DATA)
+            throw(?ERR_MALFORMED_DATA(?err_ctx()))
     end.
 
 

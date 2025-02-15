@@ -81,7 +81,7 @@ get_provider_details_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -116,7 +116,7 @@ modify_provider_details_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -152,14 +152,14 @@ build_modify_provider_details_data_spec(OpWorkerNodes) ->
             <<"adminEmail">> => [?RAND_EMAIL_ADDRESS()]
         },
         bad_values = [
-            {<<"name">>, 1, ?ERROR_BAD_VALUE_BINARY(<<"name">>)},
-            {<<"name">>, <<"0">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_NAME, HostNames)},
-            {<<"geoLatitude">>, <<"Nan">>, ?ERROR_BAD_VALUE_FLOAT(<<"geoLatitude">>)},
-            {<<"geoLatitude">>, 91, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_NOT_IN_RANGE(<<"latitude">>, -90, 90), HostNames)},
-            {<<"geoLongitude">>, <<"Nan">>, ?ERROR_BAD_VALUE_FLOAT(<<"geoLongitude">>)},
-            {<<"geoLongitude">>, 191, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_NOT_IN_RANGE(<<"longitude">>, -180, 180), HostNames)},
-            {<<"adminEmail">>, 1, ?ERROR_BAD_VALUE_BINARY(<<"adminEmail">>)},
-            {<<"adminEmail">>, ?RAND_STR(), ?ERROR_ON_NODES(?ERROR_BAD_VALUE_EMAIL, HostNames)}
+            {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(<<"name">>)},
+            {<<"name">>, <<"0">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_NAME(undefined), HostNames)},
+            {<<"geoLatitude">>, <<"Nan">>, ?ERR_BAD_VALUE_FLOAT(<<"geoLatitude">>)},
+            {<<"geoLatitude">>, 91, ?ERR_ON_NODES(?ERR_BAD_VALUE_NOT_IN_RANGE(<<"latitude">>, -90, 90), HostNames)},
+            {<<"geoLongitude">>, <<"Nan">>, ?ERR_BAD_VALUE_FLOAT(<<"geoLongitude">>)},
+            {<<"geoLongitude">>, 191, ?ERR_ON_NODES(?ERR_BAD_VALUE_NOT_IN_RANGE(<<"longitude">>, -180, 180), HostNames)},
+            {<<"adminEmail">>, 1, ?ERR_BAD_VALUE_STRING(<<"adminEmail">>)},
+            {<<"adminEmail">>, ?RAND_STR(), ?ERR_ON_NODES(?ERR_BAD_VALUE_EMAIL, HostNames)}
         ]
     }.
 

@@ -92,7 +92,7 @@ decode_invite_token(InviteToken) ->
                 cluster_host => binary_to_list(ClusterHostBin)
             };
         _ ->
-            throw(?ERROR_TOKEN_INVALID)
+            throw(?ERR_TOKEN_INVALID(?err_ctx()))
     catch _:_ ->
-        throw(?ERROR_TOKEN_INVALID)
+        throw(?ERR_TOKEN_INVALID(?err_ctx()))
     end.

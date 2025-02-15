@@ -29,6 +29,7 @@
 create_response(#gri{aspect = Aspect}, value, AsyncTaskId) when
     Aspect == couchbase_instances;
     Aspect == cluster_manager_instances;
+    Aspect == ones3_instances;
     Aspect == op_worker_instances;
     Aspect == oz_worker_instances
 ->

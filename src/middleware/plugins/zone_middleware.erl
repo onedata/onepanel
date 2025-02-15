@@ -65,14 +65,14 @@ required_availability(create, cluster, private) -> [];
 required_availability(get, instance, private) -> [];
 required_availability(get, cluster, private) -> [];
 required_availability(get, policies, private) ->
-    [?SERVICE_OZW, all_healthy];
+    [?SERVICE_OZW, all_healthy_ignoring_ones3];
 required_availability(get, {gui_message, _Id}, private) ->
-    [?SERVICE_OZW, all_healthy];
+    [?SERVICE_OZW, all_healthy_ignoring_ones3];
 
 required_availability(update, policies, private) ->
-    [?SERVICE_OZW, all_healthy];
+    [?SERVICE_OZW, all_healthy_ignoring_ones3];
 required_availability(update, {gui_message, _Id}, private) ->
-    [?SERVICE_OZW, all_healthy].
+    [?SERVICE_OZW, all_healthy_ignoring_ones3].
 
 
 
@@ -124,14 +124,14 @@ validate(#onp_req{operation = create, gri = #gri{aspect = cluster}, data = Data}
     % generator is buggy and does not enforce presence of the "onezone" key.
     case maps:find(onezone, Data) of
         {ok, Map} when is_map(Map) -> ok;
-        _ -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"onezone">>))
+        _ -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"onezone">>))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = instance}, data = Data}, _) ->
     case {service_oneprovider:is_registered(), Data} of
         {true, _} -> ok;
         {false, #{token := _}} -> ok;
-        {false, _} -> throw(?ERROR_MISSING_REQUIRED_VALUE(<<"token">>))
+        {false, _} -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"token">>))
     end;
 
 validate(#onp_req{operation = get, gri = #gri{aspect = cluster}}, _) ->

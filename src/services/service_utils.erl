@@ -312,7 +312,7 @@ format_errors(Errors) ->
 
 
 %% @private
--spec bad_results_to_error([onepanel_rpc:result()]) -> ?ERROR_ON_NODES(_, _).
+-spec bad_results_to_error([onepanel_rpc:result()]) -> od_error_on_nodes:t().
 bad_results_to_error(BadResults) ->
     {Nodes, Errors} = lists:unzip(BadResults),
 
@@ -324,7 +324,7 @@ bad_results_to_error(BadResults) ->
     SelectedError = select_error(SerializableErrors),
     Hostnames = [list_to_binary(hosts:from_node(Node))
         || {Node, Err} <- NodesErrors, Err == SelectedError],
-    ?ERROR_ON_NODES(SelectedError, Hostnames).
+    ?ERR_ON_NODES(?err_ctx(), SelectedError, Hostnames).
 
 
 %%--------------------------------------------------------------------
@@ -352,8 +352,8 @@ select_error(Errors) ->
 %%--------------------------------------------------------------------
 -spec cast_to_serializable_error(T | term()) -> T when T :: errors:error().
 cast_to_serializable_error({error, #exception{}}) ->
-    ?ERROR_INTERNAL_SERVER_ERROR;
+    ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined);
 cast_to_serializable_error({error, _} = Error) ->
     Error;
 cast_to_serializable_error(_) ->
-    ?ERROR_INTERNAL_SERVER_ERROR.
+    ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined).

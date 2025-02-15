@@ -273,7 +273,7 @@ get_type(Integer) when is_integer(Integer) -> integer;
 get_type(List) when is_list(List) -> list;
 get_type(Value) ->
     ?error("Could not determine type of ~tp", [Value]),
-    error(?ERR_UNKNOWN_TYPE(Value)).
+    error(?ONP_ERR_UNKNOWN_TYPE(Value)).
 
 
 %%--------------------------------------------------------------------
@@ -323,8 +323,8 @@ ensure_known_hosts(Hosts) ->
     lists:foreach(fun(Host) ->
         case lists:member(Host, KnownHosts) of
             true -> ok;
-            false -> throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
-                <<"hosts">>, onepanel_utils:convert(KnownHosts, {seq, binary})))
+            false -> throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(
+                ?err_ctx(), <<"hosts">>, onepanel_utils:convert(KnownHosts, {seq, binary})))
         end
     end, Hosts).
 

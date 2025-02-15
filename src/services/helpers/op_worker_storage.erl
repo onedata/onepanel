@@ -160,7 +160,7 @@ update(OpNode, Id, NewParams) ->
         ?info("Modified storage ~tp (~tp)", [Name, Id]),
         Details#{verificationPassed => true}
     catch
-        throw:?ERROR_STORAGE_TEST_FAILED(_) ->
+        throw:?ERR_STORAGE_TEST_FAILED(_) ->
             Details2 = ?MODULE:get(Id),
             Details2#{verificationPassed => false};
         Class:Reason:Stacktrace ->
@@ -182,7 +182,7 @@ remove(OpNode, Id) ->
             ?info("Successfully removed storage with id ~tp", [Id]),
             ok;
         {error, storage_in_use} ->
-            throw(?ERROR_STORAGE_IN_USE)
+            throw(?ERR_STORAGE_IN_USE(?err_ctx()))
     end.
 
 
@@ -442,7 +442,7 @@ run_storage_diagnostics(Helper, LumaFeed, Opts, ErrorLog) ->
     Type :: onepanel_utils:type()) -> term().
 get_required_luma_arg(Key, StorageParams, Type) ->
     case onepanel_utils:find_converted(Key, StorageParams, Type) of
-        error -> throw(?ERROR_MISSING_REQUIRED_VALUE(str_utils:to_binary(Key)));
+        error -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), str_utils:to_binary(Key)));
         {ok, Value} -> Value
     end.
 

@@ -77,7 +77,7 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
 
     #data_spec{
         required = [
-            {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
+            {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
         ],
         optional = [
             <<"timeout">>,
@@ -108,23 +108,23 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             <<"enableDataVerification">> => [true, false]
         },
         bad_values = [
-            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?STORAGE_TYPES)},
-            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
+            {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?STORAGE_TYPES)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
-            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
-            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
-            {<<"storagePathType">>, 1, ?ERROR_BAD_VALUE_ATOM(K(<<"storagePathType">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
-            {<<"latencyMin">>, <<"string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"latencyMin">>))},
-            {<<"latencyMax">>, <<"string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"latencyMax">>))},
-            {<<"timeoutProbability">>, <<"string">>, ?ERROR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
-            {<<"filter">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"filter">>))},
-            {<<"simulatedFilesystemParameters">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"simulatedFilesystemParameters">>))},
-            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERROR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
+            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"storagePathType">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
+            {<<"latencyMin">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMin">>))},
+            {<<"latencyMax">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMax">>))},
+            {<<"timeoutProbability">>, <<"string">>, ?ERR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
+            {<<"filter">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"filter">>))},
+            {<<"simulatedFilesystemParameters">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"simulatedFilesystemParameters">>))},
+            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
             %% TODO VFS-12391 debug why it returns bad_value_string
-%%            {<<"enableDataVerification">>, 5, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
+%%            {<<"enableDataVerification">>, 5, ?ERR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
         ]
     }.
 
@@ -169,7 +169,7 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
 
     #data_spec{
         required = [
-            {<<"type">>, ?ERROR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
+            {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
         ],
         optional = [
             <<"name">>,
@@ -205,24 +205,24 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             <<"enableDataVerification">> => [true, false]
         },
         bad_values = [
-            {<<"name">>, 1, ?ERROR_BAD_VALUE_BINARY(K(<<"name">>))},
+            {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
 %%            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%%%            {<<"timeout">>, 0, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERROR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-            {<<"type">>, <<"bad_storage_type">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
-            {<<"timeout">>, <<"timeout_as_string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
+%%%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+%%%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
 %%            %% TODO: VFS-7641 add records for badly formatted QoS
-            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
-            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERROR_BAD_VALUE_ATOM(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
-            {<<"latencyMin">>, <<"string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"latencyMin">>))},
-            {<<"latencyMax">>, <<"string">>, ?ERROR_BAD_VALUE_INTEGER(K(<<"latencyMax">>))},
-            {<<"timeoutProbability">>, <<"string">>, ?ERROR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
-            {<<"filter">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"filter">>))},
-            {<<"simulatedFilesystemParameters">>, 5, ?ERROR_BAD_VALUE_BINARY(K(<<"simulatedFilesystemParameters">>))},
-            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERROR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
+            {<<"latencyMin">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMin">>))},
+            {<<"latencyMax">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMax">>))},
+            {<<"timeoutProbability">>, <<"string">>, ?ERR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
+            {<<"filter">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"filter">>))},
+            {<<"simulatedFilesystemParameters">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"simulatedFilesystemParameters">>))},
+            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
             %% TODO VFS-12391 debug why it returns bad_value_string
-%%            {<<"enableDataVerification">>, 5, ?ERROR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
+%%            {<<"enableDataVerification">>, 5, ?ERR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
         ]
     }.
 

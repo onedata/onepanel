@@ -40,7 +40,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec authenticate(Req :: cowboy_req:req()) -> {Result, cowboy_req:req()} when
-    Result :: {true, #client{}} | {false, errors:unauthorized_error()}.
+    Result :: {true, #client{}} | {false, od_error:auth_error()}.
 authenticate(Req) ->
     authenticate(Req, [
         fun authenticate_by_basic_auth/1,
@@ -55,13 +55,13 @@ authenticate(Req) ->
 %%--------------------------------------------------------------------
 -spec authenticate_by_basic_auth(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | errors:unauthorized_error() | ignore.
+    when Result :: #client{} | od_error:auth_error() | ignore.
 authenticate_by_basic_auth(Req) ->
     case cowboy_req:header(?HDR_AUTHORIZATION, Req) of
         <<"Basic ", Base64/binary>> ->
             case check_basic_credentials(Base64) of
                 #client{} = Client -> {Client, Req};
-                AuthError -> {?ERROR_UNAUTHORIZED(AuthError), Req}
+                AuthError -> {?ERR_UNAUTHORIZED(?err_ctx(), AuthError), Req}
             end;
         _ ->
             {ignore, Req}
@@ -115,7 +115,7 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
         throw:Error ->
             {{false, Error}, Req};
         _:_ ->
-            {{false, ?ERROR_UNAUTHORIZED}, Req}
+            {{false, ?ERR_UNAUTHORIZED(?err_ctx(), undefined)}, Req}
     end.
 
 %%--------------------------------------------------------------------
@@ -127,7 +127,7 @@ authenticate(Req, [AuthMethod | AuthMethods]) ->
 %%--------------------------------------------------------------------
 -spec authenticate_by_onepanel_auth_token(Req :: cowboy_req:req()) ->
     {Result, Req :: cowboy_req:req()}
-    when Result :: #client{} | errors:unauthorized_error() | ignore.
+    when Result :: #client{} | od_error:auth_error() | ignore.
 authenticate_by_onepanel_auth_token(Req) ->
     case tokens:parse_access_token_header(Req) of
         <<?ONEPANEL_USER_AUTH_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = OnepanelToken ->
@@ -135,14 +135,16 @@ authenticate_by_onepanel_auth_token(Req) ->
                 {ok, #onepanel_session{username = ?LOCAL_SESSION_USERNAME}} ->
                     {root_client(), Req};
                 error ->
-                    {?ERROR_UNAUTHORIZED(?ERROR_TOKEN_INVALID), Req}
+                    ErrorCtx = ?err_ctx(),
+                    {?ERR_UNAUTHORIZED(ErrorCtx, ?ERR_TOKEN_INVALID(ErrorCtx)), Req}
             end;
         <<?ONEPANEL_INVITE_TOKEN_PREFIX, ?ONEPANEL_TOKEN_SEPARATOR, _/binary>> = InviteToken ->
             case authorization_nonce:verify(invite_tokens:get_nonce(InviteToken)) of
                 true ->
                     {peer_client(), Req};
                 false ->
-                    {?ERROR_UNAUTHORIZED(?ERROR_TOKEN_INVALID), Req}
+                    ErrorCtx = ?err_ctx(),
+                    {?ERR_UNAUTHORIZED(ErrorCtx, ?ERR_TOKEN_INVALID(ErrorCtx)), Req}
             end;
         _ ->
             {ignore, Req}
@@ -179,11 +181,11 @@ check_basic_credentials(<<Base64/binary>>) ->
         _Error ->
             case binary:split(Decoded, <<":">>) of
                 [Decoded] ->
-                    ?ERROR_BAD_BASIC_CREDENTIALS;
+                    ?ERR_BAD_BASIC_CREDENTIALS(?err_ctx());
                 [?LOCAL_USERNAME, Passphrase] ->
                     check_emergency_passphrase(Passphrase);
                 [_Username, _Password] ->
-                    ?ERROR_BAD_BASIC_CREDENTIALS
+                    ?ERR_BAD_BASIC_CREDENTIALS(?err_ctx())
             end
     end.
 
@@ -214,5 +216,5 @@ resolve_peer_ip(Req) ->
 check_emergency_passphrase(Passphrase) ->
     case emergency_passphrase:verify(Passphrase) of
         true -> root_client();
-        false -> ?ERROR_BAD_BASIC_CREDENTIALS
+        false -> ?ERR_BAD_BASIC_CREDENTIALS(?err_ctx())
     end.

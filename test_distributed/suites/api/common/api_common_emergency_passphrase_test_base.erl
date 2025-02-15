@@ -88,7 +88,7 @@ build_update_emergency_passphrase_data_spec() ->
             <<"currentPassphrase">> => [current_passphrase_placeholder]
         },
         bad_values = [
-            {<<"currentPassphrase">>, <<"badCurrentPassphrase">>, ?ERROR_UNAUTHORIZED(?ERROR_BAD_BASIC_CREDENTIALS)}
+            {<<"currentPassphrase">>, <<"badCurrentPassphrase">>, ?ERR_UNAUTHORIZED(?ERR_BAD_BASIC_CREDENTIALS)}
         ]
     }.
 
