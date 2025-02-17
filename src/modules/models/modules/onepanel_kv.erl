@@ -106,7 +106,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | ?ERR_DOC_NOT_FOUND | no_return().
+    {ok, Record :: record()} | ?ONP_ERR_DOC_NOT_FOUND | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -144,11 +144,11 @@ list() ->
 %%%===================================================================
 
 
--spec find(Key :: key()) -> {ok, value()} | ?ERR_DOC_NOT_FOUND.
+-spec find(Key :: key()) -> {ok, value()} | ?ONP_ERR_DOC_NOT_FOUND.
 find(Key) ->
     case ?MODULE:get(Key) of
         {ok, #onepanel_kv{value = Value}} -> {ok, Value};
-        ?ERR_DOC_NOT_FOUND = Error -> Error
+        ?ONP_ERR_DOC_NOT_FOUND = Error -> Error
     end.
 
 -spec find(Key :: key(), Default :: value()) -> value().

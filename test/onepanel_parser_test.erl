@@ -28,7 +28,7 @@ parse_integer_key_test() ->
     ArgsSpec = #{key => integer},
     ?assertEqual(#{key => 1}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => 1}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_INTEGER(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -43,7 +43,7 @@ parse_float_key_test() ->
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertEqual(#{key => 1.0}, onepanel_parser:parse(Data4, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_FLOAT(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_FLOAT(<<"key">>),
         onepanel_parser:parse(Data5, ArgsSpec)).
 
 
@@ -54,7 +54,7 @@ parse_atom_key_test() ->
     ArgsSpec = #{key => atom},
     ?assertEqual(#{key => value}, onepanel_parser:parse(Data1, ArgsSpec)),
     ?assertEqual(#{key => value}, onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_ATOM(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_STRING(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -70,9 +70,9 @@ parse_boolean_key_test() ->
     ?assertEqual(#{key => false}, onepanel_parser:parse(Data2, ArgsSpec)),
     ?assertEqual(#{key => true}, onepanel_parser:parse(Data3, ArgsSpec)),
     ?assertEqual(#{key => false}, onepanel_parser:parse(Data4, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_BOOLEAN(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_BOOLEAN(<<"key">>),
         onepanel_parser:parse(Data5, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_BOOLEAN(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_BOOLEAN(<<"key">>),
         onepanel_parser:parse(Data6, ArgsSpec)).
 
 
@@ -90,17 +90,17 @@ parse_list_key_test() ->
     ?assertEqual(#{key => [<<"some_string">>, <<"string2">>]},
         onepanel_parser:parse(Data1, ArgsSpec1)),
     ?assertEqual(#{key => []}, onepanel_parser:parse(Data2, ArgsSpec1)),
-    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_BINARIES(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_LIST_OF_STRINGS(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec1)),
     ?assertEqual(#{key => [#{subkey => <<"a">>}, #{subkey => <<"b">>}]},
         onepanel_parser:parse(Data4, ArgsSpec2)),
-    ?assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key.2">>),
+    ?assertThrow(?ERR_BAD_VALUE_INTEGER(<<"key.2">>),
         onepanel_parser:parse(Data5, ArgsSpec3)),
-    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_BINARIES(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_LIST_OF_STRINGS(<<"key">>),
         onepanel_parser:parse(Data6, ArgsSpec1)),
-    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_ATOMS(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_LIST_OF_STRINGS(<<"key">>),
         onepanel_parser:parse(Data6, ArgsSpec4)),
-    ?assertThrow(?ERROR_BAD_DATA(<<"key">>),
+    ?assertThrow(?ERR_BAD_DATA(<<"key">>, undefined),
         onepanel_parser:parse(Data6, ArgsSpec3)).
 
 
@@ -109,7 +109,7 @@ parse_string_key_test() ->
     Data2 = #{<<"key">> => 1},
     ArgsSpec = #{key => string},
     ?assertEqual(#{key => <<"value">>}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_BINARY(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_STRING(<<"key">>),
         onepanel_parser:parse(Data2, ArgsSpec)).
 
 
@@ -119,9 +119,9 @@ parse_ip_key_test() ->
     Data3 = #{<<"key">> => <<"abc">>},
     ArgsSpec = #{key => ip4},
     ?assertEqual(#{key => {1, 1, 1, 1}}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_IPV4_ADDRESS(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_IPV4_ADDRESS(<<"key">>),
         onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_IPV4_ADDRESS(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_IPV4_ADDRESS(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
@@ -132,16 +132,16 @@ parse_ip_list_key_test() ->
     ArgsSpec = #{key => [ip4]},
     ?assertEqual(#{key => [{1,1,1,1}, {1,2,3,4}]},
         onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(<<"key">>),
         onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(?ERROR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(<<"key">>),
+    ?assertThrow(?ERR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(<<"key">>),
         onepanel_parser:parse(Data3, ArgsSpec)).
 
 
 parse_required_key_test() ->
     Data = #{},
     ArgsSpec = #{key => string},
-    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key">>),
+    ?assertThrow(?ERR_MISSING_REQUIRED_VALUE(<<"key">>),
         onepanel_parser:parse(Data, ArgsSpec)).
 
 
@@ -182,11 +182,11 @@ parse_nested_key_test() ->
             key3 => <<"value">>
         }
     }}, onepanel_parser:parse(Data1, ArgsSpec)),
-    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key1.key2.key3">>),
+    ?assertThrow(?ERR_MISSING_REQUIRED_VALUE(<<"key1.key2.key3">>),
         onepanel_parser:parse(Data2, ArgsSpec)),
-    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key1.key2">>),
+    ?assertThrow(?ERR_MISSING_REQUIRED_VALUE(<<"key1.key2">>),
         onepanel_parser:parse(Data3, ArgsSpec)),
-    ?assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"key1">>),
+    ?assertThrow(?ERR_MISSING_REQUIRED_VALUE(<<"key1">>),
         onepanel_parser:parse(Data4, ArgsSpec)).
 
 
@@ -205,15 +205,15 @@ parse_enum_test_() ->
     }, [
         ?_assertEqual(#{key1 => <<"val1">>}, onepanel_parser:parse(Data1, ArgsSpec)),
         ?_assertEqual(#{key1 => <<"val2">>}, onepanel_parser:parse(Data2, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"key1">>, [<<"val1">>, <<"val2">>]),
+        ?_assertThrow(?ERR_BAD_VALUE_NOT_ALLOWED(<<"key1">>, [<<"val1">>, <<"val2">>]),
             onepanel_parser:parse(Data3, ArgsSpec)),
         ?_assertEqual(#{key1 => <<"val1">>, key2 => <<"val3">>},
             onepanel_parser:parse(Data4, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"key2">>, [<<"val3">>, <<"val4">>]),
+        ?_assertThrow(?ERR_BAD_VALUE_NOT_ALLOWED(<<"key2">>, [<<"val3">>, <<"val4">>]),
             onepanel_parser:parse(Data5, ArgsSpec)),
         ?_assertEqual(#{key1 => <<"val1">>, key3 => 3},
             onepanel_parser:parse(Data6, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_INTEGER(<<"key3">>),
+        ?_assertThrow(?ERR_BAD_VALUE_INTEGER(<<"key3">>),
             onepanel_parser:parse(Data7, ArgsSpec))
     ].
 
@@ -239,11 +239,11 @@ parse_subclasses_test_() ->
             onepanel_parser:parse(Data1, ArgsSpec)),
         ?_assertEqual(#{storage => #{type => <<"posix">>, user => 3}},
             onepanel_parser:parse(Data2, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"storage.type">>, [<<"posix">>, <<"s3">>]),
+        ?_assertThrow(?ERR_BAD_VALUE_NOT_ALLOWED(<<"storage.type">>, [<<"posix">>, <<"s3">>]),
             onepanel_parser:parse(Data3, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_BINARY(<<"storage.hostname">>),
+        ?_assertThrow(?ERR_BAD_VALUE_STRING(<<"storage.hostname">>),
             onepanel_parser:parse(Data4, ArgsSpec)),
-        ?_assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"storage.type">>),
+        ?_assertThrow(?ERR_MISSING_REQUIRED_VALUE(<<"storage.type">>),
             onepanel_parser:parse(Data5, ArgsSpec))
 ].
 
@@ -268,11 +268,11 @@ parse_top_level_subclasses_test_() ->
             onepanel_parser:parse(Data1, ArgsSpec)),
         ?_assertEqual(#{type => <<"posix">>, user => 3},
             onepanel_parser:parse(Data2, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_NOT_ALLOWED(<<"type">>, [<<"posix">>, <<"s3">>]),
+        ?_assertThrow(?ERR_BAD_VALUE_NOT_ALLOWED(<<"type">>, [<<"posix">>, <<"s3">>]),
             onepanel_parser:parse(Data3, ArgsSpec)),
-        ?_assertThrow(?ERROR_BAD_VALUE_BINARY(<<"hostname">>),
+        ?_assertThrow(?ERR_BAD_VALUE_STRING(<<"hostname">>),
             onepanel_parser:parse(Data4, ArgsSpec)),
-        ?_assertThrow(?ERROR_MISSING_REQUIRED_VALUE(<<"type">>),
+        ?_assertThrow(?ERR_MISSING_REQUIRED_VALUE(<<"type">>),
             onepanel_parser:parse(Data5, ArgsSpec))
     ].
 

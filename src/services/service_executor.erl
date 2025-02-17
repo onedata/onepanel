@@ -121,7 +121,7 @@ handle_results(History, StepsCount) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_results(TaskId :: task_id(), timeout()) ->
-    Results :: service_executor:results() | ?ERROR_TIMEOUT.
+    Results :: service_executor:results() | od_error_timeout:t().
 receive_results(TaskId, Timeout) ->
     receive
         {task, TaskId, Result} -> Result
@@ -134,7 +134,7 @@ receive_results(TaskId, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec receive_count(TaskId :: task_id(), timeout()) ->
-    Count :: non_neg_integer() | ?ERROR_TIMEOUT.
+    Count :: non_neg_integer() | od_error_timeout:t().
 receive_count(TaskId, Timeout) ->
     receive
         {step_count, TaskId, Count} -> Count

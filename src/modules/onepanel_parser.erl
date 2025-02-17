@@ -126,7 +126,7 @@ parse(Data, [{'_', Spec} = _ValueSpec], Keys, Args) when is_map(Data) ->
         (Key, Value, Acc) when is_binary(Key) ->
             Arg = parse_value(Value, Spec, [Key | Keys]),
             maps:put(Key, Arg, Acc);
-        (_, _, _) -> throw(?ERROR_BAD_DATA(join_keys(Keys)))
+        (_, _, _) -> throw(?ERR_BAD_DATA(?err_ctx(), join_keys(Keys), undefined))
     end, Args, Data);
 
 parse(Data, [{'_', _} = ValueSpec | ArgsSpec], Keys, Args) when is_map(Data) ->
@@ -148,12 +148,12 @@ parse(Data, [{Key, Spec} | ArgsSpec], Keys, Args) when is_map(Data) ->
                     parse(Data, ArgsSpec, Keys, Args)
             end;
         {error, {false, _}} ->
-            throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([Key | Keys])))
+            throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), join_keys([Key | Keys])))
     end;
 
 parse(Data, [{Key, _Spec} | _ArgsSpec], Keys, _Args) when not is_map(Data) ->
     % not-a-map cannot be descended into to find Key
-    throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([Key | Keys]))).
+    throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), join_keys([Key | Keys]))).
 
 
 %%--------------------------------------------------------------------
@@ -169,7 +169,7 @@ parse_value(Value, {equal, Equal}, Keys) ->
     Type = onepanel_utils:get_type(Equal),
     case parse_value(Value, Type, Keys) of
         Equal -> Equal;
-        _ -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(join_keys(Keys), [Equal]))
+        _ -> throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), join_keys(Keys), [Equal]))
     end;
 
 parse_value(Value, integer, _Keys) when is_integer(Value) ->
@@ -188,7 +188,7 @@ parse_value(Value, binary, _Keys) when is_binary(Value) ->
     Value;
 
 parse_value(_Value, binary, Keys) ->
-    throw(?ERROR_BAD_VALUE_BINARY(join_keys(Keys)));
+    throw(?ERR_BAD_VALUE_STRING(?err_ctx(), join_keys(Keys)));
 
 parse_value(Value, atom, _Keys) when is_atom(Value) ->
     Value;
@@ -197,7 +197,7 @@ parse_value(Value, boolean, Keys) when is_atom(Value) ->
     case Value of
         true -> true;
         false -> false;
-        _ -> throw(?ERROR_BAD_VALUE_BOOLEAN(join_keys(Keys)))
+        _ -> throw(?ERR_BAD_VALUE_BOOLEAN(?err_ctx(), join_keys(Keys)))
     end;
 
 parse_value(Value, boolean, Keys) ->
@@ -207,14 +207,14 @@ parse_value(Value, atom, Keys) ->
     try
         erlang:binary_to_atom(Value, utf8)
     catch
-        _:_ -> throw(?ERROR_BAD_VALUE_ATOM(join_keys(Keys)))
+        _:_ -> throw(?ERR_BAD_VALUE_STRING(?err_ctx(), join_keys(Keys)))
     end;
 
 parse_value(Value, integer, Keys) ->
     try
         erlang:binary_to_integer(Value)
     catch
-        _:_ -> throw(?ERROR_BAD_VALUE_INTEGER(join_keys(Keys)))
+        _:_ -> throw(?ERR_BAD_VALUE_INTEGER(?err_ctx(), join_keys(Keys)))
     end;
 
 parse_value(Value, float, Keys) ->
@@ -224,7 +224,7 @@ parse_value(Value, float, Keys) ->
             {error, no_float} -> erlang:binary_to_integer(Value) * 1.0
         end
     catch
-        _:_ -> throw(?ERROR_BAD_VALUE_FLOAT(join_keys(Keys)))
+        _:_ -> throw(?ERR_BAD_VALUE_FLOAT(?err_ctx(), join_keys(Keys)))
     end;
 
 parse_value(Value, ip4, Keys) ->
@@ -232,25 +232,25 @@ parse_value(Value, ip4, Keys) ->
         {ok, IP} = ip_utils:to_ip4_address(Value),
         IP
     catch _:_ ->
-        throw(?ERROR_BAD_VALUE_IPV4_ADDRESS(join_keys(Keys)))
+        throw(?ERR_BAD_VALUE_IPV4_ADDRESS(?err_ctx(), join_keys(Keys)))
     end;
 
 parse_value(Value, {enum, ValueType, AllowedValues}, Keys) ->
     TypedValue = parse_value(Value, ValueType, Keys),
     case lists:member(TypedValue, AllowedValues) of
         true -> TypedValue;
-        false -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(join_keys(Keys), AllowedValues))
+        false -> throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), join_keys(Keys), AllowedValues))
     end;
 
 parse_value(Value, {subclasses, {DiscriminatorField, ValueToSpec}}, Keys) ->
     BinKey = onepanel_utils:convert(DiscriminatorField, binary),
     DiscriminatorValue = case maps:find(BinKey, Value) of
         {ok, V} -> V;
-        error -> throw(?ERROR_MISSING_REQUIRED_VALUE(join_keys([BinKey | Keys])))
+        error -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), join_keys([BinKey | Keys])))
     end,
     case maps:find(DiscriminatorValue, ValueToSpec) of
         {ok, Model} -> parse_value(Value, Model, Keys);
-        error -> throw(?ERROR_BAD_VALUE_NOT_ALLOWED(join_keys([BinKey | Keys]), maps:keys(ValueToSpec)))
+        error -> throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), join_keys([BinKey | Keys]), maps:keys(ValueToSpec)))
     end;
 
 parse_value(Values, [ValueSpec], Keys) ->
@@ -262,17 +262,17 @@ parse_value(Values, [ValueSpec], Keys) ->
             case ValueSpec of
                 % special cases for types with list error types
                 atom ->
-                    throw(?ERROR_BAD_VALUE_LIST_OF_ATOMS(join_keys(Keys)));
+                    throw(?ERR_BAD_VALUE_LIST_OF_STRINGS(?err_ctx(), join_keys(Keys)));
                 ip4 ->
-                    throw(?ERROR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(join_keys(Keys)));
+                    throw(?ERR_BAD_VALUE_LIST_OF_IPV4_ADDRESSES(?err_ctx(), join_keys(Keys)));
                 string ->
-                    throw(?ERROR_BAD_VALUE_LIST_OF_BINARIES(join_keys(Keys)));
+                    throw(?ERR_BAD_VALUE_LIST_OF_STRINGS(?err_ctx(), join_keys(Keys)));
                 binary ->
-                    throw(?ERROR_BAD_VALUE_LIST_OF_BINARIES(join_keys(Keys)));
+                    throw(?ERR_BAD_VALUE_LIST_OF_STRINGS(?err_ctx(), join_keys(Keys)));
                 _ ->
                     case {ErrorClass, Error} of
                         {throw, {error, _}} -> throw(Error);
-                        _ -> throw(?ERROR_BAD_DATA(join_keys(Keys)))
+                        _ -> throw(?ERR_BAD_DATA(?err_ctx(), join_keys(Keys), undefined))
                     end
             end
     end;
@@ -281,7 +281,7 @@ parse_value(Value, ValueSpec, Keys) when is_map(ValueSpec) ->
     parse(Value, maps:to_list(ValueSpec), Keys, #{});
 
 parse_value(_Value, _ValueSpec, Keys) ->
-    throw(?ERROR_BAD_DATA(join_keys(Keys))).
+    throw(?ERR_BAD_DATA(?err_ctx(), join_keys(Keys), undefined)).
 
 
 %%--------------------------------------------------------------------

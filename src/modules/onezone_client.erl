@@ -76,7 +76,7 @@ register_provider(OnezoneDomain, Payload) ->
                     {ok, #{provider_id => Id, root_token => RootToken}}
             end;
         {error, _} ->
-            throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+            throw(?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), OnezoneDomain))
     end.
 
 

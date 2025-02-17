@@ -36,7 +36,7 @@ read(Key, Path) ->
         {ok, Content} ->
             find(Key, Content);
         {error, Reason} ->
-            throw(?ERROR_FILE_ACCESS(Path, Reason))
+            throw(?ERR_FILE_ACCESS(?err_ctx(), Path, Reason))
     end.
 
 
@@ -54,10 +54,10 @@ write(Key, Value, Path) ->
             {ok, NewContent} = set(Key, Value, Content),
             case file:write_file(Path, NewContent) of
                 ok -> ok;
-                {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
+                {error, Reason} -> throw(?ERR_FILE_ACCESS(?err_ctx(), Path, Reason))
             end;
         {error, Reason} ->
-            throw(?ERROR_FILE_ACCESS(Path, Reason))
+            throw(?ERR_FILE_ACCESS(?err_ctx(), Path, Reason))
     end.
 
 

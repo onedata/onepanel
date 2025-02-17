@@ -172,7 +172,8 @@ format_service_configuration(SModule) ->
             CommonClusterConfiguration;
         service_oneprovider ->
             CommonClusterConfiguration#{<<"oneS3">> => #{
-                <<"hosts">> => onepanel_utils:convert(hosts:all(?SERVICE_ONES3), {seq, binary})
+                <<"hosts">> => onepanel_utils:convert(hosts:all(?SERVICE_ONES3), {seq, binary}),
+                <<"port">> => service_ones3:get_port()
             }}
     end,
 
@@ -208,7 +209,8 @@ get_hosts(Keys, Data) ->
         case maps:find(Alias, HostsMap) of
             {ok, Host} -> onepanel_utils:convert(Host, list);
             error ->
-                throw(?ERROR_BAD_VALUE_LIST_NOT_ALLOWED(
+                throw(?ERR_BAD_VALUE_LIST_NOT_ALLOWED(
+                    ?err_ctx(),
                     str_utils:join_as_binaries(Keys, <<".">>),
                     maps:keys(HostsMap)
                 ))

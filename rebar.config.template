@@ -31,9 +31,9 @@
 
 {deps, [
     {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "65ae4a279fac"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "34ba85e92186"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "65984a07e10e"}}},
-    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "dec5a5d6c0c6"}}}
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "2275a456971f5"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "2fa083175c37ff4"}}},
+    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "ea0d635f77a41a"}}}
 ]}.
 
 {pre_hooks, [

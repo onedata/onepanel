@@ -185,7 +185,7 @@ init_per_testcase(Case, Config) when
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> false end),
+    test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> false end),
     % do not require valid payload in requests
     test_utils:mock_new(Nodes, [onepanel_parser]),
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
@@ -240,7 +240,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_expect(Nodes, service, get, fun
         (onezone) -> {ok, #service{}};
         (oz_worker) -> {ok, #service{hosts = Hosts}};
-        (_) -> ?ERR_DOC_NOT_FOUND
+        (_) -> ?ONP_ERR_DOC_NOT_FOUND
     end),
     test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
         Self ! {service, Service, Action, Ctx},
@@ -260,7 +260,9 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_unload(Nodes).
+    test_utils:mock_unload(Nodes, [
+        onepanel_parser, service, service_oz_worker, service_onezone, oz_worker_rpc
+    ]).
 
 
 end_per_suite(_Config) ->

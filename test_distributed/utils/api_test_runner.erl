@@ -293,13 +293,13 @@ get_invalid_clients(forbidden, #suite_spec{client_spec = #client_spec{
 
 %% @private
 get_scenario_specific_error_for_invalid_clients(unauthorized, {Client, AuthError}) ->
-    {Client, ?ERROR_UNAUTHORIZED(AuthError)};
+    {Client, ?ERR_UNAUTHORIZED(AuthError)};
 get_scenario_specific_error_for_invalid_clients(unauthorized, Client) ->
-    {Client, ?ERROR_UNAUTHORIZED};
+    {Client, ?ERR_UNAUTHORIZED(undefined)};
 get_scenario_specific_error_for_invalid_clients(forbidden, {Client, Error}) ->
     {Client, Error};
 get_scenario_specific_error_for_invalid_clients(forbidden, Client) ->
-    {Client, ?ERROR_FORBIDDEN}.
+    {Client, ?ERR_FORBIDDEN}.
 
 
 %% @private
@@ -396,14 +396,14 @@ run_missing_required_data_test_cases(#suite_spec{
         ({RequiredParam, CustomError}) ->
             {maps:remove(RequiredParam, RequiredDataSet), CustomError};
         (RequiredParam) ->
-            {maps:remove(RequiredParam, RequiredDataSet), ?ERROR_MISSING_REQUIRED_VALUE(RequiredParam)}
+            {maps:remove(RequiredParam, RequiredDataSet), ?ERR_MISSING_REQUIRED_VALUE(RequiredParam)}
     end, RequiredParams),
 
     MissingAtLeastOneParamsDataSetAndError = case AtLeastOneParams of
         [] ->
             [];
         _ ->
-            ExpectedError = ?ERROR_MISSING_AT_LEAST_ONE_VALUE(lists:sort(AtLeastOneParams)),
+            ExpectedError = ?ERR_MISSING_AT_LEAST_ONE_VALUE(lists:sort(AtLeastOneParams)),
             [{maps:without(AtLeastOneParams, RequiredDataSet), ExpectedError}]
     end,
 

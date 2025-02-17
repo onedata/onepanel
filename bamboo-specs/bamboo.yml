@@ -65,9 +65,14 @@ stages:
         - api_oneprovider_storages
         - api_onezone_service_configuration
         - api_onezone_user_management
+        - cluster_deployment_op_add_ones3_after_certification_with_le
+        - cluster_deployment_op_add_ones3_after_certification_without_le
+        - cluster_deployment_op_add_ones3_after_registration
+        - cluster_deployment_op_add_ones3_before_registration
         - cluster_op_batch_deployment
         - cluster_oz_batch_deployment
         - cluster_misc
+        - cluster_services
         - db_disk_usage_monitor
         - dns_op
         - dns_oz
@@ -399,6 +404,34 @@ api_onezone_user_management:
     - <<: *ct_logs
       name: ct_logs_api_onezone_user_management.tar.gz
 
+cluster_deployment_op_add_ones3_after_certification_with_le:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHLE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_deployment_op_add_ones3_after_certification_with_le.tar.gz
+
+cluster_deployment_op_add_ones3_after_certification_without_le:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHOUTLE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_deployment_op_add_ones3_after_certification_without_le.tar.gz
+
+cluster_deployment_op_add_ones3_after_registration:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERREGISTRATION
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_deployment_op_add_ones3_after_registration.tar.gz
+
+cluster_deployment_op_add_ones3_before_registration:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3BEFOREREGISTRATION
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_deployment_op_add_ones3_before_registration.tar.gz
+
 cluster_op_batch_deployment:
   <<: *ct-onenv-job
   key: CLUSTEROPBATCHDEPLOYMENT
@@ -419,6 +452,13 @@ cluster_misc:
   artifacts:
     - <<: *ct_logs
       name: ct_logs_cluster_misc.tar.gz
+
+cluster_services:
+  <<: *ct-onenv-job
+  key: CLUSTERSERVICES
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cluster_services.tar.gz
 
 db_disk_usage_monitor:
   <<: *ct-onenv-job
@@ -613,9 +653,14 @@ Coverage report:
     - artifact: ct_logs_api_oneprovider_storages.tar.gz
     - artifact: ct_logs_api_onezone_service_configuration.tar.gz
     - artifact: ct_logs_api_onezone_user_management.tar.gz
+    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_certification_with_le.tar.gz
+    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_certification_without_le.tar.gz
+    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_registration.tar.gz
+    - artifact: ct_logs_cluster_deployment_op_add_ones3_before_registration.tar.gz
     - artifact: ct_logs_cluster_op_batch_deployment.tar.gz
     - artifact: ct_logs_cluster_oz_batch_deployment.tar.gz
     - artifact: ct_logs_cluster_misc.tar.gz
+    - artifact: ct_logs_cluster_services.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz
     - artifact: ct_logs_dns_oz.tar.gz
