@@ -220,7 +220,15 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1oz_2nodes_1op_2nodes"
+        onenv_scenario = "1oz_2nodes_1op_2nodes",
+        envs = [
+            {oz_panel, onepanel, [
+                {db_disk_monitor_verbose_logs, false}
+            ]},
+            {op_panel, onepanel, [
+                {db_disk_monitor_verbose_logs, false}
+            ]}
+        ]
     }).
 
 
