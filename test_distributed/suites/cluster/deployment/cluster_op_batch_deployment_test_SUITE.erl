@@ -13,6 +13,8 @@
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
+-include("names.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
@@ -55,6 +57,10 @@ deploy_using_batch_config_test(Config) ->
     OpPanelNode1 = hd(OpPanelNodes),
     panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
+    DefaultOneS3Port = ?rpc(OpPanelNode1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
+    OneS3PortToSet = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999]),
+    ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
+
     BatchConfig = #{
         <<"cluster">> => #{
             <<"nodes">> => #{
@@ -74,9 +80,11 @@ deploy_using_batch_config_test(Config) ->
             <<"workers">> => #{
                 <<"nodes">> => [<<"node-1">>]
             },
-            <<"oneS3">> => #{
-                <<"nodes">> => [<<"node-2">>]
-            },
+            <<"oneS3">> => maps_utils:put_if_defined(
+                #{<<"nodes">> => [<<"node-2">>]},
+                <<"port">>,
+                OneS3PortToSet
+            ),
             <<"databases">> => #{
                 <<"nodes">> => [<<"node-1">>]
             }
@@ -108,8 +116,8 @@ deploy_using_batch_config_test(Config) ->
         ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
     ),
 
-    OneS3Port = panel_test_rpc:call(OpPanelNode1, service_ones3, get_port, []),
-    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+    ?assertEqual(ExpOneS3Port, ?rpc(OpPanelNode1, service_ones3:get_port())),
+    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
 
 
 %%%===================================================================

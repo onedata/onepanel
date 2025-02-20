@@ -140,7 +140,7 @@ get_steps(join_cluster, #{cluster_host := ClusterHost}) ->
     SelfHost = hosts:self(),
     case {available_for_clustering(), ClusterHost} of
         {_, SelfHost} -> [];
-        {false, _} -> throw(?ERROR_NODE_ALREADY_IN_CLUSTER(SelfHost));
+        {false, _} -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), SelfHost));
         {true, _} ->
             S = #step{hosts = [SelfHost], verify_hosts = false},
             [
@@ -257,14 +257,14 @@ fetch_and_set_cookie(#{invite_token := InviteToken, cluster_host := ClusterHost}
             Cookie = binary_to_atom(json_utils:decode(Response), utf8),
             set_cookie(#{cookie => Cookie});
         {ok, ?HTTP_401_UNAUTHORIZED, _, _} ->
-            throw(?ERROR_UNAUTHORIZED);
+            throw(?ERR_UNAUTHORIZED(?err_ctx(), undefined));
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
-            throw(?ERROR_FORBIDDEN);
+            throw(?ERR_FORBIDDEN(?err_ctx()));
         {error, _} = Error ->
             ?warning("Failed to connect with '~ts' to fetch cookie due to: ~tp", [
                 ClusterHost, Error
             ]),
-            throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(ClusterHost))
+            throw(?ERR_NO_CONNECTION_TO_NEW_NODE(?err_ctx(), ClusterHost))
     end.
 
 
@@ -321,7 +321,7 @@ extend_cluster(#{attempts := Attempts} = Ctx) when Attempts =< 0 ->
         #{hostname := Hostname} -> Hostname;
         #{address := Address} -> Address
     end,
-    throw(?ERROR_NO_CONNECTION_TO_NEW_NODE(NewNode));
+    throw(?ERR_NO_CONNECTION_TO_NEW_NODE(?err_ctx(), NewNode));
 
 extend_cluster(#{hostname := Hostname, attempts := Attempts, invite_token := InviteToken} = Ctx) ->
     Body = json_utils:encode(#{inviteToken => InviteToken}),
@@ -336,9 +336,9 @@ extend_cluster(#{hostname := Hostname, attempts := Attempts, invite_token := Inv
             ?info("Host '~ts' added to the cluster", [Hostname]),
             #{hostname => Hostname};
         {ok, ?HTTP_401_UNAUTHORIZED, _, _} ->
-            throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Hostname));
+            throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), Hostname));
         {ok, ?HTTP_403_FORBIDDEN, _, _} ->
-            throw(?ERROR_NODE_ALREADY_IN_CLUSTER(Hostname));
+            throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), Hostname));
         {ok, Code, _, RespBody} ->
             ?error("Unexpected response when trying to add node: ~tp ~tp", [Code, RespBody]),
             timer:sleep(?WAIT_FOR_CLUSTER_DELAY),
@@ -355,8 +355,8 @@ extend_cluster(#{address := Address, attempts := Attempts} = Ctx) ->
         {ok, Hostname, ClusterType} ->
             extend_cluster(Ctx#{hostname => Hostname});
         {ok, _Hostname, OtherType} ->
-            throw(?ERROR_NODE_NOT_COMPATIBLE(Address, OtherType));
-        ?ERROR_NO_CONNECTION_TO_NEW_NODE(_) ->
+            throw(?ERR_NODE_NOT_COMPATIBLE(?err_ctx(), Address, OtherType));
+        ?ERR_NO_CONNECTION_TO_NEW_NODE(_) ->
             ?warning("Failed to connect with '~ts' to extend cluster", [Address]),
             extend_cluster(Ctx#{attempts => Attempts - 1})
     end.
@@ -482,7 +482,7 @@ get_remote_node_info(#{address := Address}) ->
             #{<<"hostname">> := Hostname,
                 <<"clusterType">> := ClusterType} = json_utils:decode(Body),
             {ok, Hostname, onepanel_utils:convert(ClusterType, atom)};
-        {error, _} -> ?ERROR_NO_CONNECTION_TO_NEW_NODE(Address)
+        {error, _} -> ?ERR_NO_CONNECTION_TO_NEW_NODE(?err_ctx(), Address)
     end.
 
 

@@ -51,7 +51,7 @@ local(ServiceName) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec any(ServiceNameOrOpts :: service:name() | opts()) ->
-    {ok, node()} | ?ERROR_NO_SERVICE_NODES(_).
+    {ok, node()} | od_error_no_service_nodes:t().
 any(ServiceName) when ?IS_SERVICE_NAME(ServiceName) ->
     any(#{service => ServiceName});
 
@@ -63,7 +63,7 @@ any(#{service := ServiceName, node := Node} = Opts) ->
 
 any(#{service := ServiceName} = Opts) ->
     case hosts:all(Opts) of
-        [] -> ?ERROR_NO_SERVICE_NODES(ServiceName);
+        [] -> ?ERR_NO_SERVICE_NODES(?err_ctx(), ServiceName);
         Hosts ->
             Self = hosts:self(),
             Host = case lists:member(Self, Hosts) of

@@ -112,7 +112,7 @@ call(NodeOrNodes, Module, Function, Args, Timeout) ->
 
     BadNodes = lists_utils:subtract(Nodes, proplists:get_keys(Results)),
     AllResults = Results ++
-        [{BadNode, ?ERROR_NO_CONNECTION_TO_CLUSTER_NODE} || BadNode <- BadNodes],
+        [{BadNode, ?ERR_NO_CONNECTION_TO_CLUSTER_NODE(?err_ctx(), BadNode)} || BadNode <- BadNodes],
 
     ?debug("Call ~tp:~tp(~tp) on nodes ~tp with timeout ~tp returned ~tp",
         [Module, Function, Args, Nodes, Timeout, AllResults]),

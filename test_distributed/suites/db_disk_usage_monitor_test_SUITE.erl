@@ -109,7 +109,7 @@ panel_rest_block_test_base(Service) ->
             type = rest,
             target_nodes = TargetPanelNodes,
             client_spec = #client_spec{forbidden = [
-                {Client, ?ERROR_SERVICE_UNAVAILABLE} || Client <- [root, member, guest, peer]
+                {Client, ?ERR_SERVICE_UNAVAILABLE} || Client <- [root, member, guest, peer]
             ]},
             prepare_args_fun = fun(_) -> #rest_args{
                 method = get,

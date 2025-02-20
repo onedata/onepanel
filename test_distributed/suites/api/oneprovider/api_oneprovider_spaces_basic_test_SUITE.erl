@@ -60,7 +60,7 @@ all() -> [
 ].
 
 
--define(ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, ?ERROR_BAD_DATA(
+-define(ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, ?ERR_BAD_DATA(
     <<"dirStatsServiceEnabled">>,
     <<"Dir stats service must be enabled if accounting is enabled">>
 )).
@@ -99,7 +99,7 @@ get_space_ids_test_base(ExpSpaceIds) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -144,7 +144,7 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -163,7 +163,7 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
 build_get_space_details_data_spec(OpWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
-        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
+        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
 
 
@@ -199,7 +199,7 @@ support_space_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -244,15 +244,15 @@ build_support_space_data_spec(StorageId, OpWorkerNodes) ->
             <<"dirStatsServiceEnabled">> => [false, true]
         },
         bad_values = [
-            {<<"size">>, -?SUPPORT_SIZE, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
-            {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
-            {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
-            {<<"storageId">>, <<"inexistientStorageId">>, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>), HostNames)},
-            {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
-            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+            {<<"size">>, -?SUPPORT_SIZE, ?ERR_ON_NODES(?ERR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
+            {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERR_ON_NODES(?ERR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
+            {<<"size">>, <<"Nan">>, ?ERR_BAD_VALUE_INTEGER(<<"size">>)},
+            {<<"storageId">>, <<"inexistientStorageId">>, ?ERR_ON_NODES(?ERR_BAD_VALUE_ID_NOT_FOUND(<<"storageId">>), HostNames)},
+            {<<"accountingEnabled">>, <<"NaN">>, ?ERR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERR_ON_NODES(
                 ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
-            {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)}
+            {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)}
         ],
         selecting_correct_values_for_bad_data_sets_policy = first
     }.
@@ -329,7 +329,7 @@ modify_space_support_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -375,15 +375,15 @@ build_modify_space_support_data_spec(SupportSize, OpWorkerNodes) ->
             % 1) by Oneprovider, which disallows values lower than the space occupancy (0 in case of an empty space)
             % 2) by Onezone, which has a configurable lower limit
             % because of this, the resulting error may be different depending on the requested size
-            {<<"size">>, -?SUPPORT_SIZE, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, 0), HostNames)},
-            {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERROR_ON_NODES(?ERROR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
-            {<<"size">>, <<"Nan">>, ?ERROR_BAD_VALUE_INTEGER(<<"size">>)},
-            {<<"accountingEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
-            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERROR_ON_NODES(
+            {<<"size">>, -?SUPPORT_SIZE, ?ERR_ON_NODES(?ERR_BAD_VALUE_TOO_LOW(<<"size">>, 0), HostNames)},
+            {<<"size">>, ?MIN_SUPPORT_SIZE - 1, ?ERR_ON_NODES(?ERR_BAD_VALUE_TOO_LOW(<<"size">>, ?MIN_SUPPORT_SIZE), HostNames)},
+            {<<"size">>, <<"Nan">>, ?ERR_BAD_VALUE_INTEGER(<<"size">>)},
+            {<<"accountingEnabled">>, <<"NaN">>, ?ERR_BAD_VALUE_BOOLEAN(<<"accountingEnabled">>)},
+            {<<"accountingEnabled">>, true_with_dir_stats_service_disabled, ?ERR_ON_NODES(
                 ?ERROR_DIR_STATS_DISABLED_WHEN_ACCOUNTING_ENABLED, HostNames
             )},
-            {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERROR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
-            {bad_id, <<"inexistentSpaceId">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
+            {<<"dirStatsServiceEnabled">>, <<"NaN">>, ?ERR_BAD_VALUE_BOOLEAN(<<"dirStatsServiceEnabled">>)},
+            {bad_id, <<"inexistentSpaceId">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}
         ],
         selecting_correct_values_for_bad_data_sets_policy = first
     }.
@@ -457,7 +457,7 @@ revoke_space_support_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -477,7 +477,7 @@ revoke_space_support_test(_Config) ->
 build_revoke_space_support_data_spec(OpWorkerNodes) ->
     HostNames = api_test_utils:to_hostnames(OpWorkerNodes),
     #data_spec{
-        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERROR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
+        bad_values = [{bad_id, <<"NonExistentSpace">>, ?ERR_ON_NODES(?ERROR_NOT_FOUND, HostNames)}]
     }.
 
 

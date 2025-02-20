@@ -25,7 +25,7 @@
 -define(NODE, element(2, {ok, _} = nodes:any(?SERVICE_OZW))).
 -define(CALL(Node, Args),
     case rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args]) of
-        {badrpc, nodedown} = __Error -> throw(?ERROR_SERVICE_UNAVAILABLE);
+        {badrpc, nodedown} = __Error -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()));
         {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
@@ -118,15 +118,15 @@ get_protected_provider_data(Node, Auth, ProviderId) ->
 
 -spec deploy_static_gui_package(onedata:gui(), onedata:release_version(),
     file:name_all(), VerifyGuiHash :: boolean()) ->
-    {ok, onedata:gui_hash()} | ?ERROR_BAD_GUI_PACKAGE |
-    ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED(onedata:gui_hash()).
+    {ok, onedata:gui_hash()} | od_error_bad_gui_package:t() |
+    od_error_gui_package_too_large:t() | od_error_gui_package_unverified:t().
 deploy_static_gui_package(GuiType, ReleaseVsn, PackagePath, VerifyGuiHash) ->
     ?CALL([GuiType, ReleaseVsn, PackagePath, VerifyGuiHash]).
 
 -spec deploy_static_gui_package(node(), onedata:gui(), onedata:release_version(),
     file:name_all(), VerifyGuiHash :: boolean()) ->
-    {ok, onedata:gui_hash()} | ?ERROR_BAD_GUI_PACKAGE |
-    ?ERROR_GUI_PACKAGE_TOO_LARGE | ?ERROR_GUI_PACKAGE_UNVERIFIED(onedata:gui_hash()).
+    {ok, onedata:gui_hash()} | od_error_bad_gui_package:t() |
+    od_error_gui_package_too_large:t() | od_error_gui_package_unverified:t().
 deploy_static_gui_package(Node, GuiType, ReleaseVsn, PackagePath, VerifyGuiHash) ->
     ?CALL(Node, [GuiType, ReleaseVsn, PackagePath, VerifyGuiHash]).
 

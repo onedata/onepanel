@@ -487,7 +487,7 @@ supports_letsencrypt_challenge(Challenge) when
     Challenge == http;
     Challenge == dns
 ->
-    service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
+    service:is_healthy(name()) orelse throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx())),
     true;
 
 supports_letsencrypt_challenge(_) -> false.

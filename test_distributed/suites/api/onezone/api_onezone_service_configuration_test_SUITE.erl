@@ -62,7 +62,7 @@ get_onezone_policies_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -97,7 +97,7 @@ set_onezone_policies_test(_Config) ->
                 ],
                 unauthorized = [
                     guest,
-                    {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
                     | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
                 ],
                 forbidden = [peer]
@@ -128,11 +128,11 @@ build_modify_onezone_policies_data_spec() ->
             <<"harvesterGuiPackageVerification">> => [true, false]
         },
         bad_values = [
-            {<<"oneproviderRegistration">>, <<"valueNotAllowed">>, ?ERROR_BAD_VALUE_NOT_ALLOWED(<<"oneproviderRegistration">>, [<<"open">>, <<"restricted">>])},
-            {<<"oneproviderRegistration">>, value_not_allowed, ?ERROR_BAD_VALUE_NOT_ALLOWED(<<"oneproviderRegistration">>, [<<"open">>, <<"restricted">>])},
-            {<<"subdomainDelegation">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"subdomainDelegation">>)},
-            {<<"guiPackageVerification">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"guiPackageVerification">>)},
-            {<<"harvesterGuiPackageVerification">>, not_a_boolean, ?ERROR_BAD_VALUE_BOOLEAN(<<"harvesterGuiPackageVerification">>)}
+            {<<"oneproviderRegistration">>, <<"valueNotAllowed">>, ?ERR_BAD_VALUE_NOT_ALLOWED(<<"oneproviderRegistration">>, [<<"open">>, <<"restricted">>])},
+            {<<"oneproviderRegistration">>, value_not_allowed, ?ERR_BAD_VALUE_NOT_ALLOWED(<<"oneproviderRegistration">>, [<<"open">>, <<"restricted">>])},
+            {<<"subdomainDelegation">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"subdomainDelegation">>)},
+            {<<"guiPackageVerification">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"guiPackageVerification">>)},
+            {<<"harvesterGuiPackageVerification">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"harvesterGuiPackageVerification">>)}
         ]
     }.
 

@@ -226,7 +226,7 @@ set_remote(Nodes, Keys, Value, AppName) ->
 read(Keys, Path) ->
     case file:consult(Path) of
         {ok, [AppConfigs]} -> kv_utils:find(Keys, AppConfigs);
-        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
+        {error, Reason} -> throw(?ERR_FILE_ACCESS(?err_ctx(), Path, Reason))
     end.
 
 
@@ -297,7 +297,7 @@ write(Keys, Value, ServiceName) ->
     NewConfigsStr = io_lib:fwrite("~ts~n~tp.", [?DO_NOT_MODIFY_HEADER, NewConfigs]),
     case file:write_file(Path, NewConfigsStr) of
         ok -> ok;
-        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Path, Reason))
+        {error, Reason} -> throw(?ERR_FILE_ACCESS(?err_ctx(), Path, Reason))
     end.
 
 
@@ -358,9 +358,9 @@ upgrade_app_config(ServiceName, Variables, SetInRuntime) ->
 
             case file:rename(Src, [Src, ".bak"]) of
                 ok -> ok;
-                {error, Reason} -> throw(?ERROR_FILE_ACCESS([Src, ".bak"], Reason))
+                {error, Reason} -> throw(?ERR_FILE_ACCESS(?err_ctx(), [Src, ".bak"], Reason))
             end;
-        {error, Reason} -> throw(?ERROR_FILE_ACCESS(Src, Reason))
+        {error, Reason} -> throw(?ERR_FILE_ACCESS(?err_ctx(), Src, Reason))
     end.
 
 

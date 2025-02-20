@@ -230,11 +230,15 @@ maybe_generate_test_cert() ->
             % Both key and cert are expected in the same file
             CAPath = onepanel_env:get(test_web_cert_ca_path),
             Domain = str_utils:to_binary(onepanel_env:get(test_web_cert_domain)),
+            % Used in ct tests to not generate test cert with subdomains
+            IncludeS3Subdomain = onepanel_env:get(include_s3_subdomain_in_test_cert, ?APP_NAME, true),
             % At the time of starting listeners it may not be known which
             % services will be started. Just in case generate cert for all of them
             Subdomains = case onepanel_env:get_cluster_type() of
-                ?ONEPROVIDER ->
+                ?ONEPROVIDER when IncludeS3Subdomain ->
                     [<<"s3.", Domain/binary>>];
+                ?ONEPROVIDER ->
+                    [];
                 ?ONEZONE ->
                     []
             end,

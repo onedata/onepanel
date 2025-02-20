@@ -75,7 +75,7 @@ required_availability(get, emergency_passphrase, private) -> [];
 required_availability(get, {task, _Id}, private) -> [];
 
 required_availability(update, progress, private) -> [];
-required_availability(update, web_cert, private) -> [all_healthy];
+required_availability(update, web_cert, private) -> [all_healthy_ignoring_ones3];
 required_availability(update, dns_check_configuration, private) -> [].
 
 
@@ -229,7 +229,7 @@ get(#onp_req{gri = #gri{aspect = health}}, _) ->
 
     case AllHealthyFun(http_listener) andalso AllHealthyFun(https_listener) of
         true -> {ok, value, #{<<"status">> => <<"healthy">>}};
-        false -> throw(?ERROR_INTERNAL_SERVER_ERROR)
+        false -> throw(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))
     end;
 
 
@@ -410,7 +410,7 @@ format_service_task_results({Results, TotalSteps}) ->
 %%--------------------------------------------------------------------
 -spec format_error(Reason :: term()) -> json_utils:json_map().
 format_error({error, #exception{}}) ->
-    #{<<"error">> => errors:to_json(?ERROR_INTERNAL_SERVER_ERROR)};
+    #{<<"error">> => errors:to_json(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))};
 format_error(Reason) ->
     #{<<"error">> => errors:to_json(Reason)}.
 

@@ -271,7 +271,7 @@ init_per_testcase(_Case, Config) ->
     test_utils:mock_new(Nodes, [service, service_onezone, service_oz_worker, rpc],
         [passthrough, unstick]),
     test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> true end),
-    test_utils:mock_expect(Nodes, service, all_healthy, fun() -> true end),
+    test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> true end),
     test_utils:mock_expect(Nodes, service_onezone, get_hosts,
         fun() -> ?config(onepanel_hosts, Config) end),
     test_utils:mock_expect(Nodes, service_oz_worker, get_hosts,
