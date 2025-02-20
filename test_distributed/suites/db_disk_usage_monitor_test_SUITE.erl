@@ -223,10 +223,10 @@ init_per_suite(Config) ->
         onenv_scenario = "1oz_2nodes_1op_2nodes",
         envs = [
             {oz_panel, onepanel, [
-                {db_disk_monitor_verbose_logs, false}
+                {db_disk_monitor_verbose_logs, true}
             ]},
             {op_panel, onepanel, [
-                {db_disk_monitor_verbose_logs, false}
+                {db_disk_monitor_verbose_logs, true}
             ]}
         ]
     }).

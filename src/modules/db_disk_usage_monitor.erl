@@ -100,19 +100,18 @@ check_usage_on_host(Host) ->
         {?STATUS_WARNING, ?WARNING_THRESHOLD},
         {?STATUS_OK, 0.0}
     ]),
-    case application:get_env(?APP_NAME, db_disk_monitor_verbose_logs, false) of
-        true ->
-            ?debug(
-                "Disk usage check on ~ts:"
-                "~n> Threshold percent ~.2f",
-                [
-                    Host,
-                    100 * Threshold
-                ]
-            );
-        false ->
-            ok
-    end,
+    application:get_env(?APP_NAME, db_disk_monitor_verbose_logs, false) andalso ?info(
+        "Disk usage check on ~ts:"
+        "~n> Usage percent ~.2f"
+        "~n> Threshold percent ~.2f"
+        "~n> Status ~ts",
+        [
+            Host,
+            100 * Usage,
+            100 * Threshold,
+            status_to_label(Status)
+        ]
+    ),
     #usage_info{
         status = Status,
         host = Host,
@@ -152,9 +151,9 @@ run_periodic_check() ->
                 #usage_info{} = UsageInfo ->
                     UsageInfo;
                 {badrpc, ErrorReason} ->
-                    handle_status_logging(24, fun() -> ?error(?autoformat_with_msg(
+                    ?error(?autoformat_with_msg(
                         "Failed to check db usage:", [Host, ErrorReason]
-                    )) end, ?STATUS_RPC_FAILED, ?STATUS_RPC_FAILED),
+                    )),
                     #usage_info{
                         status = ?STATUS_RPC_FAILED,
                         host = Host
@@ -208,70 +207,87 @@ parse_df_cmd_output(DfOutput) ->
 -spec handle_state_transition(circuit_breaker_state(), [usage_info()]) ->
     circuit_breaker_state().
 handle_state_transition(CurrentState, UsageInfos) ->
-    LastWorstStatus = node_cache:get(worst_status, unknown),
     [#usage_info{status=WorstStatus} | _] = SortedUsageInfos = lists:sort(UsageInfos),
-    handle_state_transition(CurrentState, WorstStatus, LastWorstStatus, SortedUsageInfos).
+    handle_state_transition(CurrentState, WorstStatus, SortedUsageInfos).
 
 
 %% @private
--spec handle_state_transition(circuit_breaker_state(), status(), status(), [usage_info()]) -> circuit_breaker_state().
-handle_state_transition(closed, ?STATUS_DISK_CRITICALLY_LOW, LastStatus, SortedUsageInfos) ->
-    LogFun = fun() -> ?emergency(
-        "DB disk space is nearly exhausted! "
-        "All services will now stop processing requests until the problem is resolved.~ts~n",
-        [format_usage_info(SortedUsageInfos)]
-    ) end,
-    handle_status_logging(1, LogFun, ?STATUS_DISK_CRITICALLY_LOW, LastStatus),
+-spec handle_state_transition(circuit_breaker_state(), status(), [usage_info()]) -> circuit_breaker_state().
+handle_state_transition(closed, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
+    handle_status_logging(?STATUS_DISK_CRITICALLY_LOW, fun() ->
+        ?emergency(
+            "DB disk space is nearly exhausted! "
+            "All services will now stop processing requests until the problem is resolved.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
+        )
+    end),
     open;
-handle_state_transition(closed, ?STATUS_ALERT, LastStatus, SortedUsageInfos) ->
-    LogFun = fun() -> ?alert(
-        "DB disk usage is very high. Provide more space for the DB as soon as possible. When the usage "
-        "reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts~n",
-        [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_usage_info(SortedUsageInfos)]
-    ) end,
-    handle_status_logging(6, LogFun, ?STATUS_ALERT, LastStatus),
+handle_state_transition(closed, ?STATUS_ALERT, SortedUsageInfos) ->
+    handle_status_logging(?STATUS_ALERT, fun() ->
+        ?alert(
+            "DB disk usage is very high. Provide more space for the DB as soon as possible. When the usage "
+            "reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts~n",
+            [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_usage_info(SortedUsageInfos)]
+        )
+    end),
     closed;
-handle_state_transition(closed, ?STATUS_WARNING, LastStatus, SortedUsageInfos) ->
-    LogFun = fun() -> ?warning(
-        "DB disk usage exceeded safe thresholds. "
-        "Provide more space for the DB to ensure uninterrupted services.~ts~n",
-        [format_usage_info(SortedUsageInfos)]
-    ) end,
-    handle_status_logging(12, LogFun, ?STATUS_WARNING, LastStatus),
+handle_state_transition(closed, ?STATUS_WARNING, SortedUsageInfos) ->
+    handle_status_logging(?STATUS_WARNING, fun() ->
+        ?warning(
+            "DB disk usage exceeded safe thresholds. "
+            "Provide more space for the DB to ensure uninterrupted services.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
+        )
+    end),
     closed;
-handle_state_transition(closed, ?STATUS_OK, LastStatus, SortedUsageInfos) ->
-    LogFun = fun() -> ?info(
-        "DB disk usage is within safe thresholds.~ts~n", [format_usage_info(SortedUsageInfos)]
-    ) end,
-    handle_status_logging(24, LogFun, ?STATUS_OK, LastStatus),
+handle_state_transition(closed, ?STATUS_OK, SortedUsageInfos) ->
+    handle_status_logging(?STATUS_OK, fun() ->
+        ?info(
+            "DB disk usage is within safe thresholds.~ts~n", [format_usage_info(SortedUsageInfos)]
+        ) end
+    ),
     closed;
 
-handle_state_transition(open, ?STATUS_DISK_CRITICALLY_LOW, LastStatus, SortedUsageInfos) ->
-    LogFun = fun() -> ?emergency(
-        "DB disk space is still critically low. All services remain stopped until the issue is resolved.~ts~n",
-        [format_usage_info(SortedUsageInfos)]
-    ) end,
-    handle_status_logging(1, LogFun, ?STATUS_DISK_CRITICALLY_LOW, LastStatus),
+handle_state_transition(open, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
+    handle_status_logging(?STATUS_DISK_CRITICALLY_LOW, fun() ->
+        ?emergency(
+            "DB disk space is still critically low. All services remain stopped until the issue is resolved.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
+        )
+    end),
     open;
-handle_state_transition(open, NewStatus, LastStatus, SortedUsageInfos) ->
-    LogFun = fun() -> ?notice(
-        "DB disk usage has returned to acceptable levels. Services have resumed normal functionality.~ts~n",
-        [format_usage_info(SortedUsageInfos)]
-    ) end,
-    handle_status_logging(NewStatus * 8, LogFun, NewStatus, LastStatus),
+handle_state_transition(open, NewStatus, SortedUsageInfos) ->
+    handle_status_logging(NewStatus, fun() ->
+        ?notice(
+            "DB disk usage has returned to acceptable levels. Services have resumed normal functionality.~ts~n",
+            [format_usage_info(SortedUsageInfos)]
+        )
+    end),
     closed.
 
 
 %% @private
--spec handle_status_logging(non_neg_integer(), fun(() -> term()), status(), status()) -> ok.
-handle_status_logging(Time, LogFun, NewStatus, LastStatus) when NewStatus == LastStatus->
-    case application:get_env(?APP_NAME, db_disk_monitor_verbose_logs, false) of
-        true -> LogFun();
-        false -> utils:throttle(timer:hours(Time), LogFun)
-    end;
-handle_status_logging(_Time, LogFun, NewStatus, LastStatus) ->
-    LogFun(),
-    node_cache:put(worst_status, NewStatus).
+-spec handle_status_logging(status(), fun(() -> term())) -> ok.
+handle_status_logging(NewStatus, LogFun) ->
+    case node_cache:get(worst_status, unknown) of
+        NewStatus ->
+            case application:get_env(?APP_NAME, db_disk_monitor_verbose_logs, false) of
+                true -> LogFun();
+                false -> utils:throttle(status_to_log_throttling_interval(NewStatus), LogFun)
+            end;
+        _ ->
+            LogFun(),
+            node_cache:put(worst_status, NewStatus)
+    end.
+
+
+%% @private
+-spec status_to_log_throttling_interval(status()) -> non_neg_integer().
+status_to_log_throttling_interval(?STATUS_DISK_CRITICALLY_LOW) -> timer:hours(1);
+status_to_log_throttling_interval(?STATUS_ALERT) -> timer:hours(6);
+status_to_log_throttling_interval(?STATUS_WARNING) -> timer:hours(12);
+status_to_log_throttling_interval(?STATUS_OK) -> timer:hours(24);
+status_to_log_throttling_interval(?STATUS_RPC_FAILED) -> timer:hours(24).
 
 
 %% @private
