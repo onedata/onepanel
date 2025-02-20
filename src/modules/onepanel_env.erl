@@ -177,7 +177,17 @@ set(Keys, Value) ->
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value(), app_name()) -> ok.
 set(Keys, Value, AppName) ->
+    ?info("Keys: ~tp, Value: ~tp", [Keys, Value]),
+    DiskUsageReletedKeys = [
+        db_disk_usage_check_interval_seconds,
+        db_disk_usage_circuit_breaker_activation_threshold,
+        db_disk_usage_warning_threshold
+    ],
     lists:foreach(fun({K, V}) ->
+        case lists:member(K, DiskUsageReletedKeys) of
+            true -> ?info("Key: ~tp, Value: ~tp", [K, V]);
+            false -> ok
+        end,
         application:set_env(AppName, K, V)
     end, kv_utils:put(Keys, Value, application:get_all_env(AppName))).
 

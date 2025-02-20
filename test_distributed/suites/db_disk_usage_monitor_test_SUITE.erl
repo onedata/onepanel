@@ -242,6 +242,13 @@ end_per_testcase(reliability_of_service_circuit_breaker_state_variable_setting_t
     Config;
 
 end_per_testcase(_Case, Config) ->
+    lists:foreach(fun(Service) ->
+        TargetPanelNodes = get_panel_nodes(Service),
+        set_panel_env(TargetPanelNodes, db_disk_usage_check_interval_seconds, 300),
+        set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.9),
+        set_panel_env(TargetPanelNodes, db_disk_usage_warning_threshold, 0.45)
+    end, [?SERVICE_OPW, ?SERVICE_OZW]),
+
     Config.
 
 

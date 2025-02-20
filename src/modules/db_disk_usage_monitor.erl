@@ -104,12 +104,20 @@ check_usage_on_host(Host) ->
         "Disk usage check on ~ts:"
         "~n> Usage percent ~.2f"
         "~n> Threshold percent ~.2f"
-        "~n> Status ~ts",
+        "~n> Status ~ts"
+        "~n> STATUS_DISK_CRITICALLY_LOW ~.2f"
+        "~n> STATUS_ALERT ~.2f"
+        "~n> STATUS_WARNING ~.2f"
+        "~n> STATUS_OK ~.2f",
         [
             Host,
             100 * Usage,
             100 * Threshold,
-            status_to_label(Status)
+            status_to_label(Status),
+            ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD,
+            ?ALERT_THRESHOLD,
+            ?WARNING_THRESHOLD,
+            0.0
         ]
     ),
     #usage_info{

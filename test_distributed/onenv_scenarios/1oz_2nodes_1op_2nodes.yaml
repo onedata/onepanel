@@ -13,21 +13,21 @@ sources:
   onezone:
     node-1:
       - oz-worker
-      - cluster-manager
+#      - cluster-manager
       - oz-panel
     node-2:
       - oz-worker
-      - cluster-manager
+#      - cluster-manager
       - oz-panel
   oneprovider-1:
     node-1:
       - op-panel
       - op-worker
-      - cluster-manager
+#      - cluster-manager
     node-2:
       - op-panel
       - op-worker
-      - cluster-manager
+#      - cluster-manager
 
 # Determines if spaces should be created. It can be either boolean value or
 # list of spaces that should be created.
