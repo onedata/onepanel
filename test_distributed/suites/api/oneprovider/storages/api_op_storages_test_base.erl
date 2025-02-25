@@ -24,7 +24,7 @@
     modify_storage_test_base/1
 ]).
 
--type storage_type() :: cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
+-type storage_type() :: ceph | cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
 -type args_correctness() :: bad_args | correct_args.
 
 -type add_storage_test_spec() :: #add_storage_test_spec{}.
@@ -255,7 +255,6 @@ check_io_on_storage_if_not_nulldevice(_StorageId, #{<<"type">> := <<"nulldevice"
     ok;
 check_io_on_storage_if_not_nulldevice(StorageId, _StorageDetails) ->
     ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS).
-
 
 
 % TODO VFS-12391 storage update changes types of several fields to binary - debug

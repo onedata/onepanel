@@ -83,23 +83,11 @@ service_oneprovider_unregister_register_test(Config) ->
 
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    Ceph = kv_utils:get([storages, ceph, someCeph], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
-            <<"someCeph">> => #{
-                type => <<"ceph">>,
-                clusterName => <<"ceph">>,
-                key => onepanel_utils:get_converted(key, Ceph, binary),
-                monitorHostname => onepanel_utils:get_converted(host_name, Ceph, binary),
-                poolName => <<"onedata">>,
-                username => onepanel_utils:get_converted(username, Ceph, binary),
-                storagePathType => <<"flat">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
                 volume => <<"data">>,
@@ -137,11 +125,6 @@ service_op_worker_update_storage_test(Config) ->
     %% the parameter modification based on the lack of connectivity to the storage
     %% after the change.
     ChangesByName = #{
-        <<"someCeph">> => #{
-            type => <<"ceph">>,
-            monitorHostname => <<"newHostName">>,
-            username => <<"changedCephAdmin">>
-        },
         <<"someGluster">> => #{
             type => <<"glusterfs">>,
             transport => <<"http">>,

@@ -57,6 +57,7 @@ stages:
         - api_common_internal
         - api_op_provider
         - api_op_spaces_basic
+        - api_op_storage_ceph_deprecated
         - api_op_storage_ceph
         - api_op_storage_nulldevice
         - api_op_storage_posix
@@ -346,6 +347,13 @@ api_op_spaces_basic:
   artifacts:
     - <<: *ct_logs
       name: ct_logs_api_op_spaces_basic.tar.gz
+
+api_op_storage_ceph_deprecated:
+  <<: *ct-onenv-job
+  key: APISTORAGECEPHDEPRECATED
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_ceph_deprecated.tar.gz
 
 api_op_storage_ceph:
   <<: *ct-onenv-job
@@ -644,6 +652,7 @@ Coverage report:
     - artifact: ct_logs_api_common_internal.tar.gz
     - artifact: ct_logs_api_op_provider.tar.gz
     - artifact: ct_logs_api_op_spaces_basic.tar.gz
+    - artifact: ct_logs_api_op_storage_ceph_deprecated.tar.gz
     - artifact: ct_logs_api_op_storage_ceph.tar.gz
     - artifact: ct_logs_api_op_storage_nulldevice.tar.gz
     - artifact: ct_logs_api_op_storage_posix.tar.gz
