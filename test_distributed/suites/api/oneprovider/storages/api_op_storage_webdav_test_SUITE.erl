@@ -22,7 +22,7 @@
 %%%
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storage_webdav_test_SUITE).
+-module(api_op_storage_webdav_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -78,11 +78,11 @@ add_bad_storage_test(_Config) ->
 
 %% @private
 -spec add_webdav_storage_test_base(
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:args_correctness()
 ) ->
     ok.
 add_webdav_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(
+    api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = webdav,
             args_correctness = ArgsCorrectness,
@@ -95,8 +95,8 @@ add_webdav_storage_test_base(ArgsCorrectness) ->
 %% @private
 -spec build_add_webdav_storage_data_spec(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:storage_type(),
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:storage_type(),
+    api_op_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
 build_add_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
@@ -198,7 +198,7 @@ modify_bad_storage_test(_Config) ->
 
 %% @private
 modify_webdav_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:modify_storage_test_base(
+    api_op_storages_test_base:modify_storage_test_base(
         #modify_storage_test_spec{
             storage_type = webdav,
             args_correctness = ArgsCorrectness,

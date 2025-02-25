@@ -9,7 +9,7 @@
 %%% Integration tests of Onezone/Oneprovider cluster services.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_services_test_SUITE).
+-module(cl_services_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").

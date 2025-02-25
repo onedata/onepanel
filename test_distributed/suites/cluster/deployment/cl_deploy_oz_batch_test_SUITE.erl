@@ -9,7 +9,7 @@
 %%% Integration tests of Onezone batch deployment.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_oz_batch_deployment_test_SUITE).
+-module(cl_deploy_oz_batch_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").

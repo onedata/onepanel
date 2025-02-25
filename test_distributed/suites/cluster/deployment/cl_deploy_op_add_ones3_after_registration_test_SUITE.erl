@@ -6,11 +6,11 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Integration tests of Oneprovider deployment with adding ones3 before
+%%% Integration tests of Oneprovider deployment with adding ones3 after
 %%% registration in oz.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_deployment_op_add_ones3_before_registration_test_SUITE).
+-module(cl_deploy_op_add_ones3_after_registration_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -49,14 +49,9 @@ deploy_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
     Node1Ip = ip_test_utils:get_node_ip(Node1),
     Node2Details = op_cluster_deployment_test_utils:infer_node_details(Node2),
-    Node2Host = Node2Details#node_details.hostname,
     Node2Ip = Node2Details#node_details.ip,
 
     panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
-
-    DefaultOneS3Port = ?rpc(Node1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
-    OneS3PortToSet = ?RAND_ELEMENT([undefined, 16666, 17777, 18888, 19999]),
-    ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
 
     ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
@@ -87,34 +82,25 @@ deploy_test(Config) ->
     },
     cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails),
 
-    % Deploying OneS3 on proper host before provider registration enables the
-    % service on selected host but DOES NOT start it!
-    % Also, no changes to certificates are made
+    op_cluster_deployment_test_utils:register_provider(OpClusterConfig),
+    ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
+    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails#{
+        <<"status">> => <<"domain_mismatch">>
+    }),
+
+    % Deploying OneS3 on proper host after provider registration enables the
+    % service on selected host and immediately start it but no changes
+    % to certificates are made
+    DefaultOneS3Port = ?rpc(Node1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
+    OneS3PortToSet = ?RAND_ELEMENT([undefined, 16666, 17777, 18888, 19999]),
+    ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
+
     op_cluster_deployment_test_utils:deploy_ones3_service(OpClusterConfig#op_cluster_config{
         ones3_nodes = [2],
         ones3_port = OneS3PortToSet
     }),
     ?assertEqual(
-        #{Node2Host => <<"stopped">>},
-        cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)
-    ),
-    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
-    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
-
-    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails),
-
-    % Assert it is not possible to start ones3 when oneprovider is still not registered
-    ExpError = #{<<"error">> => errors:to_json(?ERR_UNREGISTERED_ONEPROVIDER)},
-    ?assertMatch(
-        {ok, ?HTTP_503_SERVICE_UNAVAILABLE, _, ExpError},
-        cluster_management_test_utils:try_toggle_ones3_cluster_wide(Node1, start)
-    ),
-
-    % Enabled OneS3 are started right after provider is registered in oz.
-    % But still, no changes to certificates are made.
-    op_cluster_deployment_test_utils:register_provider(OpClusterConfig),
-    ?assertEqual(
-        #{Node2Host => <<"healthy">>},
+        #{Node2Details#node_details.hostname => <<"healthy">>},
         cluster_management_test_utils:get_ones3_status_cluster_wide(Node1),
         ?ATTEMPTS
     ),

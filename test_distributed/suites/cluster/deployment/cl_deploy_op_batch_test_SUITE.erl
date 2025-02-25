@@ -9,7 +9,7 @@
 %%% Integration tests of Oneprovider batch deployment.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_op_batch_deployment_test_SUITE).
+-module(cl_deploy_op_batch_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").

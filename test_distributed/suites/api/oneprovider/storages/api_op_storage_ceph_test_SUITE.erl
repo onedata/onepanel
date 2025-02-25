@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider ceph storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storage_ceph_test_SUITE).
+-module(api_op_storage_ceph_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -67,11 +67,11 @@ add_bad_storage_test(_Config) ->
 
 %% @private
 -spec add_ceph_storage_test_base(
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:args_correctness()
 ) ->
     ok.
 add_ceph_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(
+    api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = ceph,
             args_correctness = ArgsCorrectness,
@@ -84,8 +84,8 @@ add_ceph_storage_test_base(ArgsCorrectness) ->
 %% @private
 -spec build_add_ceph_storage_data_spec(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:storage_type(),
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:storage_type(),
+    api_op_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
 build_add_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
@@ -184,7 +184,7 @@ modify_bad_storage_test(_Config) ->
 
 %% @private
 modify_ceph_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:modify_storage_test_base(
+    api_op_storages_test_base:modify_storage_test_base(
         #modify_storage_test_spec{
             storage_type = ceph,
             args_correctness = ArgsCorrectness,

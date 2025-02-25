@@ -10,7 +10,7 @@
 %%% for tests concerning onepanel Storages API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storages_test_base).
+-module(api_op_storages_test_base).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").

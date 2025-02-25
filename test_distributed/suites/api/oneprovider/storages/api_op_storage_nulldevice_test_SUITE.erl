@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider nulldevice storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storage_nulldevice_test_SUITE).
+-module(api_op_storage_nulldevice_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -52,7 +52,7 @@ all() -> [
 
 
 add_storage_test(_Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(
+    api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = nulldevice,
             args_correctness = correct_args,
@@ -65,8 +65,8 @@ add_storage_test(_Config) ->
 %% @private
 -spec build_add_nulldevice_storage_data_spec(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:storage_type(),
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:storage_type(),
+    api_op_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
 build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
@@ -150,7 +150,7 @@ build_add_nulldevice_storage_prepare_args_fun(MemRef) ->
 
 
 modify_storage_test(_Config) ->
-    api_oneprovider_storages_test_base:modify_storage_test_base(
+    api_op_storages_test_base:modify_storage_test_base(
         #modify_storage_test_spec{
             storage_type = nulldevice,
             args_correctness = correct_args,
