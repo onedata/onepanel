@@ -33,6 +33,8 @@
     add_correct_storage_test/1,
     add_bad_storage_test/1,
 
+    get_storage_test/1,
+
     modify_correct_storage_test/1,
     modify_bad_storage_test/1
 ]).
@@ -42,6 +44,8 @@ groups() -> [
         add_correct_storage_test,
         add_bad_storage_test,
 
+        get_storage_test,
+
         modify_correct_storage_test,
         modify_bad_storage_test
     ]}
@@ -50,6 +54,15 @@ groups() -> [
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_CEPH_STORAGE_SPEC, #{
+    <<"type">> => <<"cephrados">>,
+    <<"monitorHostname">> => ?CEPH_MONITOR_HOSTNAME,
+    <<"clusterName">> => ?CEPH_CLUSTER_NAME,
+    <<"poolName">> => ?CEPH_POOL_NAME,
+    <<"username">> => ?CEPH_USERNAME,
+    <<"key">> => ?CEPH_KEY
+}).
 
 
 %%%===================================================================
@@ -174,6 +187,37 @@ build_add_ceph_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_CEPH_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % key MUST BE shadowed
+        <<"key">> => <<"*****">>,
+        <<"storagePathType">> => <<"flat">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+
+        % default values for not supplied parameters
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>,
+
+        % TODO VFS-12391 shouldn't this be int?
+        <<"blockSize">> => <<"4194304">>
+    }).
+
+
 modify_correct_storage_test(_Config) ->
     modify_ceph_storage_test_base(correct_args).
 
@@ -275,16 +319,7 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
 
-        StorageId = panel_test_rpc:add_storage(krakow,
-            #{StorageName => #{
-                <<"type">> => <<"cephrados">>,
-                <<"monitorHostname">> => ?CEPH_MONITOR_HOSTNAME,
-                <<"clusterName">> => ?CEPH_CLUSTER_NAME,
-                <<"poolName">> => ?CEPH_POOL_NAME,
-                <<"username">> => ?CEPH_USERNAME,
-                <<"key">> => ?CEPH_KEY
-            }}
-        ),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_CEPH_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
