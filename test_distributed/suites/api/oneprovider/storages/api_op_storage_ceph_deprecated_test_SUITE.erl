@@ -32,6 +32,8 @@
 -export([
     adding_deprecated_ceph_should_fail_test/1,
 
+    get_storage_test/1,
+
     modify_correct_storage_test/1,
     modify_bad_storage_test/1
 ]).
@@ -39,6 +41,8 @@
 groups() -> [
     {all_tests, [parallel], [
         adding_deprecated_ceph_should_fail_test,
+
+        get_storage_test,
 
         modify_correct_storage_test,
         modify_bad_storage_test
@@ -73,6 +77,39 @@ adding_deprecated_ceph_should_fail_test(_Config) ->
         {ok, ?HTTP_400_BAD_REQUEST, _, ExpBody},
         panel_test_rest:post(krakow, <<"/provider/storages">>, #{auth => root, json => RequiredData})
     ).
+
+
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageId = create_minimal_ceph_storage(StorageName),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, #{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % values supplied when creating storage (for required parameters)
+        <<"type">> => <<"ceph">>,
+        <<"monitorHostname">> => ?CEPH_MONITOR_HOSTNAME,
+        <<"clusterName">> => ?CEPH_CLUSTER_NAME,
+        <<"poolName">> => ?CEPH_POOL_NAME,
+        <<"username">> => ?CEPH_USERNAME,
+        % key MUST BE shadowed
+        <<"key">> => <<"*****">>,
+        <<"storagePathType">> => <<"flat">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+
+        % default values for not supplied parameters
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>
+    }).
 
 
 modify_correct_storage_test(_Config) ->
@@ -175,25 +212,30 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
 build_modify_ceph_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
-
-        % While it is not possible to create storage of type 'ceph' via REST due to validation
-        % it can be done with rpc (bypassing REST checks)
-        {_, {ok, StorageId}} = ?rpc(krakow, op_worker_storage:add(#{name => StorageName, params => #{
-            type => <<"ceph">>,
-            monitorHostname => ?CEPH_MONITOR_HOSTNAME,
-            clusterName => ?CEPH_CLUSTER_NAME,
-            poolName => ?CEPH_POOL_NAME,
-            username => ?CEPH_USERNAME,
-            key => ?CEPH_KEY,
-            storagePathType => <<"flat">>,
-            qosParameters => #{},
-            lumaFeed => <<"auto">>
-        }})),
+        StorageId = create_minimal_ceph_storage(StorageName),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
+
+
+% While it is not possible to create storage of type 'ceph' via REST due to validation
+% it can be done with rpc (bypassing REST checks)
+%% @private
+create_minimal_ceph_storage(StorageName) ->
+    {_, {ok, StorageId}} = ?rpc(krakow, op_worker_storage:add(#{name => StorageName, params => #{
+        type => <<"ceph">>,
+        monitorHostname => ?CEPH_MONITOR_HOSTNAME,
+        clusterName => ?CEPH_CLUSTER_NAME,
+        poolName => ?CEPH_POOL_NAME,
+        username => ?CEPH_USERNAME,
+        key => ?CEPH_KEY,
+        storagePathType => <<"flat">>,
+        qosParameters => #{},
+        lumaFeed => <<"auto">>
+    }})),
+    StorageId.
 
 
 %%%===================================================================

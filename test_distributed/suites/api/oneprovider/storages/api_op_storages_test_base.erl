@@ -21,6 +21,7 @@
 
 -export([
     add_storage_test_base/1,
+    get_storage_test_base/2,
     modify_storage_test_base/1
 ]).
 
@@ -96,6 +97,41 @@ add_storage_test_base(#add_storage_test_spec{
 
             data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
             verify_fun = build_add_storage_verify_fun(MemRef, ArgsCorrectness)
+        }
+    ])).
+
+
+get_storage_test_base(StorageId, ExpStorageDetails) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get storage details using /provider/storages/{storage_id} rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = #client_spec{
+                correct = [
+                    root,
+                    {member, []}
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [peer]
+            },
+            prepare_args_fun = fun(_) ->
+                #rest_args{
+                    method = get,
+                    path = <<"provider/storages/", StorageId/binary>>
+                }
+            end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
+                ?assertEqual(ExpStorageDetails, RespBodyBinary)
+            end)
         }
     ])).
 
