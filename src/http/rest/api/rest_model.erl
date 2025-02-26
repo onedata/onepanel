@@ -284,13 +284,15 @@ cluster_databases_model() ->
     #{
         %% The list of aliases of cluster database nodes.
         nodes => [string],
-        %% The server quota is the RAM memory in bytes that is allocated to the
+        %% The server quota is the RAM memory in MiB that is allocated to the
         %% server when Couchbase Server is first installed. This sets the limit
-        %% of RAM allocated by Couchbase for caching data for all buckets and is
-        %% configured on a per-node basis.
+        %% of RAM allocated by Couchbase for caching data for all buckets on
+        %% each of the nodes.  Optional, defaults to `4096` (4 GiB).
         serverQuota => {integer, optional},
-        %% The bucket quota is the amount of RAM memory in bytes allocated to an
-        %% individual bucket for caching data.
+        %% The bucket quota is the amount of RAM memory in MiB allocated to each
+        %% individual bucket for caching data. Optional, defaults to
+        %% `4096` (4 GiB).  Optimally, should be set to the same value
+        %% as `serverQuota`.
         bucketQuota => {integer, optional}
     }.
 
@@ -1187,15 +1189,19 @@ service_databases_model() ->
     #{
         %% The list of hosts where service should be deployed.
         hosts => [string],
-        %% The server quota is the RAM memory in bytes that is allocated to the
+        %% The server quota is the RAM memory in MiB that is allocated to the
         %% server when Couchbase Server is first installed. This sets the limit
-        %% of RAM allocated by Couchbase for caching data for all buckets and is
-        %% configured on a per-node basis. NOTE: This is used only for first
-        %% deployment and ignored when adding new  hosts for the service.
+        %% of RAM allocated by Couchbase for caching data for all buckets on
+        %% each of the nodes.  Optional, defaults to `4096` (4 GiB).
+        %% NOTE: This parameter is taken into account only during the initial
+        %% cluster  deployment and ignored when adding new hosts to the cluster.
         serverQuota => {integer, optional},
-        %% The bucket quota is the amount of RAM memory in bytes allocated to an
-        %% individual bucket for caching data. NOTE: This is used only for first
-        %% deployment and ignored when adding new  hosts for the service.
+        %% The bucket quota is the amount of RAM memory in MiB allocated to each
+        %% individual bucket for caching data. Optional, defaults to
+        %% `4096` (4 GiB).  Optimally, should be set to the same value
+        %% as `serverQuota`.  NOTE: This parameter is taken into
+        %% account only during the initial cluster  deployment and ignored when
+        %% adding new hosts to the cluster.
         bucketQuota => {integer, optional}
     }.
 
@@ -1219,9 +1225,9 @@ service_ones3_model() ->
     #{
         %% The list of hosts where service should be deployed.
         hosts => [string],
-        %% The port on which the OneS3 service will be available. NOTE: This is
-        %% used only for first deployment and ignored when adding new  hosts for
-        %% the service.
+        %% The port on which the OneS3 service will be available.  NOTE: This
+        %% parameter is taken into account only during the initial cluster
+        %% deployment and ignored when adding new hosts to the cluster.
         port => {integer, optional}
     }.
 
@@ -1891,11 +1897,11 @@ ceph_model() ->
         %% The key to access the Ceph cluster. In case of configuring storage,
         %% the key must be the key of admin user passed in `username`.
         key => string,
-        %% The monitor hostname.
+        %% The hostname (IP address or FQDN) of the Ceph monitor service.
         monitorHostname => string,
-        %% The Ceph cluster name.
+        %% The name of the Ceph storage cluster.
         clusterName => string,
-        %% The Ceph pool name.
+        %% The name of the Ceph pool – the logical partition for object storage.
         poolName => string,
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -1972,11 +1978,11 @@ ceph_modify_model() ->
         username => {string, optional},
         %% The admin key to access the Ceph cluster.
         key => {string, optional},
-        %% The monitor hostname.
+        %% The hostname (IP address or FQDN) of the Ceph monitor service.
         monitorHostname => {string, optional},
-        %% The Ceph cluster name.
+        %% The name of the Ceph storage cluster.
         clusterName => {string, optional},
-        %% The Ceph pool name.
+        %% The name of the Ceph pool – the logical partition for object storage.
         poolName => {string, optional}
     }.
 
@@ -2020,13 +2026,16 @@ cephrados_model() ->
         username => string,
         %% The admin key to access the Ceph cluster.
         key => string,
-        %% The monitor hostname.
+        %% The hostname (IP address or FQDN) of the Ceph monitor service.
         monitorHostname => string,
-        %% The Ceph cluster name.
+        %% The name of the Ceph storage cluster.
         clusterName => string,
-        %% The Ceph pool name.
+        %% The name of the Ceph pool – the logical partition for object storage.
         poolName => string,
-        %% Storage block size in bytes.
+        %% Each file will be split across a number of Ceph RADOS objects of the
+        %% specified size. For optimal performance, this value should be equal
+        %% to the object size configured in a given Ceph Storage Cluster
+        %% (default 4M).
         blockSize => {integer, {optional, 4194304}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -2097,11 +2106,11 @@ cephrados_modify_model() ->
         username => {string, optional},
         %% The admin key to access the Ceph cluster.
         key => {string, optional},
-        %% The monitor hostname.
+        %% The hostname (IP address or FQDN) of the Ceph monitor service.
         monitorHostname => {string, optional},
-        %% The Ceph cluster name.
+        %% The name of the Ceph storage cluster.
         clusterName => {string, optional},
-        %% The Ceph pool name.
+        %% The name of the Ceph pool – the logical partition for object storage.
         poolName => {string, optional}
     }.
 
@@ -2539,13 +2548,18 @@ nfs_model() ->
         %% The NFS protocol version. Allowed values are 3 (default) and 4
         %% (experimental).
         version => {integer, {optional, 3}},
-        %% The name of the NFS volume (export).
+        %% The name (path) of the NFS export.
         volume => string,
-        %% The size of NFS connection pool.
+        %% Number of simultaneous network connections that can be maintained
+        %% with the NFS server.
         connectionPoolSize => {integer, {optional, 10}},
-        %% Enables directory caching.
+        %% Enables caching of directory metadata on the client side to improve
+        %% performance by reducing requests to the NFS server. May cause
+        %% temporary inconsistencies if the directory content changes on the
+        %% server.
         dirCache => {boolean, {optional, true}},
-        %% The size of readahead in bytes.
+        %% The amount of data that the system preloads into cache ahead of
+        %% client requests.
         readAhead => {integer, {optional, 0}},
         %% The number of automatic reconnect attempts to the server. Setting
         %% `-1` enables infinite number of reconnects.
@@ -2620,13 +2634,18 @@ nfs_modify_model() ->
         %% The NFS protocol version. Allowed values are 3 (default) and 4
         %% (experimental).
         version => {integer, optional},
-        %% The name of the NFS volume (export).
+        %% The name (path) of the NFS export.
         volume => {string, optional},
-        %% The size of NFS connection pool.
+        %% Number of simultaneous network connections that can be maintained
+        %% with the NFS server.
         connectionPoolSize => {integer, optional},
-        %% Enables directory caching.
+        %% Enables caching of directory metadata on the client side to improve
+        %% performance by reducing requests to the NFS server. May cause
+        %% temporary inconsistencies if the directory content changes on the
+        %% server.
         dirCache => {boolean, optional},
-        %% The size of readahead in bytes.
+        %% The amount of data that the system preloads into cache ahead of
+        %% client requests.
         readAhead => {integer, optional},
         %% The number of automatic reconnect attempts to the server. Setting
         %% `-1` enables infinite number of reconnects.
@@ -3041,7 +3060,8 @@ s3_model() ->
         accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
         secretKey => {string, {optional, <<"">>}},
-        %% The hostname of a machine where S3 storage is installed.
+        %% The URL of the S3 service endpoint, including the scheme (http or
+        %% https) and optionally a port (after a colon).
         hostname => string,
         %% The storage bucket name.
         bucketName => string,
@@ -3053,10 +3073,11 @@ s3_model() ->
         %% Allows to specify a custom S3 region, which will be send with each
         %% request to the S3 server.
         region => {string, {optional, <<"us-east-1">>}},
-        %% Storage block size in bytes. In case the block size is `0`
-        %% and `canonical` path type is selected, each file is stored
-        %% in a single S3 object. This value must be set to `0` to
-        %% enable data import from an existing S3 bucket.
+        %% Storage block size in bytes i.e. the maximum object size. Files
+        %% larger than one block will stripped and stored in a series of
+        %% objects. Must be more than zero for non-imported storage. To enable
+        %% import from an S3 storage, block size must be set to zero, together
+        %% with \&quot;canonical\&quot; path type and the read-only mode.
         blockSize => {integer, {optional, 10485760}},
         %% Defines the maximum size for objects, which can be modified on the S3
         %% storage in `canonical` path mode. In this mode, entire file
@@ -3137,7 +3158,8 @@ s3_modify_model() ->
         %% S3](http://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
         %% compatible storage.
         type => {discriminator, <<"s3">>},
-        %% The hostname of a machine where S3 storage is installed.
+        %% The URL of the S3 service endpoint, including the scheme (http or
+        %% https) and optionally a port (after a colon).
         hostname => {string, optional},
         %% The storage bucket name.
         bucketName => {string, optional},
@@ -3209,10 +3231,14 @@ swift_model() ->
         username => string,
         %% The Keystone authentication password.
         password => string,
-        %% The URL to OpenStack Keystone identity service.
+        %% The Keystone project name.
+        projectName => string,
+        %% The Keystone user domain name.
+        userDomainName => {string, {optional, <<"Default">>}},
+        %% The Keystone project domain name.
+        projectDomainName => {string, {optional, <<"Default">>}},
+        %% The URL to OpenStack Identity Service (Keystone) V3.
         authUrl => string,
-        %% The name of the tenant to which the user belongs.
-        tenantName => string,
         %% The name of the Swift storage container.
         containerName => string,
         %% Storage block size in bytes.
@@ -3240,7 +3266,13 @@ swift_credentials_model() ->
         %% The Keystone authentication username.
         username => string,
         %% The Keystone authentication password.
-        password => string
+        password => string,
+        %% The Keystone project name.
+        projectName => string,
+        %% The Keystone user domain name.
+        userDomainName => {string, {optional, <<"Default">>}},
+        %% The Keystone project domain name.
+        projectDomainName => {string, {optional, <<"Default">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -3285,14 +3317,18 @@ swift_modify_model() ->
         type => {discriminator, <<"swift">>},
         %% The URL to OpenStack Keystone identity service.
         authUrl => {string, optional},
-        %% The name of the tenant to which the user belongs.
-        tenantName => {string, optional},
         %% The name of the Swift storage container.
         containerName => {string, optional},
         %% The Keystone authentication username.
         username => {string, optional},
         %% The Keystone authentication password.
-        password => {string, optional}
+        password => {string, optional},
+        %% The Keystone project name.
+        projectName => {string, optional},
+        %% The Keystone user domain name.
+        userDomainName => {string, optional},
+        %% The Keystone project domain name.
+        projectDomainName => {string, optional}
     }.
 
 %%--------------------------------------------------------------------
