@@ -36,6 +36,8 @@
     add_correct_storage_test/1,
     add_bad_storage_test/1,
 
+    get_storage_test/1,
+
     modify_correct_storage_test/1,
     modify_bad_storage_test/1
 ]).
@@ -45,6 +47,8 @@ groups() -> [
         add_correct_storage_test,
         add_bad_storage_test,
 
+        get_storage_test,
+
         modify_correct_storage_test,
         modify_bad_storage_test
     ]}
@@ -53,6 +57,14 @@ groups() -> [
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_S3_STORAGE_SPEC, #{
+    <<"type">> => <<"s3">>,
+    <<"bucketName">> => ?S3_BUCKET_NAME,
+    <<"hostname">> => ?S3_HOSTNAME,
+    <<"accessKey">> => ?S3_KEY_ID,
+    <<"secretKey">> => ?S3_ACCESS_KEY
+}).
 
 
 %%%===================================================================
@@ -189,6 +201,45 @@ build_add_s3_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_S3_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % Hostname should be prepended with scheme
+        <<"hostname">> => <<"http://", (?S3_HOSTNAME)/binary>>,
+        % secretKey MUST BE shadowed
+        <<"secretKey">> => <<"*****">>,
+
+        % default values for not supplied parameters
+        <<"region">> => <<"us-east-1">>,
+        <<"signatureVersion">> => <<"4">>,
+        <<"dirMode">> => <<"0775">>,
+        <<"fileMode">> => <<"0664">>,
+        % TODO VFS-12391 shouldn't this be int?
+        <<"blockSize">> => <<"10485760">>,
+        % TODO VFS-12391 shouldn't this be int?
+        <<"maximumCanonicalObjectSize">> => <<"67108864">>,
+
+        <<"storagePathType">> => <<"flat">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>
+    }).
+
+
 modify_correct_storage_test(_Config) ->
     modify_s3_storage_test_base(correct_args).
 
@@ -295,15 +346,7 @@ build_modify_s3_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
 
-        StorageId = panel_test_rpc:add_storage(krakow,
-            #{StorageName => #{
-                <<"type">> => <<"s3">>,
-                <<"bucketName">> => ?S3_BUCKET_NAME,
-                <<"hostname">> => ?S3_HOSTNAME,
-                <<"accessKey">> => ?S3_KEY_ID,
-                <<"secretKey">> => ?S3_ACCESS_KEY
-            }}
-        ),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
