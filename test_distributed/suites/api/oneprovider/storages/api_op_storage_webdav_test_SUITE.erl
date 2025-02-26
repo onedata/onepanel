@@ -44,6 +44,8 @@
     add_correct_storage_test/1,
     add_bad_storage_test/1,
 
+    get_storage_test/1,
+
     modify_correct_storage_test/1,
     modify_bad_storage_test/1
 ]).
@@ -53,6 +55,8 @@ groups() -> [
         add_correct_storage_test,
         add_bad_storage_test,
 
+        get_storage_test,
+
         modify_correct_storage_test,
         modify_bad_storage_test
     ]}
@@ -61,6 +65,14 @@ groups() -> [
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_WEBDAV_STORAGE_SPEC, #{
+    <<"type">> => <<"webdav">>,
+    <<"endpoint">> => ?WEBDAV_ENDPOINT,
+    <<"rangeWriteSupport">> => <<"sabredav">>,
+    <<"credentials">> => ?WEBDAV_BASIC_CREDENTIALS,
+    <<"credentialsType">> => <<"basic">>
+}).
 
 
 %%%===================================================================
@@ -188,6 +200,45 @@ build_add_webdav_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_WEBDAV_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % credentials MUST BE shadowed
+        <<"credentials">> => <<"*****">>,
+
+        % default values for not supplied parameters
+        <<"authorizationHeader">> => <<"Authorization: Bearer {}">>,
+        % TODO VFS-12391 shouldn't this be int?
+        <<"connectionPoolSize">> => <<"25">>,
+        <<"dirMode">> => <<"0775">>,
+        <<"fileMode">> => <<"0664">>,
+        % TODO VFS-12391 shouldn't this be int?
+        <<"maximumUploadSize">> => <<"0">>,
+        <<"verifyServerCertificate">> => <<"true">>,
+
+        <<"storagePathType">> => <<"canonical">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+
+        % default values for not supplied parameters
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>
+    }).
+
+
 modify_correct_storage_test(_Config) ->
     modify_webdav_storage_test_base(correct_args).
 
@@ -288,15 +339,7 @@ build_modify_webdav_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
 
-        StorageId = panel_test_rpc:add_storage(krakow,
-            #{StorageName => #{
-                <<"type">> => <<"webdav">>,
-                <<"endpoint">> => ?WEBDAV_ENDPOINT,
-                <<"rangeWriteSupport">> => <<"sabredav">>,
-                <<"credentials">> => ?WEBDAV_BASIC_CREDENTIALS,
-                <<"credentialsType">> => <<"basic">>
-            }}
-        ),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_WEBDAV_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
