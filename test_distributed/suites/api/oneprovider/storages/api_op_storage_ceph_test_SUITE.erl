@@ -198,6 +198,8 @@ get_storage_test(_Config) ->
 
         % key MUST BE shadowed
         <<"key">> => <<"*****">>,
+
+        % default values for not supplied parameters
         <<"storagePathType">> => <<"flat">>,
         <<"lumaFeed">> => <<"auto">>,
         % additional qosParameters (not supplied when creating) SHOULD BE present
@@ -205,8 +207,6 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-
-        % default values for not supplied parameters
         <<"archiveStorage">> => <<"false">>,
         <<"importedStorage">> => <<"false">>,
         <<"readonly">> => <<"false">>,

@@ -31,12 +31,14 @@
 
 -export([
     add_storage_test/1,
+    get_storage_test/1,
     modify_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
         add_storage_test,
+        get_storage_test,
         modify_storage_test
     ]}
 ].
@@ -147,6 +149,33 @@ build_add_nulldevice_storage_prepare_args_fun(MemRef) ->
             headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestBody)}
     end.
+
+
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = #{<<"type">> => <<"nulldevice">>},
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % default values for not supplied parameters
+        <<"storagePathType">> => <<"canonical">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>,
+        <<"gid">> => <<"0">>,
+        <<"uid">> => <<"0">>
+    }).
 
 
 modify_storage_test(_Config) ->
