@@ -33,6 +33,8 @@
     add_correct_storage_test/1,
     add_bad_storage_test/1,
 
+    get_storage_test/1,
+
     modify_correct_storage_test/1,
     modify_bad_storage_test/1
 ]).
@@ -42,6 +44,8 @@ groups() -> [
         add_correct_storage_test,
         add_bad_storage_test,
 
+        get_storage_test,
+
         modify_correct_storage_test,
         modify_bad_storage_test
     ]}
@@ -50,6 +54,11 @@ groups() -> [
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_POSIX_STORAGE_SPEC, #{
+    <<"type">> => <<"posix">>,
+    <<"mountPoint">> => ?POSIX_MOUNTPOINT
+}).
 
 
 %%%===================================================================
@@ -157,6 +166,35 @@ build_add_posix_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_POSIX_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % default values for not supplied parameters
+        <<"storagePathType">> => <<"canonical">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+
+        % default values for not supplied parameters
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>,
+        <<"gid">> => <<"0">>,
+        <<"uid">> => <<"0">>
+    }).
+
+
 modify_correct_storage_test(_Config) ->
     modify_posix_storage_test_base(correct_args).
 
@@ -248,12 +286,7 @@ build_modify_posix_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
 
-        StorageId = panel_test_rpc:add_storage(krakow,
-            #{StorageName => #{
-                <<"type">> => <<"posix">>,
-                <<"mountPoint">> => ?POSIX_MOUNTPOINT
-            }}
-        ),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_POSIX_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
