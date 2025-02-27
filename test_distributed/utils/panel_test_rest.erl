@@ -182,7 +182,7 @@ build_url(Node, RequestArgs) ->
 get_host_address(Node) ->
     case get_host_address_infer_policy() of
         ip -> ip_test_utils:encode_ip(ip_test_utils:get_node_ip(Node));
-        domain -> dns_test_utils:get_hostname(Node)
+        domain -> dns_test_utils:get_k8s_domain(Node)
     end.
 
 

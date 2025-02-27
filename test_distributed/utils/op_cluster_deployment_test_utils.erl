@@ -30,7 +30,6 @@
 
     get_registration_token/0,
 
-    get_cluster_configuration/1,
     deploy_batch/1,
 
     deploy_all_services/1,

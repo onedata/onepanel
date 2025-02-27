@@ -55,7 +55,7 @@ deploy_test(Config) ->
     panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
 
     ProviderName = <<"krakow">>,
-    ProviderDomain = get_op_domain(Node1),
+    ProviderDomain = dns_test_utils:get_domain(Node1),
 
     OpClusterConfig = #op_cluster_config{
         nodes = #{
@@ -125,12 +125,6 @@ deploy_test(Config) ->
     }),
 
     ok.
-
-
-%% @private
-get_op_domain(OpPanelNode) ->
-    {ok, OzDomain} = test_utils:get_env(OpPanelNode, ?APP_NAME, test_web_cert_domain),
-    str_utils:to_binary(OzDomain).
 
 
 %%%===================================================================

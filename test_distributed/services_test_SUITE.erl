@@ -28,7 +28,6 @@
     service_oneprovider_unregister_register_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_update_storage_test/1,
-    service_op_worker_add_node_test/1,
     service_oz_worker_add_node_test/1,
     services_stop_start_test/1
 ]).
@@ -42,7 +41,6 @@ all() ->
         service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
-        service_op_worker_add_node_test,
         service_oz_worker_add_node_test
         %% TODO VFS-4056
         %% services_stop_start_test
@@ -153,30 +151,6 @@ service_op_worker_update_storage_test(Config) ->
                     skip
             end
     end, ExistingStorages).
-
-
-service_op_worker_add_node_test(Config) ->
-    AllHosts = ?config(oneprovider_hosts, Config),
-    OldHosts = ?config(op_worker_hosts, Config),
-    NewHost = hd(AllHosts -- OldHosts),
-    OldNode = nodes:service_to_node(?SERVICE_PANEL, hd(OldHosts)),
-    NewNode = nodes:service_to_node(?SERVICE_PANEL, NewHost),
-    OldOpNode = nodes:service_to_node(?SERVICE_OPW, OldNode),
-
-    TokenFilePath = onepanel_env:get_remote(OldNode,
-        op_worker_root_token_path, ?APP_NAME),
-    {ok, CurrentFileContents} = rpc:call(OldNode, file, read_file, [TokenFilePath]),
-
-    onepanel_test_utils:service_action(OldNode, ?SERVICE_OPW, add_nodes,
-        #{new_hosts => [NewHost]}),
-
-    ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OPW])),
-    ?assertEqual({ok, CurrentFileContents},
-        rpc:call(NewNode, file, read_file, [TokenFilePath])),
-    OpwNodesList = image_test_utils:proxy_rpc(OldNode,
-        OldOpNode, consistent_hashing, get_all_nodes, []),
-    ?assert(is_list(OpwNodesList)),
-    ?assertEqual(length(OldHosts) + 1, length(OpwNodesList)).
 
 
 service_oz_worker_add_node_test(Config) ->

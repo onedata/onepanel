@@ -19,6 +19,8 @@
 
 %% API
 -export([
+    refresh_oct/1,
+
     get_all_hosts/1,
     get_service_hosts/2,
 
@@ -47,6 +49,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec refresh_oct(test_utils:config()) -> test_utils:config().
+refresh_oct(Config) ->
+    NewConfig1 = oct_nodes:refresh_config(Config),
+    NewConfig2 = oct_nodes:connect_with_nodes(NewConfig1),
+    oct_background:update_environment(NewConfig2).
 
 
 -spec get_all_hosts(node()) -> [binary()].
