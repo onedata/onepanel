@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% This module contains utility functions for cluster deployment tests.
+%%% This module contains utility functions for op cluster deployment tests.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(op_cluster_deployment_test_utils).
