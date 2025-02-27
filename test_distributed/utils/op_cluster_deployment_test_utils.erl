@@ -30,6 +30,7 @@
 
     get_registration_token/0,
 
+    get_cluster_configuration/1,
     deploy_batch/1,
 
     deploy_all_services/1,
@@ -50,13 +51,10 @@
 
 -spec infer_node_details(node()) -> node_details().
 infer_node_details(Node) ->
-    NodeIp = ip_test_utils:get_node_ip(Node),
-    NodeHost = str_utils:to_binary(hosts:from_node(Node)),
-
     #node_details{
         node = Node,
-        hostname = NodeHost,
-        ip = NodeIp
+        hostname = dns_test_utils:get_hostname(Node),
+        ip = ip_test_utils:get_node_ip(Node)
     }.
 
 

@@ -73,6 +73,7 @@ stages:
         - cl_deploy_op_batch
         - cl_deploy_oz_batch
         - cl_misc
+        - cl_resize_op
         - cl_services
         - db_disk_usage_monitor
         - dns_op
@@ -460,6 +461,13 @@ cl_misc:
     - <<: *ct_logs
       name: ct_logs_cl_misc.tar.gz
 
+cl_resize_op:
+  <<: *ct-onenv-job
+  key: CLUSTERRESIZEOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_resize_op.tar.gz
+
 cl_services:
   <<: *ct-onenv-job
   key: CLUSTERSERVICES
@@ -668,6 +676,7 @@ Coverage report:
     - artifact: ct_logs_cl_deploy_op_batch.tar.gz
     - artifact: ct_logs_cl_deploy_oz_batch.tar.gz
     - artifact: ct_logs_cl_misc.tar.gz
+    - artifact: ct_logs_cl_resize_op.tar.gz
     - artifact: ct_logs_cl_services.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz

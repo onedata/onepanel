@@ -19,10 +19,16 @@
 
 %% API
 -export([
+    get_all_hosts/1,
+    get_service_hosts/2,
+
     get_ones3_port/1,
 
     get_ones3_status_cluster_wide/1,
     get_ones3_status_on_host/2,
+
+    get_service_status_cluster_wide/2,
+    get_service_status_on_host/3,
 
     toggle_ones3_cluster_wide/2,
     try_toggle_ones3_cluster_wide/2,
@@ -33,12 +39,28 @@
     await_task_status/4
 ]).
 
+-type service() :: worker | manager | database | ones3.
+
 -define(ATTEMPTS, 60).
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec get_all_hosts(node()) -> [binary()].
+get_all_hosts(PanelNode) ->
+    {ok, _, _, Resp} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _},
+        panel_test_rest:get(PanelNode, <<"/hosts">>, #{auth => root})
+    ),
+    Resp.
+
+
+-spec get_service_hosts(node(), service()) -> [binary()].
+get_service_hosts(PanelNode, Service) ->
+    maps:keys(get_service_status_cluster_wide(PanelNode, Service)).
 
 
 -spec get_ones3_port(node()) -> non_neg_integer().
@@ -48,18 +70,29 @@ get_ones3_port(PanelNode) ->
 
 -spec get_ones3_status_cluster_wide(node()) -> map().
 get_ones3_status_cluster_wide(PanelNode) ->
-    {ok, _, _, Resp} = ?assertMatch(
-        {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:get(PanelNode, <<"/provider/ones3">>, #{auth => root})
-    ),
-    Resp.
+    get_service_status_cluster_wide(PanelNode, ones3).
 
 
 -spec get_ones3_status_on_host(node(), binary()) -> binary().
 get_ones3_status_on_host(PanelNode, Hostname) ->
+    get_service_status_on_host(PanelNode, ones3, Hostname).
+
+
+-spec get_service_status_cluster_wide(node(), service()) -> map().
+get_service_status_cluster_wide(PanelNode, Service) ->
     {ok, _, _, Resp} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:get(PanelNode, <<"/provider/ones3/", Hostname/binary>>, #{auth => root})
+        panel_test_rest:get(PanelNode, service_rest_path(Service), #{auth => root})
+    ),
+    Resp.
+
+
+-spec get_service_status_on_host(node(), service(), binary()) -> binary().
+get_service_status_on_host(PanelNode, Service, Hostname) ->
+    Path = str_utils:format_bin("~ts/~ts", [service_rest_path(Service), Hostname]),
+
+    {ok, _, _, Resp} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _}, panel_test_rest:get(PanelNode, Path, #{auth => root})
     ),
     Resp.
 
@@ -112,3 +145,16 @@ await_task_status(Node, TaskId, ExpStatus, Attempts) ->
         Attempts
     ),
     ok.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
+%% @private
+-spec service_rest_path(service()) -> binary().
+service_rest_path(worker) -> <<"/provider/workers">>;
+service_rest_path(manager) -> <<"/provider/managers">>;
+service_rest_path(database) -> <<"/provider/databases">>;
+service_rest_path(ones3) -> <<"/provider/ones3">>.
