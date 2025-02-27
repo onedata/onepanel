@@ -21,16 +21,18 @@
 -export([
     refresh_oct/1,
 
+    infer_node_details/1,
+
     get_all_hosts/1,
-    get_service_hosts/2,
+    get_service_hosts/3,
 
     get_ones3_port/1,
 
     get_ones3_status_cluster_wide/1,
     get_ones3_status_on_host/2,
 
-    get_service_status_cluster_wide/2,
-    get_service_status_on_host/3,
+    get_service_status_cluster_wide/3,
+    get_service_status_on_host/4,
 
     toggle_ones3_cluster_wide/2,
     try_toggle_ones3_cluster_wide/2,
@@ -41,7 +43,11 @@
     await_task_status/4
 ]).
 
+-type product() :: oz | op.
 -type service() :: worker | manager | database | ones3.
+-type node_details() :: #node_details{}.
+
+-export_type([product/0, service/0, node_details/0]).
 
 -define(ATTEMPTS, 60).
 
@@ -58,6 +64,15 @@ refresh_oct(Config) ->
     oct_background:update_environment(NewConfig2).
 
 
+-spec infer_node_details(node()) -> node_details().
+infer_node_details(Node) ->
+    #node_details{
+        node = Node,
+        hostname = dns_test_utils:get_hostname(Node),
+        ip = ip_test_utils:get_node_ip(Node)
+    }.
+
+
 -spec get_all_hosts(node()) -> [binary()].
 get_all_hosts(PanelNode) ->
     {ok, _, _, Resp} = ?assertMatch(
@@ -67,9 +82,9 @@ get_all_hosts(PanelNode) ->
     Resp.
 
 
--spec get_service_hosts(node(), service()) -> [binary()].
-get_service_hosts(PanelNode, Service) ->
-    maps:keys(get_service_status_cluster_wide(PanelNode, Service)).
+-spec get_service_hosts(node(), product(), service()) -> [binary()].
+get_service_hosts(PanelNode, Product, Service) ->
+    maps:keys(get_service_status_cluster_wide(PanelNode, Product, Service)).
 
 
 -spec get_ones3_port(node()) -> non_neg_integer().
@@ -79,26 +94,26 @@ get_ones3_port(PanelNode) ->
 
 -spec get_ones3_status_cluster_wide(node()) -> map().
 get_ones3_status_cluster_wide(PanelNode) ->
-    get_service_status_cluster_wide(PanelNode, ones3).
+    get_service_status_cluster_wide(PanelNode, op, ones3).
 
 
 -spec get_ones3_status_on_host(node(), binary()) -> binary().
 get_ones3_status_on_host(PanelNode, Hostname) ->
-    get_service_status_on_host(PanelNode, ones3, Hostname).
+    get_service_status_on_host(PanelNode, op, ones3, Hostname).
 
 
--spec get_service_status_cluster_wide(node(), service()) -> map().
-get_service_status_cluster_wide(PanelNode, Service) ->
+-spec get_service_status_cluster_wide(node(), product(), service()) -> map().
+get_service_status_cluster_wide(PanelNode, Product, Service) ->
     {ok, _, _, Resp} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:get(PanelNode, service_rest_path(Service), #{auth => root})
+        panel_test_rest:get(PanelNode, service_rest_path(Product, Service), #{auth => root})
     ),
     Resp.
 
 
--spec get_service_status_on_host(node(), service(), binary()) -> binary().
-get_service_status_on_host(PanelNode, Service, Hostname) ->
-    Path = str_utils:format_bin("~ts/~ts", [service_rest_path(Service), Hostname]),
+-spec get_service_status_on_host(node(), product(), service(), binary()) -> binary().
+get_service_status_on_host(PanelNode, Product, Service, Hostname) ->
+    Path = str_utils:format_bin("~ts/~ts", [service_rest_path(Product, Service), Hostname]),
 
     {ok, _, _, Resp} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _}, panel_test_rest:get(PanelNode, Path, #{auth => root})
@@ -162,8 +177,11 @@ await_task_status(Node, TaskId, ExpStatus, Attempts) ->
 
 
 %% @private
--spec service_rest_path(service()) -> binary().
-service_rest_path(worker) -> <<"/provider/workers">>;
-service_rest_path(manager) -> <<"/provider/managers">>;
-service_rest_path(database) -> <<"/provider/databases">>;
-service_rest_path(ones3) -> <<"/provider/ones3">>.
+-spec service_rest_path(product(), service()) -> binary().
+service_rest_path(oz, worker) -> <<"/zone/workers">>;
+service_rest_path(op, worker) -> <<"/provider/workers">>;
+service_rest_path(oz, manager) -> <<"/zone/managers">>;
+service_rest_path(op, manager) -> <<"/provider/managers">>;
+service_rest_path(oz, database) -> <<"/zone/databases">>;
+service_rest_path(op, database) -> <<"/provider/databases">>;
+service_rest_path(op, ones3) -> <<"/provider/ones3">>.

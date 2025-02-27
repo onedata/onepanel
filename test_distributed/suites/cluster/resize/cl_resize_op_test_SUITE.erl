@@ -49,7 +49,7 @@ all() -> [
 
 add_node_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
-    Node1Details = op_cluster_deployment_test_utils:infer_node_details(Node1),
+    Node1Details = cluster_management_test_utils:infer_node_details(Node1),
     Node1Hostname = Node1Details#node_details.hostname,
     Node2Hostname = dns_test_utils:get_hostname(Node2),
 
@@ -83,16 +83,16 @@ add_node_test(Config) ->
         lists:usort([Node1Hostname, Node2Hostname]),
         lists:usort(cluster_management_test_utils:get_all_hosts(Node1))
     ),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, worker)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, manager)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, database)),
-    ?assertEqual([], cluster_management_test_utils:get_service_hosts(Node1, ones3)).
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, op, worker)),
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, op, manager)),
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, op, database)),
+    ?assertEqual([], cluster_management_test_utils:get_service_hosts(Node1, op, ones3)).
 
 
 deploy_new_worker_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
 
-    Node1Details = op_cluster_deployment_test_utils:infer_node_details(Node1),
+    Node1Details = cluster_management_test_utils:infer_node_details(Node1),
     Node1Hostname = Node1Details#node_details.hostname,
     Node2Hostname = dns_test_utils:get_hostname(Node2),
 
@@ -103,7 +103,7 @@ deploy_new_worker_test(Config) ->
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>},
-        cluster_management_test_utils:get_service_status_cluster_wide(Node1, worker)
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, op, worker)
     ),
     {ok, CurrentFileContents} = GetTokenFileContentFun(Node1),
 
@@ -121,7 +121,7 @@ deploy_new_worker_test(Config) ->
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>, Node2Hostname => <<"healthy">>},
-        cluster_management_test_utils:get_service_status_cluster_wide(Node1, worker),
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, op, worker),
         ?ATTEMPTS
     ),
     ?assertEqual({ok, CurrentFileContents}, GetTokenFileContentFun(Node2)),

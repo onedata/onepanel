@@ -50,7 +50,7 @@ deploy_using_batch_config_test(Config) ->
     [OzPanelNode] = ?config(oz_panel_nodes, Config),
     OzPanelHostIp = ip_test_utils:get_node_ip(OzPanelNode),
     [OzHost] = hosts:from_nodes([OzPanelNode]),
-    OzDomain = dns_test_utils:get_domain(OzPanelNode),
+    OzDomain = dns_test_utils:get_k8s_domain(OzPanelNode),
 
     panel_test_rpc:set_emergency_passphrase(OzPanelNode, ?ONENV_EMERGENCY_PASSPHRASE),
 

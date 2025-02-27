@@ -16,18 +16,12 @@
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 
--type node_details() :: #node_details{}.
 -type op_cluster_config() :: #op_cluster_config{}.
 
--export_type([
-    node_details/0,
-    op_cluster_config/0
-]).
+-export_type([op_cluster_config/0]).
 
 %% API
 -export([
-    infer_node_details/1,
-
     get_registration_token/0,
 
     deploy_batch/1,
@@ -46,15 +40,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-
--spec infer_node_details(node()) -> node_details().
-infer_node_details(Node) ->
-    #node_details{
-        node = Node,
-        hostname = dns_test_utils:get_hostname(Node),
-        ip = ip_test_utils:get_node_ip(Node)
-    }.
 
 
 -spec get_registration_token() -> tokens:serialized().

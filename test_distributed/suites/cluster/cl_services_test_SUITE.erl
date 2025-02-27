@@ -43,8 +43,8 @@ all() -> [
 
 ones3_stop_start(Config) ->
     [OpPanelNode1, OpPanelNode2] = ?config(op_panel_nodes, Config),
-    #node_details{hostname = Host1} = op_cluster_deployment_test_utils:infer_node_details(OpPanelNode1),
-    #node_details{hostname = Host2} = op_cluster_deployment_test_utils:infer_node_details(OpPanelNode2),
+    #node_details{hostname = Host1} = cluster_management_test_utils:infer_node_details(OpPanelNode1),
+    #node_details{hostname = Host2} = cluster_management_test_utils:infer_node_details(OpPanelNode2),
 
     % Deploy OneS3 as it is not deployed by onenv
     {ok, ?HTTP_202_ACCEPTED, _, #{<<"taskId">> := TaskId}} = panel_test_rest:post(

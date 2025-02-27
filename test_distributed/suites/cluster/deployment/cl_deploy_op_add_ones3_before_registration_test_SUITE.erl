@@ -48,7 +48,7 @@ all() -> [
 deploy_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
     Node1Ip = ip_test_utils:get_node_ip(Node1),
-    Node2Details = op_cluster_deployment_test_utils:infer_node_details(Node2),
+    Node2Details = cluster_management_test_utils:infer_node_details(Node2),
     Node2Host = Node2Details#node_details.hostname,
     Node2Ip = Node2Details#node_details.ip,
 
@@ -61,7 +61,7 @@ deploy_test(Config) ->
     ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
         nodes = #{
-            1 => op_cluster_deployment_test_utils:infer_node_details(Node1),
+            1 => cluster_management_test_utils:infer_node_details(Node1),
             2 => Node2Details
         },
         managers = [1, 2],
