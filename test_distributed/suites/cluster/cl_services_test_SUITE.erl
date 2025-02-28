@@ -43,17 +43,9 @@ all() -> [
 
 ones3_stop_start(Config) ->
     [OpPanelNode1, OpPanelNode2] = ?config(op_panel_nodes, Config),
-    #node_details{hostname = Host1} = cluster_management_test_utils:infer_node_details(OpPanelNode1),
-    #node_details{hostname = Host2} = cluster_management_test_utils:infer_node_details(OpPanelNode2),
+    Host1 = dns_test_utils:get_hostname(OpPanelNode1),
+    Host2 = dns_test_utils:get_hostname(OpPanelNode2),
 
-    % Deploy OneS3 as it is not deployed by onenv
-    {ok, ?HTTP_202_ACCEPTED, _, #{<<"taskId">> := TaskId}} = panel_test_rest:post(
-        OpPanelNode1, <<"/provider/ones3">>, #{
-            auth => root,
-            json => #{<<"hosts">> => [Host1, Host2]}
-        }
-    ),
-    cluster_management_test_utils:await_task_status(OpPanelNode1, TaskId, <<"ok">>),
     check_ones3_statuses(OpPanelNode1, #{Host1 => <<"healthy">>, Host2 => <<"healthy">>}),
 
     cluster_management_test_utils:toggle_ones3_on_host(OpPanelNode1, Host2, stop),
@@ -85,7 +77,7 @@ ones3_stop_start(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes"
+        onenv_scenario = "1op_2nodes_2ones3"
     }).
 
 

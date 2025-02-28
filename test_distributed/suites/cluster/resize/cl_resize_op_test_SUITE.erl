@@ -111,7 +111,7 @@ deploy_new_worker_test(Config) ->
     ?assertEqual([WorkerNode1], get_worker_chash_nodes(WorkerNode1)),
 
     {ok, _, _, #{<<"taskId">> := TaskId}} = ?assertMatch(
-        {ok, ?HTTP_202_ACCEPTED, _, #{<<"taskId">> := TaskId}},
+        {ok, ?HTTP_202_ACCEPTED, _, _},
         panel_test_rest:post(Node1, <<"/provider/workers">>, #{
             auth => root,
             json => #{<<"hosts">> => [Node2Hostname]}
