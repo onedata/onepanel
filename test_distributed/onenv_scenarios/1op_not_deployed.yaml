@@ -17,6 +17,7 @@ sources:
       - cluster-manager
       - op-panel
 
+users: false
 spaces: false
 
 onezone:
