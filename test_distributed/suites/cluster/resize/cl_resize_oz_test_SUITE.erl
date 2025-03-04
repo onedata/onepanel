@@ -29,12 +29,14 @@
 ]).
 
 -export([
-    add_node_test/1
+    add_node_test/1,
+    deploy_new_worker_test/1
 ]).
 
 % NOTE: below tests depend on ordering and must be run sequentially!!!
 all() -> [
-    add_node_test
+    add_node_test,
+    deploy_new_worker_test
 ].
 
 -define(ATTEMPTS, 10).
@@ -81,6 +83,57 @@ add_node_test(Config) ->
     ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, oz, worker)),
     ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, oz, manager)),
     ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, oz, database)).
+
+
+deploy_new_worker_test(Config) ->
+    [Node1, Node2] = ?config(oz_panel_nodes, Config),
+
+    Node1Details = cluster_management_test_utils:infer_node_details(Node1),
+    Node1Hostname = Node1Details#node_details.hostname,
+    Node2Hostname = dns_test_utils:get_hostname(Node2),
+
+    ?assertEqual(
+        #{Node1Hostname => <<"healthy">>},
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, oz, worker)
+    ),
+    [WorkerNode1] = get_worker_node(Node1),
+    ?assertEqual([WorkerNode1], get_worker_chash_nodes(WorkerNode1)),
+
+    {ok, _, _, #{<<"taskId">> := TaskId}} = ?assertMatch(
+        {ok, ?HTTP_202_ACCEPTED, _, _},
+        panel_test_rest:post(Node1, <<"/zone/workers">>, #{
+            auth => root,
+            json => #{<<"hosts">> => [Node2Hostname]}
+        })
+    ),
+    cluster_management_test_utils:await_task_status(Node1, TaskId, <<"ok">>),
+
+    ?assertEqual(
+        #{Node1Hostname => <<"healthy">>, Node2Hostname => <<"healthy">>},
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, oz, worker),
+        ?ATTEMPTS
+    ),
+
+    [WorkerNode2] = get_worker_node(Node1) -- [WorkerNode1],
+    ?assertEqual(
+        lists:usort([WorkerNode1, WorkerNode2]),
+        lists:usort(get_worker_chash_nodes(WorkerNode1))
+    ),
+    ?assertEqual(
+        panel_test_rpc:call(Node1, service_oz_worker, get_policies, []),
+        panel_test_rpc:call(Node2, service_oz_worker, get_policies, [])
+    ).
+
+
+%% @private
+get_worker_node(Node) ->
+    panel_test_rpc:call(Node, service_oz_worker, get_nodes, []).
+
+
+%% @private
+-spec get_worker_chash_nodes(node()) -> [node()].
+get_worker_chash_nodes(WorkerNode) ->
+    ozw_test_rpc:call(WorkerNode, consistent_hashing, get_all_nodes, []).
 
 
 %%%===================================================================
