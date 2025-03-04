@@ -122,7 +122,7 @@ get_user_privileges({rest, RestAuth}, OnezoneUserId) ->
             {ok, #{privileges := Privileges}} ->
                 ListOfAtoms = onepanel_utils:convert(Privileges, {seq, atom}),
                 {ok, ListOfAtoms, ?ONEZONE_AUTH_CACHE_CACHE_TTL};
-            ?ERROR_NOT_FOUND -> ?ERROR_USER_NOT_IN_CLUSTER;
+            ?ERROR_NOT_FOUND -> ?ERR_USER_NOT_IN_CLUSTER(?err_ctx());
             {error, _} = Error -> Error
         end
     end);
@@ -131,7 +131,7 @@ get_user_privileges({rpc, Auth}, OnezoneUserId) ->
     case oz_worker_rpc:cluster_get_eff_user_privileges(
         Auth, get_id(), OnezoneUserId
     ) of
-        ?ERROR_NOT_FOUND -> ?ERROR_USER_NOT_IN_CLUSTER;
+        ?ERROR_NOT_FOUND -> ?ERR_USER_NOT_IN_CLUSTER(?err_ctx());
         {error, _} = Error -> Error;
         {ok, Privileges} -> {ok, Privileges}
     end.
@@ -209,7 +209,7 @@ fetch_remote_provider_info({rest, RestAuth}, ProviderId) ->
         {ok, ?HTTP_403_FORBIDDEN, _, BodyJson} ->
             throw(errors:from_json(json_utils:decode(BodyJson)));
         {error, _} ->
-            throw(?ERROR_NO_CONNECTION_TO_ONEZONE)
+            throw(?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), service_oneprovider:get_oz_domain()))
     end.
 
 
@@ -275,7 +275,7 @@ zone_rest(Method, Auth, URNFormat, FormatArgs, Body) ->
                     {ok, onepanel_utils:convert(RespBody, {keys, atom})}
             end;
         {error, _} ->
-            ?ERROR_NO_CONNECTION_TO_ONEZONE
+            ?ERR_NO_CONNECTION_TO_ONEZONE(?err_ctx(), service_oneprovider:get_oz_domain())
     end.
 
 

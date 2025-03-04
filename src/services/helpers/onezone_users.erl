@@ -56,7 +56,7 @@ add_users(#{onezone_users := Users}) ->
     lists:foreach(fun(UserData) ->
         case add_user(UserData) of
             {ok, _Id} -> ok;
-            ?ERROR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"username">>) -> ok;
+            ?ERR_BAD_VALUE_IDENTIFIER_OCCUPIED(<<"username">>) -> ok;
             Error -> throw(Error)
         end
     end, Users).

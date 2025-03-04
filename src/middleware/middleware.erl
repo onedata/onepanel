@@ -49,9 +49,10 @@
 % Conditions used to describe when a request can be processed by the cluster.
 % - Specifying service name indicates that there must exist a node
 %   with the service deployed and the service must have status 'healthy'.
-% - 'all_healthy' means that all deployed service nodes must have status 'healthy',
-%   does not enforce presence of all services.
--type availability_level() :: all_healthy | service:name().
+% - 'all_healthy_ignoring_ones3' means that all deployed service nodes,
+%   except ones3, must have status 'healthy'. Does not enforce presence
+%   of all services.
+-type availability_level() :: all_healthy_ignoring_ones3 | service:name().
 
 -export_type([
     client/0,
@@ -129,7 +130,7 @@ handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
             ?error_stacktrace("Unexpected error in ~tp - ~tp:~tp", [
                 ?MODULE, Type, Reason
             ], Stacktrace),
-            ?ERROR_INTERNAL_SERVER_ERROR
+            ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)
     end.
 
 
@@ -189,7 +190,7 @@ ensure_availability(#req_ctx{plugin = Plugin, req = #onp_req{
     Requirements = Plugin:required_availability(Op, Asp, Scp),
     case lists:all(fun is_availability_satisfied/1, Requirements) of
         true -> ok;
-        false -> throw(?ERROR_SERVICE_UNAVAILABLE)
+        false -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
     end.
 
 
@@ -289,11 +290,11 @@ ensure_authorized(#req_ctx{
             case Client of
                 #client{role = guest} ->
                     % The client was not authenticated -> unauthorized
-                    throw(?ERROR_UNAUTHORIZED);
+                    throw(?ERR_UNAUTHORIZED(?err_ctx(), undefined));
                 #client{} ->
                     % The client was authenticated but cannot access the
                     % aspect -> forbidden
-                    throw(?ERROR_FORBIDDEN)
+                    throw(?ERR_FORBIDDEN(?err_ctx()))
             end
     end.
 
@@ -366,7 +367,7 @@ client_to_string(?USER(Id)) -> str_utils:format("user:~ts", [Id]).
 
 %% @private
 -spec is_availability_satisfied(availability_level()) -> boolean().
-is_availability_satisfied(all_healthy) ->
-    service:all_healthy();
+is_availability_satisfied(all_healthy_ignoring_ones3) ->
+    service:all_healthy_ignoring_ones3();
 is_availability_satisfied(Service) ->
     service:is_healthy(Service).

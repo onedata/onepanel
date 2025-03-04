@@ -22,11 +22,9 @@
 }).
 
 %% Errors for internal onepanel use. Do not have a REST translator
--define(ERR_AMBIGUOUS_HOSTS, {error, ambiguous_hosts}).
--define(ERR_ALREADY_EXISTS, {error, already_exists}).
--define(ERR_DOC_NOT_FOUND, {error, not_found}).
--define(ERR_PARSING_FAILURE(OffendingLine), {parsing_failure, OffendingLine}).
--define(ERR_UNKNOWN_TYPE(Value), {error, {unknown_type, Value}}).
+-define(ONP_ERR_ALREADY_EXISTS, {error, already_exists}).
+-define(ONP_ERR_DOC_NOT_FOUND, {error, not_found}).
+-define(ONP_ERR_UNKNOWN_TYPE(Value), {error, {unknown_type, Value}}).
 
 
 -endif.

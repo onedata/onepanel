@@ -99,7 +99,7 @@ async_update_cache(Service) ->
         try
             update_cache(Service)
         catch
-            throw:?ERROR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
+            throw:?ERR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
                 ?error("DNS check refresh failed: no connection to servers ~tps", [UsedServers]);
             Type:Error ->
                 % Catch all as a process failure with exception

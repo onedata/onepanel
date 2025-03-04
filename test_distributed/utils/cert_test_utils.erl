@@ -28,6 +28,7 @@
 
     get_cert_details/1,
     assert_cert_details/2,
+    assert_cert_details/3,
     assert_newly_issued_pebble_cert/1,
 
     update_lets_encrypt/2,
@@ -87,12 +88,22 @@ get_cert_details(EntitySelector) ->
 -spec assert_cert_details(oct_background:entity_selector(), json_utils:json_map()) ->
     json_utils:json_map().
 assert_cert_details(EntitySelector, ExpCertDetails) ->
+    assert_cert_details(EntitySelector, ExpCertDetails, 5).
+
+
+-spec assert_cert_details(
+    oct_background:entity_selector(),
+    json_utils:json_map(),
+    non_neg_integer()
+) ->
+    json_utils:json_map().
+assert_cert_details(EntitySelector, ExpCertDetails, Attempts) ->
     CheckedKeys = maps:keys(ExpCertDetails),
     GetCertDetailsFun = fun() ->
         Details = get_cert_details(EntitySelector),
         {maps:with(CheckedKeys, Details), Details}
     end,
-    {_, AllCertDetails} = ?assertMatch({ExpCertDetails, _}, GetCertDetailsFun()),
+    {_, AllCertDetails} = ?assertMatch({ExpCertDetails, _}, GetCertDetailsFun(), Attempts),
     AllCertDetails.
 
 

@@ -58,12 +58,12 @@ verify_rejects_when_passphrase_is_not_set() ->
 
 
 validation_rejects_empty() ->
-    ?assertMatch(?ERROR_BAD_VALUE_PASSWORD,
+    ?assertMatch(?ERR_BAD_VALUE_PASSWORD,
         emergency_passphrase:set(<<>>)).
 
 
 validation_rejects_short() ->
-    ?assertMatch(?ERROR_BAD_VALUE_PASSWORD,
+    ?assertMatch(?ERR_BAD_VALUE_PASSWORD,
         emergency_passphrase:set(<<"short">>)).
 
 

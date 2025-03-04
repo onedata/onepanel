@@ -67,7 +67,7 @@ is_emergency_passphrase_set() ->
     emergency_passphrase:is_set().
 
 
--spec set_emergency_passphrase(binary()) -> ok | ?ERROR_BAD_VALUE_PASSWORD.
+-spec set_emergency_passphrase(binary()) -> ok | od_error_bad_value_password:t().
 set_emergency_passphrase(NewPassphrase) ->
     emergency_passphrase:set(NewPassphrase).
 

@@ -136,7 +136,7 @@ check(Expected, Names, Type, Servers) ->
     end, Results),
 
     case WithoutErrors of
-        [] -> throw(?ERROR_DNS_SERVERS_UNREACHABLE(Servers));
+        [] -> throw(?ERR_DNS_SERVERS_UNREACHABLE(?err_ctx(), Servers));
         _ -> WithoutErrors
     end.
 

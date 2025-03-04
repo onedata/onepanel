@@ -191,7 +191,7 @@
         {cron_period, 1000}, % 1 second
 
         %% ===================================================================
-        %% Open Data
+        %% OAI-PMH (Public Data advertisement)
         %% ===================================================================
 
         %% Prefix to the OAI-PMH API - all paths must begin with it
@@ -286,8 +286,12 @@
         {couchbase_password, "password"},
         {couchbase_admin_port, 8091},
         {couchbase_port, 11211},
+
+        % Default quotas are mentioned in swagger and as such any changes to them
+        % should be reflected there
         {couchbase_server_quota, 4096},
         {couchbase_bucket_quota, 4096},
+
         {couchbase_open_files_limit, 65535},
         {couchbase_buckets, [
             {oneprovider, ["onedata"]},
@@ -347,7 +351,8 @@
 
         {ones3_http_port, 4443},
 
-        {ones3_verbose_log_level, 1},
+        {ones3_log_dir, "{{platform_log_dir}}/ones3/"},
+        {ones3_log_level, 1},
 
         % Path to OneS3 config file
         % NOTE: this value should mirror the one from /etc/init.d/ones3 script.

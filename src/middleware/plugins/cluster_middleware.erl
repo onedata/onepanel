@@ -58,7 +58,7 @@ required_availability(Op, Aspect, private) when
 ->
     case onepanel_env:get_cluster_type() of
         ?ONEPROVIDER -> []; % fetches from ozw, local services may be down
-        ?ONEZONE -> [?SERVICE_OZW, all_healthy]
+        ?ONEZONE -> [?SERVICE_OZW, all_healthy_ignoring_ones3]
     end.
 
 

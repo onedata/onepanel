@@ -49,7 +49,7 @@ all() -> [
         guest
     ],
     unauthorized = [
-        {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, TargetId))}
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, TargetId))}
         | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
     ]
 }).
@@ -63,7 +63,7 @@ all() -> [
         peer
     ],
     unauthorized = [
-        {user, ?ERROR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, TargetId))},
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, TargetId))},
         guest
         | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
     ]

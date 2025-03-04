@@ -67,7 +67,7 @@ get_fields() ->
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Model :: model(), Record :: model_behaviour:record()) ->
-    {ok, key()} | ?ERR_ALREADY_EXISTS | no_return().
+    {ok, key()} | ?ONP_ERR_ALREADY_EXISTS | no_return().
 create(Model, Record) ->
     transaction(fun() ->
         Table = get_table_name(Model),
@@ -78,7 +78,7 @@ create(Model, Record) ->
                 mnesia:write(Table, Doc, write),
                 {ok, Key};
             [_ | _] ->
-                ?ERR_ALREADY_EXISTS
+                ?ONP_ERR_ALREADY_EXISTS
         end
     end).
 
@@ -101,14 +101,14 @@ save(Model, Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Model :: model(), Key :: key(), Diff :: model_behaviour:diff()) ->
-    {ok, model_behaviour:record()} | ?ERR_DOC_NOT_FOUND.
+    {ok, model_behaviour:record()} | ?ONP_ERR_DOC_NOT_FOUND.
 update(Model, Key, Diff) ->
     % @TODO VFS-5272 Handle key change by the diff function
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
             [] ->
-                ?ERR_DOC_NOT_FOUND;
+                ?ONP_ERR_DOC_NOT_FOUND;
             [Doc] ->
                 #document{value = NewRecord} = NewDoc = apply_diff(Doc, Diff),
                 ok = mnesia:write(Table, NewDoc, write),
@@ -122,12 +122,12 @@ update(Model, Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Model :: model(), Key :: key()) ->
-    {ok, Record :: model_behaviour:record()} | ?ERR_DOC_NOT_FOUND | no_return().
+    {ok, Record :: model_behaviour:record()} | ?ONP_ERR_DOC_NOT_FOUND | no_return().
 get(Model, Key) ->
     transaction(fun() ->
         Table = get_table_name(Model),
         case mnesia:read(Table, Key) of
-            [] -> ?ERR_DOC_NOT_FOUND;
+            [] -> ?ONP_ERR_DOC_NOT_FOUND;
             [#document{key = Key, value = Record}] -> {ok, Record}
         end
     end).

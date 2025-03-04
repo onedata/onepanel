@@ -540,7 +540,7 @@ add_onedata_user_to_credentials_mapping(Ctx = #{id := StorageId, storageUser := 
                 StorageUser2 = onepanel_utils:convert_recursive(StorageUser1, {keys, binary}),
                 op_worker_rpc:luma_storage_users_store(StorageId, OnedataUser2, StorageUser2);
             _OtherType ->
-                ?ERROR_BAD_VALUE_NOT_ALLOWED(type, [StorageType])
+                ?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), type, [StorageType])
         end
     end, Ctx).
 
@@ -656,9 +656,9 @@ supports_letsencrypt_challenge(Challenge) when
     Challenge == http;
     Challenge == dns
 ->
-    ?MODULE:get_hosts() /= [] orelse throw(?ERROR_NO_SERVICE_NODES(name())),
-    service:is_healthy(name()) orelse throw(?ERROR_SERVICE_UNAVAILABLE),
-    service_oneprovider:is_registered() orelse throw(?ERROR_UNREGISTERED_ONEPROVIDER),
+    ?MODULE:get_hosts() /= [] orelse throw(?ERR_NO_SERVICE_NODES(?err_ctx(), name())),
+    service:is_healthy(name()) orelse throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx())),
+    service_oneprovider:is_registered() orelse throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx())),
     case Challenge of
         http -> true;
         dns ->
