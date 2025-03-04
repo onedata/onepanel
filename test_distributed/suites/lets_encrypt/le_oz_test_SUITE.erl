@@ -40,10 +40,11 @@
     expired_certificate_should_be_replaced_with_http_challenge_test/1,
     expired_certificate_should_be_replaced_with_dns_challenge_test/1,
 
-    automatic_certification_renewal_test/1,
     disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test/1,
     failed_certification_attempt_leaves_lets_encrypt_disabled_test/1,
-    failed_certification_attempt_leaves_lets_encrypt_enabled_test/1
+    failed_certification_attempt_leaves_lets_encrypt_enabled_test/1,
+
+    automatic_certification_renewal_test/1
 ]).
 
 groups() -> [
@@ -68,10 +69,13 @@ all() -> [
     {group, http_challenge},
     {group, dns_challenge},
 
-    automatic_certification_renewal_test,
     disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test,
     failed_certification_attempt_leaves_lets_encrypt_disabled_test,
-    failed_certification_attempt_leaves_lets_encrypt_enabled_test
+    failed_certification_attempt_leaves_lets_encrypt_enabled_test,
+
+    % Below test messes with recurring cert checks to cause quick regeneration.
+    % As such it is best to run it as last
+    automatic_certification_renewal_test
 ].
 
 % Increase certification attempts as pebble may fail several times
@@ -125,10 +129,6 @@ expired_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
     le_test_base:expired_certificate_should_be_replaced_test_base(build_test_spec(Config)).
 
 
-automatic_certification_renewal_test(Config) ->
-    le_test_base:automatic_certification_renewal_test_base(build_test_spec(Config)).
-
-
 disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test(Config) ->
     le_test_base:disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test_base(
         build_test_spec(Config)
@@ -141,6 +141,10 @@ failed_certification_attempt_leaves_lets_encrypt_disabled_test(Config) ->
 
 failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
     le_test_base:failed_certification_attempt_leaves_lets_encrypt_intact_test_base(build_test_spec(Config)).
+
+
+automatic_certification_renewal_test(Config) ->
+    le_test_base:automatic_certification_renewal_test_base(build_test_spec(Config)).
 
 
 %%%===================================================================
