@@ -237,6 +237,11 @@ init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
         onenv_scenario = "1op_2nodes_1worker_1ones3",
+        envs = [
+            {op_panel, onepanel, [
+                {ones3_log_level, 3}
+            ]}
+        ],
         posthook = fun(NewConfig) ->
             dns_test_utils:update_zone_subdomain_delegation(true),
             NewConfig

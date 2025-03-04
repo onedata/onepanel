@@ -157,8 +157,11 @@ init_per_suite(Config) ->
         onenv_scenario = "1op_2nodes_not_deployed",
         envs = [
             {op_panel, ctool, [
-                % Allow Onezone panel to connect with Pebble server
+                % Allow Oneprovider panel to connect with Pebble server
                 {force_insecure_connections, true}
+            ]},
+            {op_panel, onepanel, [
+                {ones3_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->

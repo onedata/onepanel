@@ -142,8 +142,11 @@ init_per_suite(Config) ->
                 {include_s3_subdomain_in_test_cert, false}
             ]},
             {op_panel, ctool, [
-                % Allow Onezone panel to connect with Pebble server
+                % Allow Oneprovider panel to connect with Pebble server
                 {force_insecure_connections, true}
+            ]},
+            {op_panel, onepanel, [
+                {ones3_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->
