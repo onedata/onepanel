@@ -84,8 +84,6 @@ service_oneprovider_unregister_register_test(Config) ->
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
     Ceph = kv_utils:get([storages, ceph, someCeph], Config),
-    % @TODO VFS-8296 swift helper is currently not tested
-    % Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
@@ -102,20 +100,6 @@ service_op_worker_add_storage_test(Config) ->
                 qosParameters => #{},
                 lumaFeed => <<"auto">>
             },
-            % @TODO VFS-8296 swift helper is currently not tested
-%%            <<"someSwift">> => #{
-%%                type => <<"swift">>,
-%%                username => onepanel_utils:get_converted(user_name, Swift, binary),
-%%                password => onepanel_utils:get_converted(password, Swift, binary),
-%%                authUrl => onepanel_utils:join(["http://",
-%%                    onepanel_utils:get_converted(host_name, Swift, binary), ":",
-%%                    onepanel_utils:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
-%%                tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
-%%                containerName => <<"swift">>,
-%%                storagePathType => <<"flat">>,
-%%                qosParameters => #{},
-%%                lumaFeed => <<"auto">>
-%%            },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
                 volume => <<"data">>,
@@ -158,12 +142,6 @@ service_op_worker_update_storage_test(Config) ->
             monitorHostname => <<"newHostName">>,
             username => <<"changedCephAdmin">>
         },
-        % @TODO VFS-8296 swift helper is currently not tested
-%%        <<"someSwift">> => #{
-%%            type => <<"swift">>,
-%%            tenantName => <<"changedTenant">>,
-%%            containerName => <<"swift2">>
-%%        },
         <<"someGluster">> => #{
             type => <<"glusterfs">>,
             transport => <<"http">>,
