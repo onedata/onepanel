@@ -176,20 +176,12 @@ set(Keys, Value) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value(), app_name()) -> ok.
+set(Keys, Value, AppName) when not is_list(Keys) ->
+    set([Keys], Value, AppName);
 set(Keys, Value, AppName) ->
-    ?info("Keys: ~tp, Value: ~tp", [Keys, Value]),
-    DiskUsageReletedKeys = [
-        db_disk_usage_check_interval_seconds,
-        db_disk_usage_circuit_breaker_activation_threshold,
-        db_disk_usage_warning_threshold
-    ],
-    lists:foreach(fun({K, V}) ->
-        case lists:member(K, DiskUsageReletedKeys) of
-            true -> ?info("Key: ~tp, Value: ~tp", [K, V]);
-            false -> ok
-        end,
-        application:set_env(AppName, K, V)
-    end, kv_utils:put(Keys, Value, application:get_all_env(AppName))).
+    lists:foreach(fun(K) ->
+        application:set_env(AppName, K, Value)
+    end, Keys).
 
 
 %%--------------------------------------------------------------------
@@ -212,16 +204,13 @@ set(Nodes, Keys, Value, AppName) ->
     app_name()) -> ok | no_return().
 set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
     set_remote([Node], Keys, Value, AppName);
+set_remote(Node, Keys, Value, AppName) when not is_list(Keys) ->
+    set_remote(Node, [Keys], Value, AppName);
 set_remote(Nodes, Keys, Value, AppName) ->
     lists:map(fun(Node) ->
-        NewEnv = case rpc:call(Node, application, get_all_env, [AppName]) of
-            {badrpc, _} = Error -> error(Error);
-            Result -> kv_utils:put(Keys, Value, Result)
-        end,
-
-        lists:foreach(fun({K, V}) ->
-            ok = rpc:call(Node, application, set_env, [AppName, K, V])
-        end, NewEnv)
+        lists:foreach(fun(K) ->
+            ok = rpc:call(Node, application, set_env, [AppName, K, Value])
+        end, Keys)
     end, Nodes),
     ok.
 
