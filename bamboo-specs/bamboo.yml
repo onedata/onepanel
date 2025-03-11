@@ -76,7 +76,8 @@ stages:
         - cl_resize_op
         # TODO VFS-12699 research hanging deploy new oz worker test
 #        - cl_resize_oz
-        - cl_services
+        - cl_services_op
+        - cl_services_oz
         - db_disk_usage_monitor
         - dns_op
         - dns_oz
@@ -478,12 +479,19 @@ cl_resize_op:
 #    - <<: *ct_logs
 #      name: ct_logs_cl_resize_oz.tar.gz
 
-cl_services:
+cl_services_op:
   <<: *ct-onenv-job
-  key: CLUSTERSERVICES
+  key: CLUSTERSERVICESOP
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cl_services.tar.gz
+      name: ct_logs_cl_services_op.tar.gz
+
+cl_services_oz:
+  <<: *ct-onenv-job
+  key: CLUSTERSERVICESOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_services_oz.tar.gz
 
 db_disk_usage_monitor:
   <<: *ct-onenv-job
@@ -689,7 +697,8 @@ Coverage report:
     - artifact: ct_logs_cl_resize_op.tar.gz
     # TODO VFS-12699 research hanging deploy new oz worker test
     #    - artifact: ct_logs_cl_resize_oz.tar.gz
-    - artifact: ct_logs_cl_services.tar.gz
+    - artifact: ct_logs_cl_services_op.tar.gz
+    - artifact: ct_logs_cl_services_oz.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz
     - artifact: ct_logs_dns_oz.tar.gz

@@ -28,8 +28,7 @@
     service_oneprovider_unregister_register_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_update_storage_test/1,
-    service_oz_worker_add_node_test/1,
-    services_stop_start_test/1
+    service_oz_worker_add_node_test/1
 ]).
 
 -define(NON_ADMIN_USERNAME, <<"joe">>).
@@ -42,8 +41,6 @@ all() ->
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
         service_oz_worker_add_node_test
-        %% TODO VFS-4056
-        %% services_stop_start_test
     ]).
 
 %%%===================================================================
@@ -173,42 +170,6 @@ service_oz_worker_add_node_test(Config) ->
         rpc:call(NewNode, service_oz_worker, get_policies, [])).
 
 
-services_stop_start_test(Config) ->
-    ActionsWithResults = [
-        {stop, ok}, {status, stopped}, {start, ok}, {status, unhealthy}
-    ],
-
-    lists:foreach(fun({Nodes, MainService, Services}) ->
-        lists:foreach(fun(Service) ->
-            SModule = service:get_module(Service),
-
-            lists:foreach(fun(Node) ->
-                lists:foreach(fun({Action, Result}) ->
-                    Results = onepanel_test_utils:service_host_action(Node, Service, Action),
-                    onepanel_test_utils:assert_service_action_result(SModule, Action, [Node], Result, Results)
-                end, ActionsWithResults)
-            end, Nodes),
-
-            lists:foreach(fun({Action, Result}) ->
-                Results = onepanel_test_utils:service_action(hd(Nodes), Service, Action),
-                onepanel_test_utils:assert_service_action_result(SModule, Action, Nodes, Result, Results)
-            end, ActionsWithResults)
-        end, Services),
-
-        lists:foreach(fun({Action, Result}) ->
-            Results = onepanel_test_utils:service_action(hd(Nodes), MainService, Action),
-            lists:foreach(fun(Service) ->
-                SModule = service:get_module(Service),
-                onepanel_test_utils:assert_service_action_result(SModule, Action, Nodes, Result, Results)
-            end, Services)
-        end, ActionsWithResults)
-    end, [
-        {?config(onezone_nodes, Config), ?SERVICE_OZ,
-            [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW]},
-        {?config(oneprovider_nodes, Config), ?SERVICE_OP,
-            [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OPW]}
-    ]).
-
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -236,11 +197,6 @@ init_per_suite(Config) ->
         image_test_utils:deploy_oneprovider(?PASSPHRASE, Storages, NewConfig3)
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
-
-
-init_per_testcase(services_stop_start_test, Config) ->
-    ct:timetrap({minutes, 60}),
-    init_per_testcase(default, Config);
 
 init_per_testcase(_Case, Config) ->
     onepanel_test_utils:clear_msg_inbox(),

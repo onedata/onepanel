@@ -29,15 +29,17 @@
     get_ones3_port/1,
 
     get_ones3_status_cluster_wide/1,
-    get_ones3_status_on_host/2,
 
     get_service_status_cluster_wide/3,
     get_service_status_on_host/4,
 
     toggle_ones3_cluster_wide/2,
     try_toggle_ones3_cluster_wide/2,
-
     toggle_ones3_on_host/3,
+
+    toggle_service_cluster_wide/4,
+    try_toggle_service_cluster_wide/4,
+    toggle_service_on_host/5,
 
     await_task_status/3,
     await_task_status/4
@@ -97,11 +99,6 @@ get_ones3_status_cluster_wide(PanelNode) ->
     get_service_status_cluster_wide(PanelNode, op, ones3).
 
 
--spec get_ones3_status_on_host(node(), binary()) -> binary().
-get_ones3_status_on_host(PanelNode, Hostname) ->
-    get_service_status_on_host(PanelNode, op, ones3, Hostname).
-
-
 -spec get_service_status_cluster_wide(node(), product(), service()) -> map().
 get_service_status_cluster_wide(PanelNode, Product, Service) ->
     {ok, _, _, Resp} = ?assertMatch(
@@ -148,6 +145,47 @@ toggle_ones3_on_host(PanelNode, Hostname, Action) ->
     end,
     Qs = <<"?started=", Started/binary>>,
     Url = <<"/provider/ones3/", Hostname/binary, Qs/binary>>,
+
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:patch(PanelNode, Url, #{auth => root})
+    ),
+    ok.
+
+
+-spec toggle_service_cluster_wide(node(), product(), service(), stop | start) -> ok.
+toggle_service_cluster_wide(PanelNode, Product, Service, Action) ->
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        try_toggle_service_cluster_wide(PanelNode, Product, Service, Action)
+    ),
+    ok.
+
+
+-spec try_toggle_service_cluster_wide(node(), product(), service(), stop | start) ->
+    panel_test_rest:response().
+try_toggle_service_cluster_wide(PanelNode, Product, Service, Action) ->
+    Started = case Action of
+        stop -> <<"false">>;
+        start -> <<"true">>
+    end,
+    Url = str_utils:format_bin("~ts?started=~ts", [service_rest_path(Product, Service), Started]),
+
+    panel_test_rest:patch(PanelNode, Url, #{auth => root}).
+
+
+-spec toggle_service_on_host(node(), product(), service(), binary(), stop | start) ->
+    ok.
+toggle_service_on_host(PanelNode, Product, Service, Hostname, Action) ->
+    Started = case Action of
+        stop -> <<"false">>;
+        start -> <<"true">>
+    end,
+    Url = str_utils:format_bin("~ts/~ts?started=~ts", [
+        service_rest_path(Product, Service),
+        Hostname,
+        Started
+    ]),
 
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
