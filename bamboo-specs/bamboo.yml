@@ -291,7 +291,7 @@ api_common_emergency_passphrase: &ct-onenv-job
     - script:
         interpreter: BINSH_OR_CMDEXE
         scripts:
-          - ./ct_onenv.py --suite db_disk_usage_monitor --path-to-sources ..
+          - ./ct_onenv.py --suite ${bamboo.shortJobName} --path-to-sources ..
         description: Run CT onenv tests
         working-dir: onepanel
   final-tasks: &final-tasks
