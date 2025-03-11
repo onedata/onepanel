@@ -12,6 +12,7 @@
 -module(cluster_management_test_utils).
 -author("Bartosz Walkowicz").
 
+-include("api_test_runner.hrl").
 -include("names.hrl").
 -include("cluster_deployment_test_utils.hrl").
 -include_lib("ctool/include/http/codes.hrl").
@@ -45,7 +46,6 @@
     await_task_status/4
 ]).
 
--type product() :: oz | op.
 -type service() :: worker | manager | database | ones3.
 -type node_details() :: #node_details{}.
 
@@ -84,7 +84,7 @@ get_all_hosts(PanelNode) ->
     Resp.
 
 
--spec get_service_hosts(node(), product(), service()) -> [binary()].
+-spec get_service_hosts(node(), onedata:product(), service()) -> [binary()].
 get_service_hosts(PanelNode, Product, Service) ->
     maps:keys(get_service_status_cluster_wide(PanelNode, Product, Service)).
 
@@ -96,10 +96,10 @@ get_ones3_port(PanelNode) ->
 
 -spec get_ones3_status_cluster_wide(node()) -> map().
 get_ones3_status_cluster_wide(PanelNode) ->
-    get_service_status_cluster_wide(PanelNode, op, ones3).
+    get_service_status_cluster_wide(PanelNode, ?ONEPROVIDER, ones3).
 
 
--spec get_service_status_cluster_wide(node(), product(), service()) -> map().
+-spec get_service_status_cluster_wide(node(), onedata:product(), service()) -> map().
 get_service_status_cluster_wide(PanelNode, Product, Service) ->
     {ok, _, _, Resp} = ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
@@ -108,7 +108,7 @@ get_service_status_cluster_wide(PanelNode, Product, Service) ->
     Resp.
 
 
--spec get_service_status_on_host(node(), product(), service(), binary()) -> binary().
+-spec get_service_status_on_host(node(), onedata:product(), service(), binary()) -> binary().
 get_service_status_on_host(PanelNode, Product, Service, Hostname) ->
     Path = str_utils:format_bin("~ts/~ts", [service_rest_path(Product, Service), Hostname]),
 
@@ -153,7 +153,7 @@ toggle_ones3_on_host(PanelNode, Hostname, Action) ->
     ok.
 
 
--spec toggle_service_cluster_wide(node(), product(), service(), stop | start) -> ok.
+-spec toggle_service_cluster_wide(node(), onedata:product(), service(), stop | start) -> ok.
 toggle_service_cluster_wide(PanelNode, Product, Service, Action) ->
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
@@ -162,7 +162,7 @@ toggle_service_cluster_wide(PanelNode, Product, Service, Action) ->
     ok.
 
 
--spec try_toggle_service_cluster_wide(node(), product(), service(), stop | start) ->
+-spec try_toggle_service_cluster_wide(node(), onedata:product(), service(), stop | start) ->
     panel_test_rest:response().
 try_toggle_service_cluster_wide(PanelNode, Product, Service, Action) ->
     Started = case Action of
@@ -174,7 +174,7 @@ try_toggle_service_cluster_wide(PanelNode, Product, Service, Action) ->
     panel_test_rest:patch(PanelNode, Url, #{auth => root}).
 
 
--spec toggle_service_on_host(node(), product(), service(), binary(), stop | start) ->
+-spec toggle_service_on_host(node(), onedata:product(), service(), binary(), stop | start) ->
     ok.
 toggle_service_on_host(PanelNode, Product, Service, Hostname, Action) ->
     Started = case Action of
@@ -215,11 +215,11 @@ await_task_status(Node, TaskId, ExpStatus, Attempts) ->
 
 
 %% @private
--spec service_rest_path(product(), service()) -> binary().
-service_rest_path(oz, worker) -> <<"/zone/workers">>;
-service_rest_path(op, worker) -> <<"/provider/workers">>;
-service_rest_path(oz, manager) -> <<"/zone/managers">>;
-service_rest_path(op, manager) -> <<"/provider/managers">>;
-service_rest_path(oz, database) -> <<"/zone/databases">>;
-service_rest_path(op, database) -> <<"/provider/databases">>;
-service_rest_path(op, ones3) -> <<"/provider/ones3">>.
+-spec service_rest_path(onedata:product(), service()) -> binary().
+service_rest_path(?ONEZONE, worker) -> <<"/zone/workers">>;
+service_rest_path(?ONEPROVIDER, worker) -> <<"/provider/workers">>;
+service_rest_path(?ONEZONE, manager) -> <<"/zone/managers">>;
+service_rest_path(?ONEPROVIDER, manager) -> <<"/provider/managers">>;
+service_rest_path(?ONEZONE, database) -> <<"/zone/databases">>;
+service_rest_path(?ONEPROVIDER, database) -> <<"/provider/databases">>;
+service_rest_path(?ONEPROVIDER, ones3) -> <<"/provider/ones3">>.

@@ -81,9 +81,9 @@ add_node_test(Config) ->
         lists:usort([Node1Hostname, Node2Hostname]),
         lists:usort(cluster_management_test_utils:get_all_hosts(Node1))
     ),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, oz, worker)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, oz, manager)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, oz, database)).
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEZONE, worker)),
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEZONE, manager)),
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEZONE, database)).
 
 
 deploy_new_worker_test(Config) ->
@@ -95,7 +95,7 @@ deploy_new_worker_test(Config) ->
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>},
-        cluster_management_test_utils:get_service_status_cluster_wide(Node1, oz, worker)
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, ?ONEZONE, worker)
     ),
     [WorkerNode1] = get_worker_node(Node1),
     ?assertEqual([WorkerNode1], get_worker_chash_nodes(WorkerNode1)),
@@ -111,7 +111,7 @@ deploy_new_worker_test(Config) ->
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>, Node2Hostname => <<"healthy">>},
-        cluster_management_test_utils:get_service_status_cluster_wide(Node1, oz, worker),
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, ?ONEZONE, worker),
         ?ATTEMPTS
     ),
 

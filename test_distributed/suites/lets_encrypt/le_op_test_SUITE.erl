@@ -167,7 +167,7 @@ automatic_certification_renewal_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, le_test_base, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_1worker_1ones3",
+        onenv_scenario = "1op_2nodes_1worker_1ones3_pebble",
         envs = [
             {op_panel, ctool, [
                 % Allow Oneprovider panel to connect with Pebble server

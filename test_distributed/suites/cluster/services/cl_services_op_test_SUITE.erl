@@ -73,12 +73,12 @@ op_ones3_stop_start_test(Config) ->
 %% @private
 service_stop_start_test_base(Service, Config) ->
     PanelNodes = ?config(op_panel_nodes, Config),
-    cl_services_test_base:service_stop_start_test_base(op, Service, PanelNodes).
+    cl_services_test_base:service_stop_start_test_base(?ONEPROVIDER, Service, PanelNodes).
 
 
 op_stop_restart_test(Config) ->
     PanelNodes = ?config(op_panel_nodes, Config),
-    cl_services_test_base:main_service_stop_restart_test_base(op, ?ALL_SERVICES, PanelNodes).
+    cl_services_test_base:main_service_stop_restart_test_base(?ONEPROVIDER, ?ALL_SERVICES, PanelNodes).
 
 
 %%%===================================================================

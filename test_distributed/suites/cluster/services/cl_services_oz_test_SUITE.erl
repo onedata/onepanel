@@ -67,12 +67,12 @@ oz_database_stop_start_test(Config) ->
 %% @private
 service_stop_start_test_base(Service, Config) ->
     PanelNodes = ?config(oz_panel_nodes, Config),
-    cl_services_test_base:service_stop_start_test_base(oz, Service, PanelNodes).
+    cl_services_test_base:service_stop_start_test_base(?ONEZONE, Service, PanelNodes).
 
 
 oz_stop_restart_test(Config) ->
     PanelNodes = ?config(oz_panel_nodes, Config),
-    cl_services_test_base:main_service_stop_restart_test_base(oz, ?ALL_SERVICES, PanelNodes).
+    cl_services_test_base:main_service_stop_restart_test_base(?ONEZONE, ?ALL_SERVICES, PanelNodes).
 
 
 %%%===================================================================

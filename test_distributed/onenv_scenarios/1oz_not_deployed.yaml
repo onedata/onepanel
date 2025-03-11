@@ -16,3 +16,6 @@ spaces: false
 
 onezone:
   batchConfig: false
+
+  token-dispenser:
+    enabled: false

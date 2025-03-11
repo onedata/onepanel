@@ -21,17 +21,5 @@ spaces: false
 onezone:
   batchConfig: false
 
-  pebble:
-    enabled: true
-
-    pebble:
-      image:
-        ## repository ref: https://hub.docker.com/r/letsencrypt/pebble
-        repository: docker.onedata.org/pebble
-        tag: "v2" # default is the chart's appVersion, this is an override
-      env:
-        - name:  DEV_PEBBLE_COREDNS_SERVICE_HOST
-          value: "dev-onezone"
-
-    corefileSegment: |-
-      forward dev-onezone.{$PEBBLE_NAMESPACE}.svc.cluster.local dev-onezone.{$PEBBLE_NAMESPACE}.svc.cluster.local
+  token-dispenser:
+    enabled: false

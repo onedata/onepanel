@@ -30,7 +30,7 @@
 
 
 -spec service_stop_start_test_base(
-    cluster_management_test_utils:product(),
+    onedata:product(),
     cluster_management_test_utils:service(),
     [node()]
 ) ->
@@ -70,15 +70,15 @@ service_stop_start_test_base(Product, Service, [PanelNode1, PanelNode2]) ->
 
 
 -spec main_service_stop_restart_test_base(
-    cluster_management_test_utils:product(),
+    onedata:product(),
     [cluster_management_test_utils:service()],
     [node()]
 ) ->
     ok.
 main_service_stop_restart_test_base(Product, Services, [PanelNode1, PanelNode2]) ->
     MainService = case Product of
-        op -> ?SERVICE_OP;
-        oz -> ?SERVICE_OZ
+        ?ONEPROVIDER -> ?SERVICE_OP;
+        ?ONEZONE -> ?SERVICE_OZ
     end,
     Host1 = dns_test_utils:get_hostname(PanelNode1),
     Host2 = dns_test_utils:get_hostname(PanelNode2),

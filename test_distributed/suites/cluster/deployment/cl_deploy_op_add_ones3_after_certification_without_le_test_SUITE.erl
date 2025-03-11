@@ -135,7 +135,7 @@ deploy_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_not_deployed",
+        onenv_scenario = "1op_2nodes_not_deployed_pebble",
         envs = [
             {op_panel, onepanel, [
                 % Do not include s3 subdomain in generated test cert

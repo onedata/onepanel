@@ -18,10 +18,14 @@ sources:
       - op-panel
 
 users: false
+
 spaces: false
 
 onezone:
   batchConfig: false
+
+  token-dispenser:
+    enabled: false
 
 oneprovider-1:
   batchConfig: false

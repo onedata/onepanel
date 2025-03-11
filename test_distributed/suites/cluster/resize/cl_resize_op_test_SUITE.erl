@@ -83,10 +83,10 @@ add_node_test(Config) ->
         lists:usort([Node1Hostname, Node2Hostname]),
         lists:usort(cluster_management_test_utils:get_all_hosts(Node1))
     ),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, op, worker)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, op, manager)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, op, database)),
-    ?assertEqual([], cluster_management_test_utils:get_service_hosts(Node1, op, ones3)).
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, worker)),
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, manager)),
+    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, database)),
+    ?assertEqual([], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, ones3)).
 
 
 deploy_new_worker_test(Config) ->
@@ -103,7 +103,7 @@ deploy_new_worker_test(Config) ->
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>},
-        cluster_management_test_utils:get_service_status_cluster_wide(Node1, op, worker)
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, ?ONEPROVIDER, worker)
     ),
     {ok, CurrentFileContents} = GetTokenFileContentFun(Node1),
 
@@ -121,7 +121,7 @@ deploy_new_worker_test(Config) ->
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>, Node2Hostname => <<"healthy">>},
-        cluster_management_test_utils:get_service_status_cluster_wide(Node1, op, worker),
+        cluster_management_test_utils:get_service_status_cluster_wide(Node1, ?ONEPROVIDER, worker),
         ?ATTEMPTS
     ),
     ?assertEqual({ok, CurrentFileContents}, GetTokenFileContentFun(Node2)),
@@ -147,7 +147,7 @@ get_worker_chash_nodes(WorkerNode) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_not_deployed",
+        onenv_scenario = "1op_2nodes_not_deployed_pebble",
         envs = [
             {op_panel, ctool, [
                 % Allow Onezone panel to connect with Pebble server

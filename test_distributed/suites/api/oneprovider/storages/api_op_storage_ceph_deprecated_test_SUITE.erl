@@ -10,7 +10,7 @@
 %%% API (REST).
 %%% NOTE: it is no longer possible to create such storage via REST BUT some
 %%% may still have it (from older versions of the system) In such case it is
-%%% till possible to e.g update such storage.
+%%% still possible to e.g update such storage.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_op_storage_ceph_deprecated_test_SUITE).

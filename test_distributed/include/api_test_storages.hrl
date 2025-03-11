@@ -17,21 +17,21 @@
 -include("api_test_runner.hrl").
 
 -record(add_storage_test_spec, {
-    storage_type = undefined :: api_oneprovider_storages_test_base:storage_type(),
-    args_correctness = undefined :: api_oneprovider_storages_test_base:args_correctness(),
+    storage_type = undefined :: api_op_storages_test_base:storage_type(),
+    args_correctness = undefined :: api_op_storages_test_base:args_correctness(),
 
-    data_spec_fun :: api_oneprovider_storages_test_base:data_spec_builder(),
-    prepare_args_fun :: api_oneprovider_storages_test_base:prepare_args_fun_builder(),
-    data_spec_random_coverage = 100 :: api_oneprovider_storages_test_base:data_spec_random_coverage()
+    data_spec_fun :: api_op_storages_test_base:data_spec_builder(),
+    prepare_args_fun :: api_op_storages_test_base:prepare_args_fun_builder(),
+    data_spec_random_coverage = 100 :: api_op_storages_test_base:data_spec_random_coverage()
 }).
 
 -record(modify_storage_test_spec, {
-    storage_type = undefined :: api_oneprovider_storages_test_base:storage_type(),
-    args_correctness = undefined :: api_oneprovider_storages_test_base:args_correctness(),
+    storage_type = undefined :: api_op_storages_test_base:storage_type(),
+    args_correctness = undefined :: api_op_storages_test_base:args_correctness(),
 
-    build_data_spec_fun :: api_oneprovider_storages_test_base:data_spec_builder(),
-    build_setup_fun :: api_oneprovider_storages_test_base:setup_fun_builder(),
-    build_prepare_args_fun :: api_oneprovider_storages_test_base:prepare_args_fun_builder(),
+    build_data_spec_fun :: api_op_storages_test_base:data_spec_builder(),
+    build_setup_fun :: api_op_storages_test_base:setup_fun_builder(),
+    build_prepare_args_fun :: api_op_storages_test_base:prepare_args_fun_builder(),
 
     map_storage_description_to_exp_rest_response_fun = fun(Desc) -> Desc end :: fun((json_utils:json_map()) -> json_utils:json_map())
 }).
