@@ -176,12 +176,13 @@ set(Keys, Value) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec set(Keys :: keys(), Value :: value(), app_name()) -> ok.
-set(Keys, Value, AppName) when not is_list(Keys) ->
-    set([Keys], Value, AppName);
-set(Keys, Value, AppName) ->
-    lists:foreach(fun(K) ->
-        application:set_env(AppName, K, Value)
-    end, Keys).
+set(Key, Value, AppName) when is_atom(Key) ->
+    application:set_env(AppName, Key, Value);
+set([Key], Value, AppName) ->
+    set(Key, Value, AppName);
+set([MainKey | NestedPath], NestedValue, AppName) ->
+    MainValue = kv_utils:put(NestedPath, NestedValue, application:get_env(AppName, MainKey, [])),
+    application:set_env(AppName, MainKey, MainValue).
 
 
 %%--------------------------------------------------------------------
@@ -204,15 +205,20 @@ set(Nodes, Keys, Value, AppName) ->
     app_name()) -> ok | no_return().
 set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
     set_remote([Node], Keys, Value, AppName);
-set_remote(Node, Keys, Value, AppName) when not is_list(Keys) ->
-    set_remote(Node, [Keys], Value, AppName);
-set_remote(Nodes, Keys, Value, AppName) ->
-    lists:map(fun(Node) ->
-        lists:foreach(fun(K) ->
-            ok = rpc:call(Node, application, set_env, [AppName, K, Value])
-        end, Keys)
-    end, Nodes),
-    ok.
+set_remote(Nodes, Key, Value, AppName) when is_atom(Key) ->
+    lists:foreach(fun(Node) ->
+        ok = rpc:call(Node, application, set_env, [AppName, Key, Value])
+    end, Nodes);
+set_remote(Nodes, [Key], Value, AppName) ->
+    set_remote(Nodes, Key, Value, AppName);
+set_remote(Nodes, [MainKey | NestedPath], NestedValue, AppName) ->
+    lists:foreach(fun(Node) ->
+        MainValue = case rpc:call(Node, application, get_env, [AppName, MainKey, []]) of
+            {badrpc, _} = Error -> error(Error);
+            Structure -> kv_utils:put(NestedPath, NestedValue, Structure)
+        end,
+        ok = rpc:call(Node, application, set_env, [AppName, MainKey, MainValue])
+    end, Nodes).
 
 
 %%--------------------------------------------------------------------
