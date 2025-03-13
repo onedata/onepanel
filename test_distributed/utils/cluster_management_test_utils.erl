@@ -49,7 +49,7 @@
 -type service() :: worker | manager | database | ones3.
 -type node_details() :: #node_details{}.
 
--export_type([product/0, service/0, node_details/0]).
+-export_type([service/0, node_details/0]).
 
 -define(ATTEMPTS, 60).
 

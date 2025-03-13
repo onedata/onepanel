@@ -238,7 +238,17 @@ init_per_suite(Config) ->
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
         onenv_scenario = "1op_2nodes_1worker_1ones3_pebble",
         envs = [
+            {op_panel, ctool, [
+                % Allow Oneprovider panel to connect with Pebble server
+                {force_insecure_connections, true}
+            ]},
             {op_panel, onepanel, [
+                % Below env var is set to "dev-onezone" in scenario used, so that
+                % other tests could automatically use proper setup with Pebble.
+                % But this interferes with tests in this suite. As such it is reverted
+                % to default value.
+                {dns_check_servers, []},
+
                 {ones3_log_level, 3}
             ]}
         ],
@@ -328,7 +338,7 @@ build_op_subdomain() ->
 
 %% @private
 build_op_subdomain(SubdomainLabel) ->
-    OzDomain = dns_test_utils:get_zone_domain(),
+    OzDomain = dns_test_utils:get_domain(zone),
     str_utils:format_bin("~ts.~ts", [SubdomainLabel, OzDomain]).
 
 

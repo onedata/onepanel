@@ -20,7 +20,6 @@
 
 %% API
 -export([
-    get_zone_domain/0,
     get_domain/1,
     get_k8s_domain/1,
     get_hostname/1,
@@ -44,11 +43,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-
--spec get_zone_domain() -> binary().
-get_zone_domain() ->
-    get_domain(zone).
 
 
 -spec get_domain(oct_background:entity_selector()) -> binary().

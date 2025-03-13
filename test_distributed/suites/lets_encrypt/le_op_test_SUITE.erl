@@ -174,13 +174,6 @@ init_per_suite(Config) ->
                 {force_insecure_connections, true}
             ]},
             {op_panel, onepanel, [
-                {letsencrypt_root_ca_url, "https://dev-pebble:8444/roots/0"},
-                {letsencrypt_directory_url, "https://dev-pebble:443/dir"},
-                {letsencrypt_directory_url_staging, "https://dev-pebble:443/dir"},
-                {letsencrypt_dns_verification_servers, ["dev-onezone"]},
-                {dns_check_servers, ["dev-onezone"]},
-                {letsencrypt_attempts, 10},
-
                 {letsencrypt_issuer_regex, ?RE_PEBBLE_ISSUER},
                 % Increase certification attempts as pebble likes to fail from time to time
                 {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS},

@@ -253,7 +253,7 @@ end_per_testcase(_Testcase, _Config) ->
 %% @private
 -spec build_test_spec(test_config:config()) -> le_test_base:test_spec().
 build_test_spec(Config) ->
-    OzDomain = dns_test_utils:get_zone_domain(),
+    OzDomain = dns_test_utils:get_domain(zone),
 
     #le_test_spec{
         entity_selector = zone,
