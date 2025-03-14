@@ -29,6 +29,7 @@
     get/3,
     patch/3,
     post/3,
+    delete/3,
 
     request/2
 ]).
@@ -113,6 +114,11 @@ post(PanelNodeSelector, Path, RequestArgs) ->
     request(PanelNodeSelector, RequestArgs#{method => post, path => Path}).
 
 
+-spec delete(oct_background:node_selector(), binary(), request_args()) -> response().
+delete(PanelNodeSelector, Path, RequestArgs) ->
+    request(PanelNodeSelector, RequestArgs#{method => delete, path => Path}).
+
+
 -spec request(oct_background:node_selector(), request_args()) -> response().
 request(PanelNodeSelector, RequestArgs) ->
     PanelNode = select_node(PanelNodeSelector),
@@ -182,7 +188,7 @@ build_url(Node, RequestArgs) ->
 get_host_address(Node) ->
     case get_host_address_infer_policy() of
         ip -> ip_test_utils:encode_ip(ip_test_utils:get_node_ip(Node));
-        domain -> dns_test_utils:get_k8s_domain(Node)
+        domain -> dns_test_utils:get_k8s_service_domain(Node)
     end.
 
 

@@ -935,7 +935,7 @@ make_rest_request(Node, Method, URL, Headers, Body) ->
 -spec get_onepanel_endpoint(node(), ResourcePath :: string() | binary()) ->
     URL :: binary().
 get_onepanel_endpoint(Node, ResourcePath) ->
-    Domain = dns_test_utils:get_k8s_domain(Node),
+    Domain = dns_test_utils:get_k8s_service_domain(Node),
     str_utils:join_as_binaries(["https://", Domain, ":9443/", ResourcePath], <<>>).
 
 
@@ -943,7 +943,7 @@ get_onepanel_endpoint(Node, ResourcePath) ->
 -spec get_onepanel_rest_endpoint(node(), ResourcePath :: string() | binary(), boolean()) ->
     URL :: binary().
 get_onepanel_rest_endpoint(Node, ResourcePath, TestProxiedRestEndpoint) ->
-    Domain = dns_test_utils:get_k8s_domain(Node),
+    Domain = dns_test_utils:get_k8s_service_domain(Node),
 
     Port = case TestProxiedRestEndpoint of
         true ->

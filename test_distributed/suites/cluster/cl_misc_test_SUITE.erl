@@ -25,6 +25,8 @@
 ]).
 
 -export([
+    op_unregister_register_from_file_test/1,
+
     op_fetch_compatibility_registry_test/1,
     cluster_clocks_sync_test/1,
 
@@ -33,6 +35,8 @@
 ]).
 
 all() -> [
+    op_unregister_register_from_file_test,
+
     op_fetch_compatibility_registry_test,
     cluster_clocks_sync_test,
 
@@ -46,6 +50,49 @@ all() -> [
 %%%===================================================================
 %%% Tests
 %%%===================================================================
+
+
+op_unregister_register_from_file_test(_Config) ->
+    OpPanelNodes = panel_test_utils:get_panel_nodes(krakow),
+    OpPanelNode = ?RAND_ELEMENT(OpPanelNodes),
+
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:delete(OpPanelNode, <<"/provider">>, #{auth => root})
+    ),
+
+    % test the alternative way of providing the registration token
+    % (the default method is used during environment setup for this suite).
+    RegistrationTokenFile = <<"/tmp/provider-registration-token.txt">>,
+    RegistrationToken = op_cluster_deployment_test_utils:get_registration_token(),
+
+    spawn(fun() ->
+        % Onepanel should wait for the file to appear
+        timer:sleep(timer:minutes(1)),
+        lists:foreach(fun(Node) ->
+            ?assertEqual(ok, panel_test_rpc:call(Node, file, write_file, [
+                RegistrationTokenFile, RegistrationToken
+            ]))
+        end, OpPanelNodes)
+    end),
+
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:post(OpPanelNode, <<"/provider">>, #{
+            auth => root,
+            recv_timeout => timer:minutes(5),
+            json => #{
+                <<"geoLongitude">> => 20.0,
+                <<"geoLatitude">> => 20.0,
+                <<"name">> => <<"krakow">>,
+                <<"adminEmail">> => <<"admin@onedata.org">>,
+                <<"subdomainDelegation">> => false,
+                <<"domain">> => dns_test_utils:get_k8s_service_domain(OpPanelNode),
+                <<"tokenProvisionMethod">> => <<"fromFile">>,
+                <<"tokenFile">> => RegistrationTokenFile
+            }
+        })
+    ).
 
 
 op_fetch_compatibility_registry_test(_Config) ->

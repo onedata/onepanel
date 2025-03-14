@@ -55,7 +55,7 @@ deploy_test(Config) ->
     panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
 
     ProviderName = <<"krakow">>,
-    ProviderDomain = dns_test_utils:get_k8s_domain(Node1),
+    ProviderDomain = dns_test_utils:get_k8s_service_domain(Node1),
 
     OpClusterConfig = #op_cluster_config{
         nodes = #{

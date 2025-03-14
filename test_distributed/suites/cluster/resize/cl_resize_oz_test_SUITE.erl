@@ -63,7 +63,7 @@ add_node_test(Config) ->
         workers = [1],
         databases = [1],
         name = <<"zone">>,
-        domain = dns_test_utils:get_k8s_domain(Node1)
+        domain = dns_test_utils:get_k8s_service_domain(Node1)
     },
     oz_cluster_deployment_test_utils:deploy_batch(OzClusterConfig),
 

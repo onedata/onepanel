@@ -21,7 +21,7 @@
 %% API
 -export([
     get_domain/1,
-    get_k8s_domain/1,
+    get_k8s_service_domain/1,
     get_hostname/1,
 
     update_zone_subdomain_delegation/1,
@@ -51,14 +51,14 @@ get_domain(zone) ->
         oct_background:get_zone_domain()
     catch _:_ ->
         % Getting domain via oct_background fails if services are not yet deployed
-        get_k8s_domain(?RAND_ELEMENT(oct_background:get_zone_panels()))
+        get_k8s_service_domain(?RAND_ELEMENT(oct_background:get_zone_panels()))
     end;
 get_domain(ProviderSelector) ->
     try
         oct_background:get_provider_domain(ProviderSelector)
     catch _:_ ->
         % Getting domain via oct_background fails if services are not yet deployed
-        get_k8s_domain(?RAND_ELEMENT(oct_background:get_provider_panels(ProviderSelector)))
+        get_k8s_service_domain(?RAND_ELEMENT(oct_background:get_provider_panels(ProviderSelector)))
     end.
 
 
@@ -69,8 +69,8 @@ get_domain(ProviderSelector) ->
 %% NOTE: this may not be final domain as provider may register using subdomain.
 %% @end
 %%--------------------------------------------------------------------
--spec get_k8s_domain(node()) -> binary().
-get_k8s_domain(Node) ->
+-spec get_k8s_service_domain(node()) -> binary().
+get_k8s_service_domain(Node) ->
     {ok, Domain} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain),
     str_utils:to_binary(Domain).
 

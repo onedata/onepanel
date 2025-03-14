@@ -25,7 +25,6 @@
 
 %% tests
 -export([
-    service_oneprovider_unregister_register_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_update_storage_test/1,
     service_oz_worker_add_node_test/1
@@ -37,7 +36,6 @@
 
 all() ->
     ?ALL([
-        service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
         service_oz_worker_add_node_test
@@ -46,34 +44,6 @@ all() ->
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
-
-
-service_oneprovider_unregister_register_test(Config) ->
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    [OpNode | _] = ?config(oneprovider_nodes, Config),
-    OpDomain = ?config(oneprovider_domain, Config),
-    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
-
-    % test the alternative way of providing the registration token
-    % (the default method is used during environment setup for this suite).
-    RegistrationTokenFile = <<"/tmp/provider-registration-token.txt">>,
-    RegistrationToken = image_test_utils:get_registration_token(OzNode),
-    spawn(fun() ->
-        % Onepanel should wait for the file to appear
-        timer:sleep(timer:minutes(1)),
-        ?assertEqual(ok, image_test_utils:proxy_rpc(OpNode, file, write_file, [
-            RegistrationTokenFile, RegistrationToken
-        ]))
-    end),
-    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
-        oneprovider_geo_latitude => 20.0,
-        oneprovider_geo_longitude => 20.0,
-        oneprovider_name => <<"provider2">>,
-        oneprovider_domain => OpDomain,
-        oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token_provision_method => <<"fromFile">>,
-        oneprovider_token_file => RegistrationTokenFile
-    }).
 
 
 service_op_worker_add_storage_test(Config) ->

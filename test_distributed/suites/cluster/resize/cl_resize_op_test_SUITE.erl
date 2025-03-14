@@ -65,7 +65,7 @@ add_node_test(Config) ->
         name = ProviderName,
         register = true,
         registration_token = op_cluster_deployment_test_utils:get_registration_token(),
-        domain = dns_test_utils:get_k8s_domain(Node1)
+        domain = dns_test_utils:get_k8s_service_domain(Node1)
     },
     op_cluster_deployment_test_utils:deploy_batch(OpClusterConfig),
 
