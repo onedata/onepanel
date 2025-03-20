@@ -95,13 +95,6 @@ call(NodeOrNodes, Module, Function, Args, Timeout) ->
     {Values, _} = utils:rpc_multicall(
         Nodes, ?MODULE, apply, [Module, Function, Args], Timeout
     ),
-    lists:foreach(fun({Node, Result}) ->
-        case Result of
-            ok -> ok;
-            {ok, _} -> ok;
-            _ ->  ?info("RPC call result on ~ts: Result=~tp", [Node, Result])
-        end
-    end, Values),
 
     % Calling non-onepanel nodes causes badrpc error since
     % onepanel_rpc:apply is not available on them.

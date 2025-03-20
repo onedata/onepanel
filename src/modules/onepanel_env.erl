@@ -38,11 +38,6 @@
 -export([get_cluster_type/0]).
 
 -type app_name() :: atom().
--type key() :: atom().
--type keys() :: key() | [key()].
--type value() :: term().
-
--export_type([key/0, keys/0, value/0]).
 
 -define(DO_NOT_MODIFY_HEADER,
     "% MACHINE GENERATED FILE. DO NOT MODIFY.\n"
@@ -57,7 +52,7 @@
 %% @doc @equiv get(Keys, ?APP_NAME)
 %% @end
 %%--------------------------------------------------------------------
--spec get(Keys :: keys()) -> Value :: value() | no_return().
+-spec get(kv_utils:path(atom())) -> term() | no_return().
 get(Keys) ->
     get(Keys, ?APP_NAME).
 
@@ -67,7 +62,7 @@ get(Keys) ->
 %% Throws an exception when value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Keys :: keys(), app_name()) -> Value :: value() | no_return().
+-spec get(kv_utils:path(atom()), app_name()) -> term() | no_return().
 get(Keys, AppName) ->
     case find(Keys, AppName) of
         {ok, Value} -> Value;
@@ -80,8 +75,8 @@ get(Keys, AppName) ->
 %% Returns the Default when value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Keys :: keys(), app_name(), Default :: value()) ->
-    Value :: value() | no_return().
+-spec get(kv_utils:path(atom()), app_name(), Default :: term()) ->
+    Value :: term() | no_return().
 get(Keys, AppName, Default) ->
     case find(Keys, AppName) of
         {ok, Value} -> Value;
@@ -104,8 +99,7 @@ get_cluster_type() ->
 %% Throws an exception when value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec get_remote(Node :: node(), Keys :: keys(), app_name()) ->
-    Value :: value().
+-spec get_remote(node(), kv_utils:path(atom()), app_name()) -> term() | no_return().
 get_remote(Node, Keys, AppName) ->
     case find_remote(Node, Keys, AppName) of
         {ok, Value} -> Value;
@@ -119,8 +113,8 @@ get_remote(Node, Keys, AppName) ->
 %% Returns the Default when value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec get_remote(Node :: node(), Keys :: keys(), app_name(), Default :: value()) ->
-    Value :: value().
+-spec get_remote(node(), kv_utils:path(atom()), app_name(), Default :: term()) ->
+    Value :: term().
 get_remote(Node, Keys, AppName, Default) ->
     case find_remote(Node, Keys, AppName) of
         {ok, Value} -> Value;
@@ -128,12 +122,12 @@ get_remote(Node, Keys, AppName, Default) ->
     end.
 
 
--spec typed_get(Keys :: keys(), Type :: onepanel_utils:type()) -> value().
+-spec typed_get(kv_utils:path(atom()), onepanel_utils:type()) -> term().
 typed_get(Keys, Type) ->
     onepanel_utils:convert(?MODULE:get(Keys), Type).
 
 
--spec typed_get(Keys :: keys(), app_name(), Type :: onepanel_utils:type()) -> value().
+-spec typed_get(kv_utils:path(atom()), app_name(), onepanel_utils:type()) -> term().
 typed_get(Keys, AppName, Type) ->
     onepanel_utils:convert(?MODULE:get(Keys, AppName), Type).
 
@@ -143,8 +137,7 @@ typed_get(Keys, AppName, Type) ->
 %% Returns error if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec find(Keys :: keys(), app_name()) ->
-    {ok, Value :: value()} | error | no_return().
+-spec find(kv_utils:path(atom()), app_name()) -> {ok, term()} | error | no_return().
 find(Keys, AppName) when is_atom(AppName) ->
     kv_utils:find(Keys, application:get_all_env(AppName)).
 
@@ -154,8 +147,7 @@ find(Keys, AppName) when is_atom(AppName) ->
 %% of an application running on given Node.
 %% @end
 %%--------------------------------------------------------------------
--spec find_remote(Node :: node(), Keys :: keys(), app_name()) ->
-    {ok, Value :: value()} | error | no_return().
+-spec find_remote(node(), kv_utils:path(atom()), app_name()) -> {ok, term()} | error | no_return().
 find_remote(Node, Keys, AppName) ->
     Env = rpc:call(Node, application, get_all_env, [AppName]),
     kv_utils:find(Keys, Env).
@@ -165,7 +157,7 @@ find_remote(Node, Keys, AppName) ->
 %% @doc @equiv set(Keys, Value, ?APP_NAME)
 %% @end
 %%--------------------------------------------------------------------
--spec set(Keys :: keys(), Value :: value()) -> ok.
+-spec set(kv_utils:path(atom()), term()) -> ok.
 set(Keys, Value) ->
     set(Keys, Value, ?APP_NAME).
 
@@ -175,7 +167,7 @@ set(Keys, Value) ->
 %% on the onepanel node.
 %% @end
 %%--------------------------------------------------------------------
--spec set(Keys :: keys(), Value :: value(), app_name()) -> ok.
+-spec set(kv_utils:path(atom()), term(), app_name()) -> ok.
 set(Key, Value, AppName) when is_atom(Key) ->
     application:set_env(AppName, Key, Value);
 set([Key], Value, AppName) ->
@@ -190,7 +182,7 @@ set([MainKey | NestedPath], NestedValue, AppName) ->
 %% onepanel nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec set(Nodes :: [node()], Keys :: keys(), Value :: value(), app_name()) ->
+-spec set([node()], kv_utils:path(atom()), term(), app_name()) ->
     Results :: onepanel_rpc:results() | no_return().
 set(Nodes, Keys, Value, AppName) ->
     onepanel_rpc:call_all(Nodes, ?MODULE, set, [Keys, Value, AppName]).
@@ -201,8 +193,7 @@ set(Nodes, Keys, Value, AppName) ->
 %% The nodes can be of any service.
 %% @end
 %%--------------------------------------------------------------------
--spec set_remote(Node :: node() | [node()], Keys :: keys(), Value :: value(),
-    app_name()) -> ok | no_return().
+-spec set_remote(node() | [node()], kv_utils:path(atom()), term(), app_name()) -> ok | no_return().
 set_remote(Node, Keys, Value, AppName) when is_atom(Node) ->
     set_remote([Node], Keys, Value, AppName);
 set_remote(Nodes, Key, Value, AppName) when is_atom(Key) ->
@@ -226,8 +217,7 @@ set_remote(Nodes, [MainKey | NestedPath], NestedValue, AppName) ->
 %% file. Returns error if value has not been found.
 %% @end
 %%--------------------------------------------------------------------
--spec read(Keys :: keys(), Path :: file:name()) ->
-    {ok, Value :: value()} | error | no_return().
+-spec read(kv_utils:path(atom()), file:name()) -> {ok, term()} | error | no_return().
 read(Keys, Path) ->
     case file:consult(Path) of
         {ok, [AppConfigs]} -> kv_utils:find(Keys, AppConfigs);
@@ -243,8 +233,7 @@ read(Keys, Path) ->
 %% as Keys is not possible.
 %% @end
 %%--------------------------------------------------------------------
--spec read_effective(Keys :: keys(), ServiceName :: service:name()) ->
-    {ok, Value :: value()} | error.
+-spec read_effective(kv_utils:path(atom()), service:name()) -> {ok, term()} | error.
 read_effective([_AppName, _EnvName | _] = Keys, ServiceName) ->
     lists_utils:foldl_while(fun(Path, Prev) ->
         try read(Keys, Path) of
@@ -266,8 +255,7 @@ read_effective(_, _) ->
 %% If no file specifies the variable, default value is returned.
 %% @end
 %%--------------------------------------------------------------------
--spec read_effective(Keys :: keys(), ServiceName :: service:name(),
-    Default :: value()) -> Value :: value().
+-spec read_effective(kv_utils:path(atom()), service:name(), Default :: term()) -> Value :: term().
 read_effective(Keys, ServiceName, Default) ->
     case read_effective(Keys, ServiceName) of
         {ok, Value} -> Value;
@@ -279,7 +267,7 @@ read_effective(Keys, ServiceName, Default) ->
 %% @doc @equiv write(Keys, Value, get_config_path(?APP_NAME, generated))
 %% @end
 %%--------------------------------------------------------------------
--spec write(Keys :: keys(), Value :: value()) -> ok | no_return().
+-spec write(kv_utils:path(atom()), term()) -> ok | no_return().
 write(Keys, Value) ->
     write(Keys, Value, ?SERVICE_PANEL).
 
@@ -289,8 +277,7 @@ write(Keys, Value) ->
 %% "autogenerated" configuration file.
 %% @end
 %%--------------------------------------------------------------------
--spec write(Keys :: keys(), Value :: value(), service:name()) ->
-    ok | no_return().
+-spec write(kv_utils:path(atom()), term(), service:name()) -> ok | no_return().
 write(Keys, Value, ServiceName) ->
     Path = get_config_path(ServiceName, generated),
     AppConfigs = case file:consult(Path) of
@@ -311,8 +298,8 @@ write(Keys, Value, ServiceName) ->
 %% on given nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec write(Nodes :: [node()], Keys :: keys(), Value :: value(),
-    service:name()) -> Results :: onepanel_rpc:results() | no_return().
+-spec write([node()], kv_utils:path(atom()), term(), service:name()) ->
+    Results :: onepanel_rpc:results() | no_return().
 write(Nodes, Keys, Value, ServiceName) ->
     onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, ServiceName]).
 
@@ -323,7 +310,7 @@ write(Nodes, Keys, Value, ServiceName) ->
 %% Variables missing from the source file are skipped.
 %% @end
 %%--------------------------------------------------------------------
--spec upgrade_app_config(service:name(), Variables :: [keys()]) ->
+-spec upgrade_app_config(service:name(), Variables :: [kv_utils:path(atom())]) ->
     ok | no_return().
 upgrade_app_config(ServiceName, Variables) ->
     upgrade_app_config(ServiceName, Variables, false).
@@ -336,7 +323,7 @@ upgrade_app_config(ServiceName, Variables) ->
 %% in the live config.
 %% @end
 %%--------------------------------------------------------------------
--spec upgrade_app_config(service:name(), Variables :: [keys()],
+-spec upgrade_app_config(service:name(), Variables :: [kv_utils:path(atom())],
     SetInRuntime :: boolean()) -> ok | no_return().
 upgrade_app_config(ServiceName, Variables, SetInRuntime) ->
     Src = get_config_path(ServiceName, legacy),
@@ -387,7 +374,7 @@ import_generated_from_node(Service, SourceNode, SetInRuntime) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec import_generated_from_node(service:name(), SourceNode :: node(),
-    SetInRuntime :: boolean(), IgnoredPerApp :: #{app_name() => [key()]}) -> ok.
+    SetInRuntime :: boolean(), IgnoredPerApp :: #{app_name() => [atom()]}) -> ok.
 import_generated_from_node(Service, SourceNode, SetInRuntime, IgnoredPerApp) ->
     Path = onepanel_rpc:call_any(SourceNode,
         ?MODULE, get_config_path, [Service, generated]),
@@ -444,7 +431,7 @@ get_config_path(ServiceName, ConfigLayer) ->
 %% and returns true. If OldKeys is missing, returns false.
 %% @end
 %%--------------------------------------------------------------------
--spec rename(ServiceName :: service:name(), OldKeys :: keys(), NewKeys :: keys()) ->
+-spec rename(ServiceName :: service:name(), OldKeys :: kv_utils:path(atom()), NewKeys :: kv_utils:path(atom())) ->
     Found :: boolean().
 rename(ServiceName, OldKeys, NewKeys) ->
     % invocation via ?MODULE for meck in eunit tests
