@@ -182,10 +182,9 @@ set([MainKey | NestedPath], NestedValue, AppName) ->
 %% onepanel nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec set([node()], kv_utils:path(atom()), term(), app_name()) ->
-    Results :: onepanel_rpc:results() | no_return().
+-spec set([node()], kv_utils:path(atom()), term(), app_name()) -> ok | no_return().
 set(Nodes, Keys, Value, AppName) ->
-    onepanel_rpc:call_all(Nodes, ?MODULE, set, [Keys, Value, AppName]).
+    check_rpc_call_all(Nodes, ?MODULE, set, [Keys, Value, AppName]).
 
 
 %%--------------------------------------------------------------------
@@ -298,10 +297,9 @@ write(Keys, Value, ServiceName) ->
 %% on given nodes.
 %% @end
 %%--------------------------------------------------------------------
--spec write([node()], kv_utils:path(atom()), term(), service:name()) ->
-    Results :: onepanel_rpc:results() | no_return().
+-spec write([node()], kv_utils:path(atom()), term(), service:name()) -> ok | no_return().
 write(Nodes, Keys, Value, ServiceName) ->
-    onepanel_rpc:call_all(Nodes, ?MODULE, write, [Keys, Value, ServiceName]).
+    check_rpc_call_all(Nodes, ?MODULE, write, [Keys, Value, ServiceName]).
 
 
 %%--------------------------------------------------------------------
@@ -488,3 +486,21 @@ list_config_dir(ServiceName) ->
         {error, _} ->
             []
     end.
+
+
+%% @private
+-spec check_rpc_call_all([node()], module(), atom(), [term()]) -> ok | no_return().
+check_rpc_call_all(Nodes, Module, Function, Args) ->
+    Results = onepanel_rpc:call_all(Nodes, ?MODULE, set, Args),
+    lists:foreach(fun
+        ({_Node, ok}) ->
+            ok;
+        ({Node, BadResult}) ->
+            ?error(?autoformat_with_msg(
+                "RPC failed for ~ts:~ts/~B",
+                [Module, Function, length(Args)],
+                [Node, BadResult]
+            )),
+            error({rpc_failed, Node, Module, Function, length(Args)})
+    end, Results),
+    ok.

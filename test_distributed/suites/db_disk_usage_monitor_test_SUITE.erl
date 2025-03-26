@@ -208,7 +208,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     assert_cluster_wide_circuit_breaker_state(closed, Service),
 
     %% Simulate that Onepanel was unable to set the circuit breaker state as closed at worker nodes
-    %%(e.g. temporary connectivity problems) so it's still open. The next heathcheck should fix that.
+    %%(e.g. temporary connectivity problems) so it's still open. The next healthcheck should fix that.
     set_worker_env(TargetPanelNodes, service_circuit_breaker_state, open, Service),
     assert_cluster_wide_circuit_breaker_state(closed, Service).
 
@@ -308,8 +308,7 @@ get_panel_env(Node, Env, Default) ->
 
 %% @private
 set_panel_env(Nodes, Env, Value) ->
-    Result = lists:map(fun(Node) -> {Node, ok} end, Nodes),
-    Result = ?rpc(?RAND_ELEMENT(Nodes), onepanel_env:set(Nodes, Env, Value, ?APP_NAME)).
+    ?rpc(?RAND_ELEMENT(Nodes), onepanel_env:set(Nodes, Env, Value, ?APP_NAME)).
 
 
 %% @private
@@ -320,7 +319,7 @@ get_worker_env(Nodes, Env, Service, Default) ->
 %% @private
 set_worker_env(Nodes, Env, Value, Service) ->
     lists:foreach(fun(Worker) ->
-        ok = ?rpc(Worker, onepanel_env:set_remote(Nodes, [Env], Value, Service))
+        ?assertEqual(ok, ?rpc(Worker, onepanel_env:set_remote(Nodes, [Env], Value, Service)))
     end, get_panel_nodes(Service)).
 
 

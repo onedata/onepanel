@@ -42,29 +42,28 @@
 -type circuit_breaker_state() :: open | closed.
 
 
--define(ROOT_DIR, application:get_env(?APP_NAME, db_root_dir, "/opt/couchbase")).
+-define(ROOT_DIR, onepanel:get_env(db_root_dir, "/opt/couchbase")).
 
 -define(CRON_JOB_NAME, ?MODULE).
--define(PERIODIC_CHECK_INTERVAL, timer:seconds(application:get_env(
-    ?APP_NAME, db_disk_usage_check_interval_seconds, 600  %% 10 minutes
-))).
 
--define(WARNING_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_warning_threshold, 0.45)).
--define(ALERT_THRESHOLD, application:get_env(?APP_NAME, db_disk_usage_alert_threshold, 0.75)).
--define(CIRCUIT_BREAKER_ACTIVATION_THRESHOLD, application:get_env(
-    ?APP_NAME, db_disk_usage_circuit_breaker_activation_threshold, 0.9
-)).
+-define(PERIODIC_CHECK_INTERVAL, timer:seconds(onepanel:get_env(db_disk_usage_check_interval_seconds, 600))).  % 10 min
+
+-define(WARNING_THRESHOLD, onepanel:get_env(db_disk_usage_warning_threshold, 0.45)).
+-define(ALERT_THRESHOLD, onepanel:get_env(db_disk_usage_alert_threshold, 0.75)).
+-define(CIRCUIT_BREAKER_ACTIVATION_THRESHOLD, onepanel:get_env(db_disk_usage_circuit_breaker_activation_threshold, 0.9)).
+
+-define(VERBOSE_LOGS_ENABLED, onepanel:get_env(db_disk_monitor_verbose_logs, false)).
 
 -define(CMD_OUTPUT_TRIM_THRESHOLD, 997).
+
+% represents the severity of disk space availability status, 0 being the most critical one
+-type status() :: 0 | 1 | 2 | 3 | 4.
 
 -define(STATUS_DISK_CRITICALLY_LOW, 0).
 -define(STATUS_ALERT, 1).
 -define(STATUS_WARNING, 2).
 -define(STATUS_OK, 3).
 -define(STATUS_RPC_FAILED, 4).
-
-% represents the severity of disk space availability status, 0 being the most critical one
--type status() :: 0 | 1 | 2 | 3 | 4.
 
 %%%===================================================================
 %%% API
@@ -94,30 +93,25 @@ check_usage_on_host(Host) ->
     AvailableDiskSize = get_available_disk_size(),
     Usage = DBRootDirSize / (DBRootDirSize + AvailableDiskSize),
 
-    [{Status, Threshold} | _]  = lists:dropwhile(fun({_, ThresholdValue}) -> Usage < ThresholdValue end, [
+    [{Status, Threshold} | _] = lists:dropwhile(fun({_, ThresholdValue}) -> Usage < ThresholdValue end, [
         {?STATUS_DISK_CRITICALLY_LOW, ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD},
         {?STATUS_ALERT, ?ALERT_THRESHOLD},
         {?STATUS_WARNING, ?WARNING_THRESHOLD},
         {?STATUS_OK, 0.0}
     ]),
-    application:get_env(?APP_NAME, db_disk_monitor_verbose_logs, false) andalso ?info(
+    ?VERBOSE_LOGS_ENABLED andalso ?info(
         "Disk usage check on ~ts:"
-        "~n> Usage percent ~.2f"
-        "~n> Threshold percent ~.2f"
-        "~n> Status ~ts"
-        "~n> STATUS_DISK_CRITICALLY_LOW ~.2f"
-        "~n> STATUS_ALERT ~.2f"
-        "~n> STATUS_WARNING ~.2f"
-        "~n> STATUS_OK ~.2f",
+        "~n> Usage percent: ~.2f%"
+        "~n> Status: ~ts (>= ~.2f%)"
+        "~n> Threshold settings: ~.2f%, ~.2f%, ~.2f%",
         [
             Host,
             100 * Usage,
-            100 * Threshold,
             status_to_label(Status),
-            ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD,
-            ?ALERT_THRESHOLD,
-            ?WARNING_THRESHOLD,
-            0.0
+            100 * Threshold,
+            100 * ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD,
+            100 * ?ALERT_THRESHOLD,
+            100 * ?WARNING_THRESHOLD
         ]
     ),
     #usage_info{
@@ -169,8 +163,8 @@ run_periodic_check() ->
             end
         end, Hosts),
 
-        CircuitBreakerState = get_service_circuit_breaker_state(),
-        NewCircuitBreakerState = handle_state_transition(CircuitBreakerState, Results),
+        PreviousCbState = get_service_circuit_breaker_state(),
+        NewCircuitBreakerState = handle_state_transition(PreviousCbState, Results),
         set_service_circuit_breaker_state(NewCircuitBreakerState),
         true
     catch Class:Reason:Stacktrace ->
@@ -214,138 +208,120 @@ parse_df_cmd_output(DfOutput) ->
 %% @private
 -spec handle_state_transition(circuit_breaker_state(), [usage_info()]) ->
     circuit_breaker_state().
-handle_state_transition(CurrentState, UsageInfos) ->
-    [#usage_info{status=WorstStatus} | _] = SortedUsageInfos = lists:sort(UsageInfos),
-    handle_state_transition(CurrentState, WorstStatus, SortedUsageInfos).
+handle_state_transition(PreviousCbState, UsageInfos) ->
+    [#usage_info{status = WorstStatus} | _] = SortedUsageInfos = lists:sort(UsageInfos),
+    handle_state_transition(PreviousCbState, WorstStatus, SortedUsageInfos).
 
 
 %% @private
 -spec handle_state_transition(circuit_breaker_state(), status(), [usage_info()]) -> circuit_breaker_state().
 handle_state_transition(closed, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
-    handle_status_logging(?STATUS_DISK_CRITICALLY_LOW, fun() ->
+    log_summary_with_throttling(?STATUS_DISK_CRITICALLY_LOW, fun() ->
         ?emergency(
             "DB disk space is nearly exhausted! "
-            "All services will now stop processing requests until the problem is resolved.~ts~n",
-            [format_usage_info(SortedUsageInfos)]
+            "All services will now stop processing requests until the problem is resolved.~ts",
+            [format_summary(SortedUsageInfos)]
         )
     end),
     open;
 handle_state_transition(closed, ?STATUS_ALERT, SortedUsageInfos) ->
-    handle_status_logging(?STATUS_ALERT, fun() ->
+    log_summary_with_throttling(?STATUS_ALERT, fun() ->
         ?alert(
             "DB disk usage is very high. Provide more space for the DB as soon as possible. When the usage "
-            "reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts~n",
-            [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_usage_info(SortedUsageInfos)]
+            "reaches ~.2f%, all services will stop processing requests to prevent database corruption.~ts",
+            [?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD * 100, format_summary(SortedUsageInfos)]
         )
     end),
     closed;
 handle_state_transition(closed, ?STATUS_WARNING, SortedUsageInfos) ->
-    handle_status_logging(?STATUS_WARNING, fun() ->
+    log_summary_with_throttling(?STATUS_WARNING, fun() ->
         ?warning(
             "DB disk usage exceeded safe thresholds. "
-            "Provide more space for the DB to ensure uninterrupted services.~ts~n",
-            [format_usage_info(SortedUsageInfos)]
+            "Provide more space for the DB to ensure uninterrupted services.~ts",
+            [format_summary(SortedUsageInfos)]
         )
     end),
     closed;
 handle_state_transition(closed, ?STATUS_OK, SortedUsageInfos) ->
-    handle_status_logging(?STATUS_OK, fun() ->
+    log_summary_with_throttling(?STATUS_OK, fun() ->
         ?info(
-            "DB disk usage is within safe thresholds.~ts~n", [format_usage_info(SortedUsageInfos)]
-        ) end
-    ),
+            "DB disk usage is within safe thresholds.~ts",
+            [format_summary(SortedUsageInfos)]
+        )
+    end),
     closed;
 
 handle_state_transition(open, ?STATUS_DISK_CRITICALLY_LOW, SortedUsageInfos) ->
-    handle_status_logging(?STATUS_DISK_CRITICALLY_LOW, fun() ->
+    log_summary_with_throttling(?STATUS_DISK_CRITICALLY_LOW, fun() ->
         ?emergency(
-            "DB disk space is still critically low. All services remain stopped until the issue is resolved.~ts~n",
-            [format_usage_info(SortedUsageInfos)]
+            "DB disk space is still critically low. All services remain suspended until the issue is resolved.~ts",
+            [format_summary(SortedUsageInfos)]
         )
     end),
     open;
-handle_state_transition(open, NewStatus, SortedUsageInfos) ->
-    handle_status_logging(NewStatus, fun() ->
+handle_state_transition(open, CurrentWorstStatus, SortedUsageInfos) ->
+    log_summary_with_throttling(CurrentWorstStatus, fun() ->
         ?notice(
-            "DB disk usage has returned to acceptable levels. Services have resumed normal functionality.~ts~n",
-            [format_usage_info(SortedUsageInfos)]
+            "DB disk usage has returned to acceptable levels. Services have resumed normal operation.~ts",
+            [format_summary(SortedUsageInfos)]
         )
     end),
     closed.
 
 
 %% @private
--spec handle_status_logging(status(), fun(() -> term())) -> ok.
-handle_status_logging(NewStatus, LogFun) ->
-    case node_cache:get(worst_status, unknown) of
-        NewStatus ->
-            case application:get_env(?APP_NAME, db_disk_monitor_verbose_logs, false) of
-                true -> LogFun();
-                false -> utils:throttle(status_to_log_throttling_interval(NewStatus), LogFun)
-            end;
-        _ ->
-            LogFun(),
-            node_cache:put(worst_status, NewStatus)
+-spec log_summary_with_throttling(status(), fun(() -> term())) -> ok.
+log_summary_with_throttling(CurrentWorstStatus, LogFun) ->
+    % always log on status change
+    CurrentWorstStatus /= node_cache:get(prev_worst_status, unknown) andalso utils:reset_throttle_interval(?MODULE),
+    utils:throttle(?MODULE, status_to_summary_log_throttling_interval(CurrentWorstStatus), LogFun),
+    node_cache:put(prev_worst_status, CurrentWorstStatus).
+
+
+%% @private
+-spec status_to_summary_log_throttling_interval(status()) -> non_neg_integer().
+status_to_summary_log_throttling_interval(Status) ->
+    VerboseLogsEnabled = ?VERBOSE_LOGS_ENABLED,
+    case Status of
+        _ when VerboseLogsEnabled -> 0;
+        ?STATUS_DISK_CRITICALLY_LOW -> timer:hours(1);
+        ?STATUS_ALERT -> timer:hours(6);
+        ?STATUS_WARNING -> timer:hours(12);
+        ?STATUS_OK -> timer:hours(24);
+        % each failed RPC triggers an independent error log, so there is no need to log it in the summary often
+        ?STATUS_RPC_FAILED -> timer:hours(24)
     end.
 
 
 %% @private
--spec status_to_log_throttling_interval(status()) -> non_neg_integer().
-status_to_log_throttling_interval(?STATUS_DISK_CRITICALLY_LOW) -> timer:hours(1);
-status_to_log_throttling_interval(?STATUS_ALERT) -> timer:hours(6);
-status_to_log_throttling_interval(?STATUS_WARNING) -> timer:hours(12);
-status_to_log_throttling_interval(?STATUS_OK) -> timer:hours(24);
-status_to_log_throttling_interval(?STATUS_RPC_FAILED) -> timer:hours(24).
-
-
-%% @private
--spec format_usage_info([usage_info()]) -> binary().
-format_usage_info(SortedUsageInfos) ->
-    str_utils:join_binary(lists:map(fun
-        (#usage_info{
-            status = Status,
-            host = Host,
-            db_root_dir_size = undefined,
-            available_disk_size = undefined,
-            usage =  undefined
-        }) ->
+-spec format_summary([usage_info()]) -> binary().
+format_summary(SortedUsageInfos) ->
+    FormattedUsageInfos = lists:map(fun(#usage_info{
+        status = Status,
+        host = Host,
+        db_root_dir_size = DBRootDirSize,
+        available_disk_size = AvailableDiskSize,
+        usage = Usage
+    }) ->
         str_utils:format_bin(
             "~n> Host: ~ts"
             "~n> Status: ~ts"
             "~n> DB root directory path: ~ts"
-            "~n> DB root directory size: ???"
-            "~n> Available disk size: ???"
-            "~n> Usage percent: ???",
+            "~n> DB root directory size: ~ts"
+            "~n> Available disk size: ~ts"
+            "~n> Usage percent: ~ts",
             [
                 Host,
                 status_to_label(Status),
-                ?ROOT_DIR
+                ?ROOT_DIR,
+                utils:convert_defined(DBRootDirSize, fun str_utils:format_byte_size/1),
+                utils:convert_defined(AvailableDiskSize, fun str_utils:format_byte_size/1),
+                utils:convert_defined(Usage, fun(UsageRate) -> str_utils:format("~.2f%", [UsageRate * 100]) end)
             ]
-        );
-        (#usage_info{
-            status = Status,
-            host = Host,
-            db_root_dir_size = DBRootDirSize,
-            available_disk_size = AvailableDiskSize,
-            usage =  Usage
-        }) ->
-            str_utils:format_bin(
-                "~n> Host: ~ts"
-                "~n> Status: ~ts"
-                "~n> DB root directory path: ~ts"
-                "~n> DB root directory size: ~ts"
-                "~n> Available disk size: ~ts"
-                "~n> Usage percent: ~.2f%",
-                [
-                    Host,
-                    status_to_label(Status),
-                    ?ROOT_DIR,
-                    str_utils:format_byte_size(DBRootDirSize),
-                    str_utils:format_byte_size(AvailableDiskSize),
-                    100 * Usage
-                ]
-            )
-    end, SortedUsageInfos), <<"\n---------------">>).
+        )
+    end, SortedUsageInfos),
+    % include the delimiter at the beginning and at the end
+    str_utils:join_binary([<<"">>] ++ FormattedUsageInfos ++ [<<"">>], <<"\n-----------------------">>).
 
 
 %% @private
@@ -361,16 +337,16 @@ status_to_label(?STATUS_RPC_FAILED) -> "RPC_FAILED".
 -spec set_service_circuit_breaker_state(circuit_breaker_state()) -> ok.
 set_service_circuit_breaker_state(State) ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
-    ?catch_exceptions(onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
+    ?log_all_exceptions(onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
     ClusterType = onepanel_env:get_cluster_type(),
     case ClusterType of
         ?ONEZONE ->
             lists:foreach(fun(Node) ->
-                ?catch_exceptions(oz_worker_rpc:circuit_breaker_toggle(Node, State))
+                ?log_all_exceptions(oz_worker_rpc:circuit_breaker_toggle(Node, State))
             end, service_oz_worker:get_nodes());
         ?ONEPROVIDER ->
             lists:foreach(fun(Node) ->
-                ?catch_exceptions(op_worker_rpc:circuit_breaker_toggle(Node, State))
+                ?log_all_exceptions(op_worker_rpc:circuit_breaker_toggle(Node, State))
             end, service_op_worker:get_nodes())
     end.
 
@@ -378,4 +354,4 @@ set_service_circuit_breaker_state(State) ->
 %% @private
 -spec get_service_circuit_breaker_state() -> circuit_breaker_state().
 get_service_circuit_breaker_state() ->
-    onepanel_env:get(service_circuit_breaker_state, ?APP_NAME, closed).
+    onepanel:get_env(service_circuit_breaker_state, closed).
