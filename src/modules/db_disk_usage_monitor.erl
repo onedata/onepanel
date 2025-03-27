@@ -107,11 +107,8 @@ check_usage_on_host(Host) ->
         [
             Host,
             100 * Usage,
-            status_to_label(Status),
-            100 * Threshold,
-            100 * ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD,
-            100 * ?ALERT_THRESHOLD,
-            100 * ?WARNING_THRESHOLD
+            status_to_label(Status), 100 * Threshold,
+            100 * ?CIRCUIT_BREAKER_ACTIVATION_THRESHOLD, 100 * ?ALERT_THRESHOLD, 100 * ?WARNING_THRESHOLD
         ]
     ),
     #usage_info{
@@ -163,9 +160,9 @@ run_periodic_check() ->
             end
         end, Hosts),
 
-        PreviousCbState = get_service_circuit_breaker_state(),
-        NewCircuitBreakerState = handle_state_transition(PreviousCbState, Results),
-        set_service_circuit_breaker_state(NewCircuitBreakerState),
+        PreviousState = get_service_circuit_breaker_state(),
+        NewState = handle_state_transition(PreviousState, Results),
+        set_service_circuit_breaker_state(NewState),
         true
     catch Class:Reason:Stacktrace ->
         ?error_exception(Class, Reason, Stacktrace),
@@ -272,25 +269,26 @@ handle_state_transition(open, CurrentWorstStatus, SortedUsageInfos) ->
 %% @private
 -spec log_summary_with_throttling(status(), fun(() -> term())) -> ok.
 log_summary_with_throttling(CurrentWorstStatus, LogFun) ->
-    % always log on status change
-    CurrentWorstStatus /= node_cache:get(prev_worst_status, unknown) andalso utils:reset_throttle_interval(?MODULE),
+    PrevWorstStatus = node_cache:get(prev_worst_status, unknown),
+    VerboseLogsEnabled = ?VERBOSE_LOGS_ENABLED,
+    % always log on status change or when verbose logs are enabled
+    if
+        CurrentWorstStatus /= PrevWorstStatus -> utils:reset_throttle_interval(?MODULE);
+        VerboseLogsEnabled -> utils:reset_throttle_interval(?MODULE);
+        true -> ok
+    end,
     utils:throttle(?MODULE, status_to_summary_log_throttling_interval(CurrentWorstStatus), LogFun),
     node_cache:put(prev_worst_status, CurrentWorstStatus).
 
 
 %% @private
 -spec status_to_summary_log_throttling_interval(status()) -> non_neg_integer().
-status_to_summary_log_throttling_interval(Status) ->
-    VerboseLogsEnabled = ?VERBOSE_LOGS_ENABLED,
-    case Status of
-        _ when VerboseLogsEnabled -> 0;
-        ?STATUS_DISK_CRITICALLY_LOW -> timer:hours(1);
-        ?STATUS_ALERT -> timer:hours(6);
-        ?STATUS_WARNING -> timer:hours(12);
-        ?STATUS_OK -> timer:hours(24);
+status_to_summary_log_throttling_interval(?STATUS_DISK_CRITICALLY_LOW) -> timer:hours(1);
+status_to_summary_log_throttling_interval(?STATUS_ALERT) -> timer:hours(6);
+status_to_summary_log_throttling_interval(?STATUS_WARNING) -> timer:hours(12);
+status_to_summary_log_throttling_interval(?STATUS_OK) -> timer:hours(24);
         % each failed RPC triggers an independent error log, so there is no need to log it in the summary often
-        ?STATUS_RPC_FAILED -> timer:hours(24)
-    end.
+status_to_summary_log_throttling_interval(?STATUS_RPC_FAILED) -> timer:hours(24).
 
 
 %% @private
@@ -337,16 +335,16 @@ status_to_label(?STATUS_RPC_FAILED) -> "RPC_FAILED".
 -spec set_service_circuit_breaker_state(circuit_breaker_state()) -> ok.
 set_service_circuit_breaker_state(State) ->
     PanelNodes = nodes:all(?SERVICE_PANEL),
-    ?log_all_exceptions(onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
+    ?catch_exceptions(ok = onepanel_env:set(PanelNodes, service_circuit_breaker_state, State, ?APP_NAME)),
     ClusterType = onepanel_env:get_cluster_type(),
     case ClusterType of
         ?ONEZONE ->
             lists:foreach(fun(Node) ->
-                ?log_all_exceptions(oz_worker_rpc:circuit_breaker_toggle(Node, State))
+                ?catch_exceptions(ok = oz_worker_rpc:circuit_breaker_toggle(Node, State))
             end, service_oz_worker:get_nodes());
         ?ONEPROVIDER ->
             lists:foreach(fun(Node) ->
-                ?log_all_exceptions(op_worker_rpc:circuit_breaker_toggle(Node, State))
+                ?catch_exceptions(ok = op_worker_rpc:circuit_breaker_toggle(Node, State))
             end, service_op_worker:get_nodes())
     end.
 
