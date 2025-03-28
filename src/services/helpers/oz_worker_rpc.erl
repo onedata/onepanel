@@ -77,6 +77,7 @@
 -export([gui_message_exists/1, gui_message_exists/2]).
 -export([get_gui_message_as_map/1, get_gui_message_as_map/2]).
 -export([update_gui_message/3, update_gui_message/4]).
+-export([circuit_breaker_toggle/2]).
 
 %%%===================================================================
 %%% API functions
@@ -341,3 +342,8 @@ update_gui_message(Auth, MessageId, Data) ->
     ok | {error, term()}.
 update_gui_message(Node, Auth, MessageId, Data) ->
     ?CALL(Node, [Auth, MessageId, Data]).
+
+
+-spec circuit_breaker_toggle(node(), open | closed) -> ok.
+circuit_breaker_toggle(Node, State) ->
+    ?CALL(Node, [State]).
