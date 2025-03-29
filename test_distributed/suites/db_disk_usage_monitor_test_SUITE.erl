@@ -71,6 +71,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test(_Config) ->
 %% @private
 -spec db_disk_usage_periodic_check_test_base(oct_background:node()) -> ok.
 db_disk_usage_periodic_check_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -83,6 +84,8 @@ db_disk_usage_periodic_check_test_base(Service) ->
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
+    % set low warning threshold to trigger WARNING logs
+    set_panel_env(TargetPanelNodes, db_disk_usage_warning_threshold, 0.00001),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
     assert_cluster_wide_circuit_breaker_state(closed, Service).
 
@@ -90,6 +93,7 @@ db_disk_usage_periodic_check_test_base(Service) ->
 %% @private
 -spec panel_rest_block_test_base(oct_background:node()) -> ok.
 panel_rest_block_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -135,6 +139,7 @@ panel_rest_block_test_base(Service) ->
 %% @private
 -spec worker_rest_block_test_base(oct_background:node()) -> ok.
 worker_rest_block_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -162,6 +167,7 @@ worker_rest_block_test_base(Service) ->
 %% @private
 -spec reliability_of_service_circuit_breaker_state_variable_setting_test_base(oct_background:node()) -> ok.
 reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service) ->
+    ct:pal("Starting test for service ~tp", [Service]),
     TargetPanelNodes = get_panel_nodes(Service),
     TargetPanelNode = ?RAND_ELEMENT(TargetPanelNodes),
 
@@ -171,8 +177,7 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     ?rpc(TargetPanelNode, db_disk_usage_monitor:restart_periodic_check()),
     assert_cluster_wide_circuit_breaker_state(closed, Service),
 
-    test_utils:mock_new(TargetPanelNodes, [onepanel_env]),
-    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(error({badrpc, nodedown})) end),
+    mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.00001),
 
     assert_panel_service_circuit_breaker_state(open, Service),
@@ -180,16 +185,16 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     timer:sleep(2000),
     assert_panel_service_circuit_breaker_state(open, Service),
     assert_worker_service_circuit_breaker_state(closed, Service),
-    test_utils:mock_unload(TargetPanelNodes),
+    unmock_circuit_breaker_toggle(TargetPanelNodes),
 
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
     %% Simulate that Onepanel was unable to set the circuit breaker state as open at worker nodes
-    %%(e.g. temporary connectivity problems) so it's still closed. The next heathcheck should fix that.
+    %%(e.g. temporary connectivity problems) so it's still closed. The next healthcheck should fix that.
     set_worker_env(TargetPanelNodes, service_circuit_breaker_state, closed, Service),
     assert_cluster_wide_circuit_breaker_state(open, Service),
 
-    test_utils:mock_expect(TargetPanelNodes, onepanel_env, set_remote, fun(_, _, _, _) -> throw(error({badrpc, nodedown})) end),
+    mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes),
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
 
     assert_panel_service_circuit_breaker_state(closed, Service),
@@ -197,13 +202,13 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
     timer:sleep(2000),
     assert_panel_service_circuit_breaker_state(closed, Service),
     assert_worker_service_circuit_breaker_state(open, Service),
-    test_utils:mock_unload(TargetPanelNodes),
+    unmock_circuit_breaker_toggle(TargetPanelNodes),
 
     set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 1.0),
     assert_cluster_wide_circuit_breaker_state(closed, Service),
 
     %% Simulate that Onepanel was unable to set the circuit breaker state as closed at worker nodes
-    %%(e.g. temporary connectivity problems) so it's still open. The next heathcheck should fix that.
+    %%(e.g. temporary connectivity problems) so it's still open. The next healthcheck should fix that.
     set_worker_env(TargetPanelNodes, service_circuit_breaker_state, open, Service),
     assert_cluster_wide_circuit_breaker_state(closed, Service).
 
@@ -215,7 +220,15 @@ reliability_of_service_circuit_breaker_state_variable_setting_test_base(Service)
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op"
+        onenv_scenario = "1oz_2nodes_1op_2nodes",
+        envs = [
+            {oz_panel, onepanel, [
+                {db_disk_monitor_verbose_logs, true}
+            ]},
+            {op_panel, onepanel, [
+                {db_disk_monitor_verbose_logs, true}
+            ]}
+        ]
     }).
 
 
@@ -225,10 +238,17 @@ init_per_testcase(_Case, Config) ->
 
 end_per_testcase(reliability_of_service_circuit_breaker_state_variable_setting_test, Config) ->
     Nodes = get_panel_nodes(?SERVICE_OZW) ++ get_panel_nodes(?SERVICE_OPW),
-    test_utils:mock_unload(Nodes),
+    unmock_circuit_breaker_toggle(Nodes),
     Config;
 
 end_per_testcase(_Case, Config) ->
+    lists:foreach(fun(Service) ->
+        TargetPanelNodes = get_panel_nodes(Service),
+        set_panel_env(TargetPanelNodes, db_disk_usage_check_interval_seconds, 300),
+        set_panel_env(TargetPanelNodes, db_disk_usage_circuit_breaker_activation_threshold, 0.9),
+        set_panel_env(TargetPanelNodes, db_disk_usage_warning_threshold, 0.45)
+    end, [?SERVICE_OPW, ?SERVICE_OZW]),
+
     Config.
 
 
@@ -270,14 +290,14 @@ assert_cluster_wide_circuit_breaker_state(ExpState, Service) ->
 %% @private
 assert_panel_service_circuit_breaker_state(ExpState, Service) ->
     lists:foreach(fun(Node) ->
-        ?assertEqual(ExpState, get_panel_env(Node, service_circuit_breaker_state, closed), ?ATTEMPTS)
+        ?assertEqual(ExpState, get_panel_env(Node, service_circuit_breaker_state, unknown), ?ATTEMPTS)
     end, get_panel_nodes(Service)).
 
 
 %% @private
 assert_worker_service_circuit_breaker_state(ExpState, Service) ->
     lists:foreach(fun(Worker) ->
-        ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, closed), ?ATTEMPTS)
+        ?assertEqual(ExpState, get_worker_env(Worker, service_circuit_breaker_state, Service, unknown), ?ATTEMPTS)
     end, get_worker_nodes(Service)).
 
 
@@ -292,11 +312,30 @@ set_panel_env(Nodes, Env, Value) ->
 
 
 %% @private
-get_worker_env(Node, Env, Service, Value) ->
-    onepanel_env:get_remote(Node, [Env], Service, Value).
+get_worker_env(Nodes, Env, Service, Default) ->
+    ?rpc(?RAND_ELEMENT(get_panel_nodes(Service)), onepanel_env:get_remote(Nodes, [Env], Service, Default)).
 
 
 %% @private
-set_worker_env(Node, Env, Service, Value) ->
-    onepanel_env:set_remote(Node, [Env], Value, Service).
+set_worker_env(Nodes, Env, Value, Service) ->
+    lists:foreach(fun(Worker) ->
+        ?assertEqual(ok, ?rpc(Worker, onepanel_env:set_remote(Nodes, [Env], Value, Service)))
+    end, get_panel_nodes(Service)).
+
+
+%% @private
+mock_expect_circuit_breaker_toggle_simulate_error(Service, TargetPanelNodes) ->
+    Module = case Service of
+        op_worker -> op_worker_rpc;
+        oz_worker -> oz_worker_rpc
+    end,
+    ok = test_utils:mock_expect(
+        TargetPanelNodes, Module, circuit_breaker_toggle,
+        fun(_, _) -> throw(error({badrpc, nodedown})) end
+    ).
+
+
+%% @private
+unmock_circuit_breaker_toggle(TargetPanelNodes) ->
+    ok = test_utils:mock_unload(TargetPanelNodes).
 

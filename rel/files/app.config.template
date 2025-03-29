@@ -259,6 +259,8 @@
         %% A threshold that, if exceeded, will result in halting processing any requests
         {db_disk_usage_circuit_breaker_activation_threshold, 0.9},
 
+        {db_disk_monitor_verbose_logs, false},
+
         %% ===================================================================
         %% Let's Encrypt configuration
         %% ===================================================================
