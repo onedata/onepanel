@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider ceph storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storage_ceph_test_SUITE).
+-module(api_op_storage_ceph_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -33,6 +33,8 @@
     add_correct_storage_test/1,
     add_bad_storage_test/1,
 
+    get_storage_test/1,
+
     modify_correct_storage_test/1,
     modify_bad_storage_test/1
 ]).
@@ -42,6 +44,8 @@ groups() -> [
         add_correct_storage_test,
         add_bad_storage_test,
 
+        get_storage_test,
+
         modify_correct_storage_test,
         modify_bad_storage_test
     ]}
@@ -50,6 +54,15 @@ groups() -> [
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_CEPH_STORAGE_SPEC, #{
+    <<"type">> => <<"cephrados">>,
+    <<"monitorHostname">> => ?CEPH_MONITOR_HOSTNAME,
+    <<"clusterName">> => ?CEPH_CLUSTER_NAME,
+    <<"poolName">> => ?CEPH_POOL_NAME,
+    <<"username">> => ?CEPH_USERNAME,
+    <<"key">> => ?CEPH_KEY
+}).
 
 
 %%%===================================================================
@@ -67,13 +80,13 @@ add_bad_storage_test(_Config) ->
 
 %% @private
 -spec add_ceph_storage_test_base(
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:args_correctness()
 ) ->
     ok.
 add_ceph_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(
+    api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
-            storage_type = ceph,
+            storage_type = cephrados,
             args_correctness = ArgsCorrectness,
 
             data_spec_fun = fun build_add_ceph_storage_data_spec/3,
@@ -84,11 +97,11 @@ add_ceph_storage_test_base(ArgsCorrectness) ->
 %% @private
 -spec build_add_ceph_storage_data_spec(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:storage_type(),
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:storage_type(),
+    api_op_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
-build_add_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
+build_add_ceph_storage_data_spec(MemRef, cephrados, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
     #data_spec{
@@ -135,7 +148,7 @@ build_add_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
         ]
     };
-build_add_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
+build_add_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
     #data_spec{
@@ -174,6 +187,37 @@ build_add_ceph_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_CEPH_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % key MUST BE shadowed
+        <<"key">> => <<"*****">>,
+
+        % default values for not supplied parameters
+        <<"storagePathType">> => <<"flat">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>,
+
+        % TODO VFS-12391 shouldn't this be int?
+        <<"blockSize">> => <<"4194304">>
+    }).
+
+
 modify_correct_storage_test(_Config) ->
     modify_ceph_storage_test_base(correct_args).
 
@@ -184,9 +228,9 @@ modify_bad_storage_test(_Config) ->
 
 %% @private
 modify_ceph_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:modify_storage_test_base(
+    api_op_storages_test_base:modify_storage_test_base(
         #modify_storage_test_spec{
-            storage_type = ceph,
+            storage_type = cephrados,
             args_correctness = ArgsCorrectness,
 
             build_data_spec_fun = fun build_modify_ceph_storage_data_spec/3,
@@ -195,7 +239,7 @@ modify_ceph_storage_test_base(ArgsCorrectness) ->
 
 
 %% @private
-build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
+build_modify_ceph_storage_data_spec(MemRef, cephrados, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
 
@@ -241,7 +285,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
         ]
     };
 
-build_modify_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
+build_modify_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
 
@@ -275,16 +319,7 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
 
-        StorageId = panel_test_rpc:add_storage(krakow,
-            #{StorageName => #{
-                <<"type">> => <<"cephrados">>,
-                <<"monitorHostname">> => ?CEPH_MONITOR_HOSTNAME,
-                <<"clusterName">> => ?CEPH_CLUSTER_NAME,
-                <<"poolName">> => ?CEPH_POOL_NAME,
-                <<"username">> => ?CEPH_USERNAME,
-                <<"key">> => ?CEPH_KEY
-            }}
-        ),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_CEPH_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),

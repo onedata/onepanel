@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% This module contains utility functions for cluster deployment tests.
+%%% This module contains utility functions for op cluster deployment tests.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(op_cluster_deployment_test_utils).
@@ -16,18 +16,12 @@
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/assertions.hrl").
 
--type node_details() :: #node_details{}.
 -type op_cluster_config() :: #op_cluster_config{}.
 
--export_type([
-    node_details/0,
-    op_cluster_config/0
-]).
+-export_type([op_cluster_config/0]).
 
 %% API
 -export([
-    infer_node_details/1,
-
     get_registration_token/0,
 
     deploy_batch/1,
@@ -46,18 +40,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-
--spec infer_node_details(node()) -> node_details().
-infer_node_details(Node) ->
-    NodeIp = ip_test_utils:get_node_ip(Node),
-    NodeHost = str_utils:to_binary(hosts:from_node(Node)),
-
-    #node_details{
-        node = Node,
-        hostname = NodeHost,
-        ip = NodeIp
-    }.
 
 
 -spec get_registration_token() -> tokens:serialized().

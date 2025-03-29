@@ -82,6 +82,14 @@ teardown_automatic_certification_renewal_test(EntitySelector, Config) ->
 
     cert_test_utils:update_lets_encrypt(EntitySelector, disable),
 
+    % Disabling le should disable periodic renewal check. Nonetheless, it is still
+    % possible that renewal was started just before disabling. In such case,
+    % wait until it is finished to not mess with other tests
+    cert_test_utils:assert_cert_details(EntitySelector, #{
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => false
+    }),
+
     Config.
 
 

@@ -15,6 +15,7 @@
 -include("api_test_runner.hrl").
 -include("cert_test_utils.hrl").
 -include("deployment_progress.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -41,10 +42,11 @@
     expired_certificate_should_be_replaced_with_http_challenge_test/1,
     expired_certificate_should_be_replaced_with_dns_challenge_test/1,
 
-    automatic_certification_renewal_test/1,
     disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test/1,
     failed_certification_attempt_leaves_lets_encrypt_disabled_test/1,
-    failed_certification_attempt_leaves_lets_encrypt_enabled_test/1
+    failed_certification_attempt_leaves_lets_encrypt_enabled_test/1,
+
+    automatic_certification_renewal_test/1
 ]).
 
 groups() -> [
@@ -69,10 +71,13 @@ all() -> [
     {group, http_challenge},
     {group, dns_challenge},
 
-    automatic_certification_renewal_test,
     disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test,
     failed_certification_attempt_leaves_lets_encrypt_disabled_test,
-    failed_certification_attempt_leaves_lets_encrypt_enabled_test
+    failed_certification_attempt_leaves_lets_encrypt_enabled_test,
+
+    % Below test messes with recurring cert checks to cause quick regeneration.
+    % As such it is best to run it as last
+    automatic_certification_renewal_test
 ].
 
 
@@ -83,6 +88,7 @@ all() -> [
 
 -define(AWAIT_DEPLOYMENT_READY_ATTEMPTS, 180).
 
+-define(PROVIDER_SELECTOR, krakow).
 -define(PROVIDER_NAME, <<"krakow">>).
 
 
@@ -135,10 +141,6 @@ expired_certificate_should_be_replaced_with_dns_challenge_test(Config) ->
     le_test_base:expired_certificate_should_be_replaced_test_base(build_test_spec(Config)).
 
 
-automatic_certification_renewal_test(Config) ->
-    le_test_base:automatic_certification_renewal_test_base(build_test_spec(Config)).
-
-
 disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test(Config) ->
     le_test_base:disabling_lets_encrypt_should_do_nothing_to_already_present_certificate_test_base(
         build_test_spec(Config)
@@ -153,6 +155,10 @@ failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
     le_test_base:failed_certification_attempt_leaves_lets_encrypt_intact_test_base(build_test_spec(Config)).
 
 
+automatic_certification_renewal_test(Config) ->
+    le_test_base:automatic_certification_renewal_test_base(build_test_spec(Config)).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -161,7 +167,7 @@ failed_certification_attempt_leaves_lets_encrypt_enabled_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, le_test_base, ip_test_utils, cert_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_not_deployed",
+        onenv_scenario = "1op_2nodes_1worker_1ones3_pebble",
         envs = [
             {op_panel, ctool, [
                 % Allow Oneprovider panel to connect with Pebble server
@@ -172,7 +178,7 @@ init_per_suite(Config) ->
                 % Increase certification attempts as pebble likes to fail from time to time
                 {letsencrypt_attempts, ?CERTIFICATION_ATTEMPTS},
 
-                {ones3_verbose_log_level, 3}
+                {ones3_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->
@@ -181,10 +187,10 @@ init_per_suite(Config) ->
             panel_test_rest:set_insecure_flag(),
             dns_test_utils:update_zone_subdomain_delegation(true),
 
+            configure_subdomain(?PROVIDER_NAME),
             add_op_etc_hosts_entries_on_testmaster(NewConfig),
             add_op_etc_hosts_entries_on_ones3_node(NewConfig),
-            NewConfig2 = perhaps_deploy(NewConfig),
-            NewConfig2
+            NewConfig
         end
     }).
 
@@ -198,7 +204,7 @@ init_per_group(Group, Config) ->
         http_challenge -> http;
         dns_challenge -> dns
     end,
-    PanelNoes = panel_test_utils:get_panel_nodes(krakow),
+    PanelNoes = panel_test_utils:get_panel_nodes(?PROVIDER_SELECTOR),
     test_utils:mock_new(PanelNoes, letsencrypt_api),
     test_utils:mock_expect(PanelNoes, letsencrypt_api, challenge_types, fun() ->
         [ChallengeType]
@@ -208,7 +214,7 @@ init_per_group(Group, Config) ->
 
 
 end_per_group(_Group, Config) ->
-    PanelNoes = panel_test_utils:get_panel_nodes(krakow),
+    PanelNoes = panel_test_utils:get_panel_nodes(?PROVIDER_SELECTOR),
     test_utils:mock_unload(PanelNoes, [letsencrypt_api]),
 
     Config.
@@ -217,7 +223,7 @@ end_per_group(_Group, Config) ->
 init_per_testcase(Testcase = automatic_certification_renewal_test, Config) ->
     init_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:init_automatic_certification_renewal_test(krakow, Config)
+        le_test_base:init_automatic_certification_renewal_test(?PROVIDER_SELECTOR, Config)
     );
 
 init_per_testcase(Testcase, Config) when
@@ -230,11 +236,11 @@ init_per_testcase(Testcase, Config) when
     end,
     init_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:init_failed_certification_attempt_test(krakow, LetsEncryptPolicy, Config)
+        le_test_base:init_failed_certification_attempt_test(?PROVIDER_SELECTOR, LetsEncryptPolicy, Config)
     );
 
 init_per_testcase(_Testcase, Config) ->
-    PanelNodes = panel_test_utils:get_panel_nodes(krakow),
+    PanelNodes = panel_test_utils:get_panel_nodes(?PROVIDER_SELECTOR),
     test_utils:mock_new(PanelNodes, [service_oz_worker, service_onepanel], [passthrough]),
 
     Config.
@@ -243,7 +249,7 @@ init_per_testcase(_Testcase, Config) ->
 end_per_testcase(Testcase = automatic_certification_renewal_test, Config) ->
     end_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:teardown_automatic_certification_renewal_test(krakow, Config)
+        le_test_base:teardown_automatic_certification_renewal_test(?PROVIDER_SELECTOR, Config)
     );
 
 end_per_testcase(Testcase, Config) when
@@ -252,15 +258,15 @@ end_per_testcase(Testcase, Config) when
 ->
     end_per_testcase(
         ?DEFAULT_CASE(Testcase),
-        le_test_base:teardown_failed_certification_attempt_test(krakow, Config)
+        le_test_base:teardown_failed_certification_attempt_test(?PROVIDER_SELECTOR, Config)
     );
 
 end_per_testcase(_Testcase, Config) ->
-    PanelNodes = panel_test_utils:get_panel_nodes(krakow),
+    PanelNodes = panel_test_utils:get_panel_nodes(?PROVIDER_SELECTOR),
     test_utils:mock_unload(PanelNodes, [service_oz_worker, service_onepanel]),
 
-    cert_test_utils:set_certification_attempts(krakow, ?CERTIFICATION_ATTEMPTS),
-    cert_test_utils:deploy_certs(krakow, ?PEBBLE_VALID_CERT_DIR_NAME, Config).
+    cert_test_utils:set_certification_attempts(?PROVIDER_SELECTOR, ?CERTIFICATION_ATTEMPTS),
+    cert_test_utils:deploy_certs(?PROVIDER_SELECTOR, ?PEBBLE_VALID_CERT_DIR_NAME, Config).
 
 
 %%%===================================================================
@@ -275,10 +281,10 @@ build_test_spec(Config) ->
     OneS3Domain = get_s3_domain(),
 
     #le_test_spec{
-        entity_selector = krakow,
+        entity_selector = ?PROVIDER_SELECTOR,
         exp_domain = OpDomain,
         exp_dns_names = [OpDomain, OneS3Domain],
-        service = ?SERVICE(?OP_PANEL, oct_background:get_provider_id(krakow)),
+        service = ?SERVICE(?OP_PANEL, oct_background:get_provider_id(?PROVIDER_SELECTOR)),
         ct_config = Config
     }.
 
@@ -299,112 +305,48 @@ get_domain() ->
 
 
 %% @private
-perhaps_deploy(Config) ->
-    OpPanelNodes = ?config(op_panel_nodes, Config),
-
-    IsDeploymentReadyFun = fun(PanelNode) ->
-        panel_test_rpc:call(PanelNode, onepanel_deployment, is_set, [?PROGRESS_READY])
-    end,
-
-    case lists:all(IsDeploymentReadyFun, OpPanelNodes) of
-        true ->
-            Config;
-        false ->
-            deploy_using_batch_config(Config),
-            NewConfig1 = oct_nodes:refresh_config(Config),
-            NewConfig2 = oct_nodes:connect_with_nodes(NewConfig1),
-            oct_background:update_environment(NewConfig2)
-    end.
-
-
-%% @private
-deploy_using_batch_config(Config) ->
-    AdminUserId = oct_background:get_user_id(admin),
-    RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
-
-    [OpPanelNode1, OpPanelNode2] = OpPanelNodes = ?config(op_panel_nodes, Config),
-    [_OpIpHost1, OpIpHost2] = OpIps = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
-    [OpIpHost1Bin, OpIpHost2Bin] = lists:map(fun ip_test_utils:encode_ip/1, OpIps),
-    [OpHost1, OpHost2] = hosts:from_nodes(OpPanelNodes),
-
-    panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
-
-    BatchConfig = #{
-        <<"cluster">> => #{
-            <<"nodes">> => #{
-                <<"node-1">> => #{
-                    <<"hostname">> => str_utils:to_binary(OpHost1),
-                    <<"externalIp">> => OpIpHost1Bin
-                },
-                <<"node-2">> => #{
-                    <<"hostname">> => str_utils:to_binary(OpHost2),
-                    <<"externalIp">> => OpIpHost2Bin
-                }
-            },
-            <<"managers">> => #{
-                <<"mainNode">> => <<"node-1">>,
-                <<"nodes">> => [<<"node-1">>, <<"node-2">>]
-            },
-            <<"workers">> => #{
-                <<"nodes">> => [<<"node-1">>]
-            },
-            <<"oneS3">> => #{
-                <<"nodes">> => [<<"node-2">>]
-            },
-            <<"databases">> => #{
-                <<"nodes">> => [<<"node-1">>]
-            }
-        },
-        <<"oneprovider">> => #{
-            <<"register">> => true,
-            <<"token">> => RegistrationToken,
-
-            <<"name">> => <<"krakow">>,
-            <<"adminEmail">> => <<"admin@example.eu">>,
-            <<"subdomainDelegation">> => true,
-            <<"subdomain">> => ?PROVIDER_NAME,
-            <<"letsEncryptEnabled">> => true
-        }
-    },
-
-    OpRequestOpts = #{
-        auth => root,
-        hostname => OpIpHost1Bin
-    },
-    {ok, ?HTTP_202_ACCEPTED, _, Resp} = panel_test_rest:post(
-        OpPanelNode1, <<"/provider/configuration">>, OpRequestOpts#{json => BatchConfig}
-    ),
-    TaskId = maps:get(<<"taskId">>, Resp),
-
+configure_subdomain(SubdomainLabel) ->
     ?assertMatch(
-        {ok, ?HTTP_200_OK, _, #{<<"status">> := <<"ok">>}},
-        panel_test_rest:get(OpPanelNode1, <<"/tasks/", TaskId/binary>>, OpRequestOpts),
-        ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
-    ),
-
-    OneS3Port = panel_test_rpc:call(OpPanelNode2, service_ones3, get_port, []),
-    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, OneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:patch(?PROVIDER_SELECTOR, <<"/provider">>, #{auth => root, json => #{
+            <<"subdomainDelegation">> => true,
+            <<"subdomain">> => SubdomainLabel
+        }})
+    ).
 
 
 %% @private
-add_op_etc_hosts_entries_on_testmaster(Config) ->
-    OpPanelNodes = ?config(op_panel_nodes, Config),
-    [OpIpHost1, OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+add_op_etc_hosts_entries_on_testmaster(_Config) ->
+    [OpWorkerIp] = get_op_worker_ips(),
+    [OneS3Ip] = get_ones3_ips(),
 
     add_entries_to_etc_hosts([
-        {get_domain(), OpIpHost1},
-        {get_domain(), OpIpHost2},
-        {get_s3_domain(), OpIpHost2}
+        % Add mapping for both nodes to make requests for Onepanel
+        {get_domain(), OpWorkerIp},
+        {get_domain(), OneS3Ip},
+
+        {get_s3_domain(), OneS3Ip}
     ]).
 
 
 %% @private
 add_op_etc_hosts_entries_on_ones3_node(Config) ->
-    [_OpPanelNode1, OpPanelNode2] = OpPanelNodes = ?config(op_panel_nodes, Config),
-    [OpIpHost1, _OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
+    [OpWorkerIp] = get_op_worker_ips(),
+    EntriesToAdd = [{get_domain(), OpWorkerIp}],
 
-    EntriesToAdd = [{get_domain(), OpIpHost1}],
-    panel_test_rpc:call(OpPanelNode2, fun() -> add_entries_to_etc_hosts(EntriesToAdd) end).
+    lists:foreach(fun(Node) ->
+        panel_test_rpc:call(Node, fun() -> add_entries_to_etc_hosts(EntriesToAdd) end)
+    end, ?config(op_panel_nodes, Config)).
+
+
+%% @private
+get_op_worker_ips() ->
+    ip_test_utils:get_op_service_ips(?PROVIDER_SELECTOR, ?SERVICE_OPW).
+
+
+%% @private
+get_ones3_ips() ->
+    ip_test_utils:get_op_service_ips(?PROVIDER_SELECTOR, ?SERVICE_ONES3).
 
 
 %% @private

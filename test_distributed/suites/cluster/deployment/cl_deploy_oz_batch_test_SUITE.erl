@@ -9,7 +9,7 @@
 %%% Integration tests of Onezone batch deployment.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_oz_batch_deployment_test_SUITE).
+-module(cl_deploy_oz_batch_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -50,7 +50,7 @@ deploy_using_batch_config_test(Config) ->
     [OzPanelNode] = ?config(oz_panel_nodes, Config),
     OzPanelHostIp = ip_test_utils:get_node_ip(OzPanelNode),
     [OzHost] = hosts:from_nodes([OzPanelNode]),
-    OzDomain = get_zone_domain(OzPanelNode),
+    OzDomain = dns_test_utils:get_k8s_service_domain(OzPanelNode),
 
     panel_test_rpc:set_emergency_passphrase(OzPanelNode, ?ONENV_EMERGENCY_PASSPHRASE),
 
@@ -122,12 +122,6 @@ end_per_suite(_Config) ->
 %%%===================================================================
 %%% Helper functions
 %%%===================================================================
-
-
-%% @private
-get_zone_domain(OzPanelNode) ->
-    {ok, OzDomain} = test_utils:get_env(OzPanelNode, ?APP_NAME, test_web_cert_domain),
-    str_utils:to_binary(OzDomain).
 
 
 %% @private

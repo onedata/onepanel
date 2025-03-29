@@ -9,7 +9,7 @@
 %%% This file contains tests concerning provider basic API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_provider_test_SUITE).
+-module(api_op_provider_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").

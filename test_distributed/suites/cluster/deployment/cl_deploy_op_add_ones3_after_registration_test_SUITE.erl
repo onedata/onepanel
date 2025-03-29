@@ -7,10 +7,10 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Integration tests of Oneprovider deployment with adding ones3 after
-%%% obtaining Lets Encrypt certificate.
+%%% registration in oz.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_deployment_op_add_ones3_after_certification_with_le_test_SUITE).
+-module(cl_deploy_op_add_ones3_after_registration_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -48,7 +48,7 @@ all() -> [
 deploy_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
     Node1Ip = ip_test_utils:get_node_ip(Node1),
-    Node2Details = op_cluster_deployment_test_utils:infer_node_details(Node2),
+    Node2Details = cluster_management_test_utils:infer_node_details(Node2),
     Node2Ip = Node2Details#node_details.ip,
 
     panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
@@ -56,7 +56,7 @@ deploy_test(Config) ->
     ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
         nodes = #{
-            1 => op_cluster_deployment_test_utils:infer_node_details(Node1),
+            1 => cluster_management_test_utils:infer_node_details(Node1),
             2 => Node2Details
         },
         managers = [1, 2],
@@ -74,42 +74,25 @@ deploy_test(Config) ->
     % Cluster deployed without OneS3 should have no host with OneS3
     op_cluster_deployment_test_utils:deploy_all_services(OpClusterConfig),
     ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
-
-    % Domain status cannot be validated for not registered providers resulting in status 'unknown'
     ExpOnedataTestCertDetails = #{
         <<"issuer">> => ?ONEDATA_TEST_CERT_ISSUER,
+        % Domain status cannot be validated for not registered providers
+        % resulting in status unknown
         <<"status">> => <<"unknown">>
     },
     cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails),
 
     op_cluster_deployment_test_utils:register_provider(OpClusterConfig),
     ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
-    % Registering provider with subdomain causes domain_mismatch with cert issued for test domain
     cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails#{
         <<"status">> => <<"domain_mismatch">>
     }),
 
-    op_cluster_deployment_test_utils:configure_dns(OpClusterConfig),
-    op_cluster_deployment_test_utils:configure_web_cert(OpClusterConfig),
-    ?assertEqual(#{}, cluster_management_test_utils:get_ones3_status_cluster_wide(Node1)),
-
-    OzDomain = oct_background:get_zone_domain(),
-    ProviderDomain = <<ProviderName/binary, ".", OzDomain/binary>>,
-    ExpPebbleCertDetails = #{
-        <<"letsEncrypt">> => true,
-        <<"status">> => <<"valid">>,
-        <<"domain">> => ProviderDomain,
-        <<"dnsNames">> => [ProviderDomain]
-    },
-    AllPebbleCertDetails0 = cert_test_utils:assert_cert_details(Node1, ExpPebbleCertDetails),
-    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails0),
-
-    % Deploying OneS3 on proper host after certification enables the
-    % service on selected host, immediately start it and regenerates certificate
-    % (if lets encrypt is enabled)
-    DefaultOneS3Port = cluster_management_test_utils:get_ones3_port(Node1),
-    PortsPool = [undefined, 16666, 17777, 18888, 19999],
-    OneS3PortToSet = ?RAND_ELEMENT(PortsPool),
+    % Deploying OneS3 on proper host after provider registration enables the
+    % service on selected host and immediately start it but no changes
+    % to certificates are made
+    DefaultOneS3Port = ?rpc(Node1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
+    OneS3PortToSet = ?RAND_ELEMENT([undefined, 16666, 17777, 18888, 19999]),
     ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
 
     op_cluster_deployment_test_utils:deploy_ones3_service(OpClusterConfig#op_cluster_config{
@@ -124,20 +107,28 @@ deploy_test(Config) ->
     ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
     ?assertMatch({ok, _}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
 
-    AllPebbleCertDetails1 = cert_test_utils:assert_cert_details(Node1, ExpPebbleCertDetails#{
-        <<"dnsNames">> => lists:usort([ProviderDomain, <<"s3.", ProviderDomain/binary>>])
+    cert_test_utils:assert_cert_details(Node1, ExpOnedataTestCertDetails#{
+        <<"status">> => <<"domain_mismatch">>
     }),
-    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails1),
 
-    % Ensure adding oneS3 host to already deployed cluster with ones3 will ignore new port
-    OneS3PortToIgnore = ?RAND_ELEMENT(PortsPool -- [OneS3PortToSet]),
-    op_cluster_deployment_test_utils:deploy_ones3_service(OpClusterConfig#op_cluster_config{
-        ones3_nodes = [1],
-        ones3_port = OneS3PortToIgnore
-    }),
-    ?assertMatch({ok, _}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
+    op_cluster_deployment_test_utils:configure_dns(OpClusterConfig),
+
+    % Enabling Lets Encrypt should result in new certificates for op domain and s3 subdomain
+    op_cluster_deployment_test_utils:configure_web_cert(OpClusterConfig),
+    OzDomain = oct_background:get_zone_domain(),
+    ProviderDomain = <<ProviderName/binary, ".", OzDomain/binary>>,
+    OneS3Domain = <<"s3.", ProviderDomain/binary>>,
+    ExpPebbleCertDetails = #{
+        <<"status">> => <<"valid">>,
+        <<"letsEncrypt">> => true,
+        <<"domain">> => ProviderDomain,
+        <<"dnsNames">> => lists:sort([ProviderDomain, OneS3Domain])
+    },
+    AllPebbleCertDetails = cert_test_utils:assert_cert_details(Node1, ExpPebbleCertDetails),
+    cert_test_utils:assert_newly_issued_pebble_cert(AllPebbleCertDetails),
+
+    ?assertMatch({error, econnrefused}, gen_tcp:connect(Node1Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
     ?assertMatch({ok, _}, gen_tcp:connect(Node2Ip, ExpOneS3Port, [], 10), ?ATTEMPTS),
-
     ok.
 
 
@@ -149,11 +140,14 @@ deploy_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_not_deployed",
+        onenv_scenario = "1op_2nodes_not_deployed_pebble",
         envs = [
             {op_panel, ctool, [
-                % Allow Onezone panel to connect with Pebble server
+                % Allow Oneprovider panel to connect with Pebble server
                 {force_insecure_connections, true}
+            ]},
+            {op_panel, onepanel, [
+                {ones3_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->

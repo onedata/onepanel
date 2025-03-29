@@ -9,7 +9,7 @@
 %%% This file provides tests concerning onezone service configuration API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_onezone_service_configuration_test_SUITE).
+-module(api_oz_service_configuration_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").

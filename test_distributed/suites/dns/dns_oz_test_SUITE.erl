@@ -45,7 +45,7 @@ all() -> [
 
 
 configure_dns_test(_Config) ->
-    OzDomain = dns_test_utils:get_zone_domain(),
+    OzDomain = dns_test_utils:get_domain(zone),
     OzIps = ip_test_utils:get_zone_nodes_ips(),
 
     % Originally, with build in dns server disabled and no dns servers specified
@@ -95,7 +95,7 @@ configure_dns_test(_Config) ->
 
 
 modify_ips_test(_Config) ->
-    OzDomain = dns_test_utils:get_zone_domain(),
+    OzDomain = dns_test_utils:get_domain(zone),
     OzIps = ip_test_utils:get_zone_nodes_ips(),
 
     DnsConfig = #{
