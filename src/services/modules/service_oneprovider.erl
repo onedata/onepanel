@@ -320,7 +320,13 @@ get_steps(modify_details, Ctx) ->
     get_steps(modify_details, Ctx#{hosts => hosts:all(?SERVICE_OPW)});
 
 get_steps(set_cluster_ips, _Ctx) ->
-    [#step{function = set_cluster_ips, hosts = [hosts:self()]}];
+    SelfHost = hosts:self(),
+
+    [
+        #step{function = set_cluster_ips, hosts = [SelfHost]},
+        #step{module = onepanel_deployment, function = set_marker, args = [?PROGRESS_CLUSTER_IPS],
+            hosts = [SelfHost]}
+    ];
 
 get_steps(Action, _Ctx) when
     Action =:= get_spaces;
@@ -860,7 +866,7 @@ get_manual_storage_import_example(#{space_id := SpaceId}) ->
 set_cluster_ips(Ctx) ->
     ?info("Configuring provider ips"),
 
-    global:trans({set_cluster_ips, ?MODULE}, fun() ->
+    global:trans({?FUNCTION_NAME, ?MODULE}, fun() ->
         CurrentOpwIps = maps:from_list(service_cluster_worker:get_hosts_ips(Ctx#{name => ?SERVICE_OPW})),
         CurrentOneS3Ips = maps:from_list(service_ones3:get_hosts_ips()),
         CurrentIps = maps_utils:undefined_to_null(maps:merge(CurrentOneS3Ips, CurrentOpwIps)),
@@ -893,7 +899,7 @@ set_services_ips(Ctx) ->
 %% @private
 -spec set_service_ips(service:name(), service:step_ctx()) -> ok | no_return().
 set_service_ips(ServiceName, Ctx) ->
-    service_utils:throw_on_error(service:apply_sync(ServiceName, set_cluster_ips, Ctx)),
+    service_utils:throw_on_error(service:apply_sync(ServiceName, set_service_ips, Ctx)),
     ok.
 
 

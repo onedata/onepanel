@@ -197,10 +197,13 @@ get_steps(status, _Ctx) ->
     ];
 
 get_steps(set_cluster_ips, Ctx) ->
-    Ctx2 = Ctx#{
-        name => ?SERVICE_OZW
-    }, [
-        #steps{action = set_cluster_ips, ctx = Ctx2, service = ?SERVICE_CW},
+    Ctx2 = Ctx#{name => ?SERVICE_OZW},
+
+    [
+        % Set ips for oz worker nodes
+        #steps{action = set_service_ips, ctx = Ctx2, service = ?SERVICE_CW},
+        #step{module = onepanel_deployment, function = set_marker, args = [?PROGRESS_CLUSTER_IPS],
+            hosts = [hosts:self()]},
         #step{function = reconcile_dns, selection = any, service = ?SERVICE_OZW,
             hosts = get_hosts()}
     ];
