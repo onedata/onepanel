@@ -491,7 +491,7 @@ list_config_dir(ServiceName) ->
 %% @private
 -spec check_rpc_call_all([node()], module(), atom(), [term()]) -> ok | no_return().
 check_rpc_call_all(Nodes, Module, Function, Args) ->
-    Results = onepanel_rpc:call_all(Nodes, ?MODULE, set, Args),
+    Results = onepanel_rpc:call_all(Nodes, ?MODULE, Function, Args),
     lists:foreach(fun
         ({_Node, ok}) ->
             ok;
