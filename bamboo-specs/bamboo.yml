@@ -62,6 +62,7 @@ stages:
         - api_op_storage_nulldevice
         - api_op_storage_posix
         - api_op_storage_s3
+        - api_op_storage_swift
         - api_op_storage_webdav
         - api_op_storages
         - api_oz_service_configuration
@@ -387,6 +388,13 @@ api_op_storage_s3:
     - <<: *ct_logs
       name: ct_logs_api_op_storage_s3.tar.gz
 
+api_op_storage_swift:
+  <<: *ct-onenv-job
+  key: APISTORAGESWIFT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_swift.tar.gz
+
 api_op_storage_webdav:
   <<: *ct-onenv-job
   key: AOSW
@@ -683,6 +691,7 @@ Coverage report:
     - artifact: ct_logs_api_op_storage_nulldevice.tar.gz
     - artifact: ct_logs_api_op_storage_posix.tar.gz
     - artifact: ct_logs_api_op_storage_s3.tar.gz
+    - artifact: ct_logs_api_op_storage_swift.tar.gz
     - artifact: ct_logs_api_op_storage_webdav.tar.gz
     - artifact: ct_logs_api_op_storages.tar.gz
     - artifact: ct_logs_api_oz_service_configuration.tar.gz
