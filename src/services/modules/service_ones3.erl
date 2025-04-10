@@ -140,14 +140,14 @@ get_steps(add_nodes, #{new_hosts := _NewHosts} = Ctx) ->
             [#steps{action = create, ctx = Ctx2}]
     end;
 
-get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
+get_steps(set_service_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
-get_steps(set_cluster_ips, #{cluster_ips := HostsToIps} = Ctx) ->
+get_steps(set_service_ips, #{cluster_ips := HostsToIps} = Ctx) ->
     % execute only on nodes where ip is explicitly provided
-    get_steps(set_cluster_ips, Ctx#{hosts => lists_utils:intersect(get_hosts(), maps:keys(HostsToIps))});
-get_steps(set_cluster_ips, Ctx) ->
+    get_steps(set_service_ips, Ctx#{hosts => lists_utils:intersect(get_hosts(), maps:keys(HostsToIps))});
+get_steps(set_service_ips, Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
-    get_steps(set_cluster_ips, Ctx#{hosts => get_hosts()});
+    get_steps(set_service_ips, Ctx#{hosts => get_hosts()});
 
 get_steps(resume, _Ctx) ->
     [
@@ -297,12 +297,8 @@ set_node_ip(Ctx) ->
     Host = hosts:self(),
 
     {ok, Ip} = case kv_utils:find([cluster_ips, Host], Ctx) of
-        {ok, NewIp} ->
-            % TODO VFS-12379 ?PROGRESS_CLUSTER_IPS is set in cw also. Check if this can stay as is or should be done only once
-            onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
-            ip_utils:to_ip4_address(NewIp);
-        _ ->
-            {ok, infer_ip()}
+        {ok, NewIp} -> ip_utils:to_ip4_address(NewIp);
+        _ -> {ok, infer_ip()}
     end,
 
     onepanel_env:write([?SERVICE_PANEL, external_ip], Ip, ?SERVICE_PANEL),

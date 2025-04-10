@@ -22,7 +22,7 @@
 
 -record(op_cluster_config, {
     %% Cluster topology
-    nodes :: #{non_neg_integer() => op_cluster_deployment_test_utils:node_details()},
+    nodes :: #{non_neg_integer() => cluster_management_test_utils:node_details()},
     managers :: [non_neg_integer()],
     main_manager :: non_neg_integer(),
     workers :: [non_neg_integer()],
@@ -45,6 +45,21 @@
 
     %% Web cert configuration
     lets_encrypt = false :: boolean()
+}).
+
+-record(oz_cluster_config, {
+    %% Cluster topology
+    nodes :: #{non_neg_integer() => cluster_management_test_utils:node_details()},
+    managers :: [non_neg_integer()],
+    main_manager :: non_neg_integer(),
+    workers :: [non_neg_integer()],
+    databases :: [non_neg_integer()],
+
+    %% Zone configuration
+    name :: binary(),
+    domain :: binary(),
+    lets_encrypt = false :: boolean(),
+    built_in_dns = false :: boolean()
 }).
 
 

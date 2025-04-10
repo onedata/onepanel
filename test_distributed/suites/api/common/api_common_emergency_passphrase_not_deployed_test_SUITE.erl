@@ -247,7 +247,7 @@ get_undeployed_op_panel_nodes(Config) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op_not_deployed"
+        onenv_scenario = "1oz_not_deployed_1op_not_deployed"
     }).
 
 

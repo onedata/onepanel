@@ -20,12 +20,16 @@
 
 %% API
 -export([
+    set_host_address_infer_policy/1,
+    get_host_address_infer_policy/0,
+
     set_insecure_flag/0,
     unset_insecure_flag/0,
 
     get/3,
     patch/3,
     post/3,
+    delete/3,
 
     request/2
 ]).
@@ -65,6 +69,24 @@
 %%%===================================================================
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Set global policy for resolving node host before making REST calls.
+%% While in general 'domain' is preferred, in case of not fully deployed
+%% services (various multi-node deployment tests) 'ip' policy may be crucial
+%% to ensure requests are directed into concrete node.
+%% @end
+%%--------------------------------------------------------------------
+-spec set_host_address_infer_policy(ip | domain) -> ok.
+set_host_address_infer_policy(Policy) ->
+    node_cache:put({?MODULE, host_address_infer_policy}, Policy).
+
+
+-spec get_host_address_infer_policy() -> ip | domain.
+get_host_address_infer_policy() ->
+    node_cache:get({?MODULE, host_address_infer_policy}, domain).
+
+
 -spec set_insecure_flag() -> ok.
 set_insecure_flag() ->
     % This is set in test code to allow tests to connect to a panel with
@@ -90,6 +112,11 @@ patch(PanelNodeSelector, Path, RequestArgs) ->
 -spec post(oct_background:node_selector(), binary(), request_args()) -> response().
 post(PanelNodeSelector, Path, RequestArgs) ->
     request(PanelNodeSelector, RequestArgs#{method => post, path => Path}).
+
+
+-spec delete(oct_background:node_selector(), binary(), request_args()) -> response().
+delete(PanelNodeSelector, Path, RequestArgs) ->
+    request(PanelNodeSelector, RequestArgs#{method => delete, path => Path}).
 
 
 -spec request(oct_background:node_selector(), request_args()) -> response().
@@ -138,11 +165,9 @@ is_known_node(NodeSelector) ->
 %% @private
 -spec build_url(node(), request_args()) -> binary().
 build_url(Node, RequestArgs) ->
-    Domain = case maps:get(hostname, RequestArgs, undefined) of
-        undefined ->
-            element(2, {ok, _} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain));
-        Hostname ->
-            Hostname
+    Host = case maps:get(hostname, RequestArgs, undefined) of
+        undefined -> get_host_address(Node);
+        Hostname -> Hostname
     end,
     {ok, RestPrefix} = test_utils:get_env(Node, ?APP_NAME, rest_api_prefix),
     Path = maps:get(path, RequestArgs),
@@ -155,7 +180,16 @@ build_url(Node, RequestArgs) ->
             str_utils:format_bin(":~B", [Port])
     end,
 
-    str_utils:format_bin("https://~ts~ts~ts~ts", [Domain, PortBin, RestPrefix, Path]).
+    str_utils:format_bin("https://~ts~ts~ts~ts", [Host, PortBin, RestPrefix, Path]).
+
+
+%% @private
+-spec get_host_address(node()) -> binary().
+get_host_address(Node) ->
+    case get_host_address_infer_policy() of
+        ip -> ip_test_utils:encode_ip(ip_test_utils:get_node_ip(Node));
+        domain -> dns_test_utils:get_k8s_service_domain(Node)
+    end.
 
 
 %% @private

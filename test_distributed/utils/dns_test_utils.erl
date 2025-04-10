@@ -21,7 +21,9 @@
 %% API
 -export([
     get_domain/1,
-    get_zone_domain/0,
+    get_k8s_service_domain/1,
+    get_hostname/1,
+
     update_zone_subdomain_delegation/1,
 
     assert_panel_dns_config/2,
@@ -44,15 +46,38 @@
 
 
 -spec get_domain(oct_background:entity_selector()) -> binary().
-get_domain(zone) -> oct_background:get_zone_domain();
-get_domain(ProviderSelector) -> oct_background:get_provider_domain(ProviderSelector).
+get_domain(zone) ->
+    try
+        oct_background:get_zone_domain()
+    catch _:_ ->
+        % Getting domain via oct_background fails if services are not yet deployed
+        get_k8s_service_domain(?RAND_ELEMENT(oct_background:get_zone_panels()))
+    end;
+get_domain(ProviderSelector) ->
+    try
+        oct_background:get_provider_domain(ProviderSelector)
+    catch _:_ ->
+        % Getting domain via oct_background fails if services are not yet deployed
+        get_k8s_service_domain(?RAND_ELEMENT(oct_background:get_provider_panels(ProviderSelector)))
+    end.
 
 
--spec get_zone_domain() -> binary().
-get_zone_domain() ->
-    OzNode = ?RAND_ELEMENT(oct_background:get_zone_panels()),
-    {ok, OzDomain} = test_utils:get_env(OzNode, ?APP_NAME, test_web_cert_domain),
-    str_utils:to_binary(OzDomain).
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns domain prescribed for node in its app.config by one-env/k8s when
+%% starting environment.
+%% NOTE: this may not be final domain as provider may register using subdomain.
+%% @end
+%%--------------------------------------------------------------------
+-spec get_k8s_service_domain(node()) -> binary().
+get_k8s_service_domain(Node) ->
+    {ok, Domain} = test_utils:get_env(Node, ?APP_NAME, test_web_cert_domain),
+    str_utils:to_binary(Domain).
+
+
+-spec get_hostname(node()) -> binary().
+get_hostname(Node) ->
+    str_utils:to_binary(hosts:from_node(Node)).
 
 
 -spec update_zone_subdomain_delegation(boolean()) -> ok.

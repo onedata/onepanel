@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider nulldevice storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storage_nulldevice_test_SUITE).
+-module(api_op_storage_nulldevice_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -31,12 +31,14 @@
 
 -export([
     add_storage_test/1,
+    get_storage_test/1,
     modify_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
         add_storage_test,
+        get_storage_test,
         modify_storage_test
     ]}
 ].
@@ -52,7 +54,7 @@ all() -> [
 
 
 add_storage_test(_Config) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(
+    api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = nulldevice,
             args_correctness = correct_args,
@@ -65,8 +67,8 @@ add_storage_test(_Config) ->
 %% @private
 -spec build_add_nulldevice_storage_data_spec(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:storage_type(),
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:storage_type(),
+    api_op_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
 build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
@@ -149,8 +151,35 @@ build_add_nulldevice_storage_prepare_args_fun(MemRef) ->
     end.
 
 
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = #{<<"type">> => <<"nulldevice">>},
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % default values for not supplied parameters
+        <<"storagePathType">> => <<"canonical">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>,
+        <<"gid">> => <<"0">>,
+        <<"uid">> => <<"0">>
+    }).
+
+
 modify_storage_test(_Config) ->
-    api_oneprovider_storages_test_base:modify_storage_test_base(
+    api_op_storages_test_base:modify_storage_test_base(
         #modify_storage_test_spec{
             storage_type = nulldevice,
             args_correctness = correct_args,

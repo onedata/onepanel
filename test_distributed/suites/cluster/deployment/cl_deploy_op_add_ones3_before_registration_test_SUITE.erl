@@ -10,7 +10,7 @@
 %%% registration in oz.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_deployment_op_add_ones3_before_registration_test_SUITE).
+-module(cl_deploy_op_add_ones3_before_registration_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -48,7 +48,7 @@ all() -> [
 deploy_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
     Node1Ip = ip_test_utils:get_node_ip(Node1),
-    Node2Details = op_cluster_deployment_test_utils:infer_node_details(Node2),
+    Node2Details = cluster_management_test_utils:infer_node_details(Node2),
     Node2Host = Node2Details#node_details.hostname,
     Node2Ip = Node2Details#node_details.ip,
 
@@ -61,7 +61,7 @@ deploy_test(Config) ->
     ProviderName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
         nodes = #{
-            1 => op_cluster_deployment_test_utils:infer_node_details(Node1),
+            1 => cluster_management_test_utils:infer_node_details(Node1),
             2 => Node2Details
         },
         managers = [1, 2],
@@ -154,11 +154,14 @@ deploy_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_not_deployed",
+        onenv_scenario = "1op_2nodes_not_deployed_pebble",
         envs = [
             {op_panel, ctool, [
-                % Allow Onezone panel to connect with Pebble server
+                % Allow Oneprovider panel to connect with Pebble server
                 {force_insecure_connections, true}
+            ]},
+            {op_panel, onepanel, [
+                {ones3_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->

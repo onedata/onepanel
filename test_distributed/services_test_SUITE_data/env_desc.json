@@ -19,12 +19,6 @@
           "storagePathType": "canonical"
         },
         {
-          "type": "ceph",
-          "name": "someCeph",
-          "pool": "onedata:8",
-          "storagePathType": "flat"
-        },
-        {
           "type": "glusterfs",
           "name": "someGlusterfs",
           "volume": "data",

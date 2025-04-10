@@ -1,6 +1,10 @@
 # Name of the scenario to run
 scenario: "scenario-1oz-1op"
 
+# Path or list of paths in which look for sources (can be either relative to
+# cwd or absolute path)
+sourcesRoot: ".."
+
 # Sources are expected to be found in CWD (from where the 'up' script was run) or one dir above.
 # On bamboo all required sources will be pulled automatically.
 # NOTE: Cluster manager in Onezone and Oneprovider will be started from the same sources 
@@ -13,14 +17,16 @@ sources:
       - oz-panel
   oneprovider-1:
     node-1:
+      - op-panel
       - op-worker
       - cluster-manager
+    node-2:
       - op-panel
+      - op-worker
+      - cluster-manager
 
 spaces: false
 
-onezone:
-  batchConfig: false
-
 oneprovider-1:
-  batchConfig: false
+  oneS3:
+    enabled: true
