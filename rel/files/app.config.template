@@ -57,8 +57,10 @@
     ]},
 
     {ctool, [
-        % Plugin providing oz/op panel service info for od error ctx
-        {error_ctx_provider_module, od_error_ctx_panel_provider},
+        {error_ctx_service, {{service_type}}},
+        {error_ctx_service_id, {{service_id}}},
+        {error_ctx_service_release_version, <<"{{{service_release_version}}}">>},
+        {error_ctx_service_build_version, <<"{{{service_build_version}}}">>},
 
         % Backup file that stores the information needed to restore the
         % previous clock synchronization.
@@ -77,7 +79,7 @@
         % Build version in form:
         % <number of commits since last tag>-g<last commit hash abbrev>
         % e.g. 19-g0d0fd5b
-        {build_version, "{{{build_version}}}"},
+        {build_version, "{{{service_build_version}}}"},
 
         {cluster_type, {{release_type}}},
 
