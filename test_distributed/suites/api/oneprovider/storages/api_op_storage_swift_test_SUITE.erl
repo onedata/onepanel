@@ -1,16 +1,16 @@
 %%%-------------------------------------------------------------------
-%%% @author Piotr Duleba
-%%% @copyright (C) 2021 ACK CYFRONET AGH
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file provides tests concerning provider S3 storage API (REST).
+%%% This file provides tests concerning provider SWIFT storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_op_storage_s3_test_SUITE).
--author("Piotr Duleba").
+-module(api_op_storage_swift_test_SUITE).
+-author("Bartosz Walkowicz").
 
 -include("api_test_storages.hrl").
 -include("api_test_runner.hrl").
@@ -24,12 +24,8 @@
 -export([
     groups/0,
     all/0,
-
     init_per_suite/1,
-    end_per_suite/1,
-
-    init_per_testcase/2,
-    end_per_testcase/2
+    end_per_suite/1
 ]).
 
 -export([
@@ -58,12 +54,13 @@ all() -> [
     {group, all_tests}
 ].
 
--define(MIN_S3_STORAGE_SPEC, #{
-    <<"type">> => <<"s3">>,
-    <<"bucketName">> => ?S3_BUCKET_NAME,
-    <<"hostname">> => ?S3_HOSTNAME,
-    <<"accessKey">> => ?S3_KEY_ID,
-    <<"secretKey">> => ?S3_ACCESS_KEY
+-define(MIN_SWIFT_STORAGE_SPEC, #{
+    <<"type">> => <<"swift">>,
+    <<"authUrl">> => ?SWIFT_AUTH_URL,
+    <<"projectName">> => ?SWIFT_PROJECT_NAME,
+    <<"username">> => ?SWIFT_USERNAME,
+    <<"password">> => ?SWIFT_PASSWORD,
+    <<"containerName">> => ?SWIFT_CONTAINER_NAME
 }).
 
 
@@ -71,127 +68,119 @@ all() -> [
 %%% API
 %%%===================================================================
 
+
 add_correct_storage_test(_Config) ->
-    add_s3_storage_test_base(correct_args).
+    add_swift_storage_test_base(correct_args).
 
 
 add_bad_storage_test(_Config) ->
-    add_s3_storage_test_base(bad_args).
+    add_swift_storage_test_base(bad_args).
 
 
 %% @private
--spec add_s3_storage_test_base(
-    api_op_storages_test_base:args_correctness()
-) ->
-    ok.
-add_s3_storage_test_base(ArgsCorrectness) ->
+-spec add_swift_storage_test_base(api_op_storages_test_base:args_correctness()) -> ok.
+add_swift_storage_test_base(ArgsCorrectness) ->
     api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
-            storage_type = s3,
+            storage_type = swift,
             args_correctness = ArgsCorrectness,
 
-            data_spec_fun = fun build_add_s3_storage_data_spec/3,
-            prepare_args_fun = fun build_add_s3_storage_prepare_args_fun/1
+            data_spec_fun = fun build_add_swift_storage_data_spec/3,
+            prepare_args_fun = fun build_add_swift_storage_prepare_args_fun/1
         }).
 
 
 %% @private
--spec build_add_s3_storage_data_spec(
+-spec build_add_swift_storage_data_spec(
     api_test_memory:env_ref(),
     api_op_storages_test_base:storage_type(),
     api_op_storages_test_base:args_correctness()
-) -> api_test_runner:data_spec().
-build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
+) ->
+    api_test_runner:data_spec().
+build_add_swift_storage_data_spec(MemRef, swift, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
+
     #data_spec{
         required = [
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
-            {<<"hostname">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))},
-            {<<"bucketName">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"bucketName">>))}
+            {<<"authUrl">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"authUrl">>))},
+            {<<"projectName">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"projectName">>))},
+            {<<"username">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"username">>))},
+            {<<"password">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"password">>))},
+            {<<"containerName">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"containerName">>))}
         ],
         optional = [
-            <<"accessKey">>,
-            <<"secretKey">>,
+            <<"userDomainName">>,
+            <<"projectDomainName">>,
             <<"timeout">>,
             <<"qosParameters">>,
             <<"storagePathType">>,
-            <<"signatureVersion">>,
-            <<"maximumCanonicalObjectSize">>,
-            <<"blockSize">>,
-            <<"archiveStorage">>
+            <<"archiveStorage">>,
+            <<"blockSize">>
         ],
         correct_values = #{
-            <<"bucketName">> => [?S3_BUCKET_NAME],
-            % Onepanel accepts both variants (with or without the scheme)
-            <<"hostname">> => [?S3_HOSTNAME, <<"http://", (?S3_HOSTNAME)/binary>>],
-            <<"accessKey">> => [?S3_KEY_ID],
-            <<"secretKey">> => [?S3_ACCESS_KEY],
-            <<"type">> => [<<"s3">>],
-            <<"timeout">> => [?STORAGE_TIMEOUT],
+            <<"type">> => [<<"swift">>],
+            <<"authUrl">> => [?SWIFT_AUTH_URL],
+            <<"projectName">> => [?SWIFT_PROJECT_NAME],
+            <<"username">> => [?SWIFT_USERNAME],
+            <<"password">> => [?SWIFT_PASSWORD],
+            <<"containerName">> => [?SWIFT_CONTAINER_NAME],
+            <<"userDomainName">> => [?SWIFT_USER_DOMAIN_NAME],
+            <<"projectDomainName">> => [?SWIFT_PROJECT_DOMAIN_NAME],
+            <<"blockSize">> => [1024],
+            <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            <<"storagePathType">> => [<<"canonical">>, <<"flat">>],
-            <<"signatureVersion">> => ?S3_ALLOWED_SIGNATURE_VERSIONS,
-            <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE],
-            <<"maximumCanonicalObjectSize">> => [?STORAGE_DETECTION_FILE_SIZE],
+            %% TODO VFS-12772 Specify and test which storages can have flat or canonical as storage_path_type
+            <<"storagePathType">> => [<<"flat">>],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
-            {<<"timeout">>, -?STORAGE_TIMEOUT, ?REST_ERROR(?ERR_STORAGE_TEST_FAILED(write))},
+            {<<"blockSize">>, <<"blockSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
+            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
-            {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
-            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
-            {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
-            {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
-            {<<"blockSize">>, <<"blockSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
-            {<<"blockSize">>, -1, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>))},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)},
             {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
         ]
     };
-build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
+
+build_add_swift_storage_data_spec(MemRef, swift, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
+
     #data_spec{
         required = [
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))},
-            {<<"hostname">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))},
-            {<<"bucketName">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"bucketName">>))}
+            {<<"authUrl">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"authUrl">>))},
+            {<<"projectName">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"projectName">>))},
+            {<<"username">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"username">>))},
+            {<<"password">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"password">>))},
+            {<<"containerName">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"containerName">>))}
         ],
         correct_values = #{
-            <<"type">> => [<<"s3">>],
-            % Onepanel accepts both variants (with or without the scheme)
-            <<"hostname">> => [?S3_HOSTNAME, <<"http://", (?S3_HOSTNAME)/binary>>],
-            <<"bucketName">> => [<<"nonexistent_bucket">>]
+            <<"type">> => [<<"swift">>],
+            <<"authUrl">> => [<<"nonexistent.host">>],
+            <<"projectName">> => [<<"nonexistent_project_name">>],
+            <<"username">> => [<<"invalid_user">>],
+            <<"password">> => [<<"invalid_password">>],
+            <<"containerName">> => [<<"nonexistent_container">>]
         }
     }.
 
 
 %% @private
--spec build_add_s3_storage_prepare_args_fun(
-    api_test_memory:env_ref()
-) ->
+-spec build_add_swift_storage_prepare_args_fun(api_test_memory:env_ref()) ->
     api_test_runner:prepare_args_fun().
-build_add_s3_storage_prepare_args_fun(MemRef) ->
+build_add_swift_storage_prepare_args_fun(MemRef) ->
     fun(#api_test_ctx{data = Data}) ->
-
-        %% S3 Storage that onenv creates, requires credentials even though swagger marks them as optional.
-        %% Therefore, we need to inject them to each request body.
-        DataWithCredentials = maps:merge(Data, #{
-            <<"accessKey">> => ?S3_KEY_ID,
-            <<"secretKey">> => ?S3_ACCESS_KEY
-        }),
-
         StorageName = api_test_memory:get(MemRef, storage_name),
-        RequestBody = #{
-            StorageName => DataWithCredentials
-        },
+        RequestBody = #{StorageName => Data},
 
         #rest_args{
             method = post,
@@ -203,27 +192,22 @@ build_add_s3_storage_prepare_args_fun(MemRef) ->
 
 get_storage_test(_Config) ->
     StorageName = ?RAND_STR(),
-    StorageSpec = ?MIN_S3_STORAGE_SPEC,
+    StorageSpec = ?MIN_SWIFT_STORAGE_SPEC,
     StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
 
+    %% TODO VFS-12773 debug why storage get omits timeout parameter
     api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
         <<"id">> => StorageId,
         <<"name">> => StorageName,
 
-        % Hostname should be prepended with scheme
-        <<"hostname">> => <<"http://", (?S3_HOSTNAME)/binary>>,
-        % secretKey MUST BE shadowed
-        <<"secretKey">> => <<"*****">>,
+        % password MUST BE shadowed
+        <<"password">> => <<"*****">>,
 
         % default values for not supplied parameters
-        <<"region">> => <<"us-east-1">>,
-        <<"signatureVersion">> => <<"4">>,
-        <<"dirMode">> => <<"0775">>,
-        <<"fileMode">> => <<"0664">>,
+        <<"projectDomainName">> => ?SWIFT_PROJECT_DOMAIN_NAME,
+        <<"userDomainName">> => ?SWIFT_USER_DOMAIN_NAME,
         % TODO VFS-12391 shouldn't this be int?
-        <<"blockSize">> => str_utils:to_binary(?S3_DEFAULT_BLOCK_SIZE),
-        % TODO VFS-12391 shouldn't this be int?
-        <<"maximumCanonicalObjectSize">> => <<"67108864">>,
+        <<"blockSize">> => str_utils:to_binary(?SWIFT_DEFAULT_BLOCK_SIZE),
 
         <<"storagePathType">> => <<"flat">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -241,34 +225,29 @@ get_storage_test(_Config) ->
 
 
 modify_correct_storage_test(_Config) ->
-    modify_s3_storage_test_base(correct_args).
+    modify_swift_storage_test_base(correct_args).
 
 
 modify_bad_storage_test(_Config) ->
-    modify_s3_storage_test_base(bad_args).
+    modify_swift_storage_test_base(bad_args).
 
 
 %% @private
-modify_s3_storage_test_base(ArgsCorrectness) ->
+-spec modify_swift_storage_test_base(api_op_storages_test_base:args_correctness()) ->
+    ok.
+modify_swift_storage_test_base(ArgsCorrectness) ->
     api_op_storages_test_base:modify_storage_test_base(
         #modify_storage_test_spec{
-            storage_type = s3,
+            storage_type = swift,
             args_correctness = ArgsCorrectness,
 
-            build_data_spec_fun = fun build_modify_s3_storage_data_spec/3,
-            build_setup_fun = fun build_modify_s3_storage_setup_fun/1,
-
-            map_storage_description_to_exp_rest_response_fun = fun(S3Description) ->
-                {Scheme, S3Description2} = maps:take(<<"scheme">>, S3Description),
-                maps:update_with(<<"hostname">>, fun(Hostname) ->
-                    <<Scheme/binary, "://", Hostname/binary>>
-                end, S3Description2)
-            end
+            build_data_spec_fun = fun build_modify_swift_storage_data_spec/3,
+            build_setup_fun = fun build_modify_swift_storage_setup_fun/1
         }).
 
 
 %% @private
-build_modify_s3_storage_data_spec(MemRef, s3, correct_args) ->
+build_modify_swift_storage_data_spec(MemRef, swift, correct_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
 
@@ -282,17 +261,15 @@ build_modify_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"name">>,
             <<"timeout">>,
             <<"qosParameters">>,
-            <<"maximumCanonicalObjectSize">>,
             <<"archiveStorage">>
         ],
         correct_values = #{
-            <<"type">> => [<<"s3">>],
+            <<"type">> => [<<"swift">>],
             <<"name">> => [?RAND_STR(10)],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
-            <<"maximumCanonicalObjectSize">> => [5*?STORAGE_DETECTION_FILE_SIZE],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"archiveStorage">> => [?RAND_BOOL()]
         },
 
         bad_values = [
@@ -306,15 +283,11 @@ build_modify_s3_storage_data_spec(MemRef, s3, correct_args) ->
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
-            {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"maximumCanonicalObjectSize">>))},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)}
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
         ]
     };
 
-build_modify_s3_storage_data_spec(MemRef, s3, bad_args) ->
+build_modify_swift_storage_data_spec(MemRef, swift, bad_args) ->
     StorageName = str_utils:rand_hex(10),
     api_test_memory:set(MemRef, storage_name, StorageName),
 
@@ -324,29 +297,37 @@ build_modify_s3_storage_data_spec(MemRef, s3, bad_args) ->
         ],
         optional = [
             <<"name">>,
-            <<"hostname">>,
-            <<"bucketName">>,
-            <<"accessKey">>,
-            <<"secretKey">>
+            <<"authUrl">>,
+            <<"projectName">>,
+            <<"username">>,
+            <<"password">>,
+            <<"containerName">>,
+            <<"userDomainName">>,
+            <<"projectDomainName">>
         ],
         correct_values = #{
-            <<"type">> => [<<"s3">>],
+            <<"type">> => [<<"swift">>],
             <<"name">> => [<<"a">>],
-            <<"hostname">> => [<<"http://0.0.0.0:9000">>],
-            <<"bucketName">> => [<<"dummyBucket">>],
-            <<"accessKey">> => [<<"dummyAccessKey">>],
-            <<"secretKey">> => [<<"dummySecretKey">>]
+            <<"authUrl">> => [<<"nonexistent.host">>],
+            <<"projectName">> => [<<"nonexistent_project_name">>],
+            <<"username">> => [<<"invalid_user">>],
+            <<"password">> => [<<"invalid_password">>],
+            <<"containerName">> => [<<"nonexistent_container">>],
+            <<"userDomainName">> => [<<"invalid_user_domain_name">>],
+            <<"projectDomainName">> => [<<"nonexistent_project_domain_name">>]
         },
         at_least_one_optional_value_in_data_sets = true
     }.
 
 
 %% @private
-build_modify_s3_storage_setup_fun(MemRef) ->
+-spec build_modify_swift_storage_setup_fun(api_test_memory:env_ref()) ->
+    api_test_runner:setup_fun().
+build_modify_swift_storage_setup_fun(MemRef) ->
     fun() ->
         StorageName = api_test_memory:get(MemRef, storage_name),
 
-        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_SWIFT_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
         StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
@@ -361,19 +342,10 @@ build_modify_s3_storage_setup_fun(MemRef) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op_s3",
+        onenv_scenario = "1op_swift",
         envs = [{op_worker, op_worker, [{fuse_session_grace_period_seconds, 24 * 60 * 60}]}]
     }).
 
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
-
-
-init_per_testcase(_, Config) ->
-    ct:timetrap({minutes, 90}),
-    Config.
-
-
-end_per_testcase(_, Config) ->
-    Config.
