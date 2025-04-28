@@ -53,6 +53,7 @@
 -export([set_up_onepanel_in_onezone/0]).
 -export([mark_configured/1, format_cluster_ips/1]).
 -export([get_gui_message/1, update_gui_message/1]).
+-export([ensure_onedata_service_domain_set/1]).
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -110,6 +111,7 @@ get_steps(deploy, Ctx) ->
     OzCtx2 = OzCtx1#{
         master_host => SelfHost
     },
+    OzDomain = maps:get(domain, OzCtx2, undefined),
 
     service:create(#service{name = name(), ctx = OzCtx2}),
 
@@ -125,6 +127,7 @@ get_steps(deploy, Ctx) ->
         S#step{service = ?SERVICE_CM, function = status, ctx = CmCtx},
         Ss#steps{service = ?SERVICE_OZW, action = deploy, ctx = OzwCtx},
         S#step{service = ?SERVICE_OZW, function = status, ctx = OzwCtx},
+        S#step{service = ?SERVICE_PANEL, function = set_onedata_service_domain, selection = any, args = [OzDomain]},
         S#step{function = init_periodic_clock_sync, selection = any, args = []},
         S#step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
         Ss#steps{action = set_up_onepanel_in_onezone, ctx = OzwCtx},
@@ -176,6 +179,7 @@ get_steps(manage_restart, Ctx) ->
             #steps{service = ?SERVICE_OZW, action = init_resume},
             % no intermediate steps required during resumption
             #steps{service = ?SERVICE_OZW, action = finalize_resume},
+            #step{function = ensure_onedata_service_domain_set, selection = any},
             #step{function = init_periodic_clock_sync, selection = any, args = []},
             #step{function = init_periodic_db_disk_usage_check, selection = any, args = []},
             #steps{action = migrate_users,
@@ -326,3 +330,10 @@ update_gui_message(#{message_id := MessageId} = Ctx) ->
     ], Ctx),
     {rpc, Auth} = onezone_client:root_auth(),
     ok = oz_worker_rpc:update_gui_message(Auth, MessageId, Diff).
+
+
+-spec ensure_onedata_service_domain_set(service:step_ctx()) -> ok.
+ensure_onedata_service_domain_set(Ctx) ->
+    Details = try service_oz_worker:get_details(Ctx) catch _:_ -> #{} end,
+    OzDomain = maps:get(domain, Details, undefined),
+    service_onepanel:set_onedata_service_domain(OzDomain).
