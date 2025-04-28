@@ -30,4 +30,6 @@
 -define(DNS_CHECK_TIMESTAMP_KEY, dns_check_attempt_timestamp).
 -define(DNS_CHECK_CACHE_KEY, dns_check).
 
+-define(OP_DEREGISTRATION_MONITORING_JOB_NAME, op_deregistration_monitoring_job).
+
 -endif.

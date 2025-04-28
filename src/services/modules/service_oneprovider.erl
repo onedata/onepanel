@@ -38,6 +38,8 @@
 % how often logs appear when waiting for Onezone connection
 -define(OZ_CONNECTION_AWAIT_LOG_INTERVAL, 300). % 5 minutes
 
+-define(OP_DEREGISTRATION_CHECK_INTERVAL_SECONDS, 5).
+
 % used in versions 19.02.*, the file name changed in line 20.02.*
 -define(LEGACY_AUTH_FILE_NAME, "provider_root_macaroon.txt").
 -define(AUTH_FILE_CACHE_TTL_SECONDS, 5).
@@ -629,17 +631,8 @@ register(Ctx) ->
 -spec unregister() -> ok | no_return().
 unregister() ->
     oz_providers:unregister(provider),
-    op_worker_rpc:on_deregister(),
-
-    set_onedata_service_env(onedata_service_id, undefined),
-    set_onedata_service_env(onedata_service_domain, undefined),
-
-    onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
-    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
-        maps:without([cluster, onezone_domain, oneprovider_token, ?DETAILS_PERSISTENCE],
-            ServiceCtx#{registered => false})
-    end),
-    ok.
+    remove_deregistration_monitoring_check(),
+    on_deregistered().
 
 
 %%--------------------------------------------------------------------
@@ -1260,11 +1253,56 @@ on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
     store_absolute_auth_file_path(),
     set_onedata_service_env(onedata_service_id, ProviderId),
     refresh_onedata_service_domain(),
+    schedule_deregistration_monitoring_check(),
 
     % preload cache
     (catch clusters:get_current_cluster()),
     (catch get_details()),
     ok.
+
+
+%% @private
+-spec on_deregistered() -> ok | no_return().
+on_deregistered() ->
+    op_worker_rpc:on_deregister(),
+
+    set_onedata_service_env(onedata_service_id, undefined),
+    set_onedata_service_env(onedata_service_domain, undefined),
+
+    onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
+    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
+        maps:without([cluster, onezone_domain, oneprovider_token, ?DETAILS_PERSISTENCE],
+            ServiceCtx#{registered => false})
+    end),
+    ok.
+
+
+%% @private
+-spec schedule_deregistration_monitoring_check() -> ok.
+schedule_deregistration_monitoring_check() ->
+    PeriodicCheck = fun() ->
+        case is_registered() of
+            true ->
+                ok;
+            false ->
+                % Op must have been "deleted" directly in oz and does not yet know it is deregistered
+                on_deregistered(),
+                remove_deregistration_monitoring_check()
+        end
+    end,
+    ok = onepanel_cron:add_job(
+        ?OP_DEREGISTRATION_MONITORING_JOB_NAME,
+        PeriodicCheck,
+        timer:seconds(?OP_DEREGISTRATION_CHECK_INTERVAL_SECONDS)
+    ).
+
+
+%% @private
+remove_deregistration_monitoring_check() ->
+    % clean existing jobs to ensure no duplication
+    Nodes = service_onepanel:get_nodes(),
+    {Results, []} = utils:rpc_multicall(Nodes, onepanel_cron, remove_job, [?OP_DEREGISTRATION_MONITORING_JOB_NAME]),
+    lists:foreach(fun(R) -> ok = R end, Results).
 
 
 %% @private

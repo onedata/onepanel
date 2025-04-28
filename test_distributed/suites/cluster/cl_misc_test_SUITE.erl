@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("names.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
@@ -52,7 +53,6 @@ all() -> [
 %%%===================================================================
 
 
-%% TODO
 op_unregister_register_from_file_test(_Config) ->
     OpPanelNodes = panel_test_utils:get_panel_nodes(krakow),
     OpPanelNode = ?RAND_ELEMENT(OpPanelNodes),
@@ -62,10 +62,25 @@ op_unregister_register_from_file_test(_Config) ->
     cluster_management_test_utils:assert_onedata_service_id(krakow, OpId),
     cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain),
 
-    % TODO delete via op panel or delete via oz
-    ?assertMatch(
-        {ok, ?HTTP_204_NO_CONTENT, _, _},
-        panel_test_rest:delete(OpPanelNode, <<"/provider">>, #{auth => root})
+    [OpPanelNodeWithDeregistrationMonitoring] = lists:filter(fun(Node) ->
+        ?rpc(Node, onepanel_cron:has_job(?OP_DEREGISTRATION_MONITORING_JOB_NAME))
+    end, OpPanelNodes),
+
+    case ?RAND_BOOL() of
+        true ->
+            % Delete op in oz
+            ?assertEqual(ok, ?rpc(OpPanelNode, oz_providers:unregister(provider)));
+        false ->
+            % Deregister op via op panel
+            ?assertMatch(
+                {ok, ?HTTP_204_NO_CONTENT, _, _},
+                panel_test_rest:delete(OpPanelNode, <<"/provider">>, #{auth => root})
+            )
+    end,
+    ?assertEqual(
+        false,
+        ?rpc(OpPanelNodeWithDeregistrationMonitoring, onepanel_cron:has_job(?OP_DEREGISTRATION_MONITORING_JOB_NAME)),
+        10
     ),
 
     cluster_management_test_utils:assert_onedata_service_id(krakow, undefined),
@@ -80,9 +95,7 @@ op_unregister_register_from_file_test(_Config) ->
         % Onepanel should wait for the file to appear
         timer:sleep(timer:minutes(1)),
         lists:foreach(fun(Node) ->
-            ?assertEqual(ok, panel_test_rpc:call(Node, file, write_file, [
-                RegistrationTokenFile, RegistrationToken
-            ]))
+            ?assertEqual(ok, ?rpc(Node, file:write_file(RegistrationTokenFile, RegistrationToken)))
         end, OpPanelNodes)
     end),
 
