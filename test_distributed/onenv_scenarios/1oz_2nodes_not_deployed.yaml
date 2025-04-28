@@ -12,9 +12,9 @@ sources:
       - cluster-manager
       - oz-panel
     node-2:
-      - op-worker
+      - oz-worker
       - cluster-manager
-      - op-panel
+      - oz-panel
 
 spaces: false
 

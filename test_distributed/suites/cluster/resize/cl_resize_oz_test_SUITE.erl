@@ -49,46 +49,54 @@ all() -> [
 
 
 add_node_test(Config) ->
-    [Node1, Node2] = ?config(oz_panel_nodes, Config),
-    Node1Details = cluster_management_test_utils:infer_node_details(Node1),
-    Node1Hostname = Node1Details#node_details.hostname,
-    Node2Hostname = dns_test_utils:get_hostname(Node2),
+    [PanelNode1, PanelNode2] = PanelNodes = ?config(oz_panel_nodes, Config),
+    PanelNode1Details = cluster_management_test_utils:infer_node_details(PanelNode1),
+    PanelNode1Hostname = PanelNode1Details#node_details.hostname,
+    PanelNode2Hostname = dns_test_utils:get_hostname(PanelNode2),
+    OzDomain = dns_test_utils:get_k8s_service_domain(PanelNode1),
 
-    panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
+    panel_test_rpc:set_emergency_passphrase(PanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
+
+    cluster_management_test_utils:assert_onedata_service_domain(PanelNodes, undefined),
 
     OzClusterConfig = #oz_cluster_config{
-        nodes = #{1 => Node1Details},
+        nodes = #{1 => PanelNode1Details},
         managers = [1],
         main_manager = 1,
         workers = [1],
         databases = [1],
         name = <<"zone">>,
-        domain = dns_test_utils:get_k8s_service_domain(Node1)
+        domain = OzDomain
     },
     oz_cluster_deployment_test_utils:deploy_batch(OzClusterConfig),
 
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_all_hosts(Node1)),
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_all_hosts(PanelNode1)),
+    cluster_management_test_utils:assert_onedata_service_domain([PanelNode1], OzDomain),
+    cluster_management_test_utils:assert_onedata_service_domain([PanelNode2], undefined),
 
     ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:post(Node1, <<"/hosts">>, #{auth => root, json => #{
-            <<"address">> => Node2Hostname
+        panel_test_rest:post(PanelNode1, <<"/hosts">>, #{auth => root, json => #{
+            <<"address">> => PanelNode2Hostname
         }})
     ),
 
     %% Assert new host has been added to cluster but no service was automatically started on it
     ?assertEqual(
-        lists:usort([Node1Hostname, Node2Hostname]),
-        lists:usort(cluster_management_test_utils:get_all_hosts(Node1))
+        lists:usort([PanelNode1Hostname, PanelNode2Hostname]),
+        lists:usort(cluster_management_test_utils:get_all_hosts(PanelNode1))
     ),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEZONE, worker)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEZONE, manager)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEZONE, database)).
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEZONE, worker)),
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEZONE, manager)),
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEZONE, database)),
+    % Assert added node copied configured service envs
+    cluster_management_test_utils:assert_onedata_service_domain(PanelNodes, OzDomain).
 
 
 deploy_new_worker_test(Config) ->
     [Node1, Node2] = ?config(oz_panel_nodes, Config),
 
+    Domain = dns_test_utils:get_k8s_service_domain(Node1),
     Node1Details = cluster_management_test_utils:infer_node_details(Node1),
     Node1Hostname = Node1Details#node_details.hostname,
     Node2Hostname = dns_test_utils:get_hostname(Node2),
@@ -99,6 +107,8 @@ deploy_new_worker_test(Config) ->
     ),
     [WorkerNode1] = get_worker_node(Node1),
     ?assertEqual([WorkerNode1], get_worker_chash_nodes(WorkerNode1)),
+    % Assert domain set on both panel nodes and single worker node
+    cluster_management_test_utils:assert_onedata_service_domain(zone, Domain),
 
     {ok, _, _, #{<<"taskId">> := TaskId}} = ?assertMatch(
         {ok, ?HTTP_202_ACCEPTED, _, _},
@@ -108,12 +118,15 @@ deploy_new_worker_test(Config) ->
         })
     ),
     cluster_management_test_utils:await_task_status(Node1, TaskId, <<"ok">>),
+    cluster_management_test_utils:refresh_oct(Config),
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>, Node2Hostname => <<"healthy">>},
         cluster_management_test_utils:get_service_status_cluster_wide(Node1, ?ONEZONE, worker),
         ?ATTEMPTS
     ),
+    % Assert all nodes, including new worker node, has domain set (oct was refreshed and is aware of every new node)
+    cluster_management_test_utils:assert_onedata_service_domain(zone, Domain),
 
     [WorkerNode2] = get_worker_node(Node1) -- [WorkerNode1],
     ?assertEqual(
@@ -134,7 +147,7 @@ get_worker_node(Node) ->
 %% @private
 -spec get_worker_chash_nodes(node()) -> [node()].
 get_worker_chash_nodes(WorkerNode) ->
-    ozw_test_rpc:call(WorkerNode, consistent_hashing, get_all_nodes, []).
+    erpc:call(WorkerNode, consistent_hashing, get_all_nodes, []).
 
 
 %%%===================================================================
