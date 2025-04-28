@@ -52,14 +52,24 @@ all() -> [
 %%%===================================================================
 
 
+%% TODO
 op_unregister_register_from_file_test(_Config) ->
     OpPanelNodes = panel_test_utils:get_panel_nodes(krakow),
     OpPanelNode = ?RAND_ELEMENT(OpPanelNodes),
 
+    OpId = op_cluster_deployment_test_utils:get_id(OpPanelNode),
+    OpDomain = dns_test_utils:get_k8s_service_domain(OpPanelNode),
+    cluster_management_test_utils:assert_onedata_service_id(krakow, OpId),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain),
+
+    % TODO delete via op panel or delete via oz
     ?assertMatch(
         {ok, ?HTTP_204_NO_CONTENT, _, _},
         panel_test_rest:delete(OpPanelNode, <<"/provider">>, #{auth => root})
     ),
+
+    cluster_management_test_utils:assert_onedata_service_id(krakow, undefined),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, undefined),
 
     % test the alternative way of providing the registration token
     % (the default method is used during environment setup for this suite).
@@ -87,12 +97,17 @@ op_unregister_register_from_file_test(_Config) ->
                 <<"name">> => <<"krakow">>,
                 <<"adminEmail">> => <<"admin@onedata.org">>,
                 <<"subdomainDelegation">> => false,
-                <<"domain">> => dns_test_utils:get_k8s_service_domain(OpPanelNode),
+                <<"domain">> => OpDomain,
                 <<"tokenProvisionMethod">> => <<"fromFile">>,
                 <<"tokenFile">> => RegistrationTokenFile
             }
         })
-    ).
+    ),
+
+    NewOpId = op_cluster_deployment_test_utils:get_id(OpPanelNode),
+    ?assertNotEqual(NewOpId, OpId),
+    cluster_management_test_utils:assert_onedata_service_id(krakow, NewOpId),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain).
 
 
 op_fetch_compatibility_registry_test(_Config) ->
