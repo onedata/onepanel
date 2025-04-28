@@ -60,7 +60,7 @@
     get_nagios_response/1, get_nagios_status/1]).
 -export([synchronize_clock_upon_start/1]).
 -export([reconcile_dns/1, get_ns_hosts/0]).
--export([migrate_generated_config/1, rename_variables/0]).
+-export([migrate_generated_config/1, rename_variables/0, ensure_onedata_service_domain_set/0]).
 -export([get_policies/0, set_policies/1]).
 -export([get_oai_pmh_rest_api_prefix/0]).
 -export([get_details/1, get_details/0]).
@@ -135,7 +135,8 @@ get_steps(configure_dns_check, Ctx) ->
 
 get_steps(init_resume, Ctx) ->
     [
-        #step{function = rename_variables, selection = all, args = []}
+        #step{function = rename_variables, selection = all, args = []},
+        #step{function = ensure_onedata_service_domain_set, selection = all, args = []}
         | service_cluster_worker:get_steps(init_resume, Ctx#{name => name()})
     ];
 
@@ -204,6 +205,7 @@ get_oai_pmh_rest_api_prefix() ->
 %%--------------------------------------------------------------------
 -spec configure(Ctx :: service:step_ctx()) -> ok | no_return().
 configure(Ctx) ->
+    ServiceName = name(),
     VmArgsFile = onepanel_env:get(oz_worker_vm_args_file),
     OzName = onepanel_utils:get_converted(onezone_name, Ctx, list),
     OzDomain = string:lowercase(
@@ -219,11 +221,12 @@ configure(Ctx) ->
     }),
     set_policies(maps:get(policies, Ctx, #{})),
 
-    onepanel_env:write([name(), ?OAI_PMH_API_PREFIX_KEY], get_oai_pmh_rest_api_prefix(), name()),
+    onepanel_env:write([ServiceName, ?OAI_PMH_API_PREFIX_KEY], get_oai_pmh_rest_api_prefix(), ServiceName),
+    configure_onedata_service_domain(OzDomain),
 
     node_cache:clear(?DETAILS_CACHE_KEY),
     service_cluster_worker:configure(Ctx#{
-        name => name(),
+        name => ServiceName,
         app_config => AppConfig,
         vm_args_file => VmArgsFile,
         initialize_ip => true
@@ -534,6 +537,12 @@ rename_variables() ->
     end, Changes).
 
 
+-spec ensure_onedata_service_domain_set() -> ok | no_return().
+ensure_onedata_service_domain_set() ->
+    OzDomain = maps:get(domain, get_details()),
+    configure_onedata_service_domain(OzDomain).
+
+
 %%-------------------------------------------------------------------
 %% @doc
 %% Applies zone policy changes. This function should be run on all
@@ -599,3 +608,11 @@ env_write_and_set(Variable, Value) ->
     % be read from file on next startup.
     catch onepanel_env:set_remote(Node, Variable, Value, name()),
     ok.
+
+
+%% @private
+-spec configure_onedata_service_domain(string() | binary()) -> ok.
+configure_onedata_service_domain(Domain) ->
+    DomainBin = to_binary_or_undefined(Domain),
+    % No need to set env as worker node is restarted after configuration
+    onepanel_env:write([ctool, onedata_service_domain], DomainBin, ?SERVICE_OZW).
