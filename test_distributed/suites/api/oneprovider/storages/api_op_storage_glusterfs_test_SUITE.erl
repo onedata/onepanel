@@ -29,19 +29,29 @@
 
 -export([
     add_correct_storage_test/1,
-    add_bad_storage_test/1
+    add_bad_storage_test/1,
+
+    get_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
         add_correct_storage_test,
-        add_bad_storage_test
+        add_bad_storage_test,
+
+        get_storage_test
     ]}
 ].
 
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_GLUSTERFS_STORAGE_SPEC, #{
+    <<"type">> => <<"glusterfs">>,
+    <<"volume">> => ?GLUSTERFS_VOLUME,
+    <<"hostname">> => ?GLUSTERFS_HOSTNAME
+}).
 
 
 %%%===================================================================
@@ -95,8 +105,8 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"mountPoint">>,
             <<"xlatorOptions">>,
             <<"timeout">>,
-            <<"qosParameters">>,
             <<"storagePathType">>,
+            <<"qosParameters">>,
             <<"archiveStorage">>
         ],
         correct_values = #{
@@ -109,6 +119,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
+            %% TODO VFS-12772 Specify and test which storages can have flat or canonical as storage_path_type
             <<"storagePathType">> => [<<"canonical">>],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
@@ -118,6 +129,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             {<<"port">>, <<"port_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"port">>))},
             {<<"transport">>, <<"bad_transport">>,
                 ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"transport">>), [<<"tcp">>, <<"rdma">>, <<"socket">>])},
+            {<<"mountPoint">>, 132, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"mountPoint">>))},
             {<<"xlatorOptions">>, 132, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"xlatorOptions">>))},
             {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
@@ -167,6 +179,37 @@ build_add_glusterfs_storage_prepare_args_fun(MemRef) ->
             headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(#{StorageName => Data})}
     end.
+
+
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_GLUSTERFS_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % TODO VFS-12391 shouldn't this be int?
+        <<"port">> => <<"24007">>,
+
+        % default values for not supplied parameters
+        <<"gid">> => <<"0">>,
+        <<"uid">> => <<"0">>,
+
+        <<"storagePathType">> => <<"canonical">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>
+    }).
 
 
 %%%===================================================================
