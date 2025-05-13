@@ -323,6 +323,7 @@ assert_provider_domain(ExpDomain) ->
         {ok, ?HTTP_200_OK, _, #{<<"domain">> := ExpDomain}},
         panel_test_rest:get(?PROVIDER_SELECTOR, <<"/provider">>, #{auth => root})
     ),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, ExpDomain),
     ok.
 
 

@@ -38,6 +38,8 @@
 % how often logs appear when waiting for Onezone connection
 -define(OZ_CONNECTION_AWAIT_LOG_INTERVAL, 300). % 5 minutes
 
+-define(OP_DEREGISTRATION_CHECK_INTERVAL_SECONDS, 5).
+
 % used in versions 19.02.*, the file name changed in line 20.02.*
 -define(LEGACY_AUTH_FILE_NAME, "provider_root_macaroon.txt").
 -define(AUTH_FILE_CACHE_TTL_SECONDS, 5).
@@ -98,6 +100,7 @@
     configure_file_popularity/1, configure_auto_cleaning/1,
     get_file_popularity_configuration/1, get_auto_cleaning_configuration/1]).
 -export([await_onezone_connectivity_and_set_up_service/1]).
+-export([ensure_onedata_service_envs_set/0]).
 -export([init_periodic_db_disk_usage_check/0]).
 -export([store_absolute_auth_file_path/0]).
 -export([pop_legacy_letsencrypt_config/0]).
@@ -259,6 +262,7 @@ get_steps(manage_restart, Ctx) ->
                 selection = any
             },
             #steps{service = ?SERVICE_OPW, action = finalize_resume},
+            #step{function = ensure_onedata_service_envs_set, selection = any, args = []},
             #steps{service = ?SERVICE_ONES3, action = resume,
                 ctx = #{hosts => service_ones3:get_hosts()},
                 condition = service_ones3:exists()},
@@ -627,14 +631,8 @@ register(Ctx) ->
 -spec unregister() -> ok | no_return().
 unregister() ->
     oz_providers:unregister(provider),
-
-    op_worker_rpc:on_deregister(),
-    onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
-    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
-        maps:without([cluster, onezone_domain, oneprovider_token, ?DETAILS_PERSISTENCE],
-            ServiceCtx#{registered => false})
-    end),
-    ok.
+    remove_deregistration_monitoring_check(),
+    on_deregistered().
 
 
 %%--------------------------------------------------------------------
@@ -671,12 +669,15 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider:Stacktrace ->
-            erlang:raise(Type, ErrorUnregisteredOneprovider, Stacktrace);
-        Type:Error:Stacktrace ->
+        Class:?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider:Stacktrace ->
+            erlang:raise(Class, ErrorUnregisteredOneprovider, Stacktrace);
+        Class:Reason:Stacktrace ->
             case service:get_ctx(name()) of
-                #{?DETAILS_PERSISTENCE := Cached} -> Cached;
-                _ -> erlang:raise(Type, Error, Stacktrace)
+                #{?DETAILS_PERSISTENCE := Cached} ->
+                    Cached;
+                _ ->
+                    Error = ?examine_exception("Failed to get op details", Class, Reason, Stacktrace),
+                    throw(Error)
             end
     end.
 
@@ -1115,6 +1116,17 @@ await_onezone_connectivity_and_set_up_service(FallbackPolicy) ->
     end.
 
 
+-spec ensure_onedata_service_envs_set() -> ok.
+ensure_onedata_service_envs_set() ->
+    Details = try get_details() catch _:_ -> #{} end,
+
+    ProviderId = maps:get(id, Details, undefined),
+    set_onedata_service_env(onedata_service_id, ProviderId),
+
+    ProviderDomain = maps:get(domain, Details, undefined),
+    set_onedata_service_env(onedata_service_domain, ProviderDomain).
+
+
 -spec init_periodic_db_disk_usage_check() -> ok.
 init_periodic_db_disk_usage_check() ->
     db_disk_usage_monitor:restart_periodic_check().
@@ -1242,11 +1254,58 @@ on_registered(OpwNode, ProviderId, RootToken, OnezoneDomain) ->
         onezone_domain => OnezoneDomain
     }),
     store_absolute_auth_file_path(),
+    set_onedata_service_env(onedata_service_id, ProviderId),
+    refresh_onedata_service_domain(),
+    schedule_deregistration_monitoring_check(),
 
     % preload cache
     (catch clusters:get_current_cluster()),
     (catch get_details()),
     ok.
+
+
+%% @private
+-spec on_deregistered() -> ok | no_return().
+on_deregistered() ->
+    op_worker_rpc:on_deregister(),
+
+    set_onedata_service_env(onedata_service_id, undefined),
+    set_onedata_service_env(onedata_service_domain, undefined),
+
+    onepanel_deployment:unset_marker(?PROGRESS_LETSENCRYPT_CONFIG),
+    {ok, _} = service:update_ctx(name(), fun(ServiceCtx) ->
+        maps:without([cluster, onezone_domain, oneprovider_token, ?DETAILS_PERSISTENCE],
+            ServiceCtx#{registered => false})
+    end),
+    ok.
+
+
+%% @private
+-spec schedule_deregistration_monitoring_check() -> ok.
+schedule_deregistration_monitoring_check() ->
+    PeriodicCheck = fun() ->
+        case is_registered() of
+            true ->
+                ok;
+            false ->
+                % Op must have been "deleted" directly in oz and does not yet know it is deregistered
+                on_deregistered(),
+                remove_deregistration_monitoring_check()
+        end
+    end,
+    ok = onepanel_cron:add_job(
+        ?OP_DEREGISTRATION_MONITORING_JOB_NAME,
+        PeriodicCheck,
+        timer:seconds(?OP_DEREGISTRATION_CHECK_INTERVAL_SECONDS)
+    ).
+
+
+%% @private
+remove_deregistration_monitoring_check() ->
+    % clean existing jobs to ensure no duplication
+    Nodes = service_onepanel:get_nodes(),
+    {Results, []} = utils:rpc_multicall(Nodes, onepanel_cron, remove_job, [?OP_DEREGISTRATION_MONITORING_JOB_NAME]),
+    lists:foreach(fun(R) -> ok = R end, Results).
 
 
 %% @private
@@ -1534,6 +1593,7 @@ encode_ip(Ip) -> ?check(ip_utils:to_binary(Ip)).
 update_domain_config(OpNode, Data) ->
     case op_worker_rpc:update_domain_config(OpNode, Data) of
         ok ->
+            refresh_onedata_service_domain(),
             dns_check:invalidate_cache(op_worker);
         {error, _} = Error ->
             throw(Error)
@@ -1640,3 +1700,25 @@ sanitize_support_parameters(SupportParameters) ->
         {ok, SanitizedSupportParameters} -> SanitizedSupportParameters;
         {error, _} = Error -> throw(Error)
     end.
+
+
+%% @private
+-spec refresh_onedata_service_domain() -> ok.
+refresh_onedata_service_domain() ->
+    Details = try get_details() catch _:_ -> #{} end,
+    ProviderDomain = maps:get(domain, Details, undefined),
+    set_onedata_service_env(onedata_service_domain, ProviderDomain).
+
+
+%% @private
+-spec set_onedata_service_env(onedata_service_id | onedata_service_domain, undefined | binary()) -> ok.
+set_onedata_service_env(Key, Value) ->
+    OppNodes = nodes:all(?SERVICE_PANEL),
+    onepanel_env:write(OppNodes, [ctool, Key], Value, ?SERVICE_PANEL),
+    ok = onepanel_env:set_remote(OppNodes, Key, Value, ctool),
+
+    OpwHosts = service_op_worker:get_hosts(),
+    OppNodesWithOpw = nodes:service_to_nodes(?SERVICE_PANEL, OpwHosts),
+    OpwNodes = service_op_worker:get_nodes(),
+    onepanel_env:write(OppNodesWithOpw, [ctool, Key], Value, ?SERVICE_OPW),
+    ok = onepanel_env:set_remote(OpwNodes, Key, Value, ctool).

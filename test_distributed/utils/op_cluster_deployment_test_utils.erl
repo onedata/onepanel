@@ -30,6 +30,8 @@
     deploy_ones3_service/1,
 
     register_provider/1,
+    get_id/1,
+
     configure_dns/1,
     configure_web_cert/1
 ]).
@@ -132,6 +134,14 @@ register_provider(#op_cluster_config{
         })
     ),
     ok.
+
+
+-spec get_id(oct_background:node_selector()) -> binary().
+get_id(PanelNodeSelector) ->
+    {ok, ?HTTP_200_OK, _, OpIdentityResp} = panel_test_rest:get(
+        PanelNodeSelector, <<"/provider">>, #{auth => root}
+    ),
+    maps:get(<<"id">>, OpIdentityResp).
 
 
 -spec configure_dns(op_cluster_config()) -> ok.

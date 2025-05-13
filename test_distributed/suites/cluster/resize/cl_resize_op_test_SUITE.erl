@@ -48,49 +48,65 @@ all() -> [
 
 
 add_node_test(Config) ->
-    [Node1, Node2] = ?config(op_panel_nodes, Config),
-    Node1Details = cluster_management_test_utils:infer_node_details(Node1),
-    Node1Hostname = Node1Details#node_details.hostname,
-    Node2Hostname = dns_test_utils:get_hostname(Node2),
+    [PanelNode1, PanelNode2] = PanelNodes = ?config(op_panel_nodes, Config),
+    PanelNode1Details = cluster_management_test_utils:infer_node_details(PanelNode1),
+    PanelNode1Hostname = PanelNode1Details#node_details.hostname,
+    PanelNode2Hostname = dns_test_utils:get_hostname(PanelNode2),
+    OpDomain = dns_test_utils:get_k8s_service_domain(PanelNode1),
 
-    panel_test_rpc:set_emergency_passphrase(Node1, ?ONENV_EMERGENCY_PASSPHRASE),
+    panel_test_rpc:set_emergency_passphrase(PanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
-    ProviderName = <<"krakow">>,
+    cluster_management_test_utils:assert_onedata_service_id(PanelNodes, undefined),
+    cluster_management_test_utils:assert_onedata_service_domain(PanelNodes, undefined),
+
+    OpName = <<"krakow">>,
     OpClusterConfig = #op_cluster_config{
-        nodes = #{1 => Node1Details},
+        nodes = #{1 => PanelNode1Details},
         managers = [1],
         main_manager = 1,
         workers = [1],
         databases = [1],
-        name = ProviderName,
+        name = OpName,
         register = true,
         registration_token = op_cluster_deployment_test_utils:get_registration_token(),
-        domain = dns_test_utils:get_k8s_service_domain(Node1)
+        domain = OpDomain
     },
     op_cluster_deployment_test_utils:deploy_batch(OpClusterConfig),
 
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_all_hosts(Node1)),
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_all_hosts(PanelNode1)),
+
+    OpId = op_cluster_deployment_test_utils:get_id(PanelNode1),
+    cluster_management_test_utils:assert_onedata_service_id([PanelNode1], OpId),
+    cluster_management_test_utils:assert_onedata_service_domain([PanelNode1], OpDomain),
+    cluster_management_test_utils:assert_onedata_service_id([PanelNode2], undefined),
+    cluster_management_test_utils:assert_onedata_service_domain([PanelNode2], undefined),
 
     ?assertMatch(
         {ok, ?HTTP_200_OK, _, _},
-        panel_test_rest:post(Node1, <<"/hosts">>, #{auth => root, json => #{
-            <<"address">> => Node2Hostname
+        panel_test_rest:post(PanelNode1, <<"/hosts">>, #{auth => root, json => #{
+            <<"address">> => PanelNode2Hostname
         }})
     ),
 
     %% Assert new host has been added to cluster but no service was automatically started on it
     ?assertEqual(
-        lists:usort([Node1Hostname, Node2Hostname]),
-        lists:usort(cluster_management_test_utils:get_all_hosts(Node1))
+        lists:usort([PanelNode1Hostname, PanelNode2Hostname]),
+        lists:usort(cluster_management_test_utils:get_all_hosts(PanelNode1))
     ),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, worker)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, manager)),
-    ?assertEqual([Node1Hostname], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, database)),
-    ?assertEqual([], cluster_management_test_utils:get_service_hosts(Node1, ?ONEPROVIDER, ones3)).
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEPROVIDER, worker)),
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEPROVIDER, manager)),
+    ?assertEqual([PanelNode1Hostname], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEPROVIDER, database)),
+    ?assertEqual([], cluster_management_test_utils:get_service_hosts(PanelNode1, ?ONEPROVIDER, ones3)),
+    % Assert added node copied configured service envs
+    cluster_management_test_utils:assert_onedata_service_id(PanelNodes, OpId),
+    cluster_management_test_utils:assert_onedata_service_domain(PanelNodes, OpDomain).
 
 
 deploy_new_worker_test(Config) ->
     [Node1, Node2] = ?config(op_panel_nodes, Config),
+
+    OpId = op_cluster_deployment_test_utils:get_id(Node1),
+    OpDomain = dns_test_utils:get_k8s_service_domain(Node1),
 
     Node1Details = cluster_management_test_utils:infer_node_details(Node1),
     Node1Hostname = Node1Details#node_details.hostname,
@@ -109,6 +125,9 @@ deploy_new_worker_test(Config) ->
 
     [WorkerNode1] = panel_test_rpc:get_op_worker_nodes(Node1),
     ?assertEqual([WorkerNode1], get_worker_chash_nodes(WorkerNode1)),
+    % Assert domain set on both panel nodes and single worker node
+    cluster_management_test_utils:assert_onedata_service_id(krakow, OpId),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain),
 
     {ok, _, _, #{<<"taskId">> := TaskId}} = ?assertMatch(
         {ok, ?HTTP_202_ACCEPTED, _, _},
@@ -118,6 +137,7 @@ deploy_new_worker_test(Config) ->
         })
     ),
     cluster_management_test_utils:await_task_status(Node1, TaskId, <<"ok">>),
+    cluster_management_test_utils:refresh_oct(Config),
 
     ?assertEqual(
         #{Node1Hostname => <<"healthy">>, Node2Hostname => <<"healthy">>},
@@ -125,6 +145,9 @@ deploy_new_worker_test(Config) ->
         ?ATTEMPTS
     ),
     ?assertEqual({ok, CurrentFileContents}, GetTokenFileContentFun(Node2)),
+    % Assert all nodes, including new worker node, has domain set (oct was refreshed and is aware of every new node)
+    cluster_management_test_utils:assert_onedata_service_id(krakow, OpId),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain),
 
     [WorkerNode2] = panel_test_rpc:get_op_worker_nodes(Node1) -- [WorkerNode1],
     ?assertEqual(

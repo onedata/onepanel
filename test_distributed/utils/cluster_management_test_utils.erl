@@ -22,6 +22,9 @@
 -export([
     refresh_oct/1,
 
+    assert_onedata_service_id/2,
+    assert_onedata_service_domain/2,
+
     infer_node_details/1,
 
     get_all_hosts/1,
@@ -64,6 +67,18 @@ refresh_oct(Config) ->
     NewConfig1 = oct_nodes:refresh_config(Config),
     NewConfig2 = oct_nodes:connect_with_nodes(NewConfig1),
     oct_background:update_environment(NewConfig2).
+
+
+-spec assert_onedata_service_id([node()] | oct_background:entity_selector(), binary()) ->
+    ok | no_return().
+assert_onedata_service_id(NodesOrEntitySelector, ExpDomain) ->
+    assert_onedata_service_env(NodesOrEntitySelector, onedata_service_id, ExpDomain).
+
+
+-spec assert_onedata_service_domain([node()] | oct_background:entity_selector(), binary()) ->
+    ok | no_return().
+assert_onedata_service_domain(NodesOrEntitySelector, ExpDomain) ->
+    assert_onedata_service_env(NodesOrEntitySelector, onedata_service_domain, ExpDomain).
 
 
 -spec infer_node_details(node()) -> node_details().
@@ -223,3 +238,20 @@ service_rest_path(?ONEPROVIDER, manager) -> <<"/provider/managers">>;
 service_rest_path(?ONEZONE, database) -> <<"/zone/databases">>;
 service_rest_path(?ONEPROVIDER, database) -> <<"/provider/databases">>;
 service_rest_path(?ONEPROVIDER, ones3) -> <<"/provider/ones3">>.
+
+
+%% @private
+assert_onedata_service_env(Nodes, Key, ExpValue) when is_list(Nodes) ->
+    lists:foreach(fun(Node) ->
+        ?assertEqual(
+            {Node, ExpValue},
+            {Node, catch erpc:call(Node, ctool, get_env, [Key])}
+        )
+    end, lists:flatten(Nodes));
+
+assert_onedata_service_env(EntitySelector, Key, ExpValue) ->
+    Nodes = lists:flatten([
+        panel_test_utils:get_panel_nodes(EntitySelector),
+        panel_test_utils:get_worker_nodes(EntitySelector)
+    ]),
+    assert_onedata_service_env(Nodes, Key, ExpValue).
