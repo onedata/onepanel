@@ -601,12 +601,18 @@ to_binary_or_undefined(Value) -> onepanel_utils:convert(Value, binary).
 %%-------------------------------------------------------------------
 -spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
 env_write_and_set(Variable, Value) ->
+    env_write_and_set(Variable, Value, name()).
+
+
+%% @private
+-spec env_write_and_set(atom(), term(), atom()) -> ok | no_return().
+env_write_and_set(Variable, Value, AppName) ->
     Node = nodes:local(name()),
-    onepanel_env:write([name(), Variable], Value, ?SERVICE_OZW),
+    onepanel_env:write([AppName, Variable], Value, ?SERVICE_OZW),
     % catch - failure of set_remote indicates that oz_worker node is down.
     % In such case onepanel_env:write suffices since configuration will
     % be read from file on next startup.
-    catch onepanel_env:set_remote(Node, Variable, Value, name()),
+    catch onepanel_env:set_remote(Node, Variable, Value, AppName),
     ok.
 
 
@@ -614,5 +620,4 @@ env_write_and_set(Variable, Value) ->
 -spec configure_onedata_service_domain(string() | binary()) -> ok.
 configure_onedata_service_domain(Domain) ->
     DomainBin = to_binary_or_undefined(Domain),
-    % No need to set env as worker node is restarted after configuration
-    onepanel_env:write([ctool, onedata_service_domain], DomainBin, ?SERVICE_OZW).
+    env_write_and_set(onedata_service_domain, DomainBin, ctool).

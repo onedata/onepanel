@@ -334,6 +334,11 @@ update_gui_message(#{message_id := MessageId} = Ctx) ->
 
 -spec ensure_onedata_service_domain_set(service:step_ctx()) -> ok.
 ensure_onedata_service_domain_set(Ctx) ->
-    Details = try service_oz_worker:get_details(Ctx) catch _:_ -> #{} end,
+    Details = try
+        service_oz_worker:get_details(Ctx)
+    catch Class:Reason:Stacktrace ->
+        ?examine_exception("Failed to get oz_worker details", Class, Reason, Stacktrace)
+        #{}
+    end,
     OzDomain = maps:get(domain, Details, undefined),
     service_onepanel:set_onedata_service_domain(OzDomain).

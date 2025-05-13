@@ -526,10 +526,9 @@ https_opts(Timeout) ->
 
 
 %% @private
--spec set_onedata_service_env(atom(), undefined | string() | binary()) -> ok.
+-spec set_onedata_service_env(atom(), undefined | binary()) -> ok.
 set_onedata_service_env(Key, Value) ->
     Nodes = get_nodes(),
-    ValueBin = utils:convert_defined(Value, fun str_utils:to_binary/1),
 
-    onepanel_env:write(Nodes, [ctool, Key], ValueBin, ?SERVICE_PANEL),
-    onepanel_env:set(Nodes, Key, ValueBin, ctool).
+    onepanel_env:write(Nodes, [ctool, Key], Value, ?SERVICE_PANEL),
+    onepanel_env:set(Nodes, Key, Value, ctool).

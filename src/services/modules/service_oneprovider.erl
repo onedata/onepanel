@@ -669,12 +669,15 @@ get_details() ->
             false -> get_details_by_rest()
         end
     catch
-        Type:?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider:Stacktrace ->
-            erlang:raise(Type, ErrorUnregisteredOneprovider, Stacktrace);
-        Type:Error:Stacktrace ->
+        Class:?ERR_UNREGISTERED_ONEPROVIDER = ErrorUnregisteredOneprovider:Stacktrace ->
+            erlang:raise(Class, ErrorUnregisteredOneprovider, Stacktrace);
+        Class:Reason:Stacktrace ->
             case service:get_ctx(name()) of
-                #{?DETAILS_PERSISTENCE := Cached} -> Cached;
-                _ -> erlang:raise(Type, Error, Stacktrace)
+                #{?DETAILS_PERSISTENCE := Cached} ->
+                    Cached;
+                _ ->
+                    Error = ?examine_exception("Failed to get op details", Class, Reason, Stacktrace),
+                    throw(Error)
             end
     end.
 
