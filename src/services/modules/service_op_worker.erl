@@ -292,10 +292,16 @@ configure(Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec configure_additional_node(#{reference_host := service:host(), _ => _}) -> ok.
-configure_additional_node(#{reference_host := _} = Ctx) ->
+configure_additional_node(#{reference_host := RefHost} = Ctx) ->
     {ok, MainCmHost} = service_cluster_manager:get_main_host(),
     CmHosts = service_cluster_manager:get_hosts(),
     DbHosts  = service_couchbase:get_hosts(),
+
+    RefNode = nodes:service_to_node(?SERVICE_PANEL, RefHost),
+    lists:foreach(fun(ServiceEnvKey) ->
+        ServiceEnvValue = onepanel_env:get_remote(RefNode, ServiceEnvKey, ctool),
+        env_write_and_set(ctool, ServiceEnvKey, ServiceEnvValue)
+    end, [onedata_service_id, onedata_service_domain]),
 
     AppConfig = case service_oneprovider:is_registered() of
         true -> #{oz_domain => service_oneprovider:get_oz_domain()};
@@ -791,9 +797,15 @@ maybe_check_dns() ->
 %%-------------------------------------------------------------------
 -spec env_write_and_set(Variable :: atom(), Value :: term()) -> ok | no_return().
 env_write_and_set(Variable, Value) ->
+    env_write_and_set(name(), Variable, Value).
+
+
+%% @private
+-spec env_write_and_set(atom(), atom(), term()) -> ok | no_return().
+env_write_and_set(AppName, Variable, Value) ->
     Node = nodes:local(name()),
-    onepanel_env:write([name(), Variable], Value, ?SERVICE_OPW),
+    onepanel_env:write([AppName, Variable], Value, ?SERVICE_OPW),
     % if op-worker is offline failure can be ignored,
     % the variable will be read on next startup
-    catch onepanel_env:set_remote(Node, Variable, Value, name()),
+    catch onepanel_env:set_remote(Node, Variable, Value, AppName),
     ok.

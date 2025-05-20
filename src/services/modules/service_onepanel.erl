@@ -63,7 +63,8 @@
     set_cookie/1, fetch_and_set_cookie/1, configure/1, check_connection/1,
     ensure_all_hosts_available/1, init_cluster/1, extend_cluster/1,
     join_cluster/1, reset_node/1, ensure_node_ready/1, reload_webcert/1,
-    available_for_clustering/0, is_host_used/1
+    available_for_clustering/0, is_host_used/1,
+    set_onedata_service_domain/1
 ]).
 
 %%%===================================================================
@@ -456,6 +457,14 @@ is_host_used(Host) ->
     end.
 
 
+-spec set_onedata_service_domain(undefined | string() | binary()) -> ok.
+set_onedata_service_domain(Domain) ->
+    set_onedata_service_env(onedata_service_domain, case Domain of
+        undefined -> undefined;
+        _ -> string:lowercase(str_utils:to_binary(Domain))
+    end).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -514,3 +523,12 @@ https_opts(Timeout) ->
         {connect_timeout, Timeout},
         {recv_timeout, Timeout}
     ].
+
+
+%% @private
+-spec set_onedata_service_env(atom(), undefined | binary()) -> ok.
+set_onedata_service_env(Key, Value) ->
+    Nodes = get_nodes(),
+
+    onepanel_env:write(Nodes, [ctool, Key], Value, ?SERVICE_PANEL),
+    onepanel_env:set(Nodes, Key, Value, ctool).

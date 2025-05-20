@@ -47,30 +47,38 @@ all() -> [
 
 
 deploy_using_batch_config_test(Config) ->
-    [OzPanelNode] = ?config(oz_panel_nodes, Config),
-    OzPanelHostIp = ip_test_utils:get_node_ip(OzPanelNode),
-    [OzHost] = hosts:from_nodes([OzPanelNode]),
-    OzDomain = dns_test_utils:get_k8s_service_domain(OzPanelNode),
+    OzPanelNodes = [OzPanelNode1, _] = ?config(oz_panel_nodes, Config),
+    [OzIpHost1, OzIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OzPanelNodes),
+    [OzHost1, OzHost2] = hosts:from_nodes(OzPanelNodes),
+    OzDomain = dns_test_utils:get_k8s_service_domain(OzPanelNode1),
 
-    panel_test_rpc:set_emergency_passphrase(OzPanelNode, ?ONENV_EMERGENCY_PASSPHRASE),
+    panel_test_rpc:set_emergency_passphrase(OzPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
-    deploy(Config, OzPanelNode, OzPanelHostIp, #{
+    cluster_management_test_utils:assert_onedata_service_domain(zone, undefined),
+
+    deploy(OzPanelNode1, OzIpHost1, #{
         <<"cluster">> => #{
             <<"nodes">> => #{
                 <<"node-1">> => #{
-                    <<"hostname">> => str_utils:to_binary(OzHost),
-                    <<"externalIp">> => ip_test_utils:encode_ip(OzPanelHostIp)
+                    <<"hostname">> => str_utils:to_binary(OzHost1),
+                    <<"externalIp">> => ip_test_utils:encode_ip(OzIpHost1)
+                },
+                <<"node-2">> => #{
+                    <<"hostname">> => str_utils:to_binary(OzHost2),
+                    <<"externalIp">> => ip_test_utils:encode_ip(OzIpHost2)
                 }
             },
             <<"managers">> => #{
                 <<"mainNode">> => <<"node-1">>,
                 <<"nodes">> => [<<"node-1">>]
             },
+            % Workers are not placed on all nodes to assert e.g. proper onedata_service env setup
+            % (2 panel nodes and only 1 worker node)
             <<"workers">> => #{
                 <<"nodes">> => [<<"node-1">>]
             },
             <<"databases">> => #{
-                <<"nodes">> => [<<"node-1">>]
+                <<"nodes">> => [<<"node-2">>]
             }
         },
         <<"onezone">> => #{
@@ -86,12 +94,13 @@ deploy_using_batch_config_test(Config) ->
             ]
         }
     }),
+    cluster_management_test_utils:refresh_oct(Config),
 
     ?assertMatch(
         #{<<"onezone">> := #{<<"domainName">> := OzDomain, <<"name">> := ?OZ_NAME, <<"configured">> := true}},
         get_zone_configuration()
     ),
-
+    cluster_management_test_utils:assert_onedata_service_domain(zone, OzDomain),
     assert_users_created(),
 
     ok.
@@ -105,7 +114,7 @@ deploy_using_batch_config_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1oz_not_deployed",
+        onenv_scenario = "1oz_2nodes_not_deployed",
         posthook = fun(NewConfig) ->
             % Requests should be made without cert verification as provider
             % domain is set/changed during deployment
@@ -125,7 +134,7 @@ end_per_suite(_Config) ->
 
 
 %% @private
-deploy(Config, OzPanelNode, OzPanelHostIp, BatchConfig) ->
+deploy(OzPanelNode, OzPanelHostIp, BatchConfig) ->
     OzRequestOpts = #{
         auth => root,
         % zone is not deployed yet and as such requests must be made using host ip
@@ -140,20 +149,7 @@ deploy(Config, OzPanelNode, OzPanelHostIp, BatchConfig) ->
         {ok, ?HTTP_200_OK, _, #{<<"status">> := <<"ok">>}},
         panel_test_rest:get(OzPanelNode, <<"/tasks/", TaskId/binary>>, OzRequestOpts),
         ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
-    ),
-
-    update_oct_background(Config, OzPanelNode).
-
-
-%% @private
-update_oct_background(Config, OzPanelNode) ->
-    % Connect with newly deployed workers and refresh oct_background to be able to use e.g. rpc
-    OzWorkerNodes = panel_test_rpc:call(OzPanelNode, service_oz_worker, get_nodes, []),
-    ConfigWithAllOzWorkerNodes = [{oz_worker_nodes, OzWorkerNodes} | Config],
-    ConfigWithConnectedNodes = oct_environment:connect_with_nodes(ConfigWithAllOzWorkerNodes),
-    oct_background:update_background_config(ConfigWithConnectedNodes),
-
-    ok.
+    ).
 
 
 %% @private
