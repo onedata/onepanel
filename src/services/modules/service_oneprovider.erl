@@ -881,7 +881,6 @@ set_cluster_ips(Ctx) ->
                 false -> ok
             end
         catch Class:Reason:Stacktrace ->
-            % fixme fix the problem with fallback when the CurrentIps are null
             ?error_exception(
                 ?autoformat_with_msg(
                     "Failed to set cluster IPs, falling back to current ones",
