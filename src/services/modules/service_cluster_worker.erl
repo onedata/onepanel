@@ -367,15 +367,16 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
     Host = hosts:self(),
     Node = nodes:local(ServiceName),
 
-    {ok, IP} = case kv_utils:find([cluster_ips, Host], Ctx) of
+    {ok, IPOrUndefined} = case kv_utils:find([cluster_ips, Host], Ctx) of
+        {ok, null} -> {ok, undefined};
         {ok, NewIP} -> ip_utils:to_ip4_address(NewIP);
         _ -> {ok, get_initial_ip(ServiceName)}
     end,
 
-    onepanel_env:write([?SERVICE_PANEL, external_ip], IP, ?SERVICE_PANEL),
-    onepanel_env:set(external_ip, IP, ?SERVICE_PANEL),
-    onepanel_env:write([name(), external_ip], IP, ServiceName),
-    onepanel_env:set_remote(Node, [external_ip], IP, name()),
+    onepanel_env:write([?SERVICE_PANEL, external_ip], IPOrUndefined, ?SERVICE_PANEL),
+    onepanel_env:set(external_ip, IPOrUndefined, ?SERVICE_PANEL),
+    onepanel_env:write([name(), external_ip], IPOrUndefined, ServiceName),
+    onepanel_env:set_remote(Node, [external_ip], IPOrUndefined, name()),
 
     dns_check:invalidate_cache(ServiceName).
 

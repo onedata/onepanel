@@ -881,6 +881,13 @@ set_cluster_ips(Ctx) ->
                 false -> ok
             end
         catch Class:Reason:Stacktrace ->
+            ?error_exception(
+                ?autoformat_with_msg(
+                    "Failed to set cluster IPs, falling back to current ones",
+                    [Ctx, CurrentIps]
+                ),
+                Class, Reason, Stacktrace
+            ),
             Error = ?examine_exception(Class, Reason, Stacktrace),
 
             set_services_ips(Ctx#{cluster_ips => CurrentIps}),

@@ -296,13 +296,14 @@ add_service_host(_Ctx) ->
 set_node_ip(Ctx) ->
     Host = hosts:self(),
 
-    {ok, Ip} = case kv_utils:find([cluster_ips, Host], Ctx) of
+    {ok, IpOrUndefined} = case kv_utils:find([cluster_ips, Host], Ctx) of
+        {ok, null} -> {ok, undefined};
         {ok, NewIp} -> ip_utils:to_ip4_address(NewIp);
         _ -> {ok, infer_ip()}
     end,
 
-    onepanel_env:write([?SERVICE_PANEL, external_ip], Ip, ?SERVICE_PANEL),
-    onepanel_env:set(external_ip, Ip, ?SERVICE_PANEL),
+    onepanel_env:write([?SERVICE_PANEL, external_ip], IpOrUndefined, ?SERVICE_PANEL),
+    onepanel_env:set(external_ip, IpOrUndefined, ?SERVICE_PANEL),
     dns_check:invalidate_cache(op_worker).
 
 
