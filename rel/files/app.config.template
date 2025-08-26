@@ -268,6 +268,10 @@
         %% Let's Encrypt configuration
         %% ===================================================================
 
+        %% Must be set to 'true' in case of tests using Pebble test server in order to
+        %% download and trust it root ca
+        {letsencrypt_pebble_enabled, false},
+
         {letsencrypt_root_ca_url, "https://letsencrypt.org/certs/isrgrootx1.pem"},
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
