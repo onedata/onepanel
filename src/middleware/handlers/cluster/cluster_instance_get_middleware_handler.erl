@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for getting current cluster information.
+%%% Middleware handler for getting cluster instance details.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_get_current_cluster_middleware_handler).
+-module(cluster_instance_get_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
@@ -45,9 +45,12 @@ supported_interfaces() ->
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false.
+    false | {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
-    false.
+    % fetches from ozw, local services may be down
+    middleware_handler_utils:if_cluster_type_then(
+        ?ONEZONE, [?SERVICE_OZW, all_healthy_ignoring_ones3]
+    ).
 
 
 -spec preauthorize(state()) -> boolean().
@@ -56,13 +59,16 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 
 
 -spec validate(state()) -> ok | no_return().
-validate(_) ->
-    middleware_handler_utils:assert_cluster_deployed().
+validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = root}}}) ->
+    % clusters must be fetched with Onezone user authorization
+    throw(?ERROR_NOT_FOUND);
+validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = member}}}) ->
+    ok.
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(_) ->
-    middleware_handler_utils:ok_result(clusters:get_current_cluster()).
+process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}, client = Client}}) ->
+    clusters:get_details(Client#client.zone_credentials, Id).
 
 
 -spec translate_output(state(), output()) ->

@@ -9,7 +9,7 @@
 %%% Middleware handler for getting host instance information.
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_get_instance_middleware_handler).
+-module(host_instance_get_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).

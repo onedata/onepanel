@@ -6,15 +6,19 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for creating invite user token.
+%%% Middleware handler for inviting a remote host to the cluster (extend_cluster).
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_create_invite_user_token_middleware_handler).
+-module(host_instance_create_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
 
+-include("http/rest.hrl").
 -include("middleware/middleware.hrl").
+-include("names.hrl").
+-include_lib("ctool/include/graph_sync/gri.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
 %% middleware_handler callbacks
 -export([
@@ -27,9 +31,9 @@
 ]).
 
 -type t() :: ?MODULE.
--type input() :: undefined.
+-type input() :: map().
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: tokens:serialized().
+-type output() :: map().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -40,34 +44,33 @@
 
 
 -spec supported_interfaces() -> {true, [rest]}.
-supported_interfaces() -> {true, [rest]}.
+supported_interfaces() ->
+    {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false | {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
 service_availability_requirements(_) ->
-    % fetches from ozw, local services may be down
-    middleware_handler_utils:if_cluster_type_then(
-        ?ONEZONE, [?SERVICE_OZW, all_healthy_ignoring_ones3]
-    ).
+    false.
 
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_ADD_USER).
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok.
 validate(_) ->
-    middleware_handler_utils:assert_cluster_deployed().
+    ok.
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(_) ->
-    clusters:create_invite_token_for_admin().
+process(#onp_req_state{input = #{address := Address}}) ->
+    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+        ?SERVICE_PANEL, extend_cluster,  #{address => Address}
+    )).
 
 
 -spec translate_output(state(), output()) ->
     {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Token) ->
-    {ok, ?OK_REPLY(#{<<"token">> => Token})}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
+    {ok, ?OK_REPLY(Result)}.

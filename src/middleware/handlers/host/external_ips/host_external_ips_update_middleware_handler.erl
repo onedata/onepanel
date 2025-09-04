@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for joining a cluster on a solitary node.
+%%% Middleware handler for updating external IPs of services in the cluster.
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_create_join_cluster_middleware_handler).
+-module(host_external_ips_update_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
@@ -43,31 +43,28 @@ supported_interfaces() ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
-    false.
+    {true, [all_healthy_ignoring_ones3]}.
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) ->
-    Role == guest andalso service_onepanel:available_for_clustering().
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok.
 validate(_) ->
-    case service_onepanel:available_for_clustering() of
-        true -> ok;
-        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
-    end.
+    ok.
 
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{input = Data}) ->
-    InviteToken = onepanel_utils:get_converted(inviteToken, Data, binary),
-    Ctx = #{
-        invite_token => InviteToken,
-        cluster_host => invite_tokens:get_cluster_host(InviteToken)
-    },
-    middleware_utils:execute_service_action(
-        ?SERVICE_PANEL, join_cluster, Ctx
-    ).
+    ClusterIps = maps:get(hosts, Data),
+    Service = case onepanel_env:get_cluster_type() of
+        ?ONEPROVIDER -> ?SERVICE_OP;
+        ?ONEZONE -> ?SERVICE_OZ
+    end,
+    Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
+    middleware_utils:execute_service_action(Service, set_cluster_ips, Ctx).

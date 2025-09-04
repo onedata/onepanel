@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for updating external IPs of services in the cluster.
+%%% Middleware handler for joining a cluster on a solitary node.
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_update_external_ips_middleware_handler).
+-module(host_join_cluster_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
@@ -43,28 +43,31 @@ supported_interfaces() ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
 service_availability_requirements(_) ->
-    {true, [all_healthy_ignoring_ones3]}.
+    false.
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) ->
+    Role == guest andalso service_onepanel:available_for_clustering().
 
 
--spec validate(state()) -> ok.
+-spec validate(state()) -> ok | no_return().
 validate(_) ->
-    ok.
+    case service_onepanel:available_for_clustering() of
+        true -> ok;
+        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
+    end.
 
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{input = Data}) ->
-    ClusterIps = maps:get(hosts, Data),
-    Service = case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER -> ?SERVICE_OP;
-        ?ONEZONE -> ?SERVICE_OZ
-    end,
-    Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
-    middleware_utils:execute_service_action(Service, set_cluster_ips, Ctx).
+    InviteToken = onepanel_utils:get_converted(inviteToken, Data, binary),
+    Ctx = #{
+        invite_token => InviteToken,
+        cluster_host => invite_tokens:get_cluster_host(InviteToken)
+    },
+    middleware_utils:execute_service_action(
+        ?SERVICE_PANEL, join_cluster, Ctx
+    ).

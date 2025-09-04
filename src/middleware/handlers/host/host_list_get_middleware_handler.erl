@@ -6,19 +6,15 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for getting current cluster members summary.
+%%% Middleware handler for listing hosts in the cluster.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_get_current_cluster_members_summary_middleware_handler).
+-module(host_list_get_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
 
--include("http/rest.hrl").
--include("authentication.hrl").
 -include("middleware/middleware.hrl").
--include("names.hrl").
--include_lib("ctool/include/privileges.hrl").
 
 %% middleware_handler callbacks
 -export([
@@ -33,7 +29,7 @@
 -type t() :: ?MODULE.
 -type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: map().
+-type output() :: [binary()].
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -48,35 +44,28 @@ supported_interfaces() ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false | {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
 service_availability_requirements(_) ->
-    % fetches from ozw, local services may be down
-    middleware_handler_utils:if_cluster_type_then(
-        ?ONEZONE, [?SERVICE_OZW, all_healthy_ignoring_ones3]
-    ).
+    false.
 
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_VIEW).
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok.
 validate(_) ->
-    middleware_handler_utils:assert_cluster_deployed().
+    ok.
 
 
 -spec process(state()) -> {ok, output()} | no_return().
-process(#onp_req_state{ctx = #onp_req_ctx{client = #client{zone_credentials = Auth}}}) ->
-    {ok, clusters:get_members_summary(Auth)}.
+process(_) ->
+    Hosts = lists:sort(service_onepanel:get_hosts()),
+    {ok, [list_to_binary(H) || H <- Hosts]}.
 
 
--spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Summary) ->
-    {ok, ?OK_REPLY(kv_utils:copy_all([
-        {users_count, <<"usersCount">>},
-        {groups_count, <<"groupsCount">>},
-        {effective_users_count, <<"effectiveUsersCount">>},
-        {effective_groups_count, <<"effectiveGroupsCount">>}
-    ], Summary, #{}))}.
+-spec translate_output(state(), output()) ->
+    {ok, middleware_handler:rest_output()}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Hosts) ->
+    {ok, ?OK_REPLY(Hosts)}.

@@ -6,19 +6,15 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for inviting a remote host to the cluster (extend_cluster).
+%%% Middleware handler for getting current cluster information.
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_create_instance_middleware_handler).
+-module(cluster_current_cluster_get_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
 
--include("http/rest.hrl").
 -include("middleware/middleware.hrl").
--include("names.hrl").
--include_lib("ctool/include/graph_sync/gri.hrl").
--include_lib("ctool/include/privileges.hrl").
 
 %% middleware_handler callbacks
 -export([
@@ -31,7 +27,7 @@
 ]).
 
 -type t() :: ?MODULE.
--type input() :: map().
+-type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
 -type output() :: map().
 
@@ -48,26 +44,25 @@ supported_interfaces() ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    false.
 service_availability_requirements(_) ->
     false.
 
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok.
+-spec validate(state()) -> ok | no_return().
 validate(_) ->
-    ok.
+    middleware_handler_utils:assert_cluster_deployed().
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(#onp_req_state{input = #{address := Address}}) ->
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
-        ?SERVICE_PANEL, extend_cluster,  #{address => Address}
-    )).
+process(_) ->
+    middleware_handler_utils:ok_result(clusters:get_current_cluster()).
 
 
 -spec translate_output(state(), output()) ->

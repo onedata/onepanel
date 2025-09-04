@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for removing a host from the cluster.
+%%% Middleware handler for getting external IPs of services in the cluster.
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_delete_instance_middleware_handler).
+-module(host_external_ips_get_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
@@ -22,13 +22,14 @@
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
-    process/1
+    process/1,
+    translate_output/2
 ]).
 
 -type t() :: ?MODULE.
 -type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: undefined.
+-type output() :: map().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -50,31 +51,26 @@ service_availability_requirements(_) ->
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
-validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = HostBin}}}) ->
-    Host = binary_to_list(HostBin),
-    host_exists(Host) orelse throw(?ERROR_NOT_FOUND),
-    service_onepanel:is_host_used(Host) andalso throw(?ERROR_NOT_SUPPORTED),
+-spec validate(state()) -> ok.
+validate(_) ->
     ok.
 
 
--spec process(state()) -> ok | errors:error().
-process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}}) ->
-    Host = binary_to_list(Id),
-    middleware_utils:execute_service_action(
-        ?SERVICE_PANEL, leave_cluster, #{hosts => [Host]}
-    ).
+-spec process(state()) -> {ok, output()} | no_return().
+process(_) ->
+    Service = case onepanel_env:get_cluster_type() of
+        ?ONEPROVIDER -> ?SERVICE_OP;
+        ?ONEZONE -> ?SERVICE_OZ
+    end,
+    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+        Service, format_cluster_ips
+    )).
 
 
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-
-%% @private
--spec host_exists(service:host()) -> boolean().
-host_exists(Host) ->
-    lists:member(Host, service_onepanel:get_hosts()).
+-spec translate_output(state(), output()) ->
+    {ok, middleware_handler:rest_output()}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
+    {ok, ?OK_REPLY(Result)}.

@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for getting cluster instance details.
+%%% Middleware handler for creating invite user token.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_get_instance_middleware_handler).
+-module(cluster_invite_user_token_create_middleware_handler).
 -author("Wojciech Geisler").
 
 -behaviour(middleware_handler).
@@ -29,7 +29,7 @@
 -type t() :: ?MODULE.
 -type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: map().
+-type output() :: tokens:serialized().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -40,8 +40,7 @@
 
 
 -spec supported_interfaces() -> {true, [rest]}.
-supported_interfaces() ->
-    {true, [rest]}.
+supported_interfaces() -> {true, [rest]}.
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -55,23 +54,20 @@ service_availability_requirements(_) ->
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_handler_utils:is_cluster_member(Client).
+    middleware_utils:has_privilege(Client, ?CLUSTER_ADD_USER).
 
 
 -spec validate(state()) -> ok | no_return().
-validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = root}}}) ->
-    % clusters must be fetched with Onezone user authorization
-    throw(?ERROR_NOT_FOUND);
-validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = member}}}) ->
-    ok.
+validate(_) ->
+    middleware_handler_utils:assert_cluster_deployed().
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}, client = Client}}) ->
-    clusters:get_details(Client#client.zone_credentials, Id).
+process(_) ->
+    clusters:create_invite_token_for_admin().
 
 
 -spec translate_output(state(), output()) ->
     {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
-    {ok, ?OK_REPLY(Result)}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Token) ->
+    {ok, ?OK_REPLY(#{<<"token">> => Token})}.
