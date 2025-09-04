@@ -11,7 +11,27 @@
 -ifndef(ONEPANEL_MIDDLEWARE_HRL).
 -define(ONEPANEL_MIDDLEWARE_HRL, 1).
 
+-include("authentication.hrl").
+-include("http/rest.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/errors.hrl").
+-include_lib("ctool/include/graph_sync/gri.hrl").
+-include_lib("ctool/include/privileges.hrl").
+
+
+-record(onp_req_ctx, {
+    interface :: middleware_handler:interface(),
+    gri :: gri:gri(),
+    operation :: middleware:operation(),
+    client :: middleware:client()
+}).
+
+-record(onp_req_state, {
+    ctx :: middleware_handler:req_ctx(),
+    input :: middleware_handler:handler_input()
+}).
+
 
 -record(onp_req, {
     gri :: gri:gri(),
