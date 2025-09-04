@@ -38,7 +38,14 @@
     panel_task_get_middleware_handler:t() |
     panel_test_image_get_middleware_handler:t() |
     panel_web_cert_get_middleware_handler:t() |
-    panel_web_cert_update_middleware_handler:t().
+    panel_web_cert_update_middleware_handler:t() |
+    zone_cluster_create_middleware_handler:t() |
+    zone_cluster_get_middleware_handler:t() |
+    zone_gui_message_get_middleware_handler:t() |
+    zone_gui_message_update_middleware_handler:t() |
+    zone_instance_get_middleware_handler:t() |
+    zone_policies_get_middleware_handler:t() |
+    zone_policies_update_middleware_handler:t().
 
 -type input() ::
     cluster_current_cluster_get_middleware_handler:input() |
@@ -66,7 +73,14 @@
     panel_task_get_middleware_handler:input() |
     panel_test_image_get_middleware_handler:input() |
     panel_web_cert_get_middleware_handler:input() |
-    panel_web_cert_update_middleware_handler:input().
+    panel_web_cert_update_middleware_handler:input() |
+    zone_cluster_create_middleware_handler:input() |
+    zone_cluster_get_middleware_handler:input() |
+    zone_gui_message_get_middleware_handler:input() |
+    zone_gui_message_update_middleware_handler:input() |
+    zone_instance_get_middleware_handler:input() |
+    zone_policies_get_middleware_handler:input() |
+    zone_policies_update_middleware_handler:input().
 
 -type state() ::
     cluster_current_cluster_get_middleware_handler:state() |
@@ -94,7 +108,14 @@
     panel_task_get_middleware_handler:state() |
     panel_test_image_get_middleware_handler:state() |
     panel_web_cert_get_middleware_handler:state() |
-    panel_web_cert_update_middleware_handler:state().
+    panel_web_cert_update_middleware_handler:state() |
+    zone_cluster_create_middleware_handler:state() |
+    zone_cluster_get_middleware_handler:state() |
+    zone_gui_message_get_middleware_handler:state() |
+    zone_gui_message_update_middleware_handler:state() |
+    zone_instance_get_middleware_handler:state() |
+    zone_policies_get_middleware_handler:state() |
+    zone_policies_update_middleware_handler:state().
 
 -type output() ::
     cluster_current_cluster_get_middleware_handler:output() |
@@ -122,6 +143,13 @@
     panel_task_get_middleware_handler:output() |
     panel_test_image_get_middleware_handler:output() |
     panel_web_cert_get_middleware_handler:output() |
-    panel_web_cert_update_middleware_handler:output().
+    panel_web_cert_update_middleware_handler:output() |
+    zone_cluster_create_middleware_handler:output() |
+    zone_cluster_get_middleware_handler:output() |
+    zone_gui_message_get_middleware_handler:output() |
+    zone_gui_message_update_middleware_handler:output() |
+    zone_instance_get_middleware_handler:output() |
+    zone_policies_get_middleware_handler:output() |
+    zone_policies_update_middleware_handler:output().
 
 -export_type([t/0, input/0, state/0, output/0]).

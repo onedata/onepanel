@@ -34,6 +34,9 @@ resolve_handler(Interface, Operation, #gri{type = onp_host, aspect = Aspect}) ->
 
 resolve_handler(Interface, Operation, #gri{type = onp_panel, aspect = Aspect}) ->
     resolve_panel_handler(Interface, Aspect, Operation);
+
+resolve_handler(Interface, Operation, #gri{type = onp_zone, aspect = Aspect}) ->
+    resolve_zone_handler(Interface, Aspect, Operation);
     
 resolve_handler(_, _, _) ->
     ?ERROR_NOT_SUPPORTED.
@@ -132,4 +135,31 @@ resolve_panel_handler(_, {task, _}, get) ->
     {ok, panel_task_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, _, _) ->
+    ?ERROR_NOT_SUPPORTED.
+
+
+%% @private
+-spec resolve_zone_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
+    {ok, middleware_handler:t()} | no_return().
+resolve_zone_handler(_, cluster, create) ->
+    {ok, zone_cluster_create_middleware_handler:module_info(module)};
+resolve_zone_handler(_, cluster, get) ->
+    {ok, zone_cluster_get_middleware_handler:module_info(module)};
+
+resolve_zone_handler(_, {gui_message, _}, get) ->
+    {ok, zone_gui_message_get_middleware_handler:module_info(module)};
+resolve_zone_handler(_, {gui_message, _}, update) ->
+    {ok, zone_gui_message_update_middleware_handler:module_info(module)};
+
+% get information about a remote onezone - either the issuer of given
+% registration token, or the one to which this Oneprovider is registered.
+resolve_zone_handler(_, instance, get) ->
+    {ok, zone_instance_get_middleware_handler:module_info(module)};
+
+resolve_zone_handler(_, policies, get) ->
+    {ok, zone_policies_get_middleware_handler:module_info(module)};
+resolve_zone_handler(_, policies, update) ->
+    {ok, zone_policies_update_middleware_handler:module_info(module)};
+    
+resolve_zone_handler(_, _, _) ->
     ?ERROR_NOT_SUPPORTED.
