@@ -89,7 +89,7 @@ translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, SpaceId) 
 
 
 %% @private
--spec get_storage_import_args(Data :: middleware:data(), Ctx :: service:step_ctx()) -> service:step_ctx().
+-spec get_storage_import_args(input(), service:step_ctx()) -> service:step_ctx().
 get_storage_import_args(Data, Ctx) ->
     kv_utils:copy_found([
         {[storageImport, mode], [storage_import, mode]},

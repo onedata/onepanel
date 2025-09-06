@@ -72,7 +72,7 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = SpaceId}}, input = Dat
 
 
 %% @private
--spec get_auto_cleaning_configuration(middleware:data(), Ctx :: service:step_ctx()) ->
+-spec get_auto_cleaning_configuration(input(), Ctx :: service:step_ctx()) ->
     service:step_ctx().
 get_auto_cleaning_configuration(Data, Ctx) ->
     kv_utils:copy_found([

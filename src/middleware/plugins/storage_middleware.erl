@@ -12,8 +12,6 @@
 -module(storage_middleware).
 -author("Wojciech Geisler").
 
--behaviour(middleware_plugin).
-
 -include("authentication.hrl").
 -include("http/rest.hrl").
 -include("middleware/middleware.hrl").
@@ -46,8 +44,7 @@
 %%% middleware_plugin callbacks
 %%%===================================================================
 
--spec operation_supported(middleware:operation(), gri:aspect(),
-    middleware:scope()) -> boolean().
+
 % plural 'instances', since many storages are created with one request
 operation_supported(create, As, private) when
     As == instances;
@@ -116,8 +113,10 @@ operation_supported(delete, {As, _Id}, private) when
 operation_supported(_, _, _) -> false.
 
 
--spec required_availability(middleware:operation(), gri:aspect(),
-    middleware:scope()) -> [middleware:availability_level()].
+
+
+
+
 required_availability(get, As, private) when
     As == list;
     As == instance;
@@ -183,8 +182,10 @@ required_availability(delete, {As, _Id}, private) when
     [?SERVICE_OPW, all_healthy_ignoring_ones3].
 
 
--spec fetch_entity(middleware:req()) ->
-    {ok, middleware:versioned_entity()} | undefined | errors:error().
+
+
+
+
 fetch_entity(#onp_req{gri = #gri{id = StorageId}}) ->
     case op_worker_storage:exists(StorageId) of
         true ->
@@ -197,7 +198,13 @@ fetch_entity(#onp_req{gri = #gri{id = StorageId}}) ->
     end.
 
 
--spec authorize(middleware:req(), middleware:entity()) -> boolean().
+
+
+
+
+
+
+
 authorize(#onp_req{
     operation = create, client = Client, gri = #gri{aspect = As}
 }, _)  when
@@ -281,7 +288,12 @@ authorize(#onp_req{
 
 
 
--spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
+
+
+
+
+
+
 validate(#onp_req{operation = create, gri = #gri{aspect = As}, data = Data}, _) when
     As == instances
 ->
@@ -387,7 +399,14 @@ validate(#onp_req{
     ensure_registered().
 
 
--spec create(middleware:req()) -> middleware:create_result().
+
+
+
+
+
+
+
+
 create(#onp_req{gri = #gri{aspect = instances}, data = Data}) ->
     ActionResults = service:apply_sync(?SERVICE_OPW, add_storages, #{storages => Data}),
     ResponseMap = parse_add_storages_results(ActionResults),
@@ -472,7 +491,17 @@ create(#onp_req{
     }).
 
 
--spec get(middleware:req(), middleware:entity()) -> middleware:get_result().
+
+
+
+
+
+
+
+
+
+
+
 get(#onp_req{gri = #gri{aspect = list}}, _) ->
     {ok, value, middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_storages, #{}
@@ -553,7 +582,18 @@ get(#onp_req{gri = #gri{aspect = {As, AclGroup}, id = StorageId}}, _) when
     )}.
 
 
--spec update(middleware:req()) -> middleware:update_result().
+
+
+
+
+
+
+
+
+
+
+
+
 update(#onp_req{gri = #gri{aspect = instance, id = Id}, data = Data}) ->
     [{_OldName, Params}] = maps:to_list(Data),
     {ok, value, middleware_utils:result_from_service_action(
@@ -576,7 +616,13 @@ update(#onp_req{
     ).
 
 
--spec delete(middleware:req()) -> middleware:delete_result().
+
+
+
+
+
+
+
 delete(#onp_req{gri = #gri{aspect = luma_db, id = Id}}) ->
     middleware_utils:execute_service_action(
         ?SERVICE_OPW, clear_luma_db, #{id => Id}

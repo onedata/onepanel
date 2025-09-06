@@ -7,8 +7,8 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% This behaviour should be implemented by modules that implement specific
-%%% middleware operations. Each handler is responsible for handling a single
-%%% combination of operation + aspect + scope for a specific entity type.
+%%% middleware operations - serves as a link between
+%%%%% API and onepanel internals.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(middleware_handler).
@@ -22,6 +22,8 @@
 -type t() :: middleware_handler_types:t().
 
 -type interface() :: rest.
+
+-type operation() :: create | get | update | delete.
 
 -type rest_input() :: json_utils:json_map().
 -type interface_input() :: rest_input().
@@ -44,7 +46,7 @@
 
 -export_type([
     t/0,
-    interface/0,
+    interface/0, operation/0,
     rest_input/0, interface_input/0, handler_input/0,
     availability_level/0,
     req_ctx/0, state/0,
@@ -70,7 +72,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Parses raw input from the specified interface into structured input data.
+%% Parses input from the specified interface into structured input data.
 %% NOTE: Optional callback. Many handlers do not accept request bodies (e.g., GET).
 %% If this callback is not provided, the input is 'undefined' and the handler's
 %% input type should reflect that.
@@ -101,11 +103,10 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Determines if requesting client is authorized to perform given operation,
-%% based on middleware request and prefetched entity.
+%% Determines if requesting client is authorized to perform given operation.
 %% NOTE: This is a panel-side pre-authorization that checks what can be verified
 %% locally. Requests may still fail authorization in downstream services
-%% (RPC/REST), even if this callback returns true.
+%% (e.g. RPC/REST to Onezone), even if this callback returns true.
 %% @end
 %%--------------------------------------------------------------------
 -callback preauthorize(state()) -> boolean().
@@ -115,7 +116,6 @@
 %% @doc
 %% Determines if given request can be further processed
 %% (e.g. checks whether space is supported locally).
-%% Should throw custom error if not (e.g. ?ERR_SPACE_NOT_SUPPORTED).
 %% NOTE: Use primarily to validate input against current model state (some
 %% operations may be unavailable in a given state even if the input is
 %% semantically correct).

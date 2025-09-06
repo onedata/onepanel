@@ -173,25 +173,24 @@ delete_resource(Req, State) ->
 %%--------------------------------------------------------------------
 -spec process_request(cowboy_req:req(), state()) ->
     {stop, cowboy_req:req(), state()}.
-process_request(Req, #state{} = State) ->
+process_request(Req, State = #state{client = Client, rest_req = #rest_req{
+    method = Method,
+    b_gri = GriWithBindings,
+    data_spec = InputSpec
+}}) ->
     try
-        #state{client = Client, rest_req = #rest_req{
-            method = Method,
-            b_gri = GriWithBindings,
-            data_spec = DataSpec
-        }} = State,
-        Operation = method_to_operation(Method),
-        GRI = resolve_gri_bindings(GriWithBindings, Req),
+        OnpReqCtx = #onp_req_ctx{
+            interface = rest,
+            operation = method_to_operation(Method),
+            client = Client,
+            gri = resolve_gri_bindings(GriWithBindings, Req)
+        },
+
         Params = get_params(Req),
         {Req2, Body} = get_data(Req),
-        OnpReq = #onp_req{
-            operation = Operation,
-            client = Client,
-            gri = GRI,
-            data = maps:merge(Body, Params),
-            data_spec = DataSpec
-        },
-        RestResp = handle_gri_request(OnpReq),
+        Input = maps:merge(Body, Params),
+
+        RestResp = handle_gri_request(OnpReqCtx, Input, InputSpec),
         {stop, send_response(RestResp, Req2), State}
     catch
         throw:Error ->
@@ -247,22 +246,17 @@ get_params(Req) ->
 %% using TranslatorModule.
 %% @end
 %%--------------------------------------------------------------------
--spec handle_gri_request(middleware:req()) -> #rest_resp{}.
-handle_gri_request(#onp_req{operation = Operation, gri = GRI} = ElReq) ->
-    Result = middleware:handle(ElReq),
-    try
-        rest_translator:response(ElReq, Result)
-    catch
-        Type:Message:Stacktrace ->
-            ?error_stacktrace("Cannot translate REST result for:~n"
-            "Operation: ~tp~n"
-            "GRI: ~tp~n"
-            "Result: ~tp~n"
-            "---------~n"
-            "Error was: ~tp:~tp", [
-                Operation, GRI, Result, Type, Message
-            ], Stacktrace),
-            rest_translator:error_response(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))
+-spec handle_gri_request(
+    middleware_handler:req_ctx(),
+    middleware_handler:rest_input(),
+    undefined | onepanel_parser:object_spec()
+) ->
+    #rest_resp{}.
+handle_gri_request(OnpReqCtx, Input, InputSpec) ->
+    case middleware:handle(OnpReqCtx, Input, InputSpec) of
+        ok -> ?NO_CONTENT_REPLY;
+        {ok, RestOutput} -> RestOutput;
+        {error, _} = Error -> rest_translator:error_response(Error)
     end.
 
 
@@ -351,7 +345,7 @@ resolve_bindings(Other, _Req) ->
 %% that should be called to handle it.
 %% @end
 %%--------------------------------------------------------------------
--spec method_to_operation(method()) -> middleware:operation().
+-spec method_to_operation(method()) -> middleware_handler:operation().
 method_to_operation('POST') -> create;
 method_to_operation('PUT') -> create;
 method_to_operation('GET') -> get;

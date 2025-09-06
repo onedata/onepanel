@@ -24,7 +24,7 @@
 -record(onp_req_ctx, {
     interface :: middleware_handler:interface(),
     gri :: gri:gri(),
-    operation :: middleware:operation(),
+    operation :: middleware_handler:operation(),
     client :: middleware:client()
 }).
 
@@ -36,9 +36,9 @@
 
 -record(onp_req, {
     gri :: gri:gri(),
-    operation :: middleware:operation(),
+    operation :: middleware_handler:operation(),
     client :: middleware:client(),
-    data = undefined :: middleware:data(),
+    data = undefined :: middleware_handler:interface_input(),
     data_spec = undefined :: undefined | onepanel_parser:object_spec(),
     % applicable for create/get requests - returns the revision of resource
     return_revision = false :: boolean()

@@ -12,9 +12,9 @@
 %%% This module handles a requests processing layer common for
 %%% graph sync (websocket) and REST interfaces.
 %%%
-%%% All this operations are carried out by middleware plugins (modules
-%%% implementing `middleware_plugin` behaviour). Each such module is responsible
-%%% for handling all request pointing to the same entity type (#gri.type field).
+%%% All this operations are carried out by middleware handlers (modules
+%%% implementing `middleware_handler` behaviour). Each such module is responsible
+%%% for handling all request pointing to the same aspect of entity type.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(middleware).
@@ -23,114 +23,53 @@
 -author("Wojciech Geisler").
 
 -include("middleware/middleware.hrl").
--include("authentication.hrl").
--include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/graph_sync/gri.hrl").
--include_lib("ctool/include/logging.hrl").
 
--type req() :: #onp_req{}.
--type operation() :: gs_protocol:operation().
-% The resource the request operates on (creates, gets, updates or deletes).
--type entity() :: undefined | map().
--type versioned_entity() :: gs_protocol:versioned_entity().
--type scope() :: gs_protocol:scope().
+%% API
+-export([handle/3]).
 
--type data() :: gs_protocol:data() | #{atom() => json_utils:json_term()}.
--type data_format() :: gs_protocol:data_format().
-
--type create_result() :: gs_protocol:graph_create_result().
--type get_result() :: gs_protocol:graph_get_result() | {ok, term()} | {ok, gri:gri(), term()}.
--type delete_result() :: gs_protocol:graph_delete_result().
--type update_result() :: gs_protocol:graph_update_result() | {ok, value, term()}.
--type result() :: create_result() | get_result() | update_result() | delete_result().
 
 -type client() :: #client{}.
 
-% Conditions used to describe when a request can be processed by the cluster.
-% - Specifying service name indicates that there must exist a node
-%   with the service deployed and the service must have status 'healthy'.
-% - 'all_healthy_ignoring_ones3' means that all deployed service nodes,
-%   except ones3, must have status 'healthy'. Does not enforce presence
-%   of all services.
--type availability_level() :: all_healthy_ignoring_ones3 | service:name().
+-export_type([client/0]).
 
--export_type([
-    client/0,
-    req/0,
-    operation/0,
-    entity/0,
-    versioned_entity/0,
-    scope/0,
-    data/0,
-    data_format/0,
-    create_result/0,
-    get_result/0,
-    update_result/0,
-    delete_result/0,
-    result/0,
-    availability_level/0
-]).
-
-% Internal record containing the request data and state.
--record(req_ctx, {
-    req = #onp_req{} :: req(),
-    plugin = undefined :: module(),
-    versioned_entity = {undefined, 1} :: versioned_entity()
+% Internal record containing the request state.
+-record(state, {
+    handler :: middleware_handler:t(),
+    req_ctx :: middleware_handler:req_ctx(),
+    handler_state :: middleware_handler:state()
 }).
--type req_ctx() :: #req_ctx{}.
-
-%% API
--export([handle/1, handle/2]).
+-type state() :: #state{}.
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @doc
-%% @equiv handle(OnpReq, undefined).
-%% @end
-%%--------------------------------------------------------------------
--spec handle(req()) -> result().
-handle(OnpReq) ->
-    handle(OnpReq, {undefined, 1}).
 
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Handles an middleware request expressed by a #onp_req{} record.
-%% Entity can be provided if it was prefetched.
-%% @end
-%%--------------------------------------------------------------------
--spec handle(req(), versioned_entity()) -> result().
-handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
+-spec handle(
+    middleware_handler:req_ctx(),
+    middleware_handler:interface_input(),
+    undefined | onepanel_parser:object_spec()
+) ->
+    ok | {ok, middleware_handler:interface_output()} | errors:error().
+handle(OnpReqCtx, Input, InputSpec) ->
     try
-        ReqCtx0 = #req_ctx{
-            req = OnpReq,
-            plugin = get_plugin(EntityType),
-            versioned_entity = VersionedEntity
-        },
-        ensure_operation_supported(ReqCtx0),
-        ReqCtx1 = sanitize_request(ReqCtx0),
-        ensure_availability(ReqCtx1),
-        ReqCtx2 = maybe_fetch_entity(ReqCtx1),
-        ensure_authorized(ReqCtx2),
+        Handler = find_handler(OnpReqCtx),
+        assert_interface_supported(Handler, OnpReqCtx),
 
-        validate_request(ReqCtx2),
-        process_request(ReqCtx2)
-    catch
-        % Intentional errors (throws) are be returned to client as is
-        % (e.g. unauthorized, forbidden, space not supported, etc.)
-        throw:Error ->
-            Error;
-        % Unexpected errors are logged and internal server error is returned
-        % to client instead
-        Type:Reason:Stacktrace ->
-            ?error_stacktrace("Unexpected error in ~tp - ~tp:~tp", [
-                ?MODULE, Type, Reason
-            ], Stacktrace),
-            ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)
+        HandlerInput = sanitize_input(Input, InputSpec),
+
+        assert_required_services_available(Handler, OnpReqCtx),
+
+        State = init_state(Handler, OnpReqCtx, HandlerInput),
+        assert_preauthorized(State),
+        validate_request(State),
+        case process_request(State) of
+            ok -> ok;
+            {ok, HandlerOutput} -> translate_output(State, HandlerOutput)
+        end
+    catch Class:Reason:Stacktrace ->
+        ?examine_exception(Class, Reason, Stacktrace)
     end.
 
 
@@ -138,140 +77,121 @@ handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
 %%% Internal functions
 %%%===================================================================
 
+
 %% @private
--spec get_plugin(gri:entity_type()) -> module() | no_return().
-get_plugin(onp_service) -> service_middleware;
-get_plugin(onp_space) -> space_middleware;
-get_plugin(onp_storage) -> storage_middleware;
-get_plugin(_) -> throw(?ERROR_NOT_SUPPORTED).
+-spec find_handler(middleware_handler:req_ctx()) -> middleware_handler:t() | no_return().
+find_handler(#onp_req_ctx{interface = Interface, operation = Operation, gri = Gri}) ->
+    case middleware_router:resolve_handler(Interface, Operation, Gri) of
+        {true, Handler} -> Handler;
+        false -> throw(?ERROR_NOT_SUPPORTED)
+    end.
 
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Ensures requested operation is supported by calling back
-%% proper middleware plugin, throws a proper error if not.
-%% @end
-%%--------------------------------------------------------------------
--spec ensure_operation_supported(req_ctx()) -> ok | no_return().
-ensure_operation_supported(#req_ctx{plugin = Plugin, req = #onp_req{
-    operation = Op,
-    gri = #gri{aspect = Asp, scope = Scp}
-}}) ->
-    try Plugin:operation_supported(Op, Asp, Scp) of
+-spec assert_interface_supported(middleware_handler:t(), middleware_handler:req_ctx()) ->
+    ok | no_return().
+assert_interface_supported(Handler, OnpReqCtx) ->
+    case is_interface_supported(Handler, OnpReqCtx) of
         true -> ok;
         false -> throw(?ERROR_NOT_SUPPORTED)
-    catch
-        error:_ ->
-            % No need for log here, 'operation_supported' may crash depending on
-            % what the request contains and this is expected.
-            throw(?ERROR_NOT_SUPPORTED)
     end.
 
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Ensures services required for processing given request are
-%% present and healthy.
-%% @end
-%%--------------------------------------------------------------------
--spec ensure_availability(req_ctx()) -> ok | no_return().
-ensure_availability(#req_ctx{plugin = Plugin, req = #onp_req{
-    operation = Op,
-    gri = #gri{aspect = Asp, scope = Scp}
-}}) ->
-    Requirements = Plugin:required_availability(Op, Asp, Scp),
-    case lists:all(fun is_availability_satisfied/1, Requirements) of
-        true -> ok;
-        false -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
+-spec is_interface_supported(middleware_handler:t(), middleware_handler:req_ctx()) ->
+    boolean().
+is_interface_supported(Handler, #onp_req_ctx{interface = Interface}) ->
+    try Handler:supported_interfaces() of
+        {true, SupportedInterfaces} -> lists:member(Interface, SupportedInterfaces);
+        false -> false
+    catch _:_ ->
+        false
     end.
 
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Sanitizes data specified in request, throws on errors.
-%% @end
-%%--------------------------------------------------------------------
--spec sanitize_request(req_ctx()) -> req_ctx().
-sanitize_request(#req_ctx{req = #onp_req{data_spec = undefined} = OnpReq} = ReqCtx) ->
-    ReqCtx#req_ctx{req = OnpReq#onp_req{data = #{}}};
-
-sanitize_request(#req_ctx{req = #onp_req{
-    data = Data,
-    data_spec = DataSpec
-} = Req} = ReqCtx) ->
-    ReqCtx#req_ctx{req = Req#onp_req{data = parse_body(Data, DataSpec)}}.
+-spec sanitize_input(
+    middleware_handler:interface_input(),
+    undefined | onepanel_parser:object_spec()
+) ->
+    map() | middleware_handler:handler_input() | no_return().
+sanitize_input(_, undefined) ->
+    #{};
+sanitize_input(Input, InputSpec) ->
+    onepanel_parser:parse(Input, InputSpec).
 
 
-
-%%--------------------------------------------------------------------
 %% @private
-%% @doc Parses request body according to provided specification.
-%% @end
-%%--------------------------------------------------------------------
--spec parse_body(Data :: map(), ArgsSpec :: onepanel_parser:object_spec()) ->
-    middleware:data() | no_return().
-parse_body(Data, ArgsSpec) ->
-    onepanel_parser:parse(Data, ArgsSpec).
-
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Retrieves the entity specified in request by calling back proper
-%% middleware plugin. Does nothing if the entity is prefetched, or GRI of the
-%% request is not related to a specific entity id.
-%% @end
-%%--------------------------------------------------------------------
--spec maybe_fetch_entity(req_ctx()) -> req_ctx().
-maybe_fetch_entity(#req_ctx{versioned_entity = {Entity, _}} = ReqCtx) when Entity /= undefined ->
-    ReqCtx;
-
-maybe_fetch_entity(#req_ctx{req = #onp_req{gri = #gri{id = undefined}}} = ReqCtx) ->
-    % Skip when creating an instance with predefined Id, set revision to 1
-    ReqCtx#req_ctx{versioned_entity = {undefined, 1}};
-
-maybe_fetch_entity(#req_ctx{plugin = Plugin, req = Req} = ReqCtx) ->
-    case Plugin:fetch_entity(Req) of
-        {ok, {_Entity, _Revision} = VersionedEntity} ->
-            ReqCtx#req_ctx{versioned_entity = VersionedEntity};
-        undefined ->
-            ReqCtx#req_ctx{versioned_entity = {undefined, 1}};
-        {error, _} = Error ->
-            throw(Error)
+-spec assert_required_services_available(middleware_handler:t(), middleware_handler:req_ctx()) ->
+    ok | no_return().
+assert_required_services_available(Handler, OnpReqCtx) ->
+    case Handler:service_availability_requirements(OnpReqCtx) of
+        {true, Requirements} ->
+            case lists:all(fun is_availability_satisfied/1, Requirements) of
+                true -> ok;
+                false -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()))
+            end;
+        false ->
+            ok
     end.
 
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Ensures client specified in request is authorized to perform the request,
-%% throws on error.
-%% @end
-%%--------------------------------------------------------------------
--spec ensure_authorized(req_ctx()) -> ok | no_return().
-ensure_authorized(#req_ctx{req = #onp_req{client = #client{role = root}}}) ->
+-spec is_availability_satisfied(middleware_handler:availability_level()) -> boolean().
+is_availability_satisfied(all_healthy_ignoring_ones3) ->
+    service:all_healthy_ignoring_ones3();
+is_availability_satisfied(Service) ->
+    service:is_healthy(Service).
+
+
+%% @private
+-spec init_state(
+    middleware_handler:t(),
+    middleware_handler:req_ctx(),
+    middleware_handler:handler_input()
+) ->
+    state() | no_return().
+init_state(Handler, OnpReqCtx, HandlerInput) ->
+    HandlerState = try Handler:init_state(OnpReqCtx, HandlerInput) of
+        {ok, HS} -> HS;
+        {error, _} = Error -> throw(Error)
+    catch error:undef ->
+        #onp_req_state{ctx = OnpReqCtx, input = HandlerInput}
+    end,
+
+    #state{
+        handler = Handler,
+        req_ctx = OnpReqCtx,
+        handler_state = HandlerState
+    }.
+
+
+%% @private
+-spec assert_preauthorized(state()) -> ok | no_return().
+assert_preauthorized(#state{req_ctx = #onp_req_ctx{client = #client{role = root}}}) ->
     % Root (emergency passphrase) client is authorized to do everything
     ok;
-ensure_authorized(#req_ctx{
-    plugin = Plugin,
-    versioned_entity = {Entity, _},
-    req = #onp_req{operation = Operation, client = Client, gri = GRI} = OnpReq
+
+assert_preauthorized(#state{
+    handler = Handler,
+    req_ctx = #onp_req_ctx{
+        operation = Operation,
+        gri = Gri,
+        client = Client = #client{auth = Auth}
+    },
+    handler_state = HandlerState
 }) ->
     Service = case onepanel_env:get_cluster_type() of
         ?ONEZONE -> ?OZ_PANEL;
         ?ONEPROVIDER -> ?OP_PANEL
     end,
-    #client{auth = Auth} = Client,
-    case api_auth:check_authorization(Auth, Service, Operation, GRI) of
+    case api_auth:check_authorization(Auth, Service, Operation, Gri) of
         ok -> ok;
         {error, _} = Error -> throw(Error)
     end,
 
     Result = try
-        Plugin:authorize(OnpReq, Entity)
+        Handler:preauthorize(HandlerState)
     catch _:_ ->
         % No need for log here, 'authorize' may crash depending on what the
         % request contains and this is expected.
@@ -293,55 +213,31 @@ ensure_authorized(#req_ctx{
     end.
 
 
-%%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Determines if given request can be further processed.
-%% @end
-%%--------------------------------------------------------------------
--spec validate_request(req_ctx()) -> ok | no_return().
-validate_request(#req_ctx{plugin = Plugin, versioned_entity = {Entity, _}, req = Req}) ->
-    ok = Plugin:validate(Req, Entity).
+-spec validate_request(state()) -> ok | no_return().
+validate_request(#state{handler = Handler, handler_state = HandlerState}) ->
+    case Handler:validate(HandlerState) of
+        ok -> ok;
+        {error, _} = Error -> throw(Error)
+    end.
 
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Handles an middleware request based on operation,
-%% should be wrapped in a try-catch.
-%% @end
-%%--------------------------------------------------------------------
--spec process_request(req_ctx()) -> result().
-process_request(#req_ctx{
-    plugin = Plugin,
-    req = #onp_req{operation = create} = Req
+%% @private
+-spec process_request(state()) ->
+    ok | {ok, middleware_handler:handler_output()} | no_return().
+process_request(#state{
+    handler = Handler,
+    req_ctx = #onp_req_ctx{operation = Operation, gri = Gri, client = Client},
+    handler_state = HandlerState
 }) ->
-    Plugin:create(Req);
-
-process_request(#req_ctx{
-    plugin = Plugin,
-    req = #onp_req{operation = get} = Req,
-    versioned_entity = {Entity, _}
-}) ->
-    Plugin:get(Req, Entity);
-
-process_request(#req_ctx{
-    plugin = Plugin, 
-    req = #onp_req{operation = update} = Req
-}) ->
-    Plugin:update(Req);
-
-process_request(#req_ctx{
-    plugin = Plugin, 
-    req = #onp_req{operation = delete, client = Client, gri = GRI} = Req
-}) ->
-    case {Plugin:delete(Req), GRI} of
-        {ok, #gri{type = Type, id = Id, aspect = instance}} ->
+    case {Handler:process(HandlerState), Operation, Gri} of
+        {ok, delete, #gri{type = Type, id = Id, aspect = instance}} ->
             % If an entity instance is deleted, log an information about it
             % (it's a significant operation and this information might be useful).
             ?info("~ts(~tp) has been deleted by client: ~ts",
                 [Type, Id, client_to_string(Client)]),
             ok;
-        {Result, _} ->
+        {Result, _, _} ->
             Result
     end.
 
@@ -360,8 +256,8 @@ client_to_string(?USER(Id)) -> str_utils:format("user:~ts", [Id]).
 
 
 %% @private
--spec is_availability_satisfied(availability_level()) -> boolean().
-is_availability_satisfied(all_healthy_ignoring_ones3) ->
-    service:all_healthy_ignoring_ones3();
-is_availability_satisfied(Service) ->
-    service:is_healthy(Service).
+-spec translate_output(state(), middleware_handler:handler_output()) ->
+    {ok, middleware_handler:interface_output()} | errors:error().
+translate_output(State, HandlerOutput) ->
+    Handler = State#state.handler,
+    Handler:translate_output(State#state.handler_state, HandlerOutput).

@@ -24,7 +24,7 @@
 %%% API
 %%%===================================================================
 
--spec create_response(gri:gri(), gs_protocol:data_format(), Result) -> #rest_resp{}
+-spec create_response(gri:gri(), value, Result) -> #rest_resp{}
     when Result :: term() | {gri:gri(), term()}.
 create_response(#gri{aspect = Aspect}, value, AsyncTaskId) when
     Aspect == couchbase_instances;

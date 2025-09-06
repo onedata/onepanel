@@ -24,8 +24,8 @@
 %%%===================================================================
 
 
--spec resolve_handler(middleware_handler:interface(), middleware:operation(), gri:gri()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_handler(middleware_handler:interface(), middleware_handler:operation(), gri:gri()) ->
+    {true, middleware_handler:t()} | false.
 resolve_handler(Interface, Operation, #gri{type = onp_cluster, aspect = Aspect}) ->
     resolve_cluster_handler(Interface, Aspect, Operation);
 
@@ -48,7 +48,7 @@ resolve_handler(Interface, Operation, #gri{type = onp_zone, aspect = Aspect}) ->
     resolve_zone_handler(Interface, Aspect, Operation);
 
 resolve_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %%%===================================================================
@@ -57,218 +57,218 @@ resolve_handler(_, _, _) ->
 
 
 %% @private
--spec resolve_cluster_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_cluster_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_cluster_handler(_, current_cluster, get) ->
-    {ok, cluster_current_cluster_get_middleware_handler:module_info(module)};
+    {true, cluster_current_cluster_get_middleware_handler:module_info(module)};
 
 resolve_cluster_handler(_, current_cluster_members_summary, get) ->
-    {ok, cluster_current_cluster_members_summary_get_middleware_handler:module_info(module)};
+    {true, cluster_current_cluster_members_summary_get_middleware_handler:module_info(module)};
 
 resolve_cluster_handler(_, instance, get) ->
-    {ok, cluster_instance_get_middleware_handler:module_info(module)};
+    {true, cluster_instance_get_middleware_handler:module_info(module)};
 
 resolve_cluster_handler(_, invite_user_token, create) ->
-    {ok, cluster_invite_user_token_create_middleware_handler:module_info(module)};
+    {true, cluster_invite_user_token_create_middleware_handler:module_info(module)};
 
 resolve_cluster_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %% @private
--spec resolve_host_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_host_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_host_handler(_, external_ips, get) ->
-    {ok, host_external_ips_get_middleware_handler:module_info(module)};
+    {true, host_external_ips_get_middleware_handler:module_info(module)};
 resolve_host_handler(_, external_ips, update) ->
-    {ok, host_external_ips_update_middleware_handler:module_info(module)};
+    {true, host_external_ips_update_middleware_handler:module_info(module)};
 
 resolve_host_handler(_, instance, create) ->
-    {ok, host_instance_create_middleware_handler:module_info(module)};
+    {true, host_instance_create_middleware_handler:module_info(module)};
 resolve_host_handler(_, instance, get) ->
-    {ok, host_instance_get_middleware_handler:module_info(module)};
+    {true, host_instance_get_middleware_handler:module_info(module)};
 resolve_host_handler(_, instance, delete) ->
-    {ok, host_instance_delete_middleware_handler:module_info(module)};
+    {true, host_instance_delete_middleware_handler:module_info(module)};
 
 resolve_host_handler(_, join_cluster, create) ->
-    {ok, host_join_cluster_middleware_handler:module_info(module)};
+    {true, host_join_cluster_middleware_handler:module_info(module)};
 
 resolve_host_handler(_, list, get) ->
-    {ok, host_list_get_middleware_handler:module_info(module)};
+    {true, host_list_get_middleware_handler:module_info(module)};
 
 resolve_host_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %% @private
--spec resolve_panel_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_panel_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_panel_handler(_, configuration, get) ->
-    {ok, panel_configuration_get_middleware_handler:module_info(module)};
+    {true, panel_configuration_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, cookie, get) ->
-    {ok, panel_cookie_get_middleware_handler:module_info(module)};
+    {true, panel_cookie_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, dns_check, get) ->
-    {ok, panel_dns_check_middleware_handler:module_info(module)};
+    {true, panel_dns_check_middleware_handler:module_info(module)};
 resolve_panel_handler(_, dns_check_configuration, get) ->
-    {ok, panel_dns_check_configuration_get_middleware_handler:module_info(module)};
+    {true, panel_dns_check_configuration_get_middleware_handler:module_info(module)};
 resolve_panel_handler(_, dns_check_configuration, update) ->
-    {ok, panel_dns_check_configuration_update_middleware_handler:module_info(module)};
+    {true, panel_dns_check_configuration_update_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, emergency_passphrase, create) ->
-    {ok, panel_emergency_passphrase_create_middleware_handler:module_info(module)};
+    {true, panel_emergency_passphrase_create_middleware_handler:module_info(module)};
 resolve_panel_handler(_, emergency_passphrase, get) ->
-    {ok, panel_emergency_passphrase_get_middleware_handler:module_info(module)};
+    {true, panel_emergency_passphrase_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, health, get) ->
-    {ok, panel_health_get_middleware_handler:module_info(module)};
+    {true, panel_health_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, invite_token, create) ->
-    {ok, panel_invite_token_create_middleware_handler:module_info(module)};
+    {true, panel_invite_token_create_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, progress, get) ->
-    {ok, panel_progress_get_middleware_handler:module_info(module)};
+    {true, panel_progress_get_middleware_handler:module_info(module)};
 resolve_panel_handler(_, progress, update) ->
-    {ok, panel_progress_update_middleware_handler:module_info(module)};
+    {true, panel_progress_update_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, {task, _}, get) ->
-    {ok, panel_task_get_middleware_handler:module_info(module)};
+    {true, panel_task_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, test_image, get) ->
-    {ok, panel_test_image_get_middleware_handler:module_info(module)};
+    {true, panel_test_image_get_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, web_cert, get) ->
-    {ok, panel_web_cert_get_middleware_handler:module_info(module)};
+    {true, panel_web_cert_get_middleware_handler:module_info(module)};
 resolve_panel_handler(_, web_cert, update) ->
-    {ok, panel_web_cert_update_middleware_handler:module_info(module)};
+    {true, panel_web_cert_update_middleware_handler:module_info(module)};
 
 resolve_panel_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %% @private
--spec resolve_provider_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_provider_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_provider_handler(_, cluster, create) ->
-    {ok, provider_cluster_create_middleware_handler:module_info(module)};
+    {true, provider_cluster_create_middleware_handler:module_info(module)};
 resolve_provider_handler(_, cluster, get) ->
-    {ok, provider_cluster_get_middleware_handler:module_info(module)};
+    {true, provider_cluster_get_middleware_handler:module_info(module)};
 
 resolve_provider_handler(_, instance, create) ->
-    {ok, provider_instance_create_middleware_handler:module_info(module)};
+    {true, provider_instance_create_middleware_handler:module_info(module)};
 resolve_provider_handler(_, instance, get) ->
-    {ok, provider_instance_get_middleware_handler:module_info(module)};
+    {true, provider_instance_get_middleware_handler:module_info(module)};
 resolve_provider_handler(_, instance, update) ->
-    {ok, provider_instance_update_middleware_handler:module_info(module)};
+    {true, provider_instance_update_middleware_handler:module_info(module)};
 resolve_provider_handler(_, instance, delete) ->
-    {ok, provider_instance_delete_middleware_handler:module_info(module)};
+    {true, provider_instance_delete_middleware_handler:module_info(module)};
 
 resolve_provider_handler(_, remote_instance, get) ->
-    {ok, provider_remote_instance_get_middleware_handler:module_info(module)};
+    {true, provider_remote_instance_get_middleware_handler:module_info(module)};
 
 resolve_provider_handler(_, transfers_mock, get) ->
-    {ok, provider_transfers_mock_get_middleware_handler:module_info(module)};
+    {true, provider_transfers_mock_get_middleware_handler:module_info(module)};
 resolve_provider_handler(_, transfers_mock, update) ->
-    {ok, provider_transfers_mock_update_middleware_handler:module_info(module)};
+    {true, provider_transfers_mock_update_middleware_handler:module_info(module)};
 
 resolve_provider_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %% @private
--spec resolve_space_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_space_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_space_handler(_, auto_cleaning_configuration, get) ->
-    {ok, space_auto_cleaning_configuration_get_middleware_handler:module_info(module)};
+    {true, space_auto_cleaning_configuration_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, auto_cleaning_configuration, update) ->
-    {ok, space_auto_cleaning_configuration_update_middleware_handler:module_info(module)};
+    {true, space_auto_cleaning_configuration_update_middleware_handler:module_info(module)};
 resolve_space_handler(_, auto_cleaning_status, get) ->
-    {ok, space_auto_cleaning_status_get_middleware_handler:module_info(module)};
+    {true, space_auto_cleaning_status_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, auto_cleaning_reports_list, get) ->
-    {ok, space_auto_cleaning_reports_list_get_middleware_handler:module_info(module)};
+    {true, space_auto_cleaning_reports_list_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, {auto_cleaning_report, _}, get) ->
-    {ok, space_auto_cleaning_report_get_middleware_handler:module_info(module)};
+    {true, space_auto_cleaning_report_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, start_auto_cleaning, create) ->
-    {ok, space_start_auto_cleaning_create_middleware_handler:module_info(module)};
+    {true, space_start_auto_cleaning_create_middleware_handler:module_info(module)};
 resolve_space_handler(_, cancel_auto_cleaning, create) ->
-    {ok, space_cancel_auto_cleaning_create_middleware_handler:module_info(module)};
+    {true, space_cancel_auto_cleaning_create_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, file_popularity_configuration, get) ->
-    {ok, space_file_popularity_configuration_get_middleware_handler:module_info(module)};
+    {true, space_file_popularity_configuration_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, file_popularity_configuration, update) ->
-    {ok, space_file_popularity_configuration_update_middleware_handler:module_info(module)};
+    {true, space_file_popularity_configuration_update_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, instance, get) ->
-    {ok, space_instance_get_middleware_handler:module_info(module)};
+    {true, space_instance_get_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, list, get) ->
-    {ok, space_list_get_middleware_handler:module_info(module)};
+    {true, space_list_get_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, auto_storage_import_info, get) ->
-    {ok, space_auto_storage_import_info_get_middleware_handler:module_info(module)};
+    {true, space_auto_storage_import_info_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, auto_storage_import_stats, get) ->
-    {ok, space_auto_storage_import_stats_get_middleware_handler:module_info(module)};
+    {true, space_auto_storage_import_stats_get_middleware_handler:module_info(module)};
 resolve_space_handler(_, force_start_auto_storage_import_scan, create) ->
-    {ok, space_force_start_auto_storage_import_scan_create_middleware_handler:module_info(module)};
+    {true, space_force_start_auto_storage_import_scan_create_middleware_handler:module_info(module)};
 resolve_space_handler(_, force_stop_auto_storage_import_scan, create) ->
-    {ok, space_force_stop_auto_storage_import_scan_create_middleware_handler:module_info(module)};
+    {true, space_force_stop_auto_storage_import_scan_create_middleware_handler:module_info(module)};
 resolve_space_handler(_, manual_storage_import_example, get) ->
-    {ok, space_manual_storage_import_example_get_middleware_handler:module_info(module)};
+    {true, space_manual_storage_import_example_get_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, support, create) ->
-    {ok, space_support_create_middleware_handler:module_info(module)};
+    {true, space_support_create_middleware_handler:module_info(module)};
 resolve_space_handler(_, support, update) ->
-    {ok, space_support_update_middleware_handler:module_info(module)};
+    {true, space_support_update_middleware_handler:module_info(module)};
 resolve_space_handler(_, support, delete) ->
-    {ok, space_support_delete_middleware_handler:module_info(module)};
+    {true, space_support_delete_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %% @private
--spec resolve_user_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_user_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_user_handler(_, current_user, get) ->
-    {ok, user_current_user_get_middleware_handler:module_info(module)};
+    {true, user_current_user_get_middleware_handler:module_info(module)};
 resolve_user_handler(_, current_user_clusters, get) ->
-    {ok, user_current_user_clusters_get_middleware_handler:module_info(module)};
+    {true, user_current_user_clusters_get_middleware_handler:module_info(module)};
 
 resolve_user_handler(_, instance, create) ->
-    {ok, user_instance_create_middleware_handler:module_info(module)};
+    {true, user_instance_create_middleware_handler:module_info(module)};
 resolve_user_handler(_, instance, get) ->
-    {ok, user_instance_get_middleware_handler:module_info(module)};
+    {true, user_instance_get_middleware_handler:module_info(module)};
 resolve_user_handler(_, instance, update) ->
-    {ok, user_instance_update_middleware_handler:module_info(module)};
+    {true, user_instance_update_middleware_handler:module_info(module)};
 
 resolve_user_handler(_, list, get) ->
-    {ok, user_list_get_middleware_handler:module_info(module)};
+    {true, user_list_get_middleware_handler:module_info(module)};
 
 resolve_user_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.
 
 
 %% @private
--spec resolve_zone_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
-    {ok, middleware_handler:t()} | no_return().
+-spec resolve_zone_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
 resolve_zone_handler(_, cluster, create) ->
-    {ok, zone_cluster_create_middleware_handler:module_info(module)};
+    {true, zone_cluster_create_middleware_handler:module_info(module)};
 resolve_zone_handler(_, cluster, get) ->
-    {ok, zone_cluster_get_middleware_handler:module_info(module)};
+    {true, zone_cluster_get_middleware_handler:module_info(module)};
 
 resolve_zone_handler(_, {gui_message, _}, get) ->
-    {ok, zone_gui_message_get_middleware_handler:module_info(module)};
+    {true, zone_gui_message_get_middleware_handler:module_info(module)};
 resolve_zone_handler(_, {gui_message, _}, update) ->
-    {ok, zone_gui_message_update_middleware_handler:module_info(module)};
+    {true, zone_gui_message_update_middleware_handler:module_info(module)};
 
 resolve_zone_handler(_, instance, get) ->
-    {ok, zone_instance_get_middleware_handler:module_info(module)};
+    {true, zone_instance_get_middleware_handler:module_info(module)};
 
 resolve_zone_handler(_, policies, get) ->
-    {ok, zone_policies_get_middleware_handler:module_info(module)};
+    {true, zone_policies_get_middleware_handler:module_info(module)};
 resolve_zone_handler(_, policies, update) ->
-    {ok, zone_policies_update_middleware_handler:module_info(module)};
+    {true, zone_policies_update_middleware_handler:module_info(module)};
     
 resolve_zone_handler(_, _, _) ->
-    ?ERROR_NOT_SUPPORTED.
+    false.

@@ -148,7 +148,7 @@ translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, TaskId) -
 %%%===================================================================
 
 
--spec make_policies_ctx(Args :: middleware:data()) -> #{atom() => term()}.
+-spec make_policies_ctx(input()) -> #{atom() => term()}.
 make_policies_ctx(Data) ->
     kv_utils:copy_found([
         {oneproviderRegistration, oneprovider_registration},

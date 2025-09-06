@@ -13,8 +13,6 @@
 -module(service_middleware).
 -author("Wojciech Geisler").
 
--behaviour(middleware_plugin).
-
 -include("authentication.hrl").
 -include("http/rest.hrl").
 -include("middleware/middleware.hrl").
@@ -34,8 +32,6 @@
 %%% middleware_plugin callbacks
 %%%===================================================================
 
--spec operation_supported(middleware:operation(), gri:aspect(),
-    middleware:scope()) -> boolean().
 % Deployment of new service nodes.
 % Plural names, since multiple nodes are deployed in a single request.
 operation_supported(create, couchbase_instances, private) -> true;
@@ -77,18 +73,19 @@ operation_supported(update, {start_stop, <<"oz_worker">>}, private) -> onepanel:
 operation_supported(_, _, _) -> false.
 
 
--spec required_availability(middleware:operation(), gri:aspect(),
-    middleware:scope()) -> [middleware:availability_level()].
+
+
 required_availability(_, _, _) -> [].
 
 
--spec fetch_entity(middleware:req()) ->
-    {ok, middleware:versioned_entity()} | undefined | errors:error().
+
+
 fetch_entity(#onp_req{}) ->
     undefined.
 
 
--spec authorize(middleware:req(), middleware:entity()) -> boolean().
+
+
 authorize(#onp_req{
     operation = create, client = Client, gri = #gri{aspect = As}
 }, _) when
@@ -118,7 +115,9 @@ authorize(#onp_req{
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
--spec validate(middleware:req(), middleware:entity()) -> ok | no_return().
+
+
+
 validate(#onp_req{
     operation = create, gri = #gri{aspect = As}, data = Data
 }, _) when
@@ -185,7 +184,6 @@ validate(#onp_req{
     ok.
 
 
--spec create(middleware:req()) -> middleware:create_result().
 create(#onp_req{gri = #gri{aspect = couchbase_instances}, data = Data}) ->
     Hosts = onepanel_utils:get_converted(hosts, Data, {seq, list}),
     Ctx = kv_utils:copy_found([
@@ -219,7 +217,6 @@ create(#onp_req{gri = #gri{aspect = As}, data = Data}) when
     })}.
 
 
--spec get(middleware:req(), middleware:entity()) -> middleware:get_result().
 get(#onp_req{gri = #gri{aspect = {host_status, ServiceBin}, id = HostBin}}, _) ->
     Service = binary_to_atom(ServiceBin, utf8),
     Module = service:get_module(Service),
@@ -258,7 +255,6 @@ get(#onp_req{gri = #gri{aspect = {nagios, WorkerBin}}}, _) ->
     end.
 
 
--spec update(middleware:req()) -> middleware:update_result().
 update(#onp_req{
     gri = #gri{aspect = {start_stop_all, ServiceBin}}, data = Data
 }) ->
@@ -285,7 +281,6 @@ update(#onp_req{
     end.
 
 
--spec delete(middleware:req()) -> middleware:delete_result().
 delete(#onp_req{}) ->
     ?ERROR_NOT_SUPPORTED.
 
