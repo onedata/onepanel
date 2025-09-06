@@ -23,8 +23,12 @@
     if_cluster_type_then/2,
     get_main_service/0,
     get_worker_service/0,
-    validate_cluster_deployed/0,
+
     is_cluster_member/1,
+
+    validate_cluster_deployed/0,
+    validate_op_registered/0,
+
     ok_result/1
 ]).
 
@@ -57,6 +61,11 @@ get_worker_service() ->
     end.
 
 
+-spec is_cluster_member(middleware:client()) -> boolean().
+is_cluster_member(#client{role = member}) -> true;
+is_cluster_member(_) -> false.
+
+
 -spec validate_cluster_deployed() -> ok | errors:error().
 validate_cluster_deployed() ->
     case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
@@ -65,9 +74,12 @@ validate_cluster_deployed() ->
     end.
 
 
--spec is_cluster_member(middleware:client()) -> boolean().
-is_cluster_member(#client{role = member}) -> true;
-is_cluster_member(_) -> false.
+-spec validate_op_registered() -> ok | errors:error().
+validate_op_registered() ->
+    case service_oneprovider:is_registered() of
+        true -> ok;
+        false -> ?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx())
+    end.
 
 
 -spec ok_result
