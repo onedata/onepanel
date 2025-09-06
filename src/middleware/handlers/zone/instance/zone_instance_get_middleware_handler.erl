@@ -55,12 +55,12 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(#onp_req_state{input = Data}) ->
     case {service_oneprovider:is_registered(), Data} of
         {true, _} -> ok;
         {false, #{token := _}} -> ok;
-        {false, _} -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"token">>))
+        {false, _} -> ?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"token">>)
     end.
 
 

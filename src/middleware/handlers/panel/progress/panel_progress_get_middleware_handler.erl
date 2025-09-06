@@ -60,7 +60,7 @@ validate(_) ->
     ok.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(_) ->
     {ok, format_deployment_progress()}.
 

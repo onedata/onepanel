@@ -53,7 +53,7 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
     case service:get_hosts(?SERVICE_OPW) of
         [] -> ?ERR_NO_SERVICE_NODES(?err_ctx(), ?SERVICE_OPW);

@@ -39,6 +39,40 @@
     panel_test_image_get_middleware_handler:t() |
     panel_web_cert_get_middleware_handler:t() |
     panel_web_cert_update_middleware_handler:t() |
+    provider_cluster_create_middleware_handler:t() |
+    provider_cluster_get_middleware_handler:t() |
+    provider_instance_create_middleware_handler:t() |
+    provider_instance_delete_middleware_handler:t() |
+    provider_instance_get_middleware_handler:t() |
+    provider_instance_update_middleware_handler:t() |
+    provider_remote_instance_get_middleware_handler:t() |
+    provider_transfers_mock_get_middleware_handler:t() |
+    provider_transfers_mock_update_middleware_handler:t() |
+    space_auto_cleaning_configuration_get_middleware_handler:t() |
+    space_auto_cleaning_configuration_update_middleware_handler:t() |
+    space_auto_cleaning_report_get_middleware_handler:t() |
+    space_auto_cleaning_reports_list_get_middleware_handler:t() |
+    space_auto_cleaning_status_get_middleware_handler:t() |
+    space_auto_storage_import_info_get_middleware_handler:t() |
+    space_auto_storage_import_stats_get_middleware_handler:t() |
+    space_cancel_auto_cleaning_create_middleware_handler:t() |
+    space_file_popularity_configuration_get_middleware_handler:t() |
+    space_file_popularity_configuration_update_middleware_handler:t() |
+    space_force_start_auto_storage_import_scan_create_middleware_handler:t() |
+    space_force_stop_auto_storage_import_scan_create_middleware_handler:t() |
+    space_instance_get_middleware_handler:t() |
+    space_list_get_middleware_handler:t() |
+    space_manual_storage_import_example_get_middleware_handler:t() |
+    space_start_auto_cleaning_create_middleware_handler:t() |
+    space_support_create_middleware_handler:t() |
+    space_support_delete_middleware_handler:t() |
+    space_support_update_middleware_handler:t() |
+    user_current_user_clusters_get_middleware_handler:t() |
+    user_current_user_get_middleware_handler:t() |
+    user_instance_create_middleware_handler:t() |
+    user_instance_get_middleware_handler:t() |
+    user_instance_update_middleware_handler:t() |
+    user_list_get_middleware_handler:t() |
     zone_cluster_create_middleware_handler:t() |
     zone_cluster_get_middleware_handler:t() |
     zone_gui_message_get_middleware_handler:t() |
@@ -74,6 +108,40 @@
     panel_test_image_get_middleware_handler:input() |
     panel_web_cert_get_middleware_handler:input() |
     panel_web_cert_update_middleware_handler:input() |
+    provider_cluster_create_middleware_handler:input() |
+    provider_cluster_get_middleware_handler:input() |
+    provider_instance_create_middleware_handler:input() |
+    provider_instance_delete_middleware_handler:input() |
+    provider_instance_get_middleware_handler:input() |
+    provider_instance_update_middleware_handler:input() |
+    provider_remote_instance_get_middleware_handler:input() |
+    provider_transfers_mock_get_middleware_handler:input() |
+    provider_transfers_mock_update_middleware_handler:input() |
+    space_auto_cleaning_configuration_get_middleware_handler:input() |
+    space_auto_cleaning_configuration_update_middleware_handler:input() |
+    space_auto_cleaning_report_get_middleware_handler:input() |
+    space_auto_cleaning_reports_list_get_middleware_handler:input() |
+    space_auto_cleaning_status_get_middleware_handler:input() |
+    space_auto_storage_import_info_get_middleware_handler:input() |
+    space_auto_storage_import_stats_get_middleware_handler:input() |
+    space_cancel_auto_cleaning_create_middleware_handler:input() |
+    space_file_popularity_configuration_get_middleware_handler:input() |
+    space_file_popularity_configuration_update_middleware_handler:input() |
+    space_force_start_auto_storage_import_scan_create_middleware_handler:input() |
+    space_force_stop_auto_storage_import_scan_create_middleware_handler:input() |
+    space_instance_get_middleware_handler:input() |
+    space_list_get_middleware_handler:input() |
+    space_manual_storage_import_example_get_middleware_handler:input() |
+    space_start_auto_cleaning_create_middleware_handler:input() |
+    space_support_create_middleware_handler:input() |
+    space_support_delete_middleware_handler:input() |
+    space_support_update_middleware_handler:input() |
+    user_current_user_clusters_get_middleware_handler:input() |
+    user_current_user_get_middleware_handler:input() |
+    user_instance_create_middleware_handler:input() |
+    user_instance_get_middleware_handler:input() |
+    user_instance_update_middleware_handler:input() |
+    user_list_get_middleware_handler:input() |
     zone_cluster_create_middleware_handler:input() |
     zone_cluster_get_middleware_handler:input() |
     zone_gui_message_get_middleware_handler:input() |
@@ -109,6 +177,40 @@
     panel_test_image_get_middleware_handler:state() |
     panel_web_cert_get_middleware_handler:state() |
     panel_web_cert_update_middleware_handler:state() |
+    provider_cluster_create_middleware_handler:state() |
+    provider_cluster_get_middleware_handler:state() |
+    provider_instance_create_middleware_handler:state() |
+    provider_instance_delete_middleware_handler:state() |
+    provider_instance_get_middleware_handler:state() |
+    provider_instance_update_middleware_handler:state() |
+    provider_remote_instance_get_middleware_handler:state() |
+    provider_transfers_mock_get_middleware_handler:state() |
+    provider_transfers_mock_update_middleware_handler:state() |
+    space_auto_cleaning_configuration_get_middleware_handler:state() |
+    space_auto_cleaning_configuration_update_middleware_handler:state() |
+    space_auto_cleaning_report_get_middleware_handler:state() |
+    space_auto_cleaning_reports_list_get_middleware_handler:state() |
+    space_auto_cleaning_status_get_middleware_handler:state() |
+    space_auto_storage_import_info_get_middleware_handler:state() |
+    space_auto_storage_import_stats_get_middleware_handler:state() |
+    space_cancel_auto_cleaning_create_middleware_handler:state() |
+    space_file_popularity_configuration_get_middleware_handler:state() |
+    space_file_popularity_configuration_update_middleware_handler:state() |
+    space_force_start_auto_storage_import_scan_create_middleware_handler:state() |
+    space_force_stop_auto_storage_import_scan_create_middleware_handler:state() |
+    space_instance_get_middleware_handler:state() |
+    space_list_get_middleware_handler:state() |
+    space_manual_storage_import_example_get_middleware_handler:state() |
+    space_start_auto_cleaning_create_middleware_handler:state() |
+    space_support_create_middleware_handler:state() |
+    space_support_delete_middleware_handler:state() |
+    space_support_update_middleware_handler:state() |
+    user_current_user_clusters_get_middleware_handler:state() |
+    user_current_user_get_middleware_handler:state() |
+    user_instance_create_middleware_handler:state() |
+    user_instance_get_middleware_handler:state() |
+    user_instance_update_middleware_handler:state() |
+    user_list_get_middleware_handler:state() |
     zone_cluster_create_middleware_handler:state() |
     zone_cluster_get_middleware_handler:state() |
     zone_gui_message_get_middleware_handler:state() |
@@ -144,6 +246,40 @@
     panel_test_image_get_middleware_handler:output() |
     panel_web_cert_get_middleware_handler:output() |
     panel_web_cert_update_middleware_handler:output() |
+    provider_cluster_create_middleware_handler:output() |
+    provider_cluster_get_middleware_handler:output() |
+    provider_instance_create_middleware_handler:output() |
+    provider_instance_delete_middleware_handler:output() |
+    provider_instance_get_middleware_handler:output() |
+    provider_instance_update_middleware_handler:output() |
+    provider_remote_instance_get_middleware_handler:output() |
+    provider_transfers_mock_get_middleware_handler:output() |
+    provider_transfers_mock_update_middleware_handler:output() |
+    space_auto_cleaning_configuration_get_middleware_handler:output() |
+    space_auto_cleaning_configuration_update_middleware_handler:output() |
+    space_auto_cleaning_report_get_middleware_handler:output() |
+    space_auto_cleaning_reports_list_get_middleware_handler:output() |
+    space_auto_cleaning_status_get_middleware_handler:output() |
+    space_auto_storage_import_info_get_middleware_handler:output() |
+    space_auto_storage_import_stats_get_middleware_handler:output() |
+    space_cancel_auto_cleaning_create_middleware_handler:output() |
+    space_file_popularity_configuration_get_middleware_handler:output() |
+    space_file_popularity_configuration_update_middleware_handler:output() |
+    space_force_start_auto_storage_import_scan_create_middleware_handler:output() |
+    space_force_stop_auto_storage_import_scan_create_middleware_handler:output() |
+    space_instance_get_middleware_handler:output() |
+    space_list_get_middleware_handler:output() |
+    space_manual_storage_import_example_get_middleware_handler:output() |
+    space_start_auto_cleaning_create_middleware_handler:output() |
+    space_support_create_middleware_handler:output() |
+    space_support_delete_middleware_handler:output() |
+    space_support_update_middleware_handler:output() |
+    user_current_user_clusters_get_middleware_handler:output() |
+    user_current_user_get_middleware_handler:output() |
+    user_instance_create_middleware_handler:output() |
+    user_instance_get_middleware_handler:output() |
+    user_instance_update_middleware_handler:output() |
+    user_list_get_middleware_handler:output() |
     zone_cluster_create_middleware_handler:output() |
     zone_cluster_get_middleware_handler:output() |
     zone_gui_message_get_middleware_handler:output() |

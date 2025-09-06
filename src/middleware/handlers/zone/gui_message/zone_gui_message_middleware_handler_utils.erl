@@ -23,7 +23,7 @@
 %%%===================================================================
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(binary()) -> ok | no_return().
 validate(MessageId) ->
     case onepanel_deployment:is_set(?PROGRESS_READY) of
         true -> ok;

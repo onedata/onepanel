@@ -59,7 +59,7 @@ validate(_) ->
     ok.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(_) ->
     Hosts = lists:sort(service_onepanel:get_hosts()),
     {ok, [list_to_binary(H) || H <- Hosts]}.

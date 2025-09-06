@@ -63,7 +63,7 @@ validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {task, Id}}}}) ->
     end.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {task, Id}}}}) ->
     {ok, format_service_task_results(service:get_results(Id))}.
 

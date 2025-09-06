@@ -57,7 +57,7 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_utils:has_privilege(Client, ?CLUSTER_ADD_USER).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
     cluster_middleware_handler_utils:validate_cluster_state().
 

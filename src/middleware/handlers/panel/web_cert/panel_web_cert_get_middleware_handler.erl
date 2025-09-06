@@ -61,7 +61,7 @@ validate(_) ->
     end.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()} | errors:error().
 process(_) ->
     middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
         ?SERVICE_LE, get_details

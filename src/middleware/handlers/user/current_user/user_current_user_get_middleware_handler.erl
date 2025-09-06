@@ -62,7 +62,7 @@ validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = member}}}) ->
 validate(_) -> ?ERROR_NOT_FOUND.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(#onp_req_state{ctx = #onp_req_ctx{client = #client{
     privileges = Privileges,
     user = #user_details{full_name = FullName, id = Id}

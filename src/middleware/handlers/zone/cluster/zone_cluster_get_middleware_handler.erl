@@ -59,7 +59,7 @@ validate(_) ->
     middleware_handler_utils:validate_cluster_deployed().
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(_) ->
     {ok, middleware_utils:format_service_configuration(service_onezone)}.
 

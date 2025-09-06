@@ -6,17 +6,17 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for getting external IPs of services in the cluster.
+%%% Starts auto-cleaning for a space (op_panel only).
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_external_ips_get_middleware_handler).
+-module(space_start_auto_cleaning_create_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
 -include("middleware/middleware.hrl").
 
-%% middleware_handler callbacks
+% middleware_handler callbacks
 -export([
     supported_interfaces/0,
     service_availability_requirements/1,
@@ -29,7 +29,7 @@
 -type t() :: ?MODULE.
 -type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: map().
+-type output() :: binary().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -39,19 +39,20 @@
 %%%===================================================================
 
 
--spec supported_interfaces() -> {true, [rest]}.
+-spec supported_interfaces() -> false | {true, [rest]}.
 supported_interfaces() ->
-    {true, [rest]}.
+    middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
-    false.
+    {true, [?SERVICE_OPW, all_healthy_ignoring_ones3]}.
 
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_handler_utils:is_cluster_member(Client).
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
 -spec validate(state()) -> ok.
@@ -60,14 +61,27 @@ validate(_) ->
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(_) ->
-    Service = middleware_handler_utils:get_main_service(),
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
-        Service, format_cluster_ips
-    )).
+process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = SpaceId}}}) ->
+    case middleware_utils:result_from_service_action(
+        ?SERVICE_OP, start_auto_cleaning, #{space_id => SpaceId}
+    ) of
+        {ok, ReportId} -> {ok, ReportId};
+        no_need -> ok;
+        {error, _} = Error -> Error
+    end.
 
 
 -spec translate_output(state(), output()) ->
     {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
-    {ok, ?OK_REPLY(Result)}.
+translate_output(
+    #onp_req_state{ctx = #onp_req_ctx{interface = rest, gri = #gri{id = SpaceId}}},
+    ReportId
+) ->
+    {ok, #rest_resp{
+        code = ?HTTP_202_ACCEPTED,
+        headers = rest_translator:make_location_header([
+            <<"provider/spaces">>, SpaceId,
+            <<"auto-cleaning/reports">>, ReportId
+        ]),
+        body = #{<<"reportId">> => ReportId}
+    }}.

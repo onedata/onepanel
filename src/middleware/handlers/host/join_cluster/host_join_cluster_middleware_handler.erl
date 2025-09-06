@@ -53,11 +53,11 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) 
     Role == guest andalso service_onepanel:available_for_clustering().
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
     case service_onepanel:available_for_clustering() of
         true -> ok;
-        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
+        false -> ?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self())
     end.
 
 

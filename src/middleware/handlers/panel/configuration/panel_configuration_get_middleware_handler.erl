@@ -59,7 +59,7 @@ validate(_) ->
     ok.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(_) ->
     {ok, middleware_utils:format_onepanel_configuration()}.
 

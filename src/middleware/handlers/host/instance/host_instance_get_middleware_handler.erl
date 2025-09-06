@@ -55,12 +55,12 @@ preauthorize(_) ->
     true.
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok.
 validate(_) ->
     ok.
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(_) ->
     Hostname = onepanel_utils:convert(hosts:self(), binary),
     ClusterType = onepanel_env:get_cluster_type(),

@@ -27,8 +27,9 @@
 -type t() :: ?MODULE.
 -type input() :: map().
 -type state() :: #onp_req_state{input :: input()}.
+-type output() :: undefined.
 
--export_type([t/0, input/0, state/0]).
+-export_type([t/0, input/0, state/0, output/0]).
 
 
 %%%===================================================================

@@ -60,7 +60,7 @@ validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {gui_message, Id}
     zone_gui_message_middleware_handler_utils:validate(Id).
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()} | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {gui_message, Id}}}}) ->
     middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
         ?SERVICE_OZ, get_gui_message, #{message_id => Id}

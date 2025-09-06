@@ -67,7 +67,7 @@ validate(_) ->
     cluster_middleware_handler_utils:validate_cluster_state().
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()}.
 process(#onp_req_state{ctx = #onp_req_ctx{client = #client{zone_credentials = Auth}}}) ->
     {ok, clusters:get_members_summary(Auth)}.
 

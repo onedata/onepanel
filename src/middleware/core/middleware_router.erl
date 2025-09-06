@@ -37,13 +37,16 @@ resolve_handler(Interface, Operation, #gri{type = onp_panel, aspect = Aspect}) -
 
 resolve_handler(Interface, Operation, #gri{type = onp_provider, aspect = Aspect}) ->
     resolve_provider_handler(Interface, Aspect, Operation);
-    
+
+resolve_handler(Interface, Operation, #gri{type = onp_space, aspect = Aspect}) ->
+    resolve_space_handler(Interface, Aspect, Operation);
+
 resolve_handler(Interface, Operation, #gri{type = onp_user, aspect = Aspect}) ->
     resolve_user_handler(Interface, Aspect, Operation);
     
 resolve_handler(Interface, Operation, #gri{type = onp_zone, aspect = Aspect}) ->
     resolve_zone_handler(Interface, Aspect, Operation);
-    
+
 resolve_handler(_, _, _) ->
     ?ERROR_NOT_SUPPORTED.
 
@@ -170,6 +173,57 @@ resolve_provider_handler(_, transfers_mock, update) ->
     {ok, provider_transfers_mock_update_middleware_handler:module_info(module)};
 
 resolve_provider_handler(_, _, _) ->
+    ?ERROR_NOT_SUPPORTED.
+
+
+%% @private
+-spec resolve_space_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
+    {ok, middleware_handler:t()} | no_return().
+resolve_space_handler(_, auto_cleaning_configuration, get) ->
+    {ok, space_auto_cleaning_configuration_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, auto_cleaning_configuration, update) ->
+    {ok, space_auto_cleaning_configuration_update_middleware_handler:module_info(module)};
+resolve_space_handler(_, auto_cleaning_status, get) ->
+    {ok, space_auto_cleaning_status_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, auto_cleaning_reports_list, get) ->
+    {ok, space_auto_cleaning_reports_list_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, {auto_cleaning_report, _}, get) ->
+    {ok, space_auto_cleaning_report_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, start_auto_cleaning, create) ->
+    {ok, space_start_auto_cleaning_create_middleware_handler:module_info(module)};
+resolve_space_handler(_, cancel_auto_cleaning, create) ->
+    {ok, space_cancel_auto_cleaning_create_middleware_handler:module_info(module)};
+
+resolve_space_handler(_, file_popularity_configuration, get) ->
+    {ok, space_file_popularity_configuration_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, file_popularity_configuration, update) ->
+    {ok, space_file_popularity_configuration_update_middleware_handler:module_info(module)};
+
+resolve_space_handler(_, instance, get) ->
+    {ok, space_instance_get_middleware_handler:module_info(module)};
+
+resolve_space_handler(_, list, get) ->
+    {ok, space_list_get_middleware_handler:module_info(module)};
+
+resolve_space_handler(_, auto_storage_import_info, get) ->
+    {ok, space_auto_storage_import_info_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, auto_storage_import_stats, get) ->
+    {ok, space_auto_storage_import_stats_get_middleware_handler:module_info(module)};
+resolve_space_handler(_, force_start_auto_storage_import_scan, create) ->
+    {ok, space_force_start_auto_storage_import_scan_create_middleware_handler:module_info(module)};
+resolve_space_handler(_, force_stop_auto_storage_import_scan, create) ->
+    {ok, space_force_stop_auto_storage_import_scan_create_middleware_handler:module_info(module)};
+resolve_space_handler(_, manual_storage_import_example, get) ->
+    {ok, space_manual_storage_import_example_get_middleware_handler:module_info(module)};
+
+resolve_space_handler(_, support, create) ->
+    {ok, space_support_create_middleware_handler:module_info(module)};
+resolve_space_handler(_, support, update) ->
+    {ok, space_support_update_middleware_handler:module_info(module)};
+resolve_space_handler(_, support, delete) ->
+    {ok, space_support_delete_middleware_handler:module_info(module)};
+
+resolve_space_handler(_, _, _) ->
     ?ERROR_NOT_SUPPORTED.
 
 

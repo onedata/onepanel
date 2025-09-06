@@ -121,7 +121,7 @@
 %% semantically correct).
 %% @end
 %%--------------------------------------------------------------------
--callback validate(state()) -> ok | no_return().
+-callback validate(state()) -> ok | errors:error().
 
 
 %%--------------------------------------------------------------------
