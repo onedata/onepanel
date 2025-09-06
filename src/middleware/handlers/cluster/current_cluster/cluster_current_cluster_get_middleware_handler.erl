@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for returning a tiny PNG used to test connectivity.
+%%% Middleware handler for getting current cluster information.
 %%% @end
 %%%-------------------------------------------------------------------
--module(panel_test_image_get_middleware_handler).
+-module(cluster_current_cluster_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
@@ -29,7 +29,7 @@
 -type t() :: ?MODULE.
 -type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: binary().
+-type output() :: map().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -44,36 +44,29 @@ supported_interfaces() ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    false.
 service_availability_requirements(_) ->
+    % always available even in oz_panel because of caching
     false.
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(_) ->
-    % Accessible by any role (guest, member, root, peer)
-    true.
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok.
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
-    ok.
+    cluster_middleware_handler_utils:validate_cluster_state().
 
 
--spec process(state()) -> {ok, output()} | no_return().
+-spec process(state()) -> {ok, output()} | errors:error().
 process(_) ->
-    % Dummy image in png format. Used by gui to check connectivity.
-    {ok, <<
-        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0,
-        0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0, 37, 219, 86, 202, 0, 0, 0, 6, 80,
-        76, 84, 69, 0, 0, 0, 255, 255, 255, 165, 217, 159, 221, 0, 0, 0, 9,
-        112, 72, 89, 115, 0, 0, 14, 196, 0, 0, 14, 196, 1, 149, 43, 14, 27,
-        0, 0, 0, 10, 73, 68, 65, 84, 8, 153, 99, 96, 0, 0, 0, 2, 0, 1, 244,
-        113, 100, 166, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
-    >>}.
+    middleware_handler_utils:ok_result(clusters:get_current_cluster()).
 
 
 -spec translate_output(state(), output()) ->
     {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, PNG) ->
-    {ok, ?OK_REPLY({binary, PNG})}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
+    {ok, ?OK_REPLY(Result)}.

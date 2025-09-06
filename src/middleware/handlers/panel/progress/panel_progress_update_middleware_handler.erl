@@ -57,10 +57,10 @@ validate(_) ->
     ok.
 
 
--spec process(state()) -> ok | errors:error().
+-spec process(state()) -> ok.
 process(#onp_req_state{input = Data}) ->
     ClusterType = onepanel_env:get_cluster_type(),
-    Mapping = middleware_handler_utils:rest_to_marker_mapping(ClusterType),
+    Mapping = panel_progress_middleware_handler_utils:rest_to_marker_mapping(ClusterType),
     MarksToSet = lists:filtermap(fun({Field, Bool}) ->
         case lists:keyfind(Field, 1, Mapping) of
             {Field, ProgressMark} -> {true, {ProgressMark, Bool}};
@@ -71,5 +71,4 @@ process(#onp_req_state{input = Data}) ->
     lists:foreach(fun
         ({Marker, true}) -> onepanel_deployment:set_marker(Marker);
         ({Marker, false}) -> onepanel_deployment:unset_marker(Marker)
-    end, MarksToSet),
-    ok.
+    end, MarksToSet).

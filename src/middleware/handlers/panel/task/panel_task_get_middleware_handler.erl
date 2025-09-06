@@ -55,11 +55,11 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {task, Id}}}}) ->
     case service:exists_task(Id) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> ?ERROR_NOT_FOUND
     end.
 
 

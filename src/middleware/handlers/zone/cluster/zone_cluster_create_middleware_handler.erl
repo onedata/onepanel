@@ -17,11 +17,6 @@
 
 -include("deployment_progress.hrl").
 -include("middleware/middleware.hrl").
--include("names.hrl").
--include("service.hrl").
--include("http/rest.hrl").
--include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/logging.hrl").
 
 -export([
     supported_interfaces/0,
@@ -35,7 +30,7 @@
 -type t() :: ?MODULE.
 -type input() :: map().
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: binary().
+-type output() :: service_executor:task_id().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -66,6 +61,8 @@ validate(#onp_req_state{input = Data}) ->
         true -> throw(?ERROR_ALREADY_EXISTS);
         false -> ok
     end,
+    % This check should be done by the data spec, but swagger's erlang
+    % generator is buggy and does not enforce presence of the "onezone" key.
     case maps:find(onezone, Data) of
         {ok, Map} when is_map(Map) -> ok;
         _ -> throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"onezone">>))

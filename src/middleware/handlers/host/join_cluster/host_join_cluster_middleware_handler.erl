@@ -6,29 +6,29 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for returning whether the emergency passphrase is set.
+%%% Middleware handler for joining a cluster on a solitary node.
 %%% @end
 %%%-------------------------------------------------------------------
--module(panel_emergency_passphrase_get_middleware_handler).
+-module(host_join_cluster_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
 -include("middleware/middleware.hrl").
 
+%% middleware_handler callbacks
 -export([
     supported_interfaces/0,
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
-    process/1,
-    translate_output/2
+    process/1
 ]).
 
 -type t() :: ?MODULE.
--type input() :: undefined.
+-type input() :: map().
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: boolean().
+-type output() :: undefined.
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -49,22 +49,23 @@ service_availability_requirements(_) ->
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(_) ->
-    % Public GET
-    true.
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) ->
+    Role == guest andalso service_onepanel:available_for_clustering().
 
 
--spec validate(state()) -> ok.
+-spec validate(state()) -> ok | no_return().
 validate(_) ->
-    ok.
+    case service_onepanel:available_for_clustering() of
+        true -> ok;
+        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
+    end.
 
 
--spec process(state()) -> {ok, output()}.
-process(_) ->
-    {ok, emergency_passphrase:is_set()}.
-
-
--spec translate_output(state(), output()) ->
-    {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, IsSet) ->
-    {ok, ?OK_REPLY(#{<<"isSet">> => IsSet})}.
+-spec process(state()) -> ok | errors:error().
+process(#onp_req_state{input = Data}) ->
+    InviteToken = onepanel_utils:get_converted(inviteToken, Data, binary),
+    Ctx = #{
+        invite_token => InviteToken,
+        cluster_host => invite_tokens:get_cluster_host(InviteToken)
+    },
+    middleware_utils:execute_service_action(?SERVICE_PANEL, join_cluster, Ctx).

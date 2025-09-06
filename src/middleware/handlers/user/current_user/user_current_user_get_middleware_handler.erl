@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for returning whether the emergency passphrase is set.
+%%% Middleware handler for returning current user identity and privileges.
 %%% @end
 %%%-------------------------------------------------------------------
--module(panel_emergency_passphrase_get_middleware_handler).
+-module(user_current_user_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
@@ -28,7 +28,7 @@
 -type t() :: ?MODULE.
 -type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: boolean().
+-type output() :: map().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -43,28 +43,34 @@ supported_interfaces() ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    false | {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
-    false.
+    % fetches from ozw, local services may be down
+    middleware_handler_utils:if_cluster_type_then(
+        ?ONEZONE, [?SERVICE_OZW, all_healthy_ignoring_ones3]
+    ).
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(_) ->
-    % Public GET
-    true.
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok.
-validate(_) ->
-    ok.
+-spec validate(state()) -> ok | errors:error().
+validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = member}}}) -> ok;
+validate(_) -> ?ERROR_NOT_FOUND.
 
 
--spec process(state()) -> {ok, output()}.
-process(_) ->
-    {ok, emergency_passphrase:is_set()}.
+-spec process(state()) -> {ok, output()} | no_return().
+process(#onp_req_state{ctx = #onp_req_ctx{client = #client{
+    privileges = Privileges,
+    user = #user_details{full_name = FullName, id = Id}
+}}}) ->
+    {ok, #{<<"username">> => FullName, <<"userId">> => Id, <<"clusterPrivileges">> => Privileges}}.
 
 
 -spec translate_output(state(), output()) ->
     {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, IsSet) ->
-    {ok, ?OK_REPLY(#{<<"isSet">> => IsSet})}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
+    {ok, ?OK_REPLY(Result)}.

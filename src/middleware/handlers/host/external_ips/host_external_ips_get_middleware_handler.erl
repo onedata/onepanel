@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(host_external_ips_get_middleware_handler).
--author("Wojciech Geisler").
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
@@ -61,10 +61,7 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()} | no_return().
 process(_) ->
-    Service = case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER -> ?SERVICE_OP;
-        ?ONEZONE -> ?SERVICE_OZ
-    end,
+    Service = middleware_handler_utils:get_main_service(),
     middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
         Service, format_cluster_ips
     )).

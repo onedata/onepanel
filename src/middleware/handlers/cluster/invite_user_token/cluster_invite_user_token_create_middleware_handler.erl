@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(cluster_invite_user_token_create_middleware_handler).
--author("Wojciech Geisler").
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
@@ -59,7 +59,7 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 
 -spec validate(state()) -> ok | no_return().
 validate(_) ->
-    middleware_handler_utils:assert_cluster_deployed().
+    cluster_middleware_handler_utils:validate_cluster_state().
 
 
 -spec process(state()) -> {ok, output()} | errors:error().

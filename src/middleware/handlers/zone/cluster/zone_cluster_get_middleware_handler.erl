@@ -54,12 +54,9 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
-    case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
-        true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
-    end.
+    middleware_handler_utils:validate_cluster_deployed().
 
 
 -spec process(state()) -> {ok, output()} | no_return().

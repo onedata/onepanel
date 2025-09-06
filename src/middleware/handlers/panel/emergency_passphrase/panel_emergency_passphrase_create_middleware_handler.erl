@@ -56,6 +56,7 @@ preauthorize(_) ->
 
 -spec validate(state()) -> ok.
 validate(_) ->
+    % validation is part of the passphrase-changing function
     ok.
 
 

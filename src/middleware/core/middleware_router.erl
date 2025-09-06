@@ -35,6 +35,9 @@ resolve_handler(Interface, Operation, #gri{type = onp_host, aspect = Aspect}) ->
 resolve_handler(Interface, Operation, #gri{type = onp_panel, aspect = Aspect}) ->
     resolve_panel_handler(Interface, Aspect, Operation);
 
+resolve_handler(Interface, Operation, #gri{type = onp_user, aspect = Aspect}) ->
+    resolve_user_handler(Interface, Aspect, Operation);
+    
 resolve_handler(Interface, Operation, #gri{type = onp_zone, aspect = Aspect}) ->
     resolve_zone_handler(Interface, Aspect, Operation);
     
@@ -123,6 +126,9 @@ resolve_panel_handler(_, progress, get) ->
 resolve_panel_handler(_, progress, update) ->
     {ok, panel_progress_update_middleware_handler:module_info(module)};
 
+resolve_panel_handler(_, {task, _}, get) ->
+    {ok, panel_task_get_middleware_handler:module_info(module)};
+
 resolve_panel_handler(_, test_image, get) ->
     {ok, panel_test_image_get_middleware_handler:module_info(module)};
 
@@ -131,10 +137,29 @@ resolve_panel_handler(_, web_cert, get) ->
 resolve_panel_handler(_, web_cert, update) ->
     {ok, panel_web_cert_update_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, {task, _}, get) ->
-    {ok, panel_task_get_middleware_handler:module_info(module)};
-
 resolve_panel_handler(_, _, _) ->
+    ?ERROR_NOT_SUPPORTED.
+
+
+%% @private
+-spec resolve_user_handler(middleware_handler:interface(), gri:aspect(), middleware:operation()) ->
+    {ok, middleware_handler:t()} | no_return().
+resolve_user_handler(_, current_user, get) ->
+    {ok, user_current_user_get_middleware_handler:module_info(module)};
+resolve_user_handler(_, current_user_clusters, get) ->
+    {ok, user_current_user_clusters_get_middleware_handler:module_info(module)};
+
+resolve_user_handler(_, instance, create) ->
+    {ok, user_instance_create_middleware_handler:module_info(module)};
+resolve_user_handler(_, instance, get) ->
+    {ok, user_instance_get_middleware_handler:module_info(module)};
+resolve_user_handler(_, instance, update) ->
+    {ok, user_instance_update_middleware_handler:module_info(module)};
+
+resolve_user_handler(_, list, get) ->
+    {ok, user_list_get_middleware_handler:module_info(module)};
+
+resolve_user_handler(_, _, _) ->
     ?ERROR_NOT_SUPPORTED.
 
 
@@ -151,8 +176,6 @@ resolve_zone_handler(_, {gui_message, _}, get) ->
 resolve_zone_handler(_, {gui_message, _}, update) ->
     {ok, zone_gui_message_update_middleware_handler:module_info(module)};
 
-% get information about a remote onezone - either the issuer of given
-% registration token, or the one to which this Oneprovider is registered.
 resolve_zone_handler(_, instance, get) ->
     {ok, zone_instance_get_middleware_handler:module_info(module)};
 

@@ -44,7 +44,8 @@ supported_interfaces() ->
     middleware_handler_utils:if_cluster_type_then(?ONEZONE, [rest]).
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
     {true, [?SERVICE_OZW, all_healthy_ignoring_ones3]}.
 
@@ -54,18 +55,16 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
-    case onepanel_deployment:is_set(?PROGRESS_READY) of
-        true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
-    end.
+    middleware_handler_utils:validate_cluster_deployed().
 
 
 -spec process(state()) -> {ok, output()} | no_return().
 process(_) ->
-    %% TODO
-    {ok, middleware_utils:result_from_service_action(?SERVICE_OZW, get_policies)}.
+    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+        ?SERVICE_OZW, get_policies
+    )).
 
 
 -spec translate_output(state(), output()) ->

@@ -6,10 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for returning whether the emergency passphrase is set.
+%%% Middleware handler for updating Onezone user password (oz_panel only).
 %%% @end
 %%%-------------------------------------------------------------------
--module(panel_emergency_passphrase_get_middleware_handler).
+-module(user_instance_update_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
@@ -21,14 +21,13 @@
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
-    process/1,
-    translate_output/2
+    process/1
 ]).
 
 -type t() :: ?MODULE.
--type input() :: undefined.
+-type input() :: map().
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: boolean().
+-type output() :: undefined.
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -38,20 +37,20 @@
 %%%===================================================================
 
 
--spec supported_interfaces() -> {true, [rest]}.
+-spec supported_interfaces() -> false | {true, [rest]}.
 supported_interfaces() ->
-    {true, [rest]}.
+    middleware_handler_utils:if_cluster_type_then(?ONEZONE, [rest]).
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) -> 
+    {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
-    false.
+    {true, [?SERVICE_OZW, all_healthy_ignoring_ones3]}.
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(_) ->
-    % Public GET
-    true.
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
+    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
 -spec validate(state()) -> ok.
@@ -59,12 +58,8 @@ validate(_) ->
     ok.
 
 
--spec process(state()) -> {ok, output()}.
-process(_) ->
-    {ok, emergency_passphrase:is_set()}.
-
-
--spec translate_output(state(), output()) ->
-    {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, IsSet) ->
-    {ok, ?OK_REPLY(#{<<"isSet">> => IsSet})}.
+-spec process(state()) -> ok | errors:error().
+process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
+    middleware_utils:execute_service_action(?SERVICE_OZ, set_user_password, #{
+        user_id => Id, new_password => maps:get(newPassword, Data)
+    }).

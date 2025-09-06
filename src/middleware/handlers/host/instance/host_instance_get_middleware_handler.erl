@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(host_instance_get_middleware_handler).
--author("Wojciech Geisler").
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 

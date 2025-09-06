@@ -106,13 +106,8 @@ make_location_header(PathTokens) ->
 
 %% @private
 -spec entity_type_to_translator(atom()) -> module().
-entity_type_to_translator(onp_cluster) -> cluster_rest_translator;
-entity_type_to_translator(onp_host) -> host_rest_translator;
-entity_type_to_translator(onp_panel) -> onepanel_rest_translator;
 entity_type_to_translator(onp_provider) -> provider_rest_translator;
 entity_type_to_translator(onp_service) -> service_rest_translator;
 entity_type_to_translator(onp_space) -> space_rest_translator;
 entity_type_to_translator(onp_storage) -> storage_rest_translator;
-entity_type_to_translator(onp_user) -> user_rest_translator;
-entity_type_to_translator(onp_zone) -> zone_rest_translator;
 entity_type_to_translator(_) -> error(not_implemented).

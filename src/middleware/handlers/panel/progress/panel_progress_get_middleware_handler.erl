@@ -79,7 +79,7 @@ translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Progress)
 -spec format_deployment_progress() -> #{atom() => boolean()}.
 format_deployment_progress() ->
     ClusterType = onepanel_env:get_cluster_type(),
-    Fields = middleware_handler_utils:rest_to_marker_mapping(ClusterType),
+    Fields = panel_progress_middleware_handler_utils:rest_to_marker_mapping(ClusterType),
     Fields2 = case ClusterType of
         ?ONEPROVIDER ->
             [{isRegistered, fun service_oneprovider:is_registered/0} | Fields];

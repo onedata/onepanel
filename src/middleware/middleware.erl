@@ -140,15 +140,10 @@ handle(#onp_req{gri = #gri{type = EntityType}} = OnpReq, VersionedEntity) ->
 
 %% @private
 -spec get_plugin(gri:entity_type()) -> module() | no_return().
-get_plugin(onp_cluster) -> cluster_middleware;
-get_plugin(onp_host) -> host_middleware;
-get_plugin(onp_panel) -> panel_middleware;
 get_plugin(onp_provider) -> provider_middleware;
 get_plugin(onp_service) -> service_middleware;
 get_plugin(onp_space) -> space_middleware;
 get_plugin(onp_storage) -> storage_middleware;
-get_plugin(onp_user) -> user_middleware;
-get_plugin(onp_zone) -> zone_middleware;
 get_plugin(_) -> throw(?ERROR_NOT_SUPPORTED).
 
 

@@ -60,10 +60,7 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()} | errors:error().
 process(_) ->
-    ClusterWorker = case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER -> ?SERVICE_OPW;
-        ?ONEZONE -> ?SERVICE_OZW
-    end,
+    ClusterWorker = middleware_handler_utils:get_worker_service(),
     middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
         ClusterWorker, get_dns_check_configuration, #{}, dns_check, get_configuration
     )).

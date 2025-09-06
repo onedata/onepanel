@@ -1,26 +1,21 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for getting current cluster members summary.
+%%% Middleware handler for returning current user's cluster ids.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_current_cluster_members_summary_get_middleware_handler).
--author("Wojciech Geisler").
+-module(user_current_user_clusters_get_middleware_handler).
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
--include("http/rest.hrl").
--include("authentication.hrl").
 -include("middleware/middleware.hrl").
--include("names.hrl").
--include_lib("ctool/include/privileges.hrl").
 
-%% middleware_handler callbacks
 -export([
     supported_interfaces/0,
     service_availability_requirements/1,
@@ -32,8 +27,8 @@
 
 -type t() :: ?MODULE.
 -type input() :: undefined.
--type state() :: #onp_req_state{input :: input()}.
--type output() :: map().
+-type state() :: #onp_req_state{ctx :: #onp_req_ctx{}, input :: input()}.
+-type output() :: [binary()].
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -59,24 +54,20 @@ service_availability_requirements(_) ->
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_VIEW).
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
-validate(_) ->
-    middleware_handler_utils:assert_cluster_deployed().
+-spec validate(state()) -> ok | errors:error().
+validate(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = member}}}) -> ok;
+validate(_) -> ?ERROR_NOT_FOUND.
 
 
--spec process(state()) -> {ok, output()} | no_return().
-process(#onp_req_state{ctx = #onp_req_ctx{client = #client{zone_credentials = Auth}}}) ->
-    {ok, clusters:get_members_summary(Auth)}.
+-spec process(state()) -> {ok, output()} | errors:error().
+process(#onp_req_state{ctx = #onp_req_ctx{client = #client{zone_credentials = ZoneCreds}}}) ->
+    clusters:list_user_clusters(ZoneCreds).
 
 
--spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Summary) ->
-    {ok, ?OK_REPLY(kv_utils:copy_all([
-        {users_count, <<"usersCount">>},
-        {groups_count, <<"groupsCount">>},
-        {effective_users_count, <<"effectiveUsersCount">>},
-        {effective_groups_count, <<"effectiveGroupsCount">>}
-    ], Summary, #{}))}.
+-spec translate_output(state(), output()) ->
+    {ok, middleware_handler:rest_output()}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Ids) ->
+    {ok, ?OK_REPLY(#{<<"ids">> => Ids})}.

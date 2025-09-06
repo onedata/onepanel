@@ -1,16 +1,16 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Middleware handler for joining a cluster on a solitary node.
+%%% Middleware handler for listing hosts in the cluster.
 %%% @end
 %%%-------------------------------------------------------------------
--module(host_join_cluster_middleware_handler).
--author("Wojciech Geisler").
+-module(host_list_get_middleware_handler).
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
@@ -22,13 +22,14 @@
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
-    process/1
+    process/1,
+    translate_output/2
 ]).
 
 -type t() :: ?MODULE.
--type input() :: map().
+-type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: undefined.
+-type output() :: [binary()].
 
 -export_type([t/0, input/0, state/0, output/0]).
 
@@ -49,25 +50,22 @@ service_availability_requirements(_) ->
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) ->
-    Role == guest andalso service_onepanel:available_for_clustering().
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
+    middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok.
 validate(_) ->
-    case service_onepanel:available_for_clustering() of
-        true -> ok;
-        false -> throw(?ERR_NODE_ALREADY_IN_CLUSTER(?err_ctx(), hosts:self()))
-    end.
+    ok.
 
 
--spec process(state()) -> ok | errors:error().
-process(#onp_req_state{input = Data}) ->
-    InviteToken = onepanel_utils:get_converted(inviteToken, Data, binary),
-    Ctx = #{
-        invite_token => InviteToken,
-        cluster_host => invite_tokens:get_cluster_host(InviteToken)
-    },
-    middleware_utils:execute_service_action(
-        ?SERVICE_PANEL, join_cluster, Ctx
-    ).
+-spec process(state()) -> {ok, output()} | no_return().
+process(_) ->
+    Hosts = lists:sort(service_onepanel:get_hosts()),
+    {ok, [list_to_binary(H) || H <- Hosts]}.
+
+
+-spec translate_output(state(), output()) ->
+    {ok, middleware_handler:rest_output()}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Hosts) ->
+    {ok, ?OK_REPLY(Hosts)}.

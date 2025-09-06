@@ -17,7 +17,6 @@
 -include("deployment_progress.hrl").
 -include("middleware/middleware.hrl").
 -include("modules/onepanel_dns.hrl").
--include("names.hrl").
 
 -export([
     supported_interfaces/0,
@@ -56,20 +55,14 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
-    case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
-        true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
-    end.
+    middleware_handler_utils:validate_cluster_deployed().
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
 process(#onp_req_state{input = Input}) ->
-    ClusterWorker = case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER -> ?SERVICE_OPW;
-        ?ONEZONE -> ?SERVICE_OZW
-    end,
+    ClusterWorker = middleware_handler_utils:get_worker_service(),
     Ctx = #{force_check => maps:get(forceCheck, Input, false)},
     middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
         ClusterWorker, dns_check, Ctx, dns_check, get

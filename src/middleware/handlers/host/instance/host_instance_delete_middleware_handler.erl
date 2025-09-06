@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,7 +10,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(host_instance_delete_middleware_handler).
--author("Wojciech Geisler").
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
@@ -53,12 +53,18 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = HostBin}}}) ->
     Host = binary_to_list(HostBin),
-    host_exists(Host) orelse throw(?ERROR_NOT_FOUND),
-    service_onepanel:is_host_used(Host) andalso throw(?ERROR_NOT_SUPPORTED),
-    ok.
+    case lists:member(Host, service_onepanel:get_hosts()) of
+        true ->
+            case service_onepanel:is_host_used(Host) of
+                true -> ?ERROR_NOT_SUPPORTED;
+                false -> ok
+            end;
+        false ->
+            ?ERROR_NOT_FOUND
+    end.
 
 
 -spec process(state()) -> ok | errors:error().
@@ -67,14 +73,3 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}}) ->
     middleware_utils:execute_service_action(
         ?SERVICE_PANEL, leave_cluster, #{hosts => [Host]}
     ).
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-
-%% @private
--spec host_exists(service:host()) -> boolean().
-host_exists(Host) ->
-    lists:member(Host, service_onepanel:get_hosts()).

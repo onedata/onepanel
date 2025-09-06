@@ -59,14 +59,10 @@ validate(_) ->
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{input = Data}) ->
+    ClusterWorker = middleware_handler_utils:get_worker_service(),
     Ctx = kv_utils:copy_found([
         {dnsServers, dns_servers},
         {builtInDnsServer, built_in_dns_server},
         {dnsCheckAcknowledged, dns_check_acknowledged}
     ], Data),
-
-    ClusterWorker = case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER -> ?SERVICE_OPW;
-        ?ONEZONE -> ?SERVICE_OZW
-    end,
     middleware_utils:execute_service_action(ClusterWorker, configure_dns_check, Ctx).

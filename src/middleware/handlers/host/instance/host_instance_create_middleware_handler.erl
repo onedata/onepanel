@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%%% @author Wojciech Geisler
-%%% @copyright (C) 2020 Onedata (onedata.org)
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -10,15 +10,11 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(host_instance_create_middleware_handler).
--author("Wojciech Geisler").
+-author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
--include("http/rest.hrl").
 -include("middleware/middleware.hrl").
--include("names.hrl").
--include_lib("ctool/include/graph_sync/gri.hrl").
--include_lib("ctool/include/privileges.hrl").
 
 %% middleware_handler callbacks
 -export([

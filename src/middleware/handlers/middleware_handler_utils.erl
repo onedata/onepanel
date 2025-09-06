@@ -21,10 +21,11 @@
 
 -export([
     if_cluster_type_then/2,
-    assert_cluster_deployed/0,
+    get_main_service/0,
+    get_worker_service/0,
+    validate_cluster_deployed/0,
     is_cluster_member/1,
-    ok_result/1,
-    rest_to_marker_mapping/1
+    ok_result/1
 ]).
 
 %%%===================================================================
@@ -40,17 +41,28 @@ if_cluster_type_then(ClusterType, Then) ->
     end.
 
 
--spec assert_cluster_deployed() -> ok | no_return().
-assert_cluster_deployed() ->
+-spec get_main_service() -> service:name().
+get_main_service() ->
     case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER ->
-            service_oneprovider:is_registered()
-                orelse throw(?ERROR_NOT_FOUND);
-        ?ONEZONE ->
-            onepanel_deployment:is_set(?PROGRESS_CLUSTER)
-                orelse throw(?ERROR_NOT_FOUND)
-    end,
-    ok.
+        ?ONEPROVIDER -> ?SERVICE_OP;
+        ?ONEZONE -> ?SERVICE_OZ
+    end.
+
+
+-spec get_worker_service() -> service:name().
+get_worker_service() ->
+    case onepanel_env:get_cluster_type() of
+        ?ONEPROVIDER -> ?SERVICE_OPW;
+        ?ONEZONE -> ?SERVICE_OZW
+    end.
+
+
+-spec validate_cluster_deployed() -> ok | errors:error().
+validate_cluster_deployed() ->
+    case onepanel_deployment:is_set(?PROGRESS_CLUSTER) of
+        true -> ok;
+        false -> ?ERROR_NOT_FOUND
+    end.
 
 
 -spec is_cluster_member(middleware:client()) -> boolean().
@@ -62,22 +74,5 @@ is_cluster_member(_) -> false.
     (errors:error()) -> errors:error();
     (Result) -> {ok, Result}.
 ok_result({error, _} = Error) -> Error;
+ok_result({ok, _} = Result) -> Result;
 ok_result(Result) -> {ok, Result}.
-
-
--spec rest_to_marker_mapping(onedata:cluster_type() | common) ->
-    [{RestField :: atom(), ProgressMark :: onepanel_deployment:marker()}].
-rest_to_marker_mapping(?ONEZONE) ->
-    rest_to_marker_mapping(common);
-rest_to_marker_mapping(?ONEPROVIDER) ->
-    [
-        {storagesSetup, ?PROGRESS_STORAGE_SETUP}
-        | rest_to_marker_mapping(common)
-    ];
-rest_to_marker_mapping(common) ->
-    [
-        {clusterNodes, ?PROGRESS_CLUSTER},
-        {clusterIps, ?PROGRESS_CLUSTER_IPS},
-        {webCertificate, ?PROGRESS_LETSENCRYPT_CONFIG},
-        {dnsCheck, ?DNS_CHECK_ACKNOWLEDGED}
-    ].

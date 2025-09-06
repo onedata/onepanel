@@ -43,7 +43,8 @@ supported_interfaces() ->
     middleware_handler_utils:if_cluster_type_then(?ONEZONE, [rest]).
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
     {true, [?SERVICE_OZW, all_healthy_ignoring_ones3]}.
 
@@ -55,14 +56,7 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 
 -spec validate(state()) -> ok | no_return().
 validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {gui_message, Id}}}}) ->
-    case onepanel_deployment:is_set(?PROGRESS_READY) of
-        true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
-    end,
-    case service:get_hosts(?SERVICE_OZW) /= [] andalso oz_worker_rpc:gui_message_exists(Id) of
-        true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
-    end.
+    zone_gui_message_middleware_handler_utils:validate(Id).
 
 
 -spec process(state()) -> ok | errors:error().

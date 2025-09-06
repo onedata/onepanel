@@ -53,17 +53,19 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 
 
--spec validate(state()) -> ok | no_return().
+-spec validate(state()) -> ok | errors:error().
 validate(_) ->
     case service:exists(?SERVICE_LE) of
         true -> ok;
-        false -> throw(?ERROR_NOT_FOUND)
+        false -> ?ERROR_NOT_FOUND
     end.
 
 
 -spec process(state()) -> {ok, output()} | no_return().
 process(_) ->
-    {ok, middleware_utils:result_from_service_action(?SERVICE_LE, get_details)}.
+    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+        ?SERVICE_LE, get_details
+    )).
 
 
 -spec translate_output(state(), output()) ->
