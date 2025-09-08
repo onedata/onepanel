@@ -25,7 +25,7 @@
 
 %% API
 -export([start_link/0]).
--export([add_job/3, add_job/4, remove_job/1]).
+-export([has_job/1, add_job/3, add_job/4, remove_job/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -76,6 +76,11 @@
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
     gen_server:start_link({local, ?ONEPANEL_CRON_NAME}, ?MODULE, [], []).
+
+
+-spec has_job(job_name()) -> boolean().
+has_job(JobName) ->
+    gen_server:call(?ONEPANEL_CRON_NAME, {has_job, JobName}, ?TIMEOUT).
 
 
 %%--------------------------------------------------------------------
@@ -150,6 +155,9 @@ handle_call({add_job, Name, #job{} = Job}, _From, State) ->
         _ -> State#{Name => Job}
     end,
     {reply, ok, NewState};
+
+handle_call({has_job, Job}, _From, State) ->
+    {reply, maps:is_key(Job, State), State};
 
 handle_call({remove_job, Job}, _From, State) ->
     {reply, ok, maps:remove(Job, State)};

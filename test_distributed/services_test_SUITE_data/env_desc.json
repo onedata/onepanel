@@ -7,15 +7,6 @@
   },
   "os_configs": {
     "cfg1": {
-      "__currently_disabled_storages": {
-        "__reason": "Due to TODO VFS-8296, swift helper is currently not tested",
-        "storages": {
-          "type": "swift",
-          "name": "someSwift",
-          "container": "swift",
-          "storagePathType": "flat"
-        }
-      },
       "storages": [
         {
           "type": "posix",
@@ -26,12 +17,6 @@
           "type": "posix",
           "name": "/mnt/st2",
           "storagePathType": "canonical"
-        },
-        {
-          "type": "ceph",
-          "name": "someCeph",
-          "pool": "onedata:8",
-          "storagePathType": "flat"
         },
         {
           "type": "glusterfs",

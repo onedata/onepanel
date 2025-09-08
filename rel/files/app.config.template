@@ -16,6 +16,14 @@
     ]},
 
     {ctool, [
+        {onedata_service, {{service_type}}},
+        {onedata_service_id, {{service_id}}},
+        {onedata_service_release_version, <<"{{{service_release_version}}}">>},
+        % Build version in form:
+        % <number of commits since last tag>-g<last commit hash abbrev>
+        % e.g. 19-g0d0fd5b
+        {onedata_service_build_version, <<"{{{service_build_version}}}">>},
+
         % Backup file that stores the information needed to restore the
         % previous clock synchronization.
         {clock_sync_backup_file, "{{platform_etc_dir}}/time_synchronization_data.json"},
@@ -31,11 +39,6 @@
 
     %% onepanel config
     {onepanel, [
-        % Build version in form:
-        % <number of commits since last tag>-g<last commit hash abbrev>
-        % e.g. 19-g0d0fd5b
-        {build_version, "{{{build_version}}}"},
-
         {cluster_type, {{release_type}}},
 
         %% ===================================================================
@@ -218,6 +221,8 @@
 
         %% A threshold that, if exceeded, will result in halting processing any requests
         {db_disk_usage_circuit_breaker_activation_threshold, 0.9},
+
+        {db_disk_monitor_verbose_logs, false},
 
         %% ===================================================================
         %% Let's Encrypt configuration

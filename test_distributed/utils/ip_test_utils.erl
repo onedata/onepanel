@@ -12,6 +12,8 @@
 -module(ip_test_utils).
 -author("Bartosz Walkowicz").
 
+-include("names.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/http/codes.hrl").
 -include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("kernel/src/inet_dns.hrl").
@@ -26,6 +28,7 @@
 
     get_zone_nodes_ips/0,
     get_provider_nodes_ips/1,
+    get_op_service_ips/2,
     get_node_ip/1,
 
     assert_cluster_ips/2,
@@ -62,6 +65,14 @@ get_zone_nodes_ips() ->
 -spec get_provider_nodes_ips(oct_background:entity_selector()) -> [inet:ip_address()].
 get_provider_nodes_ips(ProviderSelector) ->
     lists:sort(lists:map(fun get_node_ip/1, oct_background:get_provider_panels(ProviderSelector))).
+
+
+-spec get_op_service_ips(oct_background:entity_selector(), service:name()) ->
+    [inet:ip_address()].
+get_op_service_ips(ProviderSelector, ServiceName) ->
+    ServiceHosts = ?rpc(ProviderSelector, service:get_hosts(ServiceName)),
+    ServicePanelNodes = ?rpc(ProviderSelector, nodes:service_to_nodes(?SERVICE_PANEL, ServiceHosts)),
+    lists:sort(lists:map(fun ip_test_utils:get_node_ip/1, ServicePanelNodes)).
 
 
 -spec get_node_ip(node()) -> inet:ip_address().
@@ -130,5 +141,5 @@ get_hosts(EntitySelector) ->
 
 
 %% @private
-get_nodes(zone) -> oct_background:get_zone_nodes();
-get_nodes(ProviderSelector) -> oct_background:get_provider_nodes(ProviderSelector).
+get_nodes(zone) -> oct_background:get_zone_panels();
+get_nodes(ProviderSelector) -> oct_background:get_provider_panels(ProviderSelector).

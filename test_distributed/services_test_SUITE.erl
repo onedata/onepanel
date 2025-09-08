@@ -25,12 +25,9 @@
 
 %% tests
 -export([
-    service_oneprovider_unregister_register_test/1,
     service_op_worker_add_storage_test/1,
     service_op_worker_update_storage_test/1,
-    service_op_worker_add_node_test/1,
-    service_oz_worker_add_node_test/1,
-    services_stop_start_test/1
+    service_oz_worker_add_node_test/1
 ]).
 
 -define(NON_ADMIN_USERNAME, <<"joe">>).
@@ -39,13 +36,9 @@
 
 all() ->
     ?ALL([
-        service_oneprovider_unregister_register_test,
         service_op_worker_add_storage_test,
         service_op_worker_update_storage_test,
-        service_op_worker_add_node_test,
         service_oz_worker_add_node_test
-        %% TODO VFS-4056
-        %% services_stop_start_test
     ]).
 
 %%%===================================================================
@@ -53,69 +46,13 @@ all() ->
 %%%===================================================================
 
 
-service_oneprovider_unregister_register_test(Config) ->
-    [OzNode | _] = ?config(onezone_nodes, Config),
-    [OpNode | _] = ?config(oneprovider_nodes, Config),
-    OpDomain = ?config(oneprovider_domain, Config),
-    onepanel_test_utils:service_action(OpNode, oneprovider, unregister, #{}),
-
-    % test the alternative way of providing the registration token
-    % (the default method is used during environment setup for this suite).
-    RegistrationTokenFile = <<"/tmp/provider-registration-token.txt">>,
-    RegistrationToken = image_test_utils:get_registration_token(OzNode),
-    spawn(fun() ->
-        % Onepanel should wait for the file to appear
-        timer:sleep(timer:minutes(1)),
-        ?assertEqual(ok, image_test_utils:proxy_rpc(OpNode, file, write_file, [
-            RegistrationTokenFile, RegistrationToken
-        ]))
-    end),
-    onepanel_test_utils:service_action(OpNode, oneprovider, register, #{
-        oneprovider_geo_latitude => 20.0,
-        oneprovider_geo_longitude => 20.0,
-        oneprovider_name => <<"provider2">>,
-        oneprovider_domain => OpDomain,
-        oneprovider_admin_email => <<"admin@onedata.org">>,
-        oneprovider_token_provision_method => <<"fromFile">>,
-        oneprovider_token_file => RegistrationTokenFile
-    }).
-
-
 service_op_worker_add_storage_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    Ceph = kv_utils:get([storages, ceph, someCeph], Config),
-    % @TODO VFS-8296 swift helper is currently not tested
-    % Swift = kv_utils:get([storages, swift, someSwift], Config),
     Glusterfs = kv_utils:get([storages, glusterfs, someGlusterfs], Config),
     XRootD = kv_utils:get([storages, xrootd, someXRootD], Config),
     Results = onepanel_test_utils:service_action(Node, op_worker, add_storages, #{
         hosts => [hd(?config(oneprovider_hosts, Config))],
         storages => #{
-            <<"someCeph">> => #{
-                type => <<"ceph">>,
-                clusterName => <<"ceph">>,
-                key => onepanel_utils:get_converted(key, Ceph, binary),
-                monitorHostname => onepanel_utils:get_converted(host_name, Ceph, binary),
-                poolName => <<"onedata">>,
-                username => onepanel_utils:get_converted(username, Ceph, binary),
-                storagePathType => <<"flat">>,
-                qosParameters => #{},
-                lumaFeed => <<"auto">>
-            },
-            % @TODO VFS-8296 swift helper is currently not tested
-%%            <<"someSwift">> => #{
-%%                type => <<"swift">>,
-%%                username => onepanel_utils:get_converted(user_name, Swift, binary),
-%%                password => onepanel_utils:get_converted(password, Swift, binary),
-%%                authUrl => onepanel_utils:join(["http://",
-%%                    onepanel_utils:get_converted(host_name, Swift, binary), ":",
-%%                    onepanel_utils:get_converted(keystone_port, Swift, binary), "/v2.0/tokens"]),
-%%                tenantName => onepanel_utils:get_converted(tenant_name, Swift, binary),
-%%                containerName => <<"swift">>,
-%%                storagePathType => <<"flat">>,
-%%                qosParameters => #{},
-%%                lumaFeed => <<"auto">>
-%%            },
             <<"someGluster">> => #{
                 type => <<"glusterfs">>,
                 volume => <<"data">>,
@@ -153,17 +90,6 @@ service_op_worker_update_storage_test(Config) ->
     %% the parameter modification based on the lack of connectivity to the storage
     %% after the change.
     ChangesByName = #{
-        <<"someCeph">> => #{
-            type => <<"ceph">>,
-            monitorHostname => <<"newHostName">>,
-            username => <<"changedCephAdmin">>
-        },
-        % @TODO VFS-8296 swift helper is currently not tested
-%%        <<"someSwift">> => #{
-%%            type => <<"swift">>,
-%%            tenantName => <<"changedTenant">>,
-%%            containerName => <<"swift2">>
-%%        },
         <<"someGluster">> => #{
             type => <<"glusterfs">>,
             transport => <<"http">>,
@@ -194,30 +120,6 @@ service_op_worker_update_storage_test(Config) ->
     end, ExistingStorages).
 
 
-service_op_worker_add_node_test(Config) ->
-    AllHosts = ?config(oneprovider_hosts, Config),
-    OldHosts = ?config(op_worker_hosts, Config),
-    NewHost = hd(AllHosts -- OldHosts),
-    OldNode = nodes:service_to_node(?SERVICE_PANEL, hd(OldHosts)),
-    NewNode = nodes:service_to_node(?SERVICE_PANEL, NewHost),
-    OldOpNode = nodes:service_to_node(?SERVICE_OPW, OldNode),
-
-    TokenFilePath = onepanel_env:get_remote(OldNode,
-        op_worker_root_token_path, ?APP_NAME),
-    {ok, CurrentFileContents} = rpc:call(OldNode, file, read_file, [TokenFilePath]),
-
-    onepanel_test_utils:service_action(OldNode, ?SERVICE_OPW, add_nodes,
-        #{new_hosts => [NewHost]}),
-
-    ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OPW])),
-    ?assertEqual({ok, CurrentFileContents},
-        rpc:call(NewNode, file, read_file, [TokenFilePath])),
-    OpwNodesList = image_test_utils:proxy_rpc(OldNode,
-        OldOpNode, consistent_hashing, get_all_nodes, []),
-    ?assert(is_list(OpwNodesList)),
-    ?assertEqual(length(OldHosts) + 1, length(OpwNodesList)).
-
-
 service_oz_worker_add_node_test(Config) ->
     AllHosts = ?config(onezone_hosts, Config),
     OldHosts = ?config(oz_worker_hosts, Config),
@@ -237,42 +139,6 @@ service_oz_worker_add_node_test(Config) ->
     ?assertEqual(rpc:call(OldNode, service_oz_worker, get_policies, []),
         rpc:call(NewNode, service_oz_worker, get_policies, [])).
 
-
-services_stop_start_test(Config) ->
-    ActionsWithResults = [
-        {stop, ok}, {status, stopped}, {start, ok}, {status, unhealthy}
-    ],
-
-    lists:foreach(fun({Nodes, MainService, Services}) ->
-        lists:foreach(fun(Service) ->
-            SModule = service:get_module(Service),
-
-            lists:foreach(fun(Node) ->
-                lists:foreach(fun({Action, Result}) ->
-                    Results = onepanel_test_utils:service_host_action(Node, Service, Action),
-                    onepanel_test_utils:assert_service_action_result(SModule, Action, [Node], Result, Results)
-                end, ActionsWithResults)
-            end, Nodes),
-
-            lists:foreach(fun({Action, Result}) ->
-                Results = onepanel_test_utils:service_action(hd(Nodes), Service, Action),
-                onepanel_test_utils:assert_service_action_result(SModule, Action, Nodes, Result, Results)
-            end, ActionsWithResults)
-        end, Services),
-
-        lists:foreach(fun({Action, Result}) ->
-            Results = onepanel_test_utils:service_action(hd(Nodes), MainService, Action),
-            lists:foreach(fun(Service) ->
-                SModule = service:get_module(Service),
-                onepanel_test_utils:assert_service_action_result(SModule, Action, Nodes, Result, Results)
-            end, Services)
-        end, ActionsWithResults)
-    end, [
-        {?config(onezone_nodes, Config), ?SERVICE_OZ,
-            [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW]},
-        {?config(oneprovider_nodes, Config), ?SERVICE_OP,
-            [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OPW]}
-    ]).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -301,11 +167,6 @@ init_per_suite(Config) ->
         image_test_utils:deploy_oneprovider(?PASSPHRASE, Storages, NewConfig3)
     end,
     [{?ENV_UP_POSTHOOK, Posthook} | Config].
-
-
-init_per_testcase(services_stop_start_test, Config) ->
-    ct:timetrap({minutes, 60}),
-    init_per_testcase(default, Config);
 
 init_per_testcase(_Case, Config) ->
     onepanel_test_utils:clear_msg_inbox(),

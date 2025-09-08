@@ -11,6 +11,7 @@
 
 {application, onepanel, [
     {description, "Management tool for onedata components."},
+    %% Beware - this version is parsed and used in Makefile
     {vsn, "21.02.8"},
     {registered, [onepanel_sup]},
     {applications, [

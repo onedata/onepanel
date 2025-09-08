@@ -1,9 +1,5 @@
 # Name of the scenario to run
-scenario: "scenario-1oz-1op"
-
-# Path or list of paths in which look for sources (can be either relative to
-# cwd or absolute path)
-sourcesRoot: ".."
+scenario: "scenario-1oz"
 
 # Sources are expected to be found in CWD (from where the 'up' script was run) or one dir above.
 # On bamboo all required sources will be pulled automatically.
@@ -15,14 +11,15 @@ sources:
       - oz-worker
       - cluster-manager
       - oz-panel
-  oneprovider-1:
-    node-1:
-      - op-worker
+    node-2:
+      - oz-worker
       - cluster-manager
-      - op-panel
+      - oz-panel
 
-spaces: true
+spaces: false
 
-storages:
-  - posix
-  - ceph
+onezone:
+  batchConfig: false
+
+  token-dispenser:
+    enabled: false

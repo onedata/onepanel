@@ -10,7 +10,7 @@
 %%% for tests concerning onepanel Storages API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storages_test_base).
+-module(api_op_storages_test_base).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -21,10 +21,11 @@
 
 -export([
     add_storage_test_base/1,
+    get_storage_test_base/2,
     modify_storage_test_base/1
 ]).
 
--type storage_type() :: cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
+-type storage_type() :: ceph | cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
 -type args_correctness() :: bad_args | correct_args.
 
 -type add_storage_test_spec() :: #add_storage_test_spec{}.
@@ -96,6 +97,41 @@ add_storage_test_base(#add_storage_test_spec{
 
             data_spec = DataSpecFun(MemRef, StorageType, ArgsCorrectness),
             verify_fun = build_add_storage_verify_fun(MemRef, ArgsCorrectness)
+        }
+    ])).
+
+
+get_storage_test_base(StorageId, ExpStorageDetails) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get storage details using /provider/storages/{storage_id} rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = #client_spec{
+                correct = [
+                    root,
+                    {member, []}
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [peer]
+            },
+            prepare_args_fun = fun(_) ->
+                #rest_args{
+                    method = get,
+                    path = <<"provider/storages/", StorageId/binary>>
+                }
+            end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
+                ?assertEqual(ExpStorageDetails, RespBodyBinary)
+            end)
         }
     ])).
 
@@ -255,7 +291,6 @@ check_io_on_storage_if_not_nulldevice(_StorageId, #{<<"type">> := <<"nulldevice"
     ok;
 check_io_on_storage_if_not_nulldevice(StorageId, _StorageDetails) ->
     ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS).
-
 
 
 % TODO VFS-12391 storage update changes types of several fields to binary - debug

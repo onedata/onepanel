@@ -9,7 +9,7 @@
 %%% This file provides tests concerning provider glusterfs storage API (REST).
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_oneprovider_storage_glusterfs_test_SUITE).
+-module(api_op_storage_glusterfs_test_SUITE).
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
@@ -29,19 +29,35 @@
 
 -export([
     add_correct_storage_test/1,
-    add_bad_storage_test/1
+    add_bad_storage_test/1,
+
+    get_storage_test/1,
+
+    modify_correct_storage_test/1,
+    modify_bad_storage_test/1
 ]).
 
 groups() -> [
-    {all_tests, [parallel], [
+    {all_tests, [], [
         add_correct_storage_test,
-        add_bad_storage_test
+        add_bad_storage_test,
+
+        get_storage_test,
+
+        modify_correct_storage_test,
+        modify_bad_storage_test
     ]}
 ].
 
 all() -> [
     {group, all_tests}
 ].
+
+-define(MIN_GLUSTERFS_STORAGE_SPEC, #{
+    <<"type">> => <<"glusterfs">>,
+    <<"volume">> => ?GLUSTERFS_VOLUME,
+    <<"hostname">> => ?GLUSTERFS_HOSTNAME
+}).
 
 
 %%%===================================================================
@@ -59,11 +75,11 @@ add_bad_storage_test(_Config) ->
 
 %% @private
 -spec add_glusterfs_storage_test_base(
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:args_correctness()
 ) ->
     ok.
 add_glusterfs_storage_test_base(ArgsCorrectness) ->
-    api_oneprovider_storages_test_base:add_storage_test_base(
+    api_op_storages_test_base:add_storage_test_base(
         #add_storage_test_spec{
             storage_type = glusterfs,
             args_correctness = ArgsCorrectness,
@@ -76,8 +92,8 @@ add_glusterfs_storage_test_base(ArgsCorrectness) ->
 %% @private
 -spec build_add_glusterfs_storage_data_spec(
     api_test_memory:env_ref(),
-    api_oneprovider_storages_test_base:storage_type(),
-    api_oneprovider_storages_test_base:args_correctness()
+    api_op_storages_test_base:storage_type(),
+    api_op_storages_test_base:args_correctness()
 ) ->
     api_test_runner:data_spec().
 build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
@@ -95,8 +111,8 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"mountPoint">>,
             <<"xlatorOptions">>,
             <<"timeout">>,
-            <<"qosParameters">>,
             <<"storagePathType">>,
+            <<"qosParameters">>,
             <<"archiveStorage">>
         ],
         correct_values = #{
@@ -104,11 +120,12 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"volume">> => [?GLUSTERFS_VOLUME],
             <<"hostname">> => [?GLUSTERFS_HOSTNAME],
             <<"port">> => [?GLUSTERFS_PORT],
-            <<"transport">> => [?GLUSTERFS_TRANSPORT],
+            <<"transport">> => [?GLUSTERFS_TRANSPORT, <<"rdma">>, <<"socket">>],
             <<"mountPoint">> => [<<"">>],
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
+            %% TODO VFS-12772 Specify and test which storages can have flat or canonical as storage_path_type
             <<"storagePathType">> => [<<"canonical">>],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
@@ -118,6 +135,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             {<<"port">>, <<"port_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"port">>))},
             {<<"transport">>, <<"bad_transport">>,
                 ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"transport">>), [<<"tcp">>, <<"rdma">>, <<"socket">>])},
+            {<<"mountPoint">>, 132, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"mountPoint">>))},
             {<<"xlatorOptions">>, 132, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"xlatorOptions">>))},
             {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
             {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"timeout">>), 1)},
@@ -140,14 +158,12 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
             {<<"hostname">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"hostname">>))}
         ],
         optional = [
-            <<"transport">>,
             <<"mountPoint">>
         ],
         correct_values = #{
             <<"type">> => [<<"glusterfs">>],
             <<"volume">> => [<<"bad-volume">>],
             <<"hostname">> => [<<"bad-hostname">>],
-            <<"transport">> => [<<"rdma">>, <<"socket">>],
             <<"mountPoint">> => [<<"/bad/mountpoint">>]
         }
     }.
@@ -166,6 +182,143 @@ build_add_glusterfs_storage_prepare_args_fun(MemRef) ->
             path = <<"provider/storages">>,
             headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(#{StorageName => Data})}
+    end.
+
+
+get_storage_test(_Config) ->
+    StorageName = ?RAND_STR(),
+    StorageSpec = ?MIN_GLUSTERFS_STORAGE_SPEC,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
+
+    api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
+        <<"id">> => StorageId,
+        <<"name">> => StorageName,
+
+        % TODO VFS-12391 shouldn't this be int?
+        <<"port">> => <<"24007">>,
+
+        % default values for not supplied parameters
+        <<"gid">> => <<"0">>,
+        <<"uid">> => <<"0">>,
+
+        <<"storagePathType">> => <<"canonical">>,
+        <<"lumaFeed">> => <<"auto">>,
+        % additional qosParameters (not supplied when creating) SHOULD BE present
+        <<"qosParameters">> => #{
+            <<"providerId">> => oct_background:get_provider_id(krakow),
+            <<"storageId">> => StorageId
+        },
+        <<"archiveStorage">> => <<"false">>,
+        <<"importedStorage">> => <<"false">>,
+        <<"readonly">> => <<"false">>,
+        <<"rootGid">> => <<"0">>,
+        <<"rootUid">> => <<"0">>
+    }).
+
+
+modify_correct_storage_test(_Config) ->
+    modify_glusterfs_storage_test_base(correct_args).
+
+
+modify_bad_storage_test(_Config) ->
+    modify_glusterfs_storage_test_base(bad_args).
+
+
+%% @private
+-spec modify_glusterfs_storage_test_base(api_op_storages_test_base:args_correctness()) ->
+    ok.
+modify_glusterfs_storage_test_base(ArgsCorrectness) ->
+    api_op_storages_test_base:modify_storage_test_base(
+        #modify_storage_test_spec{
+            storage_type = glusterfs,
+            args_correctness = ArgsCorrectness,
+
+            build_data_spec_fun = fun build_modify_glusterfs_storage_data_spec/3,
+            build_setup_fun = fun build_modify_glusterfs_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_modify_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
+    StorageName = str_utils:rand_hex(10),
+    api_test_memory:set(MemRef, storage_name, StorageName),
+
+    K = fun(Field) -> ?STORAGE_DATA_KEY(StorageName, Field) end,
+
+    #data_spec{
+        required = [
+            {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"type">>))}
+        ],
+        optional = [
+            <<"transport">>,
+            <<"xlatorOptions">>,
+            <<"timeout">>,
+            <<"qosParameters">>,
+            <<"archiveStorage">>
+        ],
+        correct_values = #{
+            <<"type">> => [<<"glusterfs">>],
+            <<"transport">> => [<<"rdma">>, <<"socket">>],
+            <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
+            <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
+            <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
+            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
+            <<"archiveStorage">> => [true, false]
+        },
+
+        bad_values = [
+            {<<"transport">>, <<"bad_transport">>,
+                ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"transport">>), [<<"tcp">>, <<"rdma">>, <<"socket">>])},
+            {<<"mountPoint">>, 132, ?ERR_BAD_VALUE_STRING(K(<<"mountPoint">>))},
+            {<<"xlatorOptions">>, 132, ?ERR_BAD_VALUE_STRING(K(<<"xlatorOptions">>))},
+            % TODO VFS-12391 timeout is being changed to binary and not validated
+%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
+            %% TODO: VFS-7641 add records for badly formatted QoS
+            {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
+            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
+        ]
+    };
+
+build_modify_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
+    StorageName = str_utils:rand_hex(10),
+    api_test_memory:set(MemRef, storage_name, StorageName),
+
+    #data_spec{
+        required = [
+            {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
+        ],
+        optional = [
+            <<"volume">>,
+            <<"hostname">>,
+            <<"port">>,
+            <<"mountPoint">>
+        ],
+        correct_values = #{
+            <<"type">> => [<<"glusterfs">>],
+            <<"volume">> => [<<"bad-volume">>],
+            <<"hostname">> => [<<"bad-hostname">>],
+            <<"port">> => [9999],
+            <<"mountPoint">> => [<<"/bad/mountpoint">>]
+        },
+        at_least_one_optional_value_in_data_sets = true
+    }.
+
+
+%% @private
+-spec build_modify_glusterfs_storage_setup_fun(api_test_memory:env_ref()) ->
+    api_test_runner:setup_fun().
+build_modify_glusterfs_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = api_test_memory:get(MemRef, storage_name),
+
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_GLUSTERFS_STORAGE_SPEC}),
+        api_test_memory:set(MemRef, storage_id, StorageId),
+
+        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 
 

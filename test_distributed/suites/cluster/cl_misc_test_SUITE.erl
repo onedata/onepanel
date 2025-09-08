@@ -9,11 +9,12 @@
 %%% Integration tests of Onezone/Oneprovider clusters miscellaneous functionality.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_misc_test_SUITE).
+-module(cl_misc_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
 -include("names.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
@@ -25,6 +26,8 @@
 ]).
 
 -export([
+    op_unregister_register_from_file_test/1,
+
     op_fetch_compatibility_registry_test/1,
     cluster_clocks_sync_test/1,
 
@@ -33,6 +36,8 @@
 ]).
 
 all() -> [
+    op_unregister_register_from_file_test,
+
     op_fetch_compatibility_registry_test,
     cluster_clocks_sync_test,
 
@@ -46,6 +51,76 @@ all() -> [
 %%%===================================================================
 %%% Tests
 %%%===================================================================
+
+
+op_unregister_register_from_file_test(_Config) ->
+    OpPanelNodes = panel_test_utils:get_panel_nodes(krakow),
+    OpPanelNode = ?RAND_ELEMENT(OpPanelNodes),
+
+    OpId = op_cluster_deployment_test_utils:get_id(OpPanelNode),
+    OpDomain = dns_test_utils:get_k8s_service_domain(OpPanelNode),
+    cluster_management_test_utils:assert_onedata_service_id(krakow, OpId),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain),
+
+    [OpPanelNodeWithDeregistrationMonitoring] = lists:filter(fun(Node) ->
+        ?rpc(Node, onepanel_cron:has_job(?OP_DEREGISTRATION_MONITORING_JOB_NAME))
+    end, OpPanelNodes),
+
+    case ?RAND_BOOL() of
+        true ->
+            % Delete op in oz
+            ?assertEqual(ok, ?rpc(OpPanelNode, oz_providers:unregister(provider)));
+        false ->
+            % Deregister op via op panel
+            ?assertMatch(
+                {ok, ?HTTP_204_NO_CONTENT, _, _},
+                panel_test_rest:delete(OpPanelNode, <<"/provider">>, #{auth => root})
+            )
+    end,
+    ?assertEqual(
+        false,
+        ?rpc(OpPanelNodeWithDeregistrationMonitoring, onepanel_cron:has_job(?OP_DEREGISTRATION_MONITORING_JOB_NAME)),
+        10
+    ),
+
+    cluster_management_test_utils:assert_onedata_service_id(krakow, undefined),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, undefined),
+
+    % test the alternative way of providing the registration token
+    % (the default method is used during environment setup for this suite).
+    RegistrationTokenFile = <<"/tmp/provider-registration-token.txt">>,
+    RegistrationToken = op_cluster_deployment_test_utils:get_registration_token(),
+
+    spawn(fun() ->
+        % Onepanel should wait for the file to appear
+        timer:sleep(timer:minutes(1)),
+        lists:foreach(fun(Node) ->
+            ?assertEqual(ok, ?rpc(Node, file:write_file(RegistrationTokenFile, RegistrationToken)))
+        end, OpPanelNodes)
+    end),
+
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:post(OpPanelNode, <<"/provider">>, #{
+            auth => root,
+            recv_timeout => timer:minutes(5),
+            json => #{
+                <<"geoLongitude">> => 20.0,
+                <<"geoLatitude">> => 20.0,
+                <<"name">> => <<"krakow">>,
+                <<"adminEmail">> => <<"admin@onedata.org">>,
+                <<"subdomainDelegation">> => false,
+                <<"domain">> => OpDomain,
+                <<"tokenProvisionMethod">> => <<"fromFile">>,
+                <<"tokenFile">> => RegistrationTokenFile
+            }
+        })
+    ),
+
+    NewOpId = op_cluster_deployment_test_utils:get_id(OpPanelNode),
+    ?assertNotEqual(NewOpId, OpId),
+    cluster_management_test_utils:assert_onedata_service_id(krakow, NewOpId),
+    cluster_management_test_utils:assert_onedata_service_domain(krakow, OpDomain).
 
 
 op_fetch_compatibility_registry_test(_Config) ->

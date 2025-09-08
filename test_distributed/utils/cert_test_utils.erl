@@ -88,7 +88,7 @@ get_cert_details(EntitySelector) ->
 -spec assert_cert_details(oct_background:entity_selector(), json_utils:json_map()) ->
     json_utils:json_map().
 assert_cert_details(EntitySelector, ExpCertDetails) ->
-    assert_cert_details(EntitySelector, ExpCertDetails, 5).
+    assert_cert_details(EntitySelector, ExpCertDetails, ?ATTEMPTS).
 
 
 -spec assert_cert_details(

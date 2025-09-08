@@ -129,16 +129,16 @@ get_steps(restart, _Ctx) ->
 get_steps(status, _Ctx) ->
     [#step{function = status}];
 
-get_steps(set_cluster_ips, #{hosts := Hosts} = _Ctx) ->
+get_steps(set_service_ips, #{hosts := Hosts} = _Ctx) ->
     [#step{function = set_node_ip, hosts = Hosts}];
-get_steps(set_cluster_ips, #{cluster_ips := HostsToIps, name := ServiceName} = Ctx) ->
+get_steps(set_service_ips, #{cluster_ips := HostsToIps, name := ServiceName} = Ctx) ->
     % execute only on nodes where ip is explicitly provided
     Hosts = lists_utils:intersect(hosts:all(ServiceName), maps:keys(HostsToIps)),
-    get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
-get_steps(set_cluster_ips, #{name := ServiceName} = Ctx) ->
+    get_steps(set_service_ips, Ctx#{hosts => Hosts});
+get_steps(set_service_ips, #{name := ServiceName} = Ctx) ->
     % execute on all service hosts, "guessing" IP if necessary
     Hosts = hosts:all(ServiceName),
-    get_steps(set_cluster_ips, Ctx#{hosts => Hosts});
+    get_steps(set_service_ips, Ctx#{hosts => Hosts});
 
 get_steps(get_nagios_response, #{name := ServiceName}) ->
     [#step{
@@ -363,18 +363,16 @@ set_node_ip(#{name := ServiceName} = Ctx) ->
     Host = hosts:self(),
     Node = nodes:local(ServiceName),
 
-    {ok, IP} = case kv_utils:find([cluster_ips, Host], Ctx) of
-        {ok, NewIP} ->
-            onepanel_deployment:set_marker(?PROGRESS_CLUSTER_IPS),
-            ip_utils:to_ip4_address(NewIP);
-        _ ->
-            {ok, get_initial_ip(ServiceName)}
+    {ok, IPOrUndefined} = case kv_utils:find([cluster_ips, Host], Ctx) of
+        {ok, null} -> {ok, undefined};
+        {ok, NewIP} -> ip_utils:to_ip4_address(NewIP);
+        _ -> {ok, get_initial_ip(ServiceName)}
     end,
 
-    onepanel_env:write([?SERVICE_PANEL, external_ip], IP, ?SERVICE_PANEL),
-    onepanel_env:set(external_ip, IP, ?SERVICE_PANEL),
-    onepanel_env:write([name(), external_ip], IP, ServiceName),
-    onepanel_env:set_remote(Node, [external_ip], IP, name()),
+    onepanel_env:write([?SERVICE_PANEL, external_ip], IPOrUndefined, ?SERVICE_PANEL),
+    onepanel_env:set(external_ip, IPOrUndefined, ?SERVICE_PANEL),
+    onepanel_env:write([name(), external_ip], IPOrUndefined, ServiceName),
+    onepanel_env:set_remote(Node, [external_ip], IPOrUndefined, name()),
 
     dns_check:invalidate_cache(ServiceName).
 

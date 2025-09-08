@@ -25,4 +25,4 @@ spaces: true
 
 storages:
   - posix
-  - ceph
+  - swift

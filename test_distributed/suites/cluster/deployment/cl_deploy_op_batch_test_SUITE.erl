@@ -9,7 +9,7 @@
 %%% Integration tests of Oneprovider batch deployment.
 %%% @end
 %%%-------------------------------------------------------------------
--module(cluster_op_batch_deployment_test_SUITE).
+-module(cl_deploy_op_batch_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -50,6 +50,10 @@ deploy_using_batch_config_test(Config) ->
     AdminUserId = oct_background:get_user_id(admin),
     RegistrationToken = tokens_test_utils:create_provider_registration_token(AdminUserId),
 
+    OpName = <<"krakow">>,
+    OzDomain = oct_background:get_zone_domain(),
+    OpDomain = <<OpName/binary, ".", OzDomain/binary>>,
+
     OpPanelNodes = ?config(op_panel_nodes, Config),
     [OpIpHost1, OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
     [OpHost1, OpHost2] = hosts:from_nodes(OpPanelNodes),
@@ -60,6 +64,9 @@ deploy_using_batch_config_test(Config) ->
     DefaultOneS3Port = ?rpc(OpPanelNode1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
     OneS3PortToSet = ?RAND_ELEMENT([undefined, 6666, 7777, 8888, 9999]),
     ExpOneS3Port = utils:ensure_defined(OneS3PortToSet, DefaultOneS3Port),
+
+    cluster_management_test_utils:assert_onedata_service_id(OpPanelNodes, undefined),
+    cluster_management_test_utils:assert_onedata_service_domain(OpPanelNodes, undefined),
 
     BatchConfig = #{
         <<"cluster">> => #{
@@ -93,10 +100,10 @@ deploy_using_batch_config_test(Config) ->
             <<"register">> => true,
             <<"token">> => RegistrationToken,
 
-            <<"name">> => <<"krakow">>,
+            <<"name">> => OpName,
             <<"adminEmail">> => <<"admin@example.eu">>,
             <<"subdomainDelegation">> => true,
-            <<"subdomain">> => <<"krakow">>,
+            <<"subdomain">> => OpName,
             <<"letsEncryptEnabled">> => true
         }
     },
@@ -115,6 +122,15 @@ deploy_using_batch_config_test(Config) ->
         panel_test_rest:get(OpPanelNode1, <<"/tasks/", TaskId/binary>>, OpRequestOpts),
         ?AWAIT_DEPLOYMENT_READY_ATTEMPTS
     ),
+    cluster_management_test_utils:refresh_oct(Config),
+
+    {ok, ?HTTP_200_OK, _, OpIdentityResp} = panel_test_rest:get(
+        OpPanelNode1, <<"/provider">>, OpRequestOpts
+    ),
+    OpId = maps:get(<<"id">>, OpIdentityResp),
+
+    cluster_management_test_utils:assert_onedata_service_id(OpPanelNodes, OpId),
+    cluster_management_test_utils:assert_onedata_service_domain(OpPanelNodes, OpDomain),
 
     ?assertEqual(ExpOneS3Port, ?rpc(OpPanelNode1, service_ones3:get_port())),
     ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
@@ -128,11 +144,14 @@ deploy_using_batch_config_test(Config) ->
 init_per_suite(Config) ->
     ModulesToLoad = [?MODULE, ip_test_utils],
     oct_background:init_per_suite([{?LOAD_MODULES, ModulesToLoad} | Config], #onenv_test_config{
-        onenv_scenario = "1op_2nodes_not_deployed",
+        onenv_scenario = "1op_2nodes_not_deployed_pebble",
         envs = [
             {op_panel, ctool, [
-                % Allow Onezone panel to connect with Pebble server
+                % Allow Oneprovider panel to connect with Pebble server
                 {force_insecure_connections, true}
+            ]},
+            {op_panel, onepanel, [
+                {ones3_log_level, 3}
             ]}
         ],
         posthook = fun(NewConfig) ->

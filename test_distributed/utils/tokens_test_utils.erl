@@ -21,7 +21,7 @@
 ]).
 
 % Time caveat is required in temporary tokens
--define(DEFAULT_TEMP_CAVEAT_TTL, 36000).
+-define(DEFAULT_TEMP_CAVEAT_TTL, 360000).
 
 
 %%%===================================================================

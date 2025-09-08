@@ -55,24 +55,31 @@ stages:
         - api_common_emergency_passphrase
         - api_common_emergency_passphrase_not_deployed
         - api_common_internal
-        - api_oneprovider_provider
-        - api_oneprovider_spaces_basic
-        - api_oneprovider_storage_ceph
-        - api_oneprovider_storage_nulldevice
-        - api_oneprovider_storage_posix
-        - api_oneprovider_storage_s3
-        - api_oneprovider_storage_webdav
-        - api_oneprovider_storages
-        - api_onezone_service_configuration
-        - api_onezone_user_management
-        - cluster_deployment_op_add_ones3_after_certification_with_le
-        - cluster_deployment_op_add_ones3_after_certification_without_le
-        - cluster_deployment_op_add_ones3_after_registration
-        - cluster_deployment_op_add_ones3_before_registration
-        - cluster_op_batch_deployment
-        - cluster_oz_batch_deployment
-        - cluster_misc
-        - cluster_services
+        - api_op_provider
+        - api_op_spaces_basic
+        - api_op_storage_ceph_deprecated
+        - api_op_storage_ceph
+        - api_op_storage_glusterfs
+        - api_op_storage_nulldevice
+        - api_op_storage_posix
+        - api_op_storage_s3
+        - api_op_storage_swift
+        - api_op_storage_webdav
+        - api_op_storages
+        - api_oz_service_configuration
+        - api_oz_user_management
+        - cl_deploy_op_add_ones3_after_certification_with_le
+        - cl_deploy_op_add_ones3_after_certification_without_le
+        - cl_deploy_op_add_ones3_after_registration
+        - cl_deploy_op_add_ones3_before_registration
+        - cl_deploy_op_batch
+        - cl_deploy_oz_batch
+        - cl_misc
+        - cl_resize_op
+        # TODO VFS-12699 research hanging deploy new oz worker test
+#        - cl_resize_oz
+        - cl_services_op
+        - cl_services_oz
         - db_disk_usage_monitor
         - dns_op
         - dns_oz
@@ -333,131 +340,174 @@ api_common_internal:
     - <<: *ct_logs
       name: ct_logs_api_common_internal.tar.gz
 
-api_oneprovider_provider:
+api_op_provider:
   <<: *ct-onenv-job
   key: APIOPPROVIDER
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_provider.tar.gz
+      name: ct_logs_api_op_provider.tar.gz
 
-api_oneprovider_spaces_basic:
+api_op_spaces_basic:
   <<: *ct-onenv-job
   key: SPAC
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_spaces_basic.tar.gz
+      name: ct_logs_api_op_spaces_basic.tar.gz
 
-api_oneprovider_storage_ceph:
+api_op_storage_ceph_deprecated:
+  <<: *ct-onenv-job
+  key: APISTORAGECEPHDEPRECATED
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_ceph_deprecated.tar.gz
+
+api_op_storage_ceph:
   <<: *ct-onenv-job
   key: APC
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_storage_ceph.tar.gz
+      name: ct_logs_api_op_storage_ceph.tar.gz
 
-api_oneprovider_storage_nulldevice:
+api_op_storage_glusterfs:
+  <<: *ct-onenv-job
+  key: APISTORAGEGLUSTERFS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_glusterfs.tar.gz
+
+api_op_storage_nulldevice:
   <<: *ct-onenv-job
   key: APISTORAGENULLDEVICE
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_storage_nulldevice.tar.gz
+      name: ct_logs_api_op_storage_nulldevice.tar.gz
 
-api_oneprovider_storage_posix:
+api_op_storage_posix:
   <<: *ct-onenv-job
   key: APSP
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_storage_posix.tar.gz
+      name: ct_logs_api_op_storage_posix.tar.gz
 
-api_oneprovider_storage_s3:
+api_op_storage_s3:
   <<: *ct-onenv-job
   key: APSS
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_storage_s3.tar.gz
+      name: ct_logs_api_op_storage_s3.tar.gz
 
-api_oneprovider_storage_webdav:
+api_op_storage_swift:
+  <<: *ct-onenv-job
+  key: APISTORAGESWIFT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_swift.tar.gz
+
+api_op_storage_webdav:
   <<: *ct-onenv-job
   key: AOSW
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_storage_webdav.tar.gz
+      name: ct_logs_api_op_storage_webdav.tar.gz
 
-api_oneprovider_storages:
+api_op_storages:
   <<: *ct-onenv-job
   key: STOR
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_oneprovider_storages.tar.gz
+      name: ct_logs_api_op_storages.tar.gz
 
-api_onezone_service_configuration:
+api_oz_service_configuration:
   <<: *ct-onenv-job
   key: ASC
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_onezone_service_configuration.tar.gz
+      name: ct_logs_api_oz_service_configuration.tar.gz
 
-api_onezone_user_management:
+api_oz_user_management:
   <<: *ct-onenv-job
   key: AP
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_onezone_user_management.tar.gz
+      name: ct_logs_api_oz_user_management.tar.gz
 
-cluster_deployment_op_add_ones3_after_certification_with_le:
+cl_deploy_op_add_ones3_after_certification_with_le:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHLE
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_deployment_op_add_ones3_after_certification_with_le.tar.gz
+      name: ct_logs_cl_deploy_op_add_ones3_after_certification_with_le.tar.gz
 
-cluster_deployment_op_add_ones3_after_certification_without_le:
+cl_deploy_op_add_ones3_after_certification_without_le:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHOUTLE
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_deployment_op_add_ones3_after_certification_without_le.tar.gz
+      name: ct_logs_cl_deploy_op_add_ones3_after_certification_without_le.tar.gz
 
-cluster_deployment_op_add_ones3_after_registration:
+cl_deploy_op_add_ones3_after_registration:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3AFTERREGISTRATION
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_deployment_op_add_ones3_after_registration.tar.gz
+      name: ct_logs_cl_deploy_op_add_ones3_after_registration.tar.gz
 
-cluster_deployment_op_add_ones3_before_registration:
+cl_deploy_op_add_ones3_before_registration:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3BEFOREREGISTRATION
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_deployment_op_add_ones3_before_registration.tar.gz
+      name: ct_logs_cl_deploy_op_add_ones3_before_registration.tar.gz
 
-cluster_op_batch_deployment:
+cl_deploy_op_batch:
   <<: *ct-onenv-job
   key: CLUSTEROPBATCHDEPLOYMENT
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_op_batch_deployment.tar.gz
+      name: ct_logs_cl_deploy_op_batch.tar.gz
 
-cluster_oz_batch_deployment:
+cl_deploy_oz_batch:
   <<: *ct-onenv-job
   key: CLUSTEROZBATCHDEPLOYMENT
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_oz_batch_deployment.tar.gz
+      name: ct_logs_cl_deploy_oz_batch.tar.gz
 
-cluster_misc:
+cl_misc:
   <<: *ct-onenv-job
   key: CLUSTERMISC
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_misc.tar.gz
+      name: ct_logs_cl_misc.tar.gz
 
-cluster_services:
+cl_resize_op:
   <<: *ct-onenv-job
-  key: CLUSTERSERVICES
+  key: CLUSTERRESIZEOP
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_cluster_services.tar.gz
+      name: ct_logs_cl_resize_op.tar.gz
+
+# TODO VFS-12699 research hanging deploy new oz worker test
+#cl_resize_oz:
+#  <<: *ct-onenv-job
+#  key: CLUSTERRESIZEOZ
+#  artifacts:
+#    - <<: *ct_logs
+#      name: ct_logs_cl_resize_oz.tar.gz
+
+cl_services_op:
+  <<: *ct-onenv-job
+  key: CLUSTERSERVICESOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_services_op.tar.gz
+
+cl_services_oz:
+  <<: *ct-onenv-job
+  key: CLUSTERSERVICESOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_services_oz.tar.gz
 
 db_disk_usage_monitor:
   <<: *ct-onenv-job
@@ -642,24 +692,31 @@ Coverage report:
     - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
     - artifact: ct_logs_api_common_internal.tar.gz
-    - artifact: ct_logs_api_oneprovider_provider.tar.gz
-    - artifact: ct_logs_api_oneprovider_spaces_basic.tar.gz
-    - artifact: ct_logs_api_oneprovider_storage_ceph.tar.gz
-    - artifact: ct_logs_api_oneprovider_storage_nulldevice.tar.gz
-    - artifact: ct_logs_api_oneprovider_storage_posix.tar.gz
-    - artifact: ct_logs_api_oneprovider_storage_s3.tar.gz
-    - artifact: ct_logs_api_oneprovider_storage_webdav.tar.gz
-    - artifact: ct_logs_api_oneprovider_storages.tar.gz
-    - artifact: ct_logs_api_onezone_service_configuration.tar.gz
-    - artifact: ct_logs_api_onezone_user_management.tar.gz
-    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_certification_with_le.tar.gz
-    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_certification_without_le.tar.gz
-    - artifact: ct_logs_cluster_deployment_op_add_ones3_after_registration.tar.gz
-    - artifact: ct_logs_cluster_deployment_op_add_ones3_before_registration.tar.gz
-    - artifact: ct_logs_cluster_op_batch_deployment.tar.gz
-    - artifact: ct_logs_cluster_oz_batch_deployment.tar.gz
-    - artifact: ct_logs_cluster_misc.tar.gz
-    - artifact: ct_logs_cluster_services.tar.gz
+    - artifact: ct_logs_api_op_provider.tar.gz
+    - artifact: ct_logs_api_op_spaces_basic.tar.gz
+    - artifact: ct_logs_api_op_storage_ceph_deprecated.tar.gz
+    - artifact: ct_logs_api_op_storage_ceph.tar.gz
+    - artifact: ct_logs_api_op_storage_glusterfs.tar.gz
+    - artifact: ct_logs_api_op_storage_nulldevice.tar.gz
+    - artifact: ct_logs_api_op_storage_posix.tar.gz
+    - artifact: ct_logs_api_op_storage_s3.tar.gz
+    - artifact: ct_logs_api_op_storage_swift.tar.gz
+    - artifact: ct_logs_api_op_storage_webdav.tar.gz
+    - artifact: ct_logs_api_op_storages.tar.gz
+    - artifact: ct_logs_api_oz_service_configuration.tar.gz
+    - artifact: ct_logs_api_oz_user_management.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_with_le.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_without_le.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_after_registration.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_before_registration.tar.gz
+    - artifact: ct_logs_cl_deploy_op_batch.tar.gz
+    - artifact: ct_logs_cl_deploy_oz_batch.tar.gz
+    - artifact: ct_logs_cl_misc.tar.gz
+    - artifact: ct_logs_cl_resize_op.tar.gz
+    # TODO VFS-12699 research hanging deploy new oz worker test
+    #    - artifact: ct_logs_cl_resize_oz.tar.gz
+    - artifact: ct_logs_cl_services_op.tar.gz
+    - artifact: ct_logs_cl_services_oz.tar.gz
     - artifact: ct_logs_db_disk_usage_monitor.tar.gz
     - artifact: ct_logs_dns_op.tar.gz
     - artifact: ct_logs_dns_oz.tar.gz
