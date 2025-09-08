@@ -2,12 +2,7 @@
     % Range of ports that will be used by erlang nodes to communicate
     {kernel, [
         {inet_dist_listen_min, 9100},
-        {inet_dist_listen_max, 9139},
-        {logger, [
-            {filters, stop, [
-                {only_self_logs, {fun onedata_logger_filters:select_self_logs/2, stop}}
-            ]}
-        ]}
+        {inet_dist_listen_max, 9139}
     ]},
 
     %% mnesia config
