@@ -12,7 +12,6 @@
 -module(middleware_router).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/errors.hrl").
 -include_lib("ctool/include/graph_sync/gri.hrl").
 
 
@@ -41,9 +40,12 @@ resolve_handler(Interface, Operation, #gri{type = onp_provider, aspect = Aspect}
 resolve_handler(Interface, Operation, #gri{type = onp_space, aspect = Aspect}) ->
     resolve_space_handler(Interface, Aspect, Operation);
 
+resolve_handler(Interface, Operation, #gri{type = onp_storage, aspect = Aspect}) ->
+    resolve_storage_handler(Interface, Aspect, Operation);
+
 resolve_handler(Interface, Operation, #gri{type = onp_user, aspect = Aspect}) ->
     resolve_user_handler(Interface, Aspect, Operation);
-    
+
 resolve_handler(Interface, Operation, #gri{type = onp_zone, aspect = Aspect}) ->
     resolve_zone_handler(Interface, Aspect, Operation);
 
@@ -224,6 +226,100 @@ resolve_space_handler(_, support, delete) ->
     {true, space_support_delete_middleware_handler:module_info(module)};
 
 resolve_space_handler(_, _, _) ->
+    false.
+
+
+%% @private
+-spec resolve_storage_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
+resolve_storage_handler(_, instance, get) ->
+    {true, storage_instance_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, instance, update) ->
+    {true, storage_instance_update_middleware_handler:module_info(module)};
+resolve_storage_handler(_, instance, delete) ->
+    {true, storage_instance_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, instances, create) ->
+    {true, storage_instances_create_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, list, get) ->
+    {true, storage_list_get_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, luma_configuration, get) ->
+    {true, storage_luma_configuration_get_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, {local_feed_luma_acl_group_to_onedata_group_mapping, _}, create) ->
+    {true, storage_luma_acl_group_to_onedata_group_mapping_create_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_acl_group_to_onedata_group_mapping, _}, get) ->
+    {true, storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_acl_group_to_onedata_group_mapping, _}, get) ->
+    {true, storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_acl_group_to_onedata_group_mapping, _}, delete) ->
+    {true, storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_acl_group_to_onedata_group_mapping, _}, delete) ->
+    {true, storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, {local_feed_luma_acl_user_to_onedata_user_mapping, _}, create) ->
+    {true, storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_acl_user_to_onedata_user_mapping, _}, get) ->
+    {true, storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_acl_user_to_onedata_user_mapping, _}, get) ->
+    {true, storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_acl_user_to_onedata_user_mapping, _}, delete) ->
+    {true, storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_acl_user_to_onedata_user_mapping, _}, delete) ->
+    {true, storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, {local_feed_luma_default_posix_credentials, _}, create) ->
+    {true, storage_luma_default_posix_credentials_create_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_default_posix_credentials, _}, get) ->
+    {true, storage_luma_default_posix_credentials_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_default_posix_credentials, _}, get) ->
+    {true, storage_luma_default_posix_credentials_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_default_posix_credentials, _}, delete) ->
+    {true, storage_luma_default_posix_credentials_delete_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_default_posix_credentials, _}, delete) ->
+    {true, storage_luma_default_posix_credentials_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, {local_feed_luma_display_credentials, _}, create) ->
+    {true, storage_luma_display_credentials_create_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_display_credentials, _}, get) ->
+    {true, storage_luma_display_credentials_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_display_credentials, _}, get) ->
+    {true, storage_luma_display_credentials_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_display_credentials, _}, delete) ->
+    {true, storage_luma_display_credentials_delete_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_display_credentials, _}, delete) ->
+    {true, storage_luma_display_credentials_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, local_feed_luma_onedata_user_to_credentials_mapping, create) ->
+    {true, storage_luma_onedata_user_to_credentials_mapping_create_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_onedata_user_to_credentials_mapping, _}, get) ->
+    {true, storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_onedata_user_to_credentials_mapping, _}, get) ->
+    {true, storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_onedata_user_to_credentials_mapping, _}, update) ->
+    {true, storage_luma_onedata_user_to_credentials_mapping_update_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_onedata_user_to_credentials_mapping, _}, delete) ->
+    {true, storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_onedata_user_to_credentials_mapping, _}, delete) ->
+    {true, storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, {local_feed_luma_uid_to_onedata_user_mapping, _}, create) ->
+    {true, storage_luma_uid_to_onedata_user_mapping_create_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_uid_to_onedata_user_mapping, _}, get) ->
+    {true, storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_uid_to_onedata_user_mapping, _}, get) ->
+    {true, storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {local_feed_luma_uid_to_onedata_user_mapping, _}, delete) ->
+    {true, storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
+resolve_storage_handler(_, {luma_uid_to_onedata_user_mapping, _}, delete) ->
+    {true, storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, luma_db, delete) ->
+    {true, storage_luma_db_delete_middleware_handler:module_info(module)};
+
+resolve_storage_handler(_, _, _) ->
     false.
 
 

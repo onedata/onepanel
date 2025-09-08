@@ -21,7 +21,10 @@
 
     validate_storage_common_args/2,
     validate_storage_custom_args/2,
-    get_storage/1
+
+    get_storage/1,
+
+    convert_uid_to_integer/1
 ]).
 
 
@@ -111,3 +114,12 @@ get_storage(StorageId) ->
     middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
         ?SERVICE_OPW, get_storages, #{id => StorageId}
     )).
+
+
+-spec convert_uid_to_integer(binary()) -> integer() | no_return().
+convert_uid_to_integer(Value) ->
+    try
+        binary_to_integer(Value)
+    catch error:badarg ->
+        throw(?ERR_BAD_VALUE_INTEGER(?err_ctx(), uid))
+    end.
