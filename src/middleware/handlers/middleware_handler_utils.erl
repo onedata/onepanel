@@ -74,11 +74,11 @@ validate_cluster_deployed() ->
     end.
 
 
--spec validate_op_registered() -> ok | errors:error().
+-spec validate_op_registered() -> ok | no_return().
 validate_op_registered() ->
     case service_oneprovider:is_registered() of
         true -> ok;
-        false -> ?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx())
+        false -> throw(?ERR_UNREGISTERED_ONEPROVIDER(?err_ctx()))
     end.
 
 
