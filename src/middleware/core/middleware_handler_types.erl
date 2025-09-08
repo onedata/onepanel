@@ -48,6 +48,16 @@
     provider_remote_instance_get_middleware_handler:t() |
     provider_transfers_mock_get_middleware_handler:t() |
     provider_transfers_mock_update_middleware_handler:t() |
+    service_all_hosts_status_get_middleware_handler:t() |
+    service_cluster_manager_instances_create_middleware_handler:t() |
+    service_couchbase_instances_create_middleware_handler:t() |
+    service_host_status_get_middleware_handler:t() |
+    service_nagios_get_middleware_handler:t() |
+    service_ones3_instances_create_middleware_handler:t() |
+    service_op_worker_instances_create_middleware_handler:t() |
+    service_oz_worker_instances_create_middleware_handler:t() |
+    service_start_stop_all_update_middleware_handler:t() |
+    service_start_stop_update_middleware_handler:t() |
     space_auto_cleaning_configuration_get_middleware_handler:t() |
     space_auto_cleaning_configuration_update_middleware_handler:t() |
     space_auto_cleaning_report_get_middleware_handler:t() |
@@ -67,6 +77,32 @@
     space_support_create_middleware_handler:t() |
     space_support_delete_middleware_handler:t() |
     space_support_update_middleware_handler:t() |
+    storage_instance_delete_middleware_handler:t() |
+    storage_instance_get_middleware_handler:t() |
+    storage_instance_update_middleware_handler:t() |
+    storage_instances_create_middleware_handler:t() |
+    storage_list_get_middleware_handler:t() |
+    storage_luma_acl_group_to_onedata_group_mapping_create_middleware_handler:t() |
+    storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:t() |
+    storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:t() |
+    storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler:t() |
+    storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:t() |
+    storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:t() |
+    storage_luma_configuration_get_middleware_handler:t() |
+    storage_luma_db_delete_middleware_handler:t() |
+    storage_luma_default_posix_credentials_create_middleware_handler:t() |
+    storage_luma_default_posix_credentials_delete_middleware_handler:t() |
+    storage_luma_default_posix_credentials_get_middleware_handler:t() |
+    storage_luma_display_credentials_create_middleware_handler:t() |
+    storage_luma_display_credentials_delete_middleware_handler:t() |
+    storage_luma_display_credentials_get_middleware_handler:t() |
+    storage_luma_onedata_user_to_credentials_mapping_create_middleware_handler:t() |
+    storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:t() |
+    storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:t() |
+    storage_luma_onedata_user_to_credentials_mapping_update_middleware_handler:t() |
+    storage_luma_uid_to_onedata_user_mapping_create_middleware_handler:t() |
+    storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:t() |
+    storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:t() |
     user_current_user_clusters_get_middleware_handler:t() |
     user_current_user_get_middleware_handler:t() |
     user_instance_create_middleware_handler:t() |
@@ -117,6 +153,16 @@
     provider_remote_instance_get_middleware_handler:input() |
     provider_transfers_mock_get_middleware_handler:input() |
     provider_transfers_mock_update_middleware_handler:input() |
+    service_all_hosts_status_get_middleware_handler:input() |
+    service_cluster_manager_instances_create_middleware_handler:input() |
+    service_couchbase_instances_create_middleware_handler:input() |
+    service_host_status_get_middleware_handler:input() |
+    service_nagios_get_middleware_handler:input() |
+    service_ones3_instances_create_middleware_handler:input() |
+    service_op_worker_instances_create_middleware_handler:input() |
+    service_oz_worker_instances_create_middleware_handler:input() |
+    service_start_stop_all_update_middleware_handler:input() |
+    service_start_stop_update_middleware_handler:input() |
     space_auto_cleaning_configuration_get_middleware_handler:input() |
     space_auto_cleaning_configuration_update_middleware_handler:input() |
     space_auto_cleaning_report_get_middleware_handler:input() |
@@ -136,6 +182,32 @@
     space_support_create_middleware_handler:input() |
     space_support_delete_middleware_handler:input() |
     space_support_update_middleware_handler:input() |
+    storage_instance_delete_middleware_handler:input() |
+    storage_instance_get_middleware_handler:input() |
+    storage_instance_update_middleware_handler:input() |
+    storage_instances_create_middleware_handler:input() |
+    storage_list_get_middleware_handler:input() |
+    storage_luma_acl_group_to_onedata_group_mapping_create_middleware_handler:input() |
+    storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:input() |
+    storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:input() |
+    storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler:input() |
+    storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:input() |
+    storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:input() |
+    storage_luma_configuration_get_middleware_handler:input() |
+    storage_luma_db_delete_middleware_handler:input() |
+    storage_luma_default_posix_credentials_create_middleware_handler:input() |
+    storage_luma_default_posix_credentials_delete_middleware_handler:input() |
+    storage_luma_default_posix_credentials_get_middleware_handler:input() |
+    storage_luma_display_credentials_create_middleware_handler:input() |
+    storage_luma_display_credentials_delete_middleware_handler:input() |
+    storage_luma_display_credentials_get_middleware_handler:input() |
+    storage_luma_onedata_user_to_credentials_mapping_create_middleware_handler:input() |
+    storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:input() |
+    storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:input() |
+    storage_luma_onedata_user_to_credentials_mapping_update_middleware_handler:input() |
+    storage_luma_uid_to_onedata_user_mapping_create_middleware_handler:input() |
+    storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:input() |
+    storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:input() |
     user_current_user_clusters_get_middleware_handler:input() |
     user_current_user_get_middleware_handler:input() |
     user_instance_create_middleware_handler:input() |
@@ -186,6 +258,16 @@
     provider_remote_instance_get_middleware_handler:state() |
     provider_transfers_mock_get_middleware_handler:state() |
     provider_transfers_mock_update_middleware_handler:state() |
+    service_all_hosts_status_get_middleware_handler:state() |
+    service_cluster_manager_instances_create_middleware_handler:state() |
+    service_couchbase_instances_create_middleware_handler:state() |
+    service_host_status_get_middleware_handler:state() |
+    service_nagios_get_middleware_handler:state() |
+    service_ones3_instances_create_middleware_handler:state() |
+    service_op_worker_instances_create_middleware_handler:state() |
+    service_oz_worker_instances_create_middleware_handler:state() |
+    service_start_stop_all_update_middleware_handler:state() |
+    service_start_stop_update_middleware_handler:state() |
     space_auto_cleaning_configuration_get_middleware_handler:state() |
     space_auto_cleaning_configuration_update_middleware_handler:state() |
     space_auto_cleaning_report_get_middleware_handler:state() |
@@ -205,6 +287,32 @@
     space_support_create_middleware_handler:state() |
     space_support_delete_middleware_handler:state() |
     space_support_update_middleware_handler:state() |
+    storage_instance_delete_middleware_handler:state() |
+    storage_instance_get_middleware_handler:state() |
+    storage_instance_update_middleware_handler:state() |
+    storage_instances_create_middleware_handler:state() |
+    storage_list_get_middleware_handler:state() |
+    storage_luma_acl_group_to_onedata_group_mapping_create_middleware_handler:state() |
+    storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:state() |
+    storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:state() |
+    storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler:state() |
+    storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:state() |
+    storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:state() |
+    storage_luma_configuration_get_middleware_handler:state() |
+    storage_luma_db_delete_middleware_handler:state() |
+    storage_luma_default_posix_credentials_create_middleware_handler:state() |
+    storage_luma_default_posix_credentials_delete_middleware_handler:state() |
+    storage_luma_default_posix_credentials_get_middleware_handler:state() |
+    storage_luma_display_credentials_create_middleware_handler:state() |
+    storage_luma_display_credentials_delete_middleware_handler:state() |
+    storage_luma_display_credentials_get_middleware_handler:state() |
+    storage_luma_onedata_user_to_credentials_mapping_create_middleware_handler:state() |
+    storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:state() |
+    storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:state() |
+    storage_luma_onedata_user_to_credentials_mapping_update_middleware_handler:state() |
+    storage_luma_uid_to_onedata_user_mapping_create_middleware_handler:state() |
+    storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:state() |
+    storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:state() |
     user_current_user_clusters_get_middleware_handler:state() |
     user_current_user_get_middleware_handler:state() |
     user_instance_create_middleware_handler:state() |
@@ -255,6 +363,16 @@
     provider_remote_instance_get_middleware_handler:output() |
     provider_transfers_mock_get_middleware_handler:output() |
     provider_transfers_mock_update_middleware_handler:output() |
+    service_all_hosts_status_get_middleware_handler:output() |
+    service_cluster_manager_instances_create_middleware_handler:output() |
+    service_couchbase_instances_create_middleware_handler:output() |
+    service_host_status_get_middleware_handler:output() |
+    service_nagios_get_middleware_handler:output() |
+    service_ones3_instances_create_middleware_handler:output() |
+    service_op_worker_instances_create_middleware_handler:output() |
+    service_oz_worker_instances_create_middleware_handler:output() |
+    service_start_stop_all_update_middleware_handler:output() |
+    service_start_stop_update_middleware_handler:output() |
     space_auto_cleaning_configuration_get_middleware_handler:output() |
     space_auto_cleaning_configuration_update_middleware_handler:output() |
     space_auto_cleaning_report_get_middleware_handler:output() |
@@ -274,6 +392,32 @@
     space_support_create_middleware_handler:output() |
     space_support_delete_middleware_handler:output() |
     space_support_update_middleware_handler:output() |
+    storage_instance_delete_middleware_handler:output() |
+    storage_instance_get_middleware_handler:output() |
+    storage_instance_update_middleware_handler:output() |
+    storage_instances_create_middleware_handler:output() |
+    storage_list_get_middleware_handler:output() |
+    storage_luma_acl_group_to_onedata_group_mapping_create_middleware_handler:output() |
+    storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:output() |
+    storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:output() |
+    storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler:output() |
+    storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:output() |
+    storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:output() |
+    storage_luma_configuration_get_middleware_handler:output() |
+    storage_luma_db_delete_middleware_handler:output() |
+    storage_luma_default_posix_credentials_create_middleware_handler:output() |
+    storage_luma_default_posix_credentials_delete_middleware_handler:output() |
+    storage_luma_default_posix_credentials_get_middleware_handler:output() |
+    storage_luma_display_credentials_create_middleware_handler:output() |
+    storage_luma_display_credentials_delete_middleware_handler:output() |
+    storage_luma_display_credentials_get_middleware_handler:output() |
+    storage_luma_onedata_user_to_credentials_mapping_create_middleware_handler:output() |
+    storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:output() |
+    storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:output() |
+    storage_luma_onedata_user_to_credentials_mapping_update_middleware_handler:output() |
+    storage_luma_uid_to_onedata_user_mapping_create_middleware_handler:output() |
+    storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:output() |
+    storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:output() |
     user_current_user_clusters_get_middleware_handler:output() |
     user_current_user_get_middleware_handler:output() |
     user_instance_create_middleware_handler:output() |

@@ -100,8 +100,8 @@ assert_interface_supported(Handler, OnpReqCtx) ->
 %% @private
 -spec is_interface_supported(middleware_handler:t(), middleware_handler:req_ctx()) ->
     boolean().
-is_interface_supported(Handler, #onp_req_ctx{interface = Interface}) ->
-    try Handler:supported_interfaces() of
+is_interface_supported(Handler, OnpReqCtx = #onp_req_ctx{interface = Interface}) ->
+    try Handler:supported_interfaces(OnpReqCtx) of
         {true, SupportedInterfaces} -> lists:member(Interface, SupportedInterfaces);
         false -> false
     catch _:_ ->

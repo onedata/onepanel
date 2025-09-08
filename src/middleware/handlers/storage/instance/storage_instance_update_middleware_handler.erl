@@ -17,7 +17,7 @@
 -include("middleware/middleware.hrl").
 
 -export([
-    supported_interfaces/0,
+    supported_interfaces/1,
     service_availability_requirements/1,
     init_state/2,
     preauthorize/1,
@@ -46,8 +46,8 @@
 %%%===================================================================
 
 
--spec supported_interfaces() -> false | {true, [rest]}.
-supported_interfaces() ->
+-spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+supported_interfaces(_) ->
     storage_middleware_handler_utils:supported_interfaces_op().
 
 
@@ -57,7 +57,7 @@ service_availability_requirements(_) ->
     storage_middleware_handler_utils:common_availability().
 
 
--callback init_state(middleware_handler:req_ctx(), input()) ->
+-spec init_state(middleware_handler:req_ctx(), input()) ->
     {ok, state()} | errors:error().
 init_state(OnpReqCtx = #onp_req_ctx{gri = #gri{id = StorageId}}, Input) ->
     case storage_middleware_handler_utils:get_storage(StorageId) of

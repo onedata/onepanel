@@ -1,0 +1,84 @@
+%%%-------------------------------------------------------------------
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
+%%% This software is released under the MIT license
+%%% cited in 'LICENSE.txt'.
+%%% @end
+%%%-------------------------------------------------------------------
+%%% @doc
+%%% Returns service status for all hosts.
+%%% @end
+%%%-------------------------------------------------------------------
+-module(service_all_hosts_status_get_middleware_handler).
+-author("Bartosz Walkowicz").
+
+-behaviour(middleware_handler).
+
+-include("middleware/middleware.hrl").
+
+-export([
+    supported_interfaces/1,
+    service_availability_requirements/1,
+    preauthorize/1,
+    validate/1,
+    process/1,
+    translate_output/2
+]).
+
+-type t() :: ?MODULE.
+-type input() :: undefined.
+-type state() :: #onp_req_state{input :: input()}.
+-type output() :: map().
+
+-export_type([t/0, input/0, state/0, output/0]).
+
+
+%%%===================================================================
+%%% middleware_handler callbacks
+%%%===================================================================
+
+
+-spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+supported_interfaces(#onp_req_ctx{gri = #gri{aspect = {all_hosts_status, ServiceBin}}}) ->
+    service_middleware_handler_utils:supported_interfaces_for_service(ServiceBin).
+
+
+-spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+service_availability_requirements(_) ->
+    false.
+
+
+-spec preauthorize(state()) -> boolean().
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
+    middleware_handler_utils:is_cluster_member(Client).
+
+
+-spec validate(state()) -> ok | errors:error().
+validate(_) ->
+    ok.
+
+
+-spec process(state()) -> {ok, output()} | errors:error().
+process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {all_hosts_status, ServiceBin}}}}) ->
+    {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
+    Module = service:get_module(Service),
+    Results = service:apply_sync(Service, status, #{}),
+
+    HostToStatus = case service_utils:results_contain_error(Results) of
+        {true, ?ERR_NO_SERVICE_NODES(_)} ->
+            #{};
+        {true, Error} ->
+            throw(Error);
+        false ->
+            {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
+            lists:foldl(fun({Node, NodeStatus}, Acc) ->
+                Host = onepanel_utils:convert(hosts:from_node(Node), binary),
+                Acc#{Host => NodeStatus}
+            end, #{}, HostsResults)
+    end,
+    {ok, HostToStatus}.
+
+
+-spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Data) ->
+    {ok, ?OK_REPLY(Data)}.

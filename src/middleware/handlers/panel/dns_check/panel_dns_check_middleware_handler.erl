@@ -19,7 +19,7 @@
 -include("modules/onepanel_dns.hrl").
 
 -export([
-    supported_interfaces/0,
+    supported_interfaces/1,
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
@@ -40,8 +40,8 @@
 %%%===================================================================
 
 
--spec supported_interfaces() -> {true, [rest]}.
-supported_interfaces() ->
+-spec supported_interfaces(middleware_handler:req_ctx()) -> {true, [rest]}.
+supported_interfaces(_) ->
     {true, [rest]}.
 
 

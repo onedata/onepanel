@@ -37,6 +37,9 @@ resolve_handler(Interface, Operation, #gri{type = onp_panel, aspect = Aspect}) -
 resolve_handler(Interface, Operation, #gri{type = onp_provider, aspect = Aspect}) ->
     resolve_provider_handler(Interface, Aspect, Operation);
 
+resolve_handler(Interface, Operation, #gri{type = onp_service, aspect = Aspect}) ->
+    resolve_service_handler(Interface, Aspect, Operation);
+    
 resolve_handler(Interface, Operation, #gri{type = onp_space, aspect = Aspect}) ->
     resolve_space_handler(Interface, Aspect, Operation);
 
@@ -175,6 +178,36 @@ resolve_provider_handler(_, transfers_mock, update) ->
     {true, provider_transfers_mock_update_middleware_handler:module_info(module)};
 
 resolve_provider_handler(_, _, _) ->
+    false.
+
+
+%% @private
+-spec resolve_service_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+    {true, middleware_handler:t()} | false.
+resolve_service_handler(_, cluster_manager_instances, create) ->
+    {true, service_cluster_manager_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler(_, couchbase_instances, create) ->
+    {true, service_couchbase_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler(_, ones3_instances, create) ->
+    {true, service_ones3_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler(_, op_worker_instances, create) ->
+    {true, service_op_worker_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler(_, oz_worker_instances, create) ->
+    {true, service_oz_worker_instances_create_middleware_handler:module_info(module)};
+
+resolve_service_handler(_, {all_hosts_status, _}, get) ->
+    {true, service_all_hosts_status_get_middleware_handler:module_info(module)};
+resolve_service_handler(_, {host_status, _}, get) ->
+    {true, service_host_status_get_middleware_handler:module_info(module)};
+resolve_service_handler(_, {nagios, _}, get) ->
+    {true, service_nagios_get_middleware_handler:module_info(module)};
+
+resolve_service_handler(_, {start_stop_all, _}, update) ->
+    {true, service_start_stop_all_update_middleware_handler:module_info(module)};
+resolve_service_handler(_, {start_stop, _}, update) ->
+    {true, service_start_stop_update_middleware_handler:module_info(module)};
+
+resolve_service_handler(_, _, _) ->
     false.
 
 

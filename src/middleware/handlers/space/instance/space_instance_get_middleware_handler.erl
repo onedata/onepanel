@@ -18,7 +18,7 @@
 
 % middleware_handler callbacks
 -export([
-    supported_interfaces/0,
+    supported_interfaces/1,
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
@@ -39,8 +39,8 @@
 %%%===================================================================
 
 
--spec supported_interfaces() -> false | {true, [rest]}.
-supported_interfaces() ->
+-spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+supported_interfaces(_) ->
     middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
 
 

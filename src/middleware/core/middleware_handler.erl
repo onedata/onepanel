@@ -67,7 +67,7 @@
 %% for GraphSync or other protocols.
 %% @end
 %%--------------------------------------------------------------------
--callback supported_interfaces() -> false | {true, [interface()]}.
+-callback supported_interfaces(req_ctx()) -> false | {true, [interface()]}.
 
 
 %%--------------------------------------------------------------------
