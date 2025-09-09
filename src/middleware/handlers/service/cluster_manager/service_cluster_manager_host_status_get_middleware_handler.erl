@@ -6,16 +6,17 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Returns service status on a single host
+%%% Returns cluster_manager status on a single host (OP/OZ).
 %%% @end
 %%%-------------------------------------------------------------------
--module(service_host_status_get_middleware_handler).
+-module(service_cluster_manager_host_status_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -34,18 +35,16 @@
 
 
 %%%===================================================================
-%%% middleware_handler callbacks
+%%% Callbacks
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
-supported_interfaces(#onp_req_ctx{gri = #gri{aspect = {host_status, ServiceBin}}}) ->
-    service_middleware_handler_utils:supported_interfaces_for_service(ServiceBin).
+-spec supported_interfaces(middleware_handler:req_ctx()) -> {true, [rest]}.
+supported_interfaces(_) -> {true, [rest]}.
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
-service_availability_requirements(_) ->
-    false.
+service_availability_requirements(_) -> false.
 
 
 -spec preauthorize(state()) -> boolean().
@@ -54,24 +53,14 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 
 
 -spec validate(state()) -> ok | errors:error().
-validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{
-    aspect = {host_status, ServiceBin},
-    id = <<HostBin/binary>>
-}}}) ->
-    {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
-    Host = binary_to_list(HostBin),
-    service_middleware_handler_utils:ensure_has_host(Service, Host).
+validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = <<HostBin/binary>>}}}) ->
+    service_middleware_handler_utils:ensure_has_host(?SERVICE_CM, binary_to_list(HostBin)).
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {host_status, ServiceBin}, id = HostBin}}}) ->
-    {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
-    Module = service:get_module(Service),
-    HostList = str_utils:binary_to_unicode_list(HostBin),
-    middleware_handler_utils:service_call(
-        Service, status, #{hosts => [HostList]},
-        Module, status
-    ).
+process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = HostBin}}}) ->
+    Host = str_utils:binary_to_unicode_list(HostBin),
+    service_middleware_handler_utils:status_on_host(?SERVICE_CM, Host).
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.

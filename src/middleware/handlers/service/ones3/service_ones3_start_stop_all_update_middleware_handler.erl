@@ -6,16 +6,17 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Starts or stops a single host for given service.
+%%% Starts or stops ones3 on all hosts (OP only).
 %%% @end
 %%%-------------------------------------------------------------------
--module(service_start_stop_update_middleware_handler).
+-module(service_ones3_start_stop_all_update_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -33,18 +34,17 @@
 
 
 %%%===================================================================
-%%% middleware_handler callbacks
+%%% Callbacks
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
-supported_interfaces(#onp_req_ctx{gri = #gri{aspect = {start_stop, ServiceBin}}}) ->
-    service_middleware_handler_utils:supported_interfaces_for_service(ServiceBin).
+-spec supported_interfaces(middleware_handler:req_ctx()) -> {true, [rest]} | false.
+supported_interfaces(_) ->
+    middleware_handler_utils:if_op_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
-service_availability_requirements(_) ->
-    false.
+service_availability_requirements(_) -> false.
 
 
 -spec preauthorize(state()) -> boolean().
@@ -53,21 +53,12 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 
 
 -spec validate(state()) -> ok | errors:error().
-validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {start_stop, ServiceBin}, id = <<HostBin/binary>>}}}) ->
-    {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
-    Host = binary_to_list(HostBin),
-    service_middleware_handler_utils:ensure_has_host(Service, Host).
+validate(_) ->
+    middleware_handler_utils:validate_op_registered().
 
 
 -spec process(state()) -> ok | errors:error().
-process(#onp_req_state{
-    ctx = #onp_req_ctx{gri = #gri{aspect = {start_stop, ServiceBin}, id = <<HostBin/binary>>}},
-    input = Data
-}) ->
-    {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
-    Host = binary_to_list(HostBin),
-    Action = case maps:get(started, Data) of
-        true -> start;
-        false -> stop
-    end,
-    middleware_handler_utils:service_exec(Service, Action, #{hosts => [Host]}).
+process(#onp_req_state{input = Data}) ->
+    service_middleware_handler_utils:set_started_all(?SERVICE_ONES3, maps:get(started, Data)).
+
+

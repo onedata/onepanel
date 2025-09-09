@@ -48,16 +48,33 @@
     provider_remote_instance_get_middleware_handler:t() |
     provider_transfers_mock_get_middleware_handler:t() |
     provider_transfers_mock_update_middleware_handler:t() |
-    service_all_hosts_status_get_middleware_handler:t() |
+    service_cluster_manager_all_hosts_status_get_middleware_handler:t() |
+    service_cluster_manager_host_status_get_middleware_handler:t() |
     service_cluster_manager_instances_create_middleware_handler:t() |
+    service_cluster_manager_start_stop_all_update_middleware_handler:t() |
+    service_cluster_manager_start_stop_update_middleware_handler:t() |
+    service_couchbase_all_hosts_status_get_middleware_handler:t() |
+    service_couchbase_host_status_get_middleware_handler:t() |
     service_couchbase_instances_create_middleware_handler:t() |
-    service_host_status_get_middleware_handler:t() |
-    service_nagios_get_middleware_handler:t() |
+    service_couchbase_start_stop_all_update_middleware_handler:t() |
+    service_couchbase_start_stop_update_middleware_handler:t() |
+    service_ones3_all_hosts_status_get_middleware_handler:t() |
+    service_ones3_host_status_get_middleware_handler:t() |
     service_ones3_instances_create_middleware_handler:t() |
+    service_ones3_start_stop_all_update_middleware_handler:t() |
+    service_ones3_start_stop_update_middleware_handler:t() |
+    service_op_worker_all_hosts_status_get_middleware_handler:t() |
+    service_op_worker_host_status_get_middleware_handler:t() |
     service_op_worker_instances_create_middleware_handler:t() |
+    service_op_worker_nagios_get_middleware_handler:t() |
+    service_op_worker_start_stop_all_update_middleware_handler:t() |
+    service_op_worker_start_stop_update_middleware_handler:t() |
+    service_oz_worker_all_hosts_status_get_middleware_handler:t() |
+    service_oz_worker_host_status_get_middleware_handler:t() |
     service_oz_worker_instances_create_middleware_handler:t() |
-    service_start_stop_all_update_middleware_handler:t() |
-    service_start_stop_update_middleware_handler:t() |
+    service_oz_worker_nagios_get_middleware_handler:t() |
+    service_oz_worker_start_stop_all_update_middleware_handler:t() |
+    service_oz_worker_start_stop_update_middleware_handler:t() |
     space_auto_cleaning_configuration_get_middleware_handler:t() |
     space_auto_cleaning_configuration_update_middleware_handler:t() |
     space_auto_cleaning_report_get_middleware_handler:t() |
@@ -153,16 +170,33 @@
     provider_remote_instance_get_middleware_handler:input() |
     provider_transfers_mock_get_middleware_handler:input() |
     provider_transfers_mock_update_middleware_handler:input() |
-    service_all_hosts_status_get_middleware_handler:input() |
+    service_cluster_manager_all_hosts_status_get_middleware_handler:input() |
+    service_cluster_manager_host_status_get_middleware_handler:input() |
     service_cluster_manager_instances_create_middleware_handler:input() |
+    service_cluster_manager_start_stop_all_update_middleware_handler:input() |
+    service_cluster_manager_start_stop_update_middleware_handler:input() |
+    service_couchbase_all_hosts_status_get_middleware_handler:input() |
+    service_couchbase_host_status_get_middleware_handler:input() |
     service_couchbase_instances_create_middleware_handler:input() |
-    service_host_status_get_middleware_handler:input() |
-    service_nagios_get_middleware_handler:input() |
+    service_couchbase_start_stop_all_update_middleware_handler:input() |
+    service_couchbase_start_stop_update_middleware_handler:input() |
+    service_ones3_all_hosts_status_get_middleware_handler:input() |
+    service_ones3_host_status_get_middleware_handler:input() |
     service_ones3_instances_create_middleware_handler:input() |
+    service_ones3_start_stop_all_update_middleware_handler:input() |
+    service_ones3_start_stop_update_middleware_handler:input() |
+    service_op_worker_all_hosts_status_get_middleware_handler:input() |
+    service_op_worker_host_status_get_middleware_handler:input() |
     service_op_worker_instances_create_middleware_handler:input() |
+    service_op_worker_nagios_get_middleware_handler:input() |
+    service_op_worker_start_stop_all_update_middleware_handler:input() |
+    service_op_worker_start_stop_update_middleware_handler:input() |
+    service_oz_worker_all_hosts_status_get_middleware_handler:input() |
+    service_oz_worker_host_status_get_middleware_handler:input() |
     service_oz_worker_instances_create_middleware_handler:input() |
-    service_start_stop_all_update_middleware_handler:input() |
-    service_start_stop_update_middleware_handler:input() |
+    service_oz_worker_nagios_get_middleware_handler:input() |
+    service_oz_worker_start_stop_all_update_middleware_handler:input() |
+    service_oz_worker_start_stop_update_middleware_handler:input() |
     space_auto_cleaning_configuration_get_middleware_handler:input() |
     space_auto_cleaning_configuration_update_middleware_handler:input() |
     space_auto_cleaning_report_get_middleware_handler:input() |
@@ -258,16 +292,33 @@
     provider_remote_instance_get_middleware_handler:state() |
     provider_transfers_mock_get_middleware_handler:state() |
     provider_transfers_mock_update_middleware_handler:state() |
-    service_all_hosts_status_get_middleware_handler:state() |
+    service_cluster_manager_all_hosts_status_get_middleware_handler:state() |
+    service_cluster_manager_host_status_get_middleware_handler:state() |
     service_cluster_manager_instances_create_middleware_handler:state() |
+    service_cluster_manager_start_stop_all_update_middleware_handler:state() |
+    service_cluster_manager_start_stop_update_middleware_handler:state() |
+    service_couchbase_all_hosts_status_get_middleware_handler:state() |
+    service_couchbase_host_status_get_middleware_handler:state() |
     service_couchbase_instances_create_middleware_handler:state() |
-    service_host_status_get_middleware_handler:state() |
-    service_nagios_get_middleware_handler:state() |
+    service_couchbase_start_stop_all_update_middleware_handler:state() |
+    service_couchbase_start_stop_update_middleware_handler:state() |
+    service_ones3_all_hosts_status_get_middleware_handler:state() |
+    service_ones3_host_status_get_middleware_handler:state() |
     service_ones3_instances_create_middleware_handler:state() |
+    service_ones3_start_stop_all_update_middleware_handler:state() |
+    service_ones3_start_stop_update_middleware_handler:state() |
+    service_op_worker_all_hosts_status_get_middleware_handler:state() |
+    service_op_worker_host_status_get_middleware_handler:state() |
     service_op_worker_instances_create_middleware_handler:state() |
+    service_op_worker_nagios_get_middleware_handler:state() |
+    service_op_worker_start_stop_all_update_middleware_handler:state() |
+    service_op_worker_start_stop_update_middleware_handler:state() |
+    service_oz_worker_all_hosts_status_get_middleware_handler:state() |
+    service_oz_worker_host_status_get_middleware_handler:state() |
     service_oz_worker_instances_create_middleware_handler:state() |
-    service_start_stop_all_update_middleware_handler:state() |
-    service_start_stop_update_middleware_handler:state() |
+    service_oz_worker_nagios_get_middleware_handler:state() |
+    service_oz_worker_start_stop_all_update_middleware_handler:state() |
+    service_oz_worker_start_stop_update_middleware_handler:state() |
     space_auto_cleaning_configuration_get_middleware_handler:state() |
     space_auto_cleaning_configuration_update_middleware_handler:state() |
     space_auto_cleaning_report_get_middleware_handler:state() |
@@ -363,16 +414,33 @@
     provider_remote_instance_get_middleware_handler:output() |
     provider_transfers_mock_get_middleware_handler:output() |
     provider_transfers_mock_update_middleware_handler:output() |
-    service_all_hosts_status_get_middleware_handler:output() |
+    service_cluster_manager_all_hosts_status_get_middleware_handler:output() |
+    service_cluster_manager_host_status_get_middleware_handler:output() |
     service_cluster_manager_instances_create_middleware_handler:output() |
+    service_cluster_manager_start_stop_all_update_middleware_handler:output() |
+    service_cluster_manager_start_stop_update_middleware_handler:output() |
+    service_couchbase_all_hosts_status_get_middleware_handler:output() |
+    service_couchbase_host_status_get_middleware_handler:output() |
     service_couchbase_instances_create_middleware_handler:output() |
-    service_host_status_get_middleware_handler:output() |
-    service_nagios_get_middleware_handler:output() |
+    service_couchbase_start_stop_all_update_middleware_handler:output() |
+    service_couchbase_start_stop_update_middleware_handler:output() |
+    service_ones3_all_hosts_status_get_middleware_handler:output() |
+    service_ones3_host_status_get_middleware_handler:output() |
     service_ones3_instances_create_middleware_handler:output() |
+    service_ones3_start_stop_all_update_middleware_handler:output() |
+    service_ones3_start_stop_update_middleware_handler:output() |
+    service_op_worker_all_hosts_status_get_middleware_handler:output() |
+    service_op_worker_host_status_get_middleware_handler:output() |
     service_op_worker_instances_create_middleware_handler:output() |
+    service_op_worker_nagios_get_middleware_handler:output() |
+    service_op_worker_start_stop_all_update_middleware_handler:output() |
+    service_op_worker_start_stop_update_middleware_handler:output() |
+    service_oz_worker_all_hosts_status_get_middleware_handler:output() |
+    service_oz_worker_host_status_get_middleware_handler:output() |
     service_oz_worker_instances_create_middleware_handler:output() |
-    service_start_stop_all_update_middleware_handler:output() |
-    service_start_stop_update_middleware_handler:output() |
+    service_oz_worker_nagios_get_middleware_handler:output() |
+    service_oz_worker_start_stop_all_update_middleware_handler:output() |
+    service_oz_worker_start_stop_update_middleware_handler:output() |
     space_auto_cleaning_configuration_get_middleware_handler:output() |
     space_auto_cleaning_configuration_update_middleware_handler:output() |
     space_auto_cleaning_report_get_middleware_handler:output() |

@@ -6,68 +6,62 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Starts or stops given service on all hosts it is running.
+%%% Returns all hosts status for oz_worker (OZ only).
 %%% @end
 %%%-------------------------------------------------------------------
--module(service_start_stop_all_update_middleware_handler).
+-module(service_oz_worker_all_hosts_status_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
 -behaviour(middleware_handler).
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
     preauthorize/1,
     validate/1,
-    process/1
+    process/1,
+    translate_output/2
 ]).
 
 -type t() :: ?MODULE.
--type input() :: map().
+-type input() :: undefined.
 -type state() :: #onp_req_state{input :: input()}.
--type output() :: undefined.
+-type output() :: map().
 
 -export_type([t/0, input/0, state/0, output/0]).
 
 
 %%%===================================================================
-%%% middleware_handler callbacks
+%%% Callbacks
 %%%===================================================================
 
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
-supported_interfaces(#onp_req_ctx{gri = #gri{aspect = {start_stop_all, ServiceBin}}}) ->
-    service_middleware_handler_utils:supported_interfaces_for_service(ServiceBin).
+supported_interfaces(_) ->
+    middleware_handler_utils:if_oz_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
-service_availability_requirements(_) ->
-    false.
+service_availability_requirements(_) -> false.
 
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
-    middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
+    middleware_handler_utils:is_cluster_member(Client).
 
 
 -spec validate(state()) -> ok | errors:error().
-validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {start_stop_all, ServiceBin}}}}) ->
-    case service_middleware_handler_utils:parse_service_name(ServiceBin) of
-        {ok, ?SERVICE_ONES3} -> middleware_handler_utils:validate_op_registered();
-        _ -> ok
-    end.
+validate(_) -> ok.
 
 
--spec process(state()) -> ok | errors:error().
-process(#onp_req_state{
-    ctx = #onp_req_ctx{gri = #gri{aspect = {start_stop_all, ServiceBin}}},
-    input = Data
-}) ->
-    {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
-    Action = case maps:get(started, Data) of
-        true -> start;
-        false -> stop
-    end,
-    middleware_handler_utils:service_exec(Service, Action, #{}).
+-spec process(state()) -> {ok, output()} | errors:error().
+process(_) ->
+    service_middleware_handler_utils:status_all_hosts(?SERVICE_OZW).
+
+
+-spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
+translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Data) ->
+    {ok, ?OK_REPLY(Data)}.

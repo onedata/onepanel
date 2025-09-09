@@ -17,10 +17,12 @@
 -export([
     extract_new_hosts/1,
     validate_hosts_not_existing/2,
-    parse_service_name/1,
-    is_service_on_cluster_supported/1,
     ensure_has_host/2,
-    supported_interfaces_for_service/1
+
+    set_started_all/2,
+    set_started_on_host/3,
+    status_on_host/2,
+    status_all_hosts/1
 ]).
 
 
@@ -51,30 +53,36 @@ ensure_has_host(Service, Host) ->
     end.
 
 
-supported_interfaces_for_service(ServiceBin) ->
-    case parse_service_name(ServiceBin) of
-        {ok, Service} ->
-            case is_service_on_cluster_supported(Service) of
-                true -> {true, [rest]};
-                false -> false
-            end;
-        error ->
-            false
-    end.
+-spec set_started_all(service:name(), boolean()) -> ok | no_return().
+set_started_all(Service, Started) ->
+    Action = case Started of true -> start; false -> stop end,
+    middleware_handler_utils:service_exec(Service, Action, #{}).
 
 
--spec parse_service_name(binary()) -> {ok, service:name()} | error.
-parse_service_name(<<"cluster_manager">>) -> ?SERVICE_CM;
-parse_service_name(<<"couchbase">>) -> ?SERVICE_CB;
-parse_service_name(<<"ones3">>) -> ?SERVICE_ONES3;
-parse_service_name(<<"op_worker">>) -> ?SERVICE_OPW;
-parse_service_name(<<"oz_worker">>) -> ?SERVICE_OZW;
-parse_service_name(_) -> error.
+-spec set_started_on_host(service:name(), service:host(), boolean()) -> ok | no_return().
+set_started_on_host(Service, Host, Started) ->
+    Action = case Started of true -> start; false -> stop end,
+    middleware_handler_utils:service_exec(Service, Action, #{hosts => [Host]}).
 
 
--spec is_service_on_cluster_supported(service:name()) -> boolean().
-is_service_on_cluster_supported(Service) ->
-    case onepanel_env:get_cluster_type() of
-        ?ONEPROVIDER -> lists:member(Service, [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_ONES3, ?SERVICE_OPW]);
-        ?ONEZONE -> lists:member(Service, [?SERVICE_CB, ?SERVICE_CM, ?SERVICE_OZW])
+-spec status_on_host(service:name(), service:host()) -> {ok, atom()} | errors:error().
+status_on_host(Service, Host) ->
+    Module = service:get_module(Service),
+    middleware_handler_utils:service_call(Service, status, #{hosts => [Host]}, Module, status).
+
+
+-spec status_all_hosts(service:name()) -> {ok, map()} | errors:error().
+status_all_hosts(Service) ->
+    Module = service:get_module(Service),
+    Results = service:apply_sync(Service, status, #{}),
+    case service_utils:results_contain_error(Results) of
+        {true, ?ERR_NO_SERVICE_NODES(_)} -> {ok, #{}};
+        {true, Error} -> Error;
+        false ->
+            {HostsResults, []} = service_utils:select_service_step(Module, status, Results),
+            Map = lists:foldl(fun({Node, NodeStatus}, Acc) ->
+                Host = onepanel_utils:convert(hosts:from_node(Node), binary),
+                Acc#{Host => NodeStatus}
+            end, #{}, HostsResults),
+            {ok, Map}
     end.

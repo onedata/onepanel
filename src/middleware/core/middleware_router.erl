@@ -186,26 +186,62 @@ resolve_provider_handler(_, _) ->
     {true, middleware_handler:t()} | false.
 resolve_service_handler(cluster_manager_instances, create) ->
     {true, service_cluster_manager_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler({all_hosts_status, <<"cluster_manager">>}, get) ->
+    {true, service_cluster_manager_all_hosts_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({host_status, <<"cluster_manager">>}, get) ->
+    {true, service_cluster_manager_host_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop_all, <<"cluster_manager">>}, update) ->
+    {true, service_cluster_manager_start_stop_all_update_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop, <<"cluster_manager">>}, update) ->
+    {true, service_cluster_manager_start_stop_update_middleware_handler:module_info(module)};
+
 resolve_service_handler(couchbase_instances, create) ->
     {true, service_couchbase_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler({all_hosts_status, <<"couchbase">>}, get) ->
+    {true, service_couchbase_all_hosts_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({host_status, <<"couchbase">>}, get) ->
+    {true, service_couchbase_host_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop_all, <<"couchbase">>}, update) ->
+    {true, service_couchbase_start_stop_all_update_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop, <<"couchbase">>}, update) ->
+    {true, service_couchbase_start_stop_update_middleware_handler:module_info(module)};
+
 resolve_service_handler(ones3_instances, create) ->
     {true, service_ones3_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler({all_hosts_status, <<"ones3">>}, get) ->
+    {true, service_ones3_all_hosts_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({host_status, <<"ones3">>}, get) ->
+    {true, service_ones3_host_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop_all, <<"ones3">>}, update) ->
+    {true, service_ones3_start_stop_all_update_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop, <<"ones3">>}, update) ->
+    {true, service_ones3_start_stop_update_middleware_handler:module_info(module)};
+
 resolve_service_handler(op_worker_instances, create) ->
     {true, service_op_worker_instances_create_middleware_handler:module_info(module)};
+resolve_service_handler({nagios, <<"op_worker">>}, get) ->
+    {true, service_op_worker_nagios_get_middleware_handler:module_info(module)};
+resolve_service_handler({all_hosts_status, <<"op_worker">>}, get) ->
+    {true, service_op_worker_all_hosts_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({host_status, <<"op_worker">>}, get) ->
+    {true, service_op_worker_host_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop_all, <<"op_worker">>}, update) ->
+    {true, service_op_worker_start_stop_all_update_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop, <<"op_worker">>}, update) ->
+    {true, service_op_worker_start_stop_update_middleware_handler:module_info(module)};
+
 resolve_service_handler(oz_worker_instances, create) ->
     {true, service_oz_worker_instances_create_middleware_handler:module_info(module)};
-
-resolve_service_handler({all_hosts_status, _}, get) ->
-    {true, service_all_hosts_status_get_middleware_handler:module_info(module)};
-resolve_service_handler({host_status, _}, get) ->
-    {true, service_host_status_get_middleware_handler:module_info(module)};
-resolve_service_handler({nagios, _}, get) ->
-    {true, service_nagios_get_middleware_handler:module_info(module)};
-
-resolve_service_handler({start_stop_all, _}, update) ->
-    {true, service_start_stop_all_update_middleware_handler:module_info(module)};
-resolve_service_handler({start_stop, _}, update) ->
-    {true, service_start_stop_update_middleware_handler:module_info(module)};
+resolve_service_handler({nagios, <<"oz_worker">>}, get) ->
+    {true, service_oz_worker_nagios_get_middleware_handler:module_info(module)};
+resolve_service_handler({all_hosts_status, <<"oz_worker">>}, get) ->
+    {true, service_oz_worker_all_hosts_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({host_status, <<"oz_worker">>}, get) ->
+    {true, service_oz_worker_host_status_get_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop_all, <<"oz_worker">>}, update) ->
+    {true, service_oz_worker_start_stop_all_update_middleware_handler:module_info(module)};
+resolve_service_handler({start_stop, <<"oz_worker">>}, update) ->
+    {true, service_oz_worker_start_stop_update_middleware_handler:module_info(module)};
 
 resolve_service_handler(_, _) ->
     false.
