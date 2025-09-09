@@ -41,7 +41,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
+    middleware_handler_utils:if_op_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -72,9 +72,7 @@ process(#onp_req_state{input = Data}) ->
     ], Data),
     Ctx2 = get_storage_import_args(Data, Ctx),
 
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
-        ?SERVICE_OP, support_space, Ctx2
-    )).
+    middleware_handler_utils:service_call(?SERVICE_OP, support_space, Ctx2).
 
 
 -spec translate_output(state(), output()) ->

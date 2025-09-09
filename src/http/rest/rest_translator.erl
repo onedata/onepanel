@@ -18,10 +18,6 @@
 -author("Wojciech Geisler").
 
 -include("http/rest.hrl").
--include("middleware/middleware.hrl").
--include("names.hrl").
--include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/graph_sync/gri.hrl").
 -include_lib("ctool/include/http/headers.hrl").
 
 %% API

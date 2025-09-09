@@ -50,7 +50,7 @@ service_availability_requirements(_) ->
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) ->
-    Role == guest andalso service_onepanel:available_for_clustering().
+    Role == guest.
 
 
 -spec validate(state()) -> ok | errors:error().
@@ -68,4 +68,4 @@ process(#onp_req_state{input = Data}) ->
         invite_token => InviteToken,
         cluster_host => invite_tokens:get_cluster_host(InviteToken)
     },
-    middleware_utils:execute_service_action(?SERVICE_PANEL, join_cluster, Ctx).
+    middleware_handler_utils:service_exec(?SERVICE_PANEL, join_cluster, Ctx).

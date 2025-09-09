@@ -7,8 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% This behaviour should be implemented by modules that implement specific
-%%% middleware operations - serves as a link between
-%%%%% API and onepanel internals.
+%%% middleware operations - serves as a link between API and onepanel internals.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(middleware_handler).

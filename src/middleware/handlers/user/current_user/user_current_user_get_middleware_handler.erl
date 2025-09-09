@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -47,9 +48,7 @@ supported_interfaces(_) ->
     false | {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
     % fetches from ozw, local services may be down
-    middleware_handler_utils:if_cluster_type_then(
-        ?ONEZONE, [?SERVICE_OZW, all_healthy_ignoring_ones3]
-    ).
+    middleware_handler_utils:if_oz_then([?SERVICE_OZW, all_healthy_ignoring_ones3]).
 
 
 -spec preauthorize(state()) -> boolean().

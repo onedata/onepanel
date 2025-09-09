@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -39,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    storage_middleware_handler_utils:supported_interfaces_op().
+    storage_middleware_handler_utils:supported_op_interfaces().
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -66,7 +67,7 @@ process(#onp_req_state{
     }},
     input = Data
 }) ->
-    middleware_utils:execute_service_action(?SERVICE_OPW, add_onedata_user_to_credentials_mapping, Data#{
+    middleware_handler_utils:service_exec(?SERVICE_OPW, add_onedata_user_to_credentials_mapping, Data#{
         id => StorageId,
         isLocalFeedLumaRequest => true
     }).

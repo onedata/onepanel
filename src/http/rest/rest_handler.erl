@@ -30,7 +30,7 @@
 
 -type method() :: http_utils:method().
 -type binding() :: {binding, atom()}.
--type params() :: #{binary() => binary()}.
+-type qs_params() :: #{binary() => binary()}.
 -type spec() :: onepanel_parser:object_spec().
 -type bound_gri() :: #b_gri{}.
 
@@ -49,7 +49,7 @@
 }).
 -type state() :: #state{}.
 
--export_type([binding/0, bound_gri/0, method/0, params/0, spec/0,
+-export_type([binding/0, bound_gri/0, method/0, qs_params/0, spec/0,
     zone_credentials/0]).
 
 
@@ -185,23 +185,18 @@ process_request(Req, State = #state{client = Client, rest_req = #rest_req{
             client = Client,
             gri = resolve_gri_bindings(GriWithBindings, Req)
         },
+        {Req2, Input} = get_input(Req),
 
-        Params = get_params(Req),
-        {Req2, Body} = get_data(Req),
-        Input = maps:merge(Body, Params),
-
-        RestResp = handle_gri_request(OnpReqCtx, Input, InputSpec),
+        RestResp = case middleware:handle(OnpReqCtx, Input, InputSpec) of
+            ok -> ?NO_CONTENT_REPLY;
+            {ok, RestOutput} -> RestOutput;
+            {error, _} = HandlerError -> rest_translator:error_response(HandlerError)
+        end,
         {stop, send_response(RestResp, Req2), State}
-    catch
-        throw:Error ->
-            ErrorResp = rest_translator:error_response(Error),
-            {stop, send_response(ErrorResp, Req), State};
-        Type:Message:Stacktrace ->
-            ?error_stacktrace("Unexpected error in ~tp:process_request - ~tp:~tp", [
-                ?MODULE, Type, Message
-            ], Stacktrace),
-            ErrorResp = rest_translator:error_response(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)),
-            {stop, send_response(ErrorResp, Req), State}
+    catch Class:Reason:Stacktrace ->
+        Error = ?examine_exception(Class, Reason, Stacktrace),
+        ErrorResp = rest_translator:error_response(Error),
+        {stop, send_response(ErrorResp, Req), State}
     end.
 
 
@@ -222,42 +217,27 @@ send_response(#rest_resp{code = Code, headers = Headers, body = Body}, Req) ->
     cowboy_req:reply(Code, Headers, RespBody, Req).
 
 
-%%--------------------------------------------------------------------
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
 %% @private
-%% @doc Returns a map of query string name and associated value.
-%% @end
-%%--------------------------------------------------------------------
--spec get_params(cowboy_req:req()) -> rest_handler:params().
-get_params(Req) ->
+-spec get_input(cowboy_req:req()) -> {cowboy_req:req(), middleware_handler:rest_input()}.
+get_input(Req) ->
+    Params = get_qs_params(Req),
+    {Req2, Body} = get_data(Req),
+    {Req2, maps:merge(Body, Params)}.
+
+
+%% @private
+-spec get_qs_params(cowboy_req:req()) -> qs_params().
+get_qs_params(Req) ->
     Params = cowboy_req:parse_qs(Req),
     lists:foldl(fun
         ({Key, true}, Acc) -> maps:put(Key, <<"true">>, Acc);
         ({Key, Value}, Acc) -> maps:put(Key, Value, Acc)
     end, #{}, Params).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Calls middleware and translates obtained response into REST response
-%% using TranslatorModule.
-%% @end
-%%--------------------------------------------------------------------
--spec handle_gri_request(
-    middleware_handler:req_ctx(),
-    middleware_handler:rest_input(),
-    undefined | onepanel_parser:object_spec()
-) ->
-    #rest_resp{}.
-handle_gri_request(OnpReqCtx, Input, InputSpec) ->
-    case middleware:handle(OnpReqCtx, Input, InputSpec) of
-        ok -> ?NO_CONTENT_REPLY;
-        {ok, RestOutput} -> RestOutput;
-        {error, _} = Error -> rest_translator:error_response(Error)
-    end.
 
 
 %%--------------------------------------------------------------------

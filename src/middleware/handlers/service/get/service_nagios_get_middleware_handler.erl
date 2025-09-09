@@ -75,7 +75,8 @@ validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {nagios, WorkerBi
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {nagios, WorkerBin}}}}) ->
     {ok, Worker} = service_middleware_handler_utils:parse_service_name(WorkerBin),
     try
-        {ok, Code, Headers, Body} = middleware_utils:result_from_service_action(
+        % TODO
+        {ok, Code, Headers, Body} = middleware_handler_utils:service_call(
             Worker, get_nagios_response
         ),
         {ok, #{code => Code, headers => Headers, body => Body}}

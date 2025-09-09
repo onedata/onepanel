@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -65,4 +66,4 @@ process(#onp_req_state{input = Data}) ->
         {builtInDnsServer, built_in_dns_server},
         {dnsCheckAcknowledged, dns_check_acknowledged}
     ], Data),
-    middleware_utils:execute_service_action(ClusterWorker, configure_dns_check, Ctx).
+    middleware_handler_utils:service_exec(ClusterWorker, configure_dns_check, Ctx).

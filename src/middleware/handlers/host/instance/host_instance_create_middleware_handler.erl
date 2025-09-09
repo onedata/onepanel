@@ -61,9 +61,8 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()} | errors:error().
 process(#onp_req_state{input = #{address := Address}}) ->
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
-        ?SERVICE_PANEL, extend_cluster,  #{address => Address}
-    )).
+    Ctx = #{address => Address},
+    middleware_handler_utils:service_call(?SERVICE_PANEL, extend_cluster,  Ctx).
 
 
 -spec translate_output(state(), output()) ->

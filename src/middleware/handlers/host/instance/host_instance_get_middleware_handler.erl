@@ -62,9 +62,10 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()}.
 process(_) ->
-    Hostname = onepanel_utils:convert(hosts:self(), binary),
-    ClusterType = onepanel_env:get_cluster_type(),
-    {ok, #{<<"hostname">> => Hostname, <<"clusterType">> => ClusterType}}.
+    {ok, #{
+        <<"hostname">> => onepanel_utils:convert(hosts:self(), binary),
+        <<"clusterType">> => onepanel_env:get_cluster_type()
+    }}.
 
 
 -spec translate_output(state(), output()) ->

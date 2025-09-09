@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -46,7 +47,7 @@ supported_interfaces(_) ->
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
     false | {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEZONE, [all_healthy_ignoring_ones3]).
+    middleware_handler_utils:if_oz_then([all_healthy_ignoring_ones3]).
 
 
 -spec preauthorize(state()) -> boolean().

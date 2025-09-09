@@ -62,9 +62,7 @@ validate(_) ->
 -spec process(state()) -> {ok, output()} | errors:error().
 process(_) ->
     Service = middleware_handler_utils:get_main_service(),
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
-        Service, format_cluster_ips
-    )).
+    middleware_handler_utils:service_call(Service, format_cluster_ips).
 
 
 -spec translate_output(state(), output()) ->

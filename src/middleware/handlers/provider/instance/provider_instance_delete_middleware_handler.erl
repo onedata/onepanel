@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -39,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
+    middleware_handler_utils:if_op_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -60,4 +61,4 @@ validate(_) ->
 
 -spec process(state()) -> ok | errors:error().
 process(_) ->
-    middleware_utils:execute_service_action(?SERVICE_OP, unregister, #{}).
+    middleware_handler_utils:service_exec(?SERVICE_OP, unregister, #{}).

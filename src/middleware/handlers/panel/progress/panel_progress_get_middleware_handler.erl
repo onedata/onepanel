@@ -18,6 +18,7 @@
 -include("middleware/middleware.hrl").
 -include("deployment_progress.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,

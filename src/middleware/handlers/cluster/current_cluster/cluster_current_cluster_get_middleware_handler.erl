@@ -44,8 +44,7 @@ supported_interfaces(_) ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false.
+-spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
 service_availability_requirements(_) ->
     % always available even in oz_panel because of caching
     false.
@@ -63,7 +62,10 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()} | errors:error().
 process(_) ->
-    middleware_handler_utils:ok_result(clusters:get_current_cluster()).
+    case clusters:get_current_cluster() of
+        {error, _} = Error -> Error;
+        Result -> {ok, Result}
+    end.
 
 
 -spec translate_output(state(), output()) ->

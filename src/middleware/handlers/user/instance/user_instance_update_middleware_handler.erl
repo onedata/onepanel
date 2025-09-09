@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -39,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEZONE, [rest]).
+    middleware_handler_utils:if_oz_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) -> 
@@ -60,6 +61,6 @@ validate(_) ->
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
-    middleware_utils:execute_service_action(?SERVICE_OZ, set_user_password, #{
+    middleware_handler_utils:service_exec(?SERVICE_OZ, set_user_password, #{
         user_id => Id, new_password => maps:get(newPassword, Data)
     }).

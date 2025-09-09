@@ -18,6 +18,7 @@
 -include("middleware/middleware.hrl").
 -include("modules/onepanel_dns.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -64,9 +65,9 @@ validate(_) ->
 process(#onp_req_state{input = Input}) ->
     ClusterWorker = middleware_handler_utils:get_worker_service(),
     Ctx = #{force_check => maps:get(forceCheck, Input, false)},
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+    middleware_handler_utils:service_call(
         ClusterWorker, dns_check, Ctx, dns_check, get
-    )).
+    ).
 
 
 -spec translate_output(state(), output()) ->

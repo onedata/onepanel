@@ -68,8 +68,6 @@ validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = HostBin}}}) ->
 
 
 -spec process(state()) -> ok | errors:error().
-process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}}) ->
-    Host = binary_to_list(Id),
-    middleware_utils:execute_service_action(
-        ?SERVICE_PANEL, leave_cluster, #{hosts => [Host]}
-    ).
+process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = HostBin}}}) ->
+    Ctx = #{hosts => [binary_to_list(HostBin)]},
+    middleware_handler_utils:service_exec(?SERVICE_PANEL, leave_cluster, Ctx).

@@ -15,7 +15,7 @@
 -include("middleware/middleware.hrl").
 
 -export([
-    supported_interfaces_op/0,
+    supported_op_interfaces/0,
     common_availability/0,
     preauthorize_member/1,
 
@@ -48,9 +48,9 @@
 %%%===================================================================
 
 
--spec supported_interfaces_op() -> {true, [rest]} | false.
-supported_interfaces_op() ->
-    middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
+-spec supported_op_interfaces() -> {true, [rest]} | false.
+supported_op_interfaces() ->
+    middleware_handler_utils:if_op_then( [rest]).
 
 
 -spec common_availability() -> {true, [middleware_handler:availability_level()]}.
@@ -111,9 +111,9 @@ validate_storage_custom_args(_StorageName, _Data) ->
 -spec get_storage(op_worker_storage:id()) ->
     {ok, op_worker_storage:storage_details()} | errors:error().
 get_storage(StorageId) ->
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+    middleware_handler_utils:service_call(
         ?SERVICE_OPW, get_storages, #{id => StorageId}
-    )).
+    ).
 
 
 -spec convert_uid_to_integer(binary()) -> integer() | no_return().

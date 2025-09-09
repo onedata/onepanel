@@ -68,10 +68,10 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {host_status, Serv
     {ok, Service} = service_middleware_handler_utils:parse_service_name(ServiceBin),
     Module = service:get_module(Service),
     HostList = str_utils:binary_to_unicode_list(HostBin),
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+    middleware_handler_utils:service_call(
         Service, status, #{hosts => [HostList]},
         Module, status
-    )).
+    ).
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.

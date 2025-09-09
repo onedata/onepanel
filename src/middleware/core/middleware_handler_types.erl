@@ -7,7 +7,7 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This module implements aggregated types for behaviour: middleware_handler.
+%%% This module contains aggregated types for behaviour: middleware_handler.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(middleware_handler_types).

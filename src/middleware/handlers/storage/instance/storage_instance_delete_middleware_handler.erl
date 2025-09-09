@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -39,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    storage_middleware_handler_utils:supported_interfaces_op().
+    storage_middleware_handler_utils:supported_op_interfaces().
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -55,19 +56,16 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 
 -spec validate(state()) -> ok | errors:error().
 validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}}) ->
-    case middleware_handler_utils:validate_op_registered() of
-        ok ->
-            case op_worker_storage:can_be_removed(Id) of
-                true -> ok;
-                false -> ?ERR_STORAGE_IN_USE(?err_ctx())
-            end;
-        {error, _} = Error ->
-            Error
+    middleware_handler_utils:validate_op_registered(),
+
+    case op_worker_storage:can_be_removed(Id) of
+        true -> ok;
+        false -> ?ERR_STORAGE_IN_USE(?err_ctx())
     end.
 
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}}) ->
-    middleware_utils:execute_service_action(
+    middleware_handler_utils:service_exec(
         ?SERVICE_OPW, remove_storage, #{id => Id}
     ).

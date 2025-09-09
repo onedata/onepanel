@@ -50,9 +50,13 @@ service_availability_requirements(_) ->
 
 
 -spec preauthorize(state()) -> boolean().
-preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = member}}}) -> true;
-preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = peer}}}) -> true;
-preauthorize(_) -> false.
+preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) when
+    Role == member;
+    Role == peer
+->
+    true;
+preauthorize(_) ->
+    false.
 
 
 -spec validate(state()) -> ok.

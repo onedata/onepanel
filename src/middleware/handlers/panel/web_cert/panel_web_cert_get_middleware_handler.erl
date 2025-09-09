@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -63,9 +64,7 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()} | errors:error().
 process(_) ->
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
-        ?SERVICE_LE, get_details
-    )).
+    middleware_handler_utils:service_call(?SERVICE_LE, get_details).
 
 
 -spec translate_output(state(), output()) ->

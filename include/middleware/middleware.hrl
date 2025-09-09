@@ -5,7 +5,8 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc Record definitions for the middleware modules.
+%%% @doc
+%%% Record definitions for the middleware modules.
 %%% @end
 %%%--------------------------------------------------------------------
 -ifndef(ONEPANEL_MIDDLEWARE_HRL).
@@ -31,17 +32,6 @@
 -record(onp_req_state, {
     ctx :: middleware_handler:req_ctx(),
     input :: middleware_handler:handler_input()
-}).
-
-
--record(onp_req, {
-    gri :: gri:gri(),
-    operation :: middleware_handler:operation(),
-    client :: middleware:client(),
-    data = undefined :: middleware_handler:interface_input(),
-    data_spec = undefined :: undefined | onepanel_parser:object_spec(),
-    % applicable for create/get requests - returns the revision of resource
-    return_revision = false :: boolean()
 }).
 
 

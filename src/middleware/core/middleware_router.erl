@@ -15,7 +15,7 @@
 -include_lib("ctool/include/graph_sync/gri.hrl").
 
 
--export([resolve_handler/3]).
+-export([resolve_handler/2]).
 
 
 %%%===================================================================
@@ -23,36 +23,36 @@
 %%%===================================================================
 
 
--spec resolve_handler(middleware_handler:interface(), middleware_handler:operation(), gri:gri()) ->
+-spec resolve_handler(middleware_handler:operation(), gri:gri()) ->
     {true, middleware_handler:t()} | false.
-resolve_handler(Interface, Operation, #gri{type = onp_cluster, aspect = Aspect}) ->
-    resolve_cluster_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_cluster, aspect = Aspect}) ->
+    resolve_cluster_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_host, aspect = Aspect}) ->
-    resolve_host_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_host, aspect = Aspect}) ->
+    resolve_host_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_panel, aspect = Aspect}) ->
-    resolve_panel_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_panel, aspect = Aspect}) ->
+    resolve_panel_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_provider, aspect = Aspect}) ->
-    resolve_provider_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_provider, aspect = Aspect}) ->
+    resolve_provider_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_service, aspect = Aspect}) ->
-    resolve_service_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_service, aspect = Aspect}) ->
+    resolve_service_handler(Aspect, Operation);
     
-resolve_handler(Interface, Operation, #gri{type = onp_space, aspect = Aspect}) ->
-    resolve_space_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_space, aspect = Aspect}) ->
+    resolve_space_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_storage, aspect = Aspect}) ->
-    resolve_storage_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_storage, aspect = Aspect}) ->
+    resolve_storage_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_user, aspect = Aspect}) ->
-    resolve_user_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_user, aspect = Aspect}) ->
+    resolve_user_handler(Aspect, Operation);
 
-resolve_handler(Interface, Operation, #gri{type = onp_zone, aspect = Aspect}) ->
-    resolve_zone_handler(Interface, Aspect, Operation);
+resolve_handler(Operation, #gri{type = onp_zone, aspect = Aspect}) ->
+    resolve_zone_handler(Aspect, Operation);
 
-resolve_handler(_, _, _) ->
+resolve_handler(_, _) ->
     false.
 
 
@@ -62,342 +62,342 @@ resolve_handler(_, _, _) ->
 
 
 %% @private
--spec resolve_cluster_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_cluster_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_cluster_handler(_, current_cluster, get) ->
+resolve_cluster_handler(current_cluster, get) ->
     {true, cluster_current_cluster_get_middleware_handler:module_info(module)};
 
-resolve_cluster_handler(_, current_cluster_members_summary, get) ->
+resolve_cluster_handler(current_cluster_members_summary, get) ->
     {true, cluster_current_cluster_members_summary_get_middleware_handler:module_info(module)};
 
-resolve_cluster_handler(_, instance, get) ->
+resolve_cluster_handler(instance, get) ->
     {true, cluster_instance_get_middleware_handler:module_info(module)};
 
-resolve_cluster_handler(_, invite_user_token, create) ->
+resolve_cluster_handler(invite_user_token, create) ->
     {true, cluster_invite_user_token_create_middleware_handler:module_info(module)};
 
-resolve_cluster_handler(_, _, _) ->
+resolve_cluster_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_host_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_host_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_host_handler(_, external_ips, get) ->
+resolve_host_handler(external_ips, get) ->
     {true, host_external_ips_get_middleware_handler:module_info(module)};
-resolve_host_handler(_, external_ips, update) ->
+resolve_host_handler(external_ips, update) ->
     {true, host_external_ips_update_middleware_handler:module_info(module)};
 
-resolve_host_handler(_, instance, create) ->
+resolve_host_handler(instance, create) ->
     {true, host_instance_create_middleware_handler:module_info(module)};
-resolve_host_handler(_, instance, get) ->
+resolve_host_handler(instance, get) ->
     {true, host_instance_get_middleware_handler:module_info(module)};
-resolve_host_handler(_, instance, delete) ->
+resolve_host_handler(instance, delete) ->
     {true, host_instance_delete_middleware_handler:module_info(module)};
 
-resolve_host_handler(_, join_cluster, create) ->
+resolve_host_handler(join_cluster, create) ->
     {true, host_join_cluster_middleware_handler:module_info(module)};
 
-resolve_host_handler(_, list, get) ->
+resolve_host_handler(list, get) ->
     {true, host_list_get_middleware_handler:module_info(module)};
 
-resolve_host_handler(_, _, _) ->
+resolve_host_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_panel_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_panel_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_panel_handler(_, configuration, get) ->
+resolve_panel_handler(configuration, get) ->
     {true, panel_configuration_get_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, cookie, get) ->
+resolve_panel_handler(cookie, get) ->
     {true, panel_cookie_get_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, dns_check, get) ->
+resolve_panel_handler(dns_check, get) ->
     {true, panel_dns_check_middleware_handler:module_info(module)};
-resolve_panel_handler(_, dns_check_configuration, get) ->
+resolve_panel_handler(dns_check_configuration, get) ->
     {true, panel_dns_check_configuration_get_middleware_handler:module_info(module)};
-resolve_panel_handler(_, dns_check_configuration, update) ->
+resolve_panel_handler(dns_check_configuration, update) ->
     {true, panel_dns_check_configuration_update_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, emergency_passphrase, create) ->
+resolve_panel_handler(emergency_passphrase, create) ->
     {true, panel_emergency_passphrase_create_middleware_handler:module_info(module)};
-resolve_panel_handler(_, emergency_passphrase, get) ->
+resolve_panel_handler(emergency_passphrase, get) ->
     {true, panel_emergency_passphrase_get_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, health, get) ->
+resolve_panel_handler(health, get) ->
     {true, panel_health_get_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, invite_token, create) ->
+resolve_panel_handler(invite_token, create) ->
     {true, panel_invite_token_create_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, progress, get) ->
+resolve_panel_handler(progress, get) ->
     {true, panel_progress_get_middleware_handler:module_info(module)};
-resolve_panel_handler(_, progress, update) ->
+resolve_panel_handler(progress, update) ->
     {true, panel_progress_update_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, {task, _}, get) ->
+resolve_panel_handler({task, _}, get) ->
     {true, panel_task_get_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, test_image, get) ->
+resolve_panel_handler(test_image, get) ->
     {true, panel_test_image_get_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, web_cert, get) ->
+resolve_panel_handler(web_cert, get) ->
     {true, panel_web_cert_get_middleware_handler:module_info(module)};
-resolve_panel_handler(_, web_cert, update) ->
+resolve_panel_handler(web_cert, update) ->
     {true, panel_web_cert_update_middleware_handler:module_info(module)};
 
-resolve_panel_handler(_, _, _) ->
+resolve_panel_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_provider_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_provider_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_provider_handler(_, cluster, create) ->
+resolve_provider_handler(cluster, create) ->
     {true, provider_cluster_create_middleware_handler:module_info(module)};
-resolve_provider_handler(_, cluster, get) ->
+resolve_provider_handler(cluster, get) ->
     {true, provider_cluster_get_middleware_handler:module_info(module)};
 
-resolve_provider_handler(_, instance, create) ->
+resolve_provider_handler(instance, create) ->
     {true, provider_instance_create_middleware_handler:module_info(module)};
-resolve_provider_handler(_, instance, get) ->
+resolve_provider_handler(instance, get) ->
     {true, provider_instance_get_middleware_handler:module_info(module)};
-resolve_provider_handler(_, instance, update) ->
+resolve_provider_handler(instance, update) ->
     {true, provider_instance_update_middleware_handler:module_info(module)};
-resolve_provider_handler(_, instance, delete) ->
+resolve_provider_handler(instance, delete) ->
     {true, provider_instance_delete_middleware_handler:module_info(module)};
 
-resolve_provider_handler(_, remote_instance, get) ->
+resolve_provider_handler(remote_instance, get) ->
     {true, provider_remote_instance_get_middleware_handler:module_info(module)};
 
-resolve_provider_handler(_, transfers_mock, get) ->
+resolve_provider_handler(transfers_mock, get) ->
     {true, provider_transfers_mock_get_middleware_handler:module_info(module)};
-resolve_provider_handler(_, transfers_mock, update) ->
+resolve_provider_handler(transfers_mock, update) ->
     {true, provider_transfers_mock_update_middleware_handler:module_info(module)};
 
-resolve_provider_handler(_, _, _) ->
+resolve_provider_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_service_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_service_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_service_handler(_, cluster_manager_instances, create) ->
+resolve_service_handler(cluster_manager_instances, create) ->
     {true, service_cluster_manager_instances_create_middleware_handler:module_info(module)};
-resolve_service_handler(_, couchbase_instances, create) ->
+resolve_service_handler(couchbase_instances, create) ->
     {true, service_couchbase_instances_create_middleware_handler:module_info(module)};
-resolve_service_handler(_, ones3_instances, create) ->
+resolve_service_handler(ones3_instances, create) ->
     {true, service_ones3_instances_create_middleware_handler:module_info(module)};
-resolve_service_handler(_, op_worker_instances, create) ->
+resolve_service_handler(op_worker_instances, create) ->
     {true, service_op_worker_instances_create_middleware_handler:module_info(module)};
-resolve_service_handler(_, oz_worker_instances, create) ->
+resolve_service_handler(oz_worker_instances, create) ->
     {true, service_oz_worker_instances_create_middleware_handler:module_info(module)};
 
-resolve_service_handler(_, {all_hosts_status, _}, get) ->
+resolve_service_handler({all_hosts_status, _}, get) ->
     {true, service_all_hosts_status_get_middleware_handler:module_info(module)};
-resolve_service_handler(_, {host_status, _}, get) ->
+resolve_service_handler({host_status, _}, get) ->
     {true, service_host_status_get_middleware_handler:module_info(module)};
-resolve_service_handler(_, {nagios, _}, get) ->
+resolve_service_handler({nagios, _}, get) ->
     {true, service_nagios_get_middleware_handler:module_info(module)};
 
-resolve_service_handler(_, {start_stop_all, _}, update) ->
+resolve_service_handler({start_stop_all, _}, update) ->
     {true, service_start_stop_all_update_middleware_handler:module_info(module)};
-resolve_service_handler(_, {start_stop, _}, update) ->
+resolve_service_handler({start_stop, _}, update) ->
     {true, service_start_stop_update_middleware_handler:module_info(module)};
 
-resolve_service_handler(_, _, _) ->
+resolve_service_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_space_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_space_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_space_handler(_, auto_cleaning_configuration, get) ->
+resolve_space_handler(auto_cleaning_configuration, get) ->
     {true, space_auto_cleaning_configuration_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, auto_cleaning_configuration, update) ->
+resolve_space_handler(auto_cleaning_configuration, update) ->
     {true, space_auto_cleaning_configuration_update_middleware_handler:module_info(module)};
-resolve_space_handler(_, auto_cleaning_status, get) ->
+resolve_space_handler(auto_cleaning_status, get) ->
     {true, space_auto_cleaning_status_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, auto_cleaning_reports_list, get) ->
+resolve_space_handler(auto_cleaning_reports_list, get) ->
     {true, space_auto_cleaning_reports_list_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, {auto_cleaning_report, _}, get) ->
+resolve_space_handler({auto_cleaning_report, _}, get) ->
     {true, space_auto_cleaning_report_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, start_auto_cleaning, create) ->
+resolve_space_handler(start_auto_cleaning, create) ->
     {true, space_start_auto_cleaning_create_middleware_handler:module_info(module)};
-resolve_space_handler(_, cancel_auto_cleaning, create) ->
+resolve_space_handler(cancel_auto_cleaning, create) ->
     {true, space_cancel_auto_cleaning_create_middleware_handler:module_info(module)};
 
-resolve_space_handler(_, file_popularity_configuration, get) ->
+resolve_space_handler(file_popularity_configuration, get) ->
     {true, space_file_popularity_configuration_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, file_popularity_configuration, update) ->
+resolve_space_handler(file_popularity_configuration, update) ->
     {true, space_file_popularity_configuration_update_middleware_handler:module_info(module)};
 
-resolve_space_handler(_, instance, get) ->
+resolve_space_handler(instance, get) ->
     {true, space_instance_get_middleware_handler:module_info(module)};
 
-resolve_space_handler(_, list, get) ->
+resolve_space_handler(list, get) ->
     {true, space_list_get_middleware_handler:module_info(module)};
 
-resolve_space_handler(_, auto_storage_import_info, get) ->
+resolve_space_handler(auto_storage_import_info, get) ->
     {true, space_auto_storage_import_info_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, auto_storage_import_stats, get) ->
+resolve_space_handler(auto_storage_import_stats, get) ->
     {true, space_auto_storage_import_stats_get_middleware_handler:module_info(module)};
-resolve_space_handler(_, force_start_auto_storage_import_scan, create) ->
+resolve_space_handler(force_start_auto_storage_import_scan, create) ->
     {true, space_force_start_auto_storage_import_scan_create_middleware_handler:module_info(module)};
-resolve_space_handler(_, force_stop_auto_storage_import_scan, create) ->
+resolve_space_handler(force_stop_auto_storage_import_scan, create) ->
     {true, space_force_stop_auto_storage_import_scan_create_middleware_handler:module_info(module)};
-resolve_space_handler(_, manual_storage_import_example, get) ->
+resolve_space_handler(manual_storage_import_example, get) ->
     {true, space_manual_storage_import_example_get_middleware_handler:module_info(module)};
 
-resolve_space_handler(_, support, create) ->
+resolve_space_handler(support, create) ->
     {true, space_support_create_middleware_handler:module_info(module)};
-resolve_space_handler(_, support, update) ->
+resolve_space_handler(support, update) ->
     {true, space_support_update_middleware_handler:module_info(module)};
-resolve_space_handler(_, support, delete) ->
+resolve_space_handler(support, delete) ->
     {true, space_support_delete_middleware_handler:module_info(module)};
 
-resolve_space_handler(_, _, _) ->
+resolve_space_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_storage_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_storage_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_storage_handler(_, instance, get) ->
+resolve_storage_handler(instance, get) ->
     {true, storage_instance_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, instance, update) ->
+resolve_storage_handler(instance, update) ->
     {true, storage_instance_update_middleware_handler:module_info(module)};
-resolve_storage_handler(_, instance, delete) ->
+resolve_storage_handler(instance, delete) ->
     {true, storage_instance_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, instances, create) ->
+resolve_storage_handler(instances, create) ->
     {true, storage_instances_create_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, list, get) ->
+resolve_storage_handler(list, get) ->
     {true, storage_list_get_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, luma_configuration, get) ->
+resolve_storage_handler(luma_configuration, get) ->
     {true, storage_luma_configuration_get_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, {local_feed_luma_acl_group_to_onedata_group_mapping, _}, create) ->
+resolve_storage_handler({local_feed_luma_acl_group_to_onedata_group_mapping, _}, create) ->
     {true, storage_luma_acl_group_to_onedata_group_mapping_create_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_acl_group_to_onedata_group_mapping, _}, get) ->
+resolve_storage_handler({local_feed_luma_acl_group_to_onedata_group_mapping, _}, get) ->
     {true, storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_acl_group_to_onedata_group_mapping, _}, get) ->
+resolve_storage_handler({luma_acl_group_to_onedata_group_mapping, _}, get) ->
     {true, storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_acl_group_to_onedata_group_mapping, _}, delete) ->
+resolve_storage_handler({local_feed_luma_acl_group_to_onedata_group_mapping, _}, delete) ->
     {true, storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_acl_group_to_onedata_group_mapping, _}, delete) ->
+resolve_storage_handler({luma_acl_group_to_onedata_group_mapping, _}, delete) ->
     {true, storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, {local_feed_luma_acl_user_to_onedata_user_mapping, _}, create) ->
+resolve_storage_handler({local_feed_luma_acl_user_to_onedata_user_mapping, _}, create) ->
     {true, storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_acl_user_to_onedata_user_mapping, _}, get) ->
+resolve_storage_handler({local_feed_luma_acl_user_to_onedata_user_mapping, _}, get) ->
     {true, storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_acl_user_to_onedata_user_mapping, _}, get) ->
+resolve_storage_handler({luma_acl_user_to_onedata_user_mapping, _}, get) ->
     {true, storage_luma_acl_user_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_acl_user_to_onedata_user_mapping, _}, delete) ->
+resolve_storage_handler({local_feed_luma_acl_user_to_onedata_user_mapping, _}, delete) ->
     {true, storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_acl_user_to_onedata_user_mapping, _}, delete) ->
+resolve_storage_handler({luma_acl_user_to_onedata_user_mapping, _}, delete) ->
     {true, storage_luma_acl_user_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, {local_feed_luma_default_posix_credentials, _}, create) ->
+resolve_storage_handler({local_feed_luma_default_posix_credentials, _}, create) ->
     {true, storage_luma_default_posix_credentials_create_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_default_posix_credentials, _}, get) ->
+resolve_storage_handler({local_feed_luma_default_posix_credentials, _}, get) ->
     {true, storage_luma_default_posix_credentials_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_default_posix_credentials, _}, get) ->
+resolve_storage_handler({luma_default_posix_credentials, _}, get) ->
     {true, storage_luma_default_posix_credentials_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_default_posix_credentials, _}, delete) ->
+resolve_storage_handler({local_feed_luma_default_posix_credentials, _}, delete) ->
     {true, storage_luma_default_posix_credentials_delete_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_default_posix_credentials, _}, delete) ->
+resolve_storage_handler({luma_default_posix_credentials, _}, delete) ->
     {true, storage_luma_default_posix_credentials_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, {local_feed_luma_display_credentials, _}, create) ->
+resolve_storage_handler({local_feed_luma_display_credentials, _}, create) ->
     {true, storage_luma_display_credentials_create_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_display_credentials, _}, get) ->
+resolve_storage_handler({local_feed_luma_display_credentials, _}, get) ->
     {true, storage_luma_display_credentials_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_display_credentials, _}, get) ->
+resolve_storage_handler({luma_display_credentials, _}, get) ->
     {true, storage_luma_display_credentials_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_display_credentials, _}, delete) ->
+resolve_storage_handler({local_feed_luma_display_credentials, _}, delete) ->
     {true, storage_luma_display_credentials_delete_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_display_credentials, _}, delete) ->
+resolve_storage_handler({luma_display_credentials, _}, delete) ->
     {true, storage_luma_display_credentials_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, local_feed_luma_onedata_user_to_credentials_mapping, create) ->
+resolve_storage_handler(local_feed_luma_onedata_user_to_credentials_mapping, create) ->
     {true, storage_luma_onedata_user_to_credentials_mapping_create_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_onedata_user_to_credentials_mapping, _}, get) ->
+resolve_storage_handler({local_feed_luma_onedata_user_to_credentials_mapping, _}, get) ->
     {true, storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_onedata_user_to_credentials_mapping, _}, get) ->
+resolve_storage_handler({luma_onedata_user_to_credentials_mapping, _}, get) ->
     {true, storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_onedata_user_to_credentials_mapping, _}, update) ->
+resolve_storage_handler({local_feed_luma_onedata_user_to_credentials_mapping, _}, update) ->
     {true, storage_luma_onedata_user_to_credentials_mapping_update_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_onedata_user_to_credentials_mapping, _}, delete) ->
+resolve_storage_handler({local_feed_luma_onedata_user_to_credentials_mapping, _}, delete) ->
     {true, storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_onedata_user_to_credentials_mapping, _}, delete) ->
+resolve_storage_handler({luma_onedata_user_to_credentials_mapping, _}, delete) ->
     {true, storage_luma_onedata_user_to_credentials_mapping_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, {local_feed_luma_uid_to_onedata_user_mapping, _}, create) ->
+resolve_storage_handler({local_feed_luma_uid_to_onedata_user_mapping, _}, create) ->
     {true, storage_luma_uid_to_onedata_user_mapping_create_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_uid_to_onedata_user_mapping, _}, get) ->
+resolve_storage_handler({local_feed_luma_uid_to_onedata_user_mapping, _}, get) ->
     {true, storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_uid_to_onedata_user_mapping, _}, get) ->
+resolve_storage_handler({luma_uid_to_onedata_user_mapping, _}, get) ->
     {true, storage_luma_uid_to_onedata_user_mapping_get_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {local_feed_luma_uid_to_onedata_user_mapping, _}, delete) ->
+resolve_storage_handler({local_feed_luma_uid_to_onedata_user_mapping, _}, delete) ->
     {true, storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
-resolve_storage_handler(_, {luma_uid_to_onedata_user_mapping, _}, delete) ->
+resolve_storage_handler({luma_uid_to_onedata_user_mapping, _}, delete) ->
     {true, storage_luma_uid_to_onedata_user_mapping_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, luma_db, delete) ->
+resolve_storage_handler(luma_db, delete) ->
     {true, storage_luma_db_delete_middleware_handler:module_info(module)};
 
-resolve_storage_handler(_, _, _) ->
+resolve_storage_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_user_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_user_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_user_handler(_, current_user, get) ->
+resolve_user_handler(current_user, get) ->
     {true, user_current_user_get_middleware_handler:module_info(module)};
-resolve_user_handler(_, current_user_clusters, get) ->
+resolve_user_handler(current_user_clusters, get) ->
     {true, user_current_user_clusters_get_middleware_handler:module_info(module)};
 
-resolve_user_handler(_, instance, create) ->
+resolve_user_handler(instance, create) ->
     {true, user_instance_create_middleware_handler:module_info(module)};
-resolve_user_handler(_, instance, get) ->
+resolve_user_handler(instance, get) ->
     {true, user_instance_get_middleware_handler:module_info(module)};
-resolve_user_handler(_, instance, update) ->
+resolve_user_handler(instance, update) ->
     {true, user_instance_update_middleware_handler:module_info(module)};
 
-resolve_user_handler(_, list, get) ->
+resolve_user_handler(list, get) ->
     {true, user_list_get_middleware_handler:module_info(module)};
 
-resolve_user_handler(_, _, _) ->
+resolve_user_handler(_, _) ->
     false.
 
 
 %% @private
--spec resolve_zone_handler(middleware_handler:interface(), gri:aspect(), middleware_handler:operation()) ->
+-spec resolve_zone_handler(gri:aspect(), middleware_handler:operation()) ->
     {true, middleware_handler:t()} | false.
-resolve_zone_handler(_, cluster, create) ->
+resolve_zone_handler(cluster, create) ->
     {true, zone_cluster_create_middleware_handler:module_info(module)};
-resolve_zone_handler(_, cluster, get) ->
+resolve_zone_handler(cluster, get) ->
     {true, zone_cluster_get_middleware_handler:module_info(module)};
 
-resolve_zone_handler(_, {gui_message, _}, get) ->
+resolve_zone_handler({gui_message, _}, get) ->
     {true, zone_gui_message_get_middleware_handler:module_info(module)};
-resolve_zone_handler(_, {gui_message, _}, update) ->
+resolve_zone_handler({gui_message, _}, update) ->
     {true, zone_gui_message_update_middleware_handler:module_info(module)};
 
-resolve_zone_handler(_, instance, get) ->
+resolve_zone_handler(instance, get) ->
     {true, zone_instance_get_middleware_handler:module_info(module)};
 
-resolve_zone_handler(_, policies, get) ->
+resolve_zone_handler(policies, get) ->
     {true, zone_policies_get_middleware_handler:module_info(module)};
-resolve_zone_handler(_, policies, update) ->
+resolve_zone_handler(policies, update) ->
     {true, zone_policies_update_middleware_handler:module_info(module)};
     
-resolve_zone_handler(_, _, _) ->
+resolve_zone_handler(_, _) ->
     false.

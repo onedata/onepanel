@@ -18,6 +18,7 @@
 -include("service.hrl").
 -include_lib("ctool/include/privileges.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -44,7 +45,8 @@ supported_interfaces(_) ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler:req_ctx()) ->
+    {true, [middleware_handler:availability_level()]}.
 service_availability_requirements(_) ->
     {true, [all_healthy_ignoring_ones3]}.
 
@@ -62,4 +64,4 @@ validate(_) ->
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{input = Data}) ->
     Ctx = #{letsencrypt_enabled => maps:get(letsEncrypt, Data)},
-    middleware_utils:execute_service_action(?SERVICE_LE, update, Ctx).
+    middleware_handler_utils:service_exec(?SERVICE_LE, update, Ctx).

@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -40,7 +41,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    storage_middleware_handler_utils:supported_interfaces_op().
+    storage_middleware_handler_utils:supported_op_interfaces().
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -61,7 +62,7 @@ validate(_) ->
 
 -spec process(state()) -> {ok, output()} | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {Aspect, AclUser}, id = StorageId}}}) ->
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+    middleware_handler_utils:service_call(
         ?SERVICE_OPW, get_acl_user_to_onedata_user_mapping, #{
             id => StorageId,
             aclUser => AclUser,
@@ -70,7 +71,7 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {Aspect, AclUser},
                 luma_acl_user_to_onedata_user_mapping -> false
             end
         }
-    )).
+    ).
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.

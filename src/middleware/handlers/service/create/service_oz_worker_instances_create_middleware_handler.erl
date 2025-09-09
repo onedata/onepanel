@@ -40,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEZONE, [rest]).
+    middleware_handler_utils:if_oz_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) -> false.

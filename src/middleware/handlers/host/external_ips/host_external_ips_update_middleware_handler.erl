@@ -64,4 +64,4 @@ process(#onp_req_state{input = Data}) ->
     Service = middleware_handler_utils:get_main_service(),
     ClusterIps = maps:get(hosts, Data),
     Ctx = #{cluster_ips => onepanel_utils:convert(ClusterIps, {keys, list})},
-    middleware_utils:execute_service_action(Service, set_cluster_ips, Ctx).
+    middleware_handler_utils:service_exec(Service, set_cluster_ips, Ctx).

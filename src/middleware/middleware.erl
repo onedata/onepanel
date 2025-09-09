@@ -80,8 +80,8 @@ handle(OnpReqCtx, Input, InputSpec) ->
 
 %% @private
 -spec find_handler(middleware_handler:req_ctx()) -> middleware_handler:t() | no_return().
-find_handler(#onp_req_ctx{interface = Interface, operation = Operation, gri = Gri}) ->
-    case middleware_router:resolve_handler(Interface, Operation, Gri) of
+find_handler(#onp_req_ctx{operation = Operation, gri = Gri}) ->
+    case middleware_router:resolve_handler(Operation, Gri) of
         {true, Handler} -> Handler;
         false -> throw(?ERROR_NOT_SUPPORTED)
     end.

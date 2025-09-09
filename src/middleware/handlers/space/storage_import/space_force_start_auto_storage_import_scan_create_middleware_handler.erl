@@ -40,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
+    middleware_handler_utils:if_op_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -61,6 +61,6 @@ validate(_) ->
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = SpaceId}}}) ->
-    middleware_utils:execute_service_action(
+    middleware_handler_utils:service_exec(
         ?SERVICE_OP, force_start_auto_storage_import_scan, #{space_id => SpaceId}
     ).

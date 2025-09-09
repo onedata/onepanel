@@ -70,4 +70,4 @@ process(#onp_req_state{
         true -> start;
         false -> stop
     end,
-    middleware_utils:execute_service_action(Service, Action, #{hosts => [Host]}).
+    middleware_handler_utils:service_exec(Service, Action, #{hosts => [Host]}).

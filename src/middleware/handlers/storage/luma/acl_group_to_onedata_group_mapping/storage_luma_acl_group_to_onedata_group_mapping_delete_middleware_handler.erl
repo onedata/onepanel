@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -39,7 +40,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    storage_middleware_handler_utils:supported_interfaces_op().
+    storage_middleware_handler_utils:supported_op_interfaces().
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -60,7 +61,7 @@ validate(_) ->
 
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {Aspect, AclGroup}, id = StorageId}}}) ->
-    middleware_utils:execute_service_action(?SERVICE_OPW, remove_acl_group_to_onedata_group_mapping, #{
+    middleware_handler_utils:service_exec(?SERVICE_OPW, remove_acl_group_to_onedata_group_mapping, #{
         id => StorageId,
         aclGroup => AclGroup,
         isLocalFeedLumaRequest => case Aspect of

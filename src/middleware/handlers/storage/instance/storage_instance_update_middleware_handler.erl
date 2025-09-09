@@ -16,6 +16,7 @@
 
 -include("middleware/middleware.hrl").
 
+% middleware_handler callbacks
 -export([
     supported_interfaces/1,
     service_availability_requirements/1,
@@ -48,7 +49,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    storage_middleware_handler_utils:supported_interfaces_op().
+    storage_middleware_handler_utils:supported_op_interfaces().
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -62,7 +63,7 @@ service_availability_requirements(_) ->
 init_state(OnpReqCtx = #onp_req_ctx{gri = #gri{id = StorageId}}, Input) ->
     case storage_middleware_handler_utils:get_storage(StorageId) of
         {ok, StorageDetails} ->
-            #state{ctx = OnpReqCtx, input = Input, storage_details = StorageDetails};
+            {ok, #state{ctx = OnpReqCtx, input = Input, storage_details = StorageDetails}};
         {error, _} = Error ->
             Error
     end.
@@ -104,9 +105,9 @@ validate(#state{storage_details = CurrentDetails, input = Data}) ->
 -spec process(state()) -> {ok, output()} | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
     [{_OldName, Params}] = maps:to_list(Data),
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+    middleware_handler_utils:service_call(
         ?SERVICE_OPW, update_storage, #{id => Id, storage => Params}
-    )).
+    ).
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.

@@ -41,7 +41,7 @@
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
-    middleware_handler_utils:if_cluster_type_then(?ONEPROVIDER, [rest]).
+    middleware_handler_utils:if_op_then([rest]).
 
 
 -spec service_availability_requirements(middleware_handler:req_ctx()) ->
@@ -62,9 +62,9 @@ validate(_) -> ok.
 -spec process(state()) -> {ok, output()} | errors:error().
 process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = SpaceId}}, input = Data}) ->
     Ctx = maps:with([space_id, offset, limit, index], Data#{space_id => SpaceId}),
-    middleware_handler_utils:ok_result(middleware_utils:result_from_service_action(
+    middleware_handler_utils:service_call(
         ?SERVICE_OP, get_auto_cleaning_reports, Ctx
-    )).
+    ).
 
 
 -spec translate_output(state(), output()) ->
