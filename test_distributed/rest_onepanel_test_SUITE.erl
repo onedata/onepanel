@@ -340,12 +340,9 @@ init_per_suite(Config) ->
 
 init_per_testcase(method_should_return_unauthorized_error, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_new(Nodes, [service, host_middleware, onepanel_parser]),
+    test_utils:mock_new(Nodes, [service, onepanel_parser]),
     test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> true end),
-    test_utils:mock_expect(Nodes, host_middleware, fetch_entity, fun
-        (_) -> {ok, {undefined, 1}}
-    end),
     % do not require valid payload in requests
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     init_per_testcase(default, Config);
@@ -460,7 +457,7 @@ init_per_testcase(_Case, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes, [
-        service, host_middleware, onepanel_parser, service_onepanel, service_oneprovider, oz_endpoint, onezone_tokens
+        service, onepanel_parser, service_onepanel, service_oneprovider, oz_endpoint, onezone_tokens
     ]),
     lists:foreach(fun(Model) ->
         ?callAll(Config, model, clear, [Model])

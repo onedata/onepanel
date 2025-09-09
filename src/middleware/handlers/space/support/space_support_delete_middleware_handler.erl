@@ -54,8 +54,12 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_utils:has_privilege(Client, ?CLUSTER_UPDATE).
 
 
--spec validate(state()) -> ok.
-validate(_) -> ok.
+-spec validate(state()) -> ok | no_return().
+validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = SpaceId}}}) ->
+    % Assert space exists
+    middleware_handler_utils:service_exec(
+        ?SERVICE_OP, get_space_details, #{id => SpaceId}
+    ).
 
 
 -spec process(state()) -> ok | errors:error().

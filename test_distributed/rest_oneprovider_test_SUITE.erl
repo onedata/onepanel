@@ -1763,10 +1763,7 @@ init_per_testcase(Case, Config) when
     ->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(oneprovider_nodes, Config2),
-    test_utils:mock_new(Nodes, [space_middleware, onepanel_parser]),
-    test_utils:mock_expect(Nodes, space_middleware, fetch_entity, fun
-        (_) -> {ok, {undefined, 1}}
-    end),
+    test_utils:mock_new(Nodes, [onepanel_parser]),
     % do not require valid payload in requests
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     Config2;

@@ -50,7 +50,7 @@ service_availability_requirements(_) ->
 
 -spec preauthorize(state()) -> boolean().
 preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = #client{role = Role}}}) ->
-    Role == guest.
+    Role == guest andalso service_onepanel:available_for_clustering().
 
 
 -spec validate(state()) -> ok | errors:error().

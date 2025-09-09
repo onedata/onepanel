@@ -66,7 +66,8 @@ handle(OnpReqCtx, Input, InputSpec) ->
         validate_request(State),
         case process_request(State) of
             ok -> ok;
-            {ok, HandlerOutput} -> translate_output(State, HandlerOutput)
+            {ok, HandlerOutput} -> translate_output(State, HandlerOutput);
+            {error, _} = Error -> Error
         end
     catch Class:Reason:Stacktrace ->
         ?examine_exception(Class, Reason, Stacktrace)

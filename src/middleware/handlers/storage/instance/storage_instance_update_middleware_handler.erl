@@ -103,7 +103,7 @@ validate(#state{storage_details = CurrentDetails, input = Data}) ->
 
 
 -spec process(state()) -> {ok, output()} | errors:error().
-process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
+process(#state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
     [{_OldName, Params}] = maps:to_list(Data),
     middleware_handler_utils:service_call(
         ?SERVICE_OPW, update_storage, #{id => Id, storage => Params}
@@ -111,5 +111,5 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) -
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
-translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Data) ->
+translate_output(#state{ctx = #onp_req_ctx{interface = rest}}, Data) ->
     {ok, ?OK_REPLY(Data)}.

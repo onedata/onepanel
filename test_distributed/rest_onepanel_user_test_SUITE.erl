@@ -200,12 +200,9 @@ init_per_suite(Config) ->
 init_per_testcase(method_should_return_unauthorized_error, Config) ->
     Config2 = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_new(Nodes, [onepanel_parser, user_middleware]),
+    test_utils:mock_new(Nodes, [onepanel_parser]),
     % do not require valid payload in requests
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
-    test_utils:mock_expect(Nodes, user_middleware, fetch_entity, fun
-        (_) -> {ok, {undefined, 1}}
-    end),
     Config2;
 
 init_per_testcase(method_should_return_not_found_error, Config) ->
