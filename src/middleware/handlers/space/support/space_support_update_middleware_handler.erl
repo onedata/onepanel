@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Modifies space support configuration (op_panel only).
+%%% TODO VFS-13023 test storageImport parameter
 %%% @end
 %%%-------------------------------------------------------------------
 -module(space_support_update_middleware_handler).

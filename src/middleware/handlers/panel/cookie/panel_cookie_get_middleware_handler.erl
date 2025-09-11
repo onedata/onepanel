@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Middleware handler for returning Erlang cookie of the panel node.
+%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(panel_cookie_get_middleware_handler).

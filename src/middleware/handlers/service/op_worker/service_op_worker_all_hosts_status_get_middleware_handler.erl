@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Returns all hosts status for op_worker (OP only).
+%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_op_worker_all_hosts_status_get_middleware_handler).

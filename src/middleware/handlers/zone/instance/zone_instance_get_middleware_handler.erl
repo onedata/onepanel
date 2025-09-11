@@ -9,6 +9,7 @@
 %%% Middleware handler for returning remote Onezone instance details.
 %%% Available on Oneprovider panels to fetch info about a remote Onezone
 %%% either by provided registration token or the zone the provider is registered to.
+%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(zone_instance_get_middleware_handler).

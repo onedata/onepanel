@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Deletes default POSIX credentials (local or non-local depending on aspect).
+%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_luma_default_posix_credentials_delete_middleware_handler).

@@ -8,6 +8,7 @@
 %%% @doc
 %%% Middleware handler for deploying Onezone cluster (batch configuration).
 %%% Available on Onezone panels only.
+%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(zone_cluster_create_middleware_handler).

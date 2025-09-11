@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Returns all hosts status for cluster_manager (OP/OZ).
+%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_cluster_manager_all_hosts_status_get_middleware_handler).

@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Returns mapping uid -> onedata_user (local or non-local depending on aspect).
+%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_luma_uid_to_onedata_user_mapping_get_middleware_handler).
