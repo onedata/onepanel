@@ -76,8 +76,7 @@ stages:
         - cl_deploy_oz_batch
         - cl_misc
         - cl_resize_op
-        # TODO VFS-12699 research hanging deploy new oz worker test
-#        - cl_resize_oz
+        - cl_resize_oz
         - cl_services_op
         - cl_services_oz
         - db_disk_usage_monitor
@@ -487,13 +486,12 @@ cl_resize_op:
     - <<: *ct_logs
       name: ct_logs_cl_resize_op.tar.gz
 
-# TODO VFS-12699 research hanging deploy new oz worker test
-#cl_resize_oz:
-#  <<: *ct-onenv-job
-#  key: CLUSTERRESIZEOZ
-#  artifacts:
-#    - <<: *ct_logs
-#      name: ct_logs_cl_resize_oz.tar.gz
+cl_resize_oz:
+  <<: *ct-onenv-job
+  key: CLUSTERRESIZEOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_resize_oz.tar.gz
 
 cl_services_op:
   <<: *ct-onenv-job

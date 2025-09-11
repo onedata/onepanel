@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Integration tests of Onezone cluster resize.
-%%% TODO VFS-12699 research hanging deploy new oz worker test
 %%% @end
 %%%-------------------------------------------------------------------
 -module(cl_resize_oz_test_SUITE).

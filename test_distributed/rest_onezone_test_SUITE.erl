@@ -53,11 +53,6 @@ all() ->
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
     {<<"/zone/nagios">>, get},
     {<<"/zone/users">>, get},
-    {<<"/zone/users">>, post},
-    {<<"/zone/users/someUserId">>, get},
-    {<<"/zone/users/someUserId">>, patch},
-    {<<"/zone/policies">>, get},
-    {<<"/zone/policies">>, patch},
     {<<"/zone/cluster_ips">>, get},
     {<<"/zone/cluster_ips">>, patch},
     {<<"/zone/gui_messages/privacy_policy">>, get},

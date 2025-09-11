@@ -38,10 +38,6 @@
     noauth_method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
-    method_should_return_password_status/1,
-    noauth_put_should_set_emergency_passphrase/1,
-    put_should_update_emergency_passphrase/1,
-    passphrase_update_requires_previous_passphrase/1,
     get_as_admin_should_return_hosts/1,
     get_as_admin_or_peer_should_return_cookie/1,
     get_should_return_node_details/1,
@@ -65,8 +61,7 @@
     {<<"/web_cert">>, get},
     {<<"/web_cert">>, patch},
     {<<"/progress">>, get},
-    {<<"/progress">>, patch},
-    {<<"/emergency_passphrase">>, put}
+    {<<"/progress">>, patch}
 ]).
 
 all() ->
@@ -76,10 +71,6 @@ all() ->
         noauth_method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
-        method_should_return_password_status,
-        noauth_put_should_set_emergency_passphrase,
-        put_should_update_emergency_passphrase,
-        passphrase_update_requires_previous_passphrase,
         get_as_admin_should_return_hosts,
         get_as_admin_or_peer_should_return_cookie,
         get_should_return_node_details,
@@ -129,7 +120,6 @@ noauth_method_should_return_unauthorized_error(Config) ->
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [
         % endpoints forbidden without auth when emergency passphrase IS set
-        {<<"/emergency_passphrase">>, put},
         {<<"/join_cluster">>, post}
     ]).
 
@@ -139,9 +129,6 @@ method_should_return_forbidden_error(Config) ->
         Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
             {_, get} ->
                 [];
-            {<<"/emergency_passphrase">>, put} ->
-                % even admin coming from Onezone cannot change root password
-                ?OZ_AUTHS(Config, privileges:cluster_admin());
             _ ->
                 ?OZ_AUTHS(Config, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
@@ -158,63 +145,6 @@ method_should_return_not_found_error(Config) ->
             ?OZ_OR_ROOT_AUTHS(Config, [?CLUSTER_UPDATE])
         ))
     end, [{<<"/hosts/someHost">>, delete}]).
-
-
-method_should_return_password_status(Config) ->
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        Auths = ?NONE_AUTHS() ++ ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Config, []),
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(Host, Endpoint, Method, Auths)
-        ),
-        Expected = #{<<"isSet">> => true},
-        onepanel_test_rest:assert_body(JsonBody, Expected)
-    end, [{<<"/emergency_passphrase">>, get}]).
-
-
-noauth_put_should_set_emergency_passphrase(Config) ->
-    NewPassphrase = <<"newPassphrase">>,
-
-    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(
-        Config, "/emergency_passphrase", put,
-        #{<<"newPassphrase">> => NewPassphrase}
-    )).
-
-
-put_should_update_emergency_passphrase(Config) ->
-    OldPassphrase = ?EMERGENCY_PASSPHRASE,
-    NewPassphrase = <<"newPassphrase">>,
-    Auth = onepanel_test_rest:obtain_local_token(Config, OldPassphrase),
-
-    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-        Config, "/emergency_passphrase", put, Auth, #{
-            <<"currentPassphrase">> => OldPassphrase,
-            <<"newPassphrase">> => NewPassphrase
-        }
-    )),
-
-    % ensure new password works
-    ?assertMatch({token, _},
-        onepanel_test_rest:obtain_local_token(Config, NewPassphrase)).
-
-
-passphrase_update_requires_previous_passphrase(Config) ->
-    CorrectAuths = ?ROOT_AUTHS(Config),
-    IncorrectPassphrase = <<"IncorrectPassphrase">>,
-
-    {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-        Config, "/emergency_passphrase", put, CorrectAuths, #{
-            <<"currentPassphrase">> => IncorrectPassphrase,
-            <<"newPassphrase">> => <<"willNotBeSet">>
-        }
-    )),
-    onepanel_test_rest:assert_body(JsonBody,
-        #{<<"error">> => errors:to_json(?ERR_UNAUTHORIZED(?ERR_BAD_BASIC_CREDENTIALS))}),
-    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
-        Config, "/emergency_passphrase", put, CorrectAuths, #{
-            <<"newPassphrase">> => <<"willNotBeSet">>
-        }
-    )).
-
 
 
 get_as_admin_should_return_hosts(Config) ->

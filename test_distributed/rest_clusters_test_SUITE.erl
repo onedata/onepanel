@@ -133,8 +133,7 @@ method_should_return_forbidden_error_test(Config) ->
         end, [
             {<<"/cluster">>, get},
             {<<"/user/clusters">>, get},
-            {<<"/user/clusters/someClusterId">>, get},
-            {<<"/providers/someProvider">>, get}
+            {<<"/user/clusters/someClusterId">>, get}
         ])
     end).
 
@@ -147,8 +146,7 @@ local_user_should_get_not_found_error_test(Config) ->
         ))
     end, [
         {<<"/user/clusters/">>, get},
-        {<<"/user/clusters/someCluster">>, get},
-        {<<"/providers/someProvider">>, get}
+        {<<"/user/clusters/someCluster">>, get}
     ]).
 
 

@@ -36,22 +36,11 @@
     method_should_return_forbidden_error/1,
     method_should_return_conflict_error/1,
     method_should_return_service_unavailable_error/1,
-    get_should_return_provider_details/1,
     get_should_return_cluster_ips/1,
     post_should_register_provider/1,
-    patch_should_modify_provider_details/1,
     patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
-    get_should_return_supported_spaces/1,
-    post_should_support_space/1,
-    patch_should_modify_space_support/1,
-    get_should_return_space_details/1,
-    delete_should_revoke_space_support/1,
-    get_should_return_storages/1,
-    get_should_return_storage/1,
-    post_should_add_storage/1,
     patch_should_configure_auto_storage_import/1,
-    patch_should_update_storage/1,
     get_should_return_autocleaning_reports/1,
     get_should_return_autocleaning_report/1,
     get_should_return_autocleaning_status/1,
@@ -116,22 +105,11 @@ all() ->
         method_should_return_forbidden_error,
         method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
-        get_should_return_provider_details,
         get_should_return_cluster_ips,
         post_should_register_provider,
-        patch_should_modify_provider_details,
         patch_should_modify_provider_ips,
         delete_should_unregister_provider,
-        get_should_return_supported_spaces,
-        post_should_support_space,
-        patch_should_modify_space_support,
-        get_should_return_space_details,
-        delete_should_revoke_space_support,
-        get_should_return_storages,
-        get_should_return_storage,
-        post_should_add_storage,
         patch_should_configure_auto_storage_import,
-        patch_should_update_storage,
         get_should_return_autocleaning_reports,
         get_should_return_autocleaning_report,
         get_should_return_autocleaning_status,
@@ -195,16 +173,9 @@ all() ->
 -define(TASK_ID, "someTaskId").
 
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
-    {<<"/provider">>, get},
     {<<"/provider">>, post},
-    {<<"/provider">>, patch},
     {<<"/provider">>, delete},
     {<<"/provider/nagios">>, get},
-    {<<"/provider/spaces">>, get},
-    {<<"/provider/spaces">>, post},
-    {<<"/provider/spaces/someSpaceId">>, get},
-    {<<"/provider/spaces/someSpaceId">>, patch},
-    {<<"/provider/spaces/someSpaceId">>, delete},
 
     {<<"/provider/spaces/someSpaceId/storage-import/auto/stats">>, get},
     {<<"/provider/spaces/someSpaceId/storage-import/auto/info">>, get},
@@ -222,12 +193,6 @@ all() ->
     {<<"/provider/spaces/someSpaceId/auto-cleaning/start">>, post},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/cancel">>, post},
     {<<"/provider/spaces/someSpaceId/auto-cleaning/status">>, get},
-
-    {<<"/provider/storages">>, get},
-    {<<"/provider/storages">>, post},
-    {<<"/provider/storages/someStorageId">>, get},
-    {<<"/provider/storages/someStorageId">>, patch},
-    {<<"/provider/storages/someStorageId">>, delete},
 
     {<<"/provider/storages/someStorageId/luma/config">>, get},
     {<<"/provider/storages/someStorageId/luma/db">>, delete},
@@ -556,22 +521,9 @@ method_should_return_service_unavailable_error(Config) ->
             ))
     end, ?COMMON_ENDPOINTS_WITH_METHODS -- [
         {<<"/provider/cluster_ips">>, get},
-        {<<"/provider">>, get},
         {<<"/provider/debug/transfers_mock">>, get},
         {<<"/provider/debug/transfers_mock">>, patch}
     ]).
-
-
-get_should_return_provider_details(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, ?PROVIDER_DETAILS_JSON)
-    end).
 
 
 get_should_return_cluster_ips(Config) ->
@@ -607,26 +559,6 @@ post_should_register_provider(Config) ->
     end).
 
 
-patch_should_modify_provider_details(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider">>, patch,
-            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
-                <<"name">> => <<"someName">>,
-                <<"domain">> => <<"someDomain">>,
-                <<"geoLongitude">> => 10.0,
-                <<"geoLatitude">> => 20.0
-            }
-        )),
-        ?assertReceivedMatch({service, oneprovider, modify_details, #{
-            oneprovider_name := <<"someName">>,
-            oneprovider_domain := <<"someDomain">>,
-            oneprovider_geo_latitude := 20.0,
-            oneprovider_geo_longitude := 10.0
-        }}, ?TIMEOUT)
-    end).
-
-
 patch_should_modify_provider_ips(Config) ->
     % There is one node in test environment
     NewIP = <<"1.2.3.4">>,
@@ -656,134 +588,6 @@ delete_should_unregister_provider(Config) ->
     end).
 
 
-get_should_return_supported_spaces(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces">>, get, ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, #{<<"ids">> => ?SPACE_IDS})
-    end).
-
-
-post_should_support_space(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, Headers, JsonBody} = ?assertMatch({ok, ?HTTP_201_CREATED, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces">>, post,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
-                    <<"token">> => <<"someToken">>,
-                    <<"size">> => 1024,
-                    <<"storageId">> => <<"someId">>,
-                    <<"storageImport">> => ?STORAGE_IMPORT_DETAILS_JSON
-                }
-            )
-        ),
-        ?assertMatch(#{?HDR_LOCATION := <<"/api/v3/onepanel/provider/spaces/", _/binary>>}, Headers),
-        onepanel_test_rest:assert_body(JsonBody, ?SPACE_JSON)
-    end).
-
-
-patch_should_modify_space_support(Config) ->
-    NewSize = 99000000,
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces/someId1">>, patch,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{<<"size">> => NewSize}
-            )
-        ),
-        ?assertReceivedMatch({service, oneprovider, modify_space,
-            #{space_id := <<"someId1">>, size := NewSize}
-        }, ?TIMEOUT)
-    end).
-
-
-get_should_return_space_details(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/spaces/someId">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, ?SPACE_DETAILS_JSON)
-    end).
-
-
-delete_should_revoke_space_support(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/spaces/someId">>, delete,
-            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
-        )),
-        ?assertReceivedMatch({service, oneprovider, revoke_space_support,
-            #{id := <<"someId">>}
-        }, ?TIMEOUT)
-    end).
-
-
-get_should_return_storages(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/storages">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>])
-    end).
-
-
-get_should_return_storage(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/storages/somePosixId">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, ?STORAGE_JSON)
-    end).
-
-
-post_should_add_storage(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_200_OK, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/storages">>,
-            post, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-            ?STORAGES_JSON
-        )),
-        ?assertReceivedMatch({service, op_worker, add_storages, #{
-            storages := #{
-                <<"someCeph">> := #{
-                    type := <<"cephrados">>,
-                    clusterName := <<"someName">>,
-                    key := <<"someKey">>,
-                    monitorHostname := <<"someHostname">>,
-                    poolName := <<"someName">>,
-                    username := <<"someName">>,
-                    timeout := 5000,
-                    readonly := true,
-                    importedStorage := true
-                },
-                <<"someS3">> := #{
-                    type := <<"s3">>,
-                    accessKey := <<"someKey">>,
-                    bucketName := <<"someName">>,
-                    hostname := <<"https://someHostname.com:443">>,
-                    secretKey := <<"someKey">>,
-                    blockSize := 1024,
-                    readonly := false,
-                    importedStorage := false
-                }
-            }
-        }}, ?TIMEOUT)
-    end).
-
-
 patch_should_configure_auto_storage_import(Config) ->
     ?eachHost(Config, fun(Host) ->
         ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
@@ -794,26 +598,6 @@ patch_should_configure_auto_storage_import(Config) ->
                 }
             )
         )
-    end).
-
-
-patch_should_update_storage(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/storages/somePosixId">>, patch,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), ?STORAGE_UPDATE_JSON
-            )
-        ),
-        ?assertReceivedMatch({service, op_worker, update_storage, #{
-            id := <<"somePosixId">>,
-            storage := #{
-                timeout := 10000,
-                mountPoint := <<"someNewMountPoint">>,
-                importedStorage := false,
-                readonly := false
-            }
-        }}, ?TIMEOUT)
     end).
 
 

@@ -30,7 +30,6 @@
 -export([
     get_storages_ids/1,
     add_s3_storage/1,
-    get_s3_storage/1,
     delete_s3_storage/1
 ]).
 
@@ -46,7 +45,9 @@
 }).
 
 all() -> [
-    get_storages_ids, add_s3_storage, get_s3_storage, delete_s3_storage
+    get_storages_ids,
+    add_s3_storage,
+    delete_s3_storage
 ].
 
 
@@ -164,50 +165,6 @@ add_request_match_response(RequestBody, StorageDetails) ->
     % secretKey is redacted in StorageDetails so it won't match
     maps_utils:is_submap(maps:remove(<<"secretKey">>, RequestMap), StorageDetails) and
         (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
-
-
-get_s3_storage(_Config) ->
-    % todo: VFS-6717 add s3 storage before, and delete after test
-    ProviderId = oct_background:get_provider_id(krakow),
-    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-
-    [StorageName | _] = maps:keys(?S3_STORAGE_SPEC),
-    StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
-
-    ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Get s3 storage details using /provider/storages/{storage_id} rest endpoint">>,
-            type = rest,
-            target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = get,
-                    path = <<"provider/storages/", StorageId/binary>>}
-            end,
-            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
-                StorageDetailsBinary = onepanel_utils:convert_recursive(StorageDetails, {map, binary}),
-                ExpectedScheme = maps:get(<<"scheme">>, StorageDetailsBinary),
-                ExpectedHostname = maps:get(<<"hostname">>, StorageDetailsBinary),
-                ExtendedHostname =  str_utils:join_binary([ExpectedScheme, <<"://">>, ExpectedHostname]),
-                StorageDetails2 = maps:put(<<"hostname">>,ExtendedHostname, maps:remove(<<"scheme">>, StorageDetailsBinary)),
-                RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
-                ?assertEqual(StorageDetails2, RespBodyBinary)
-            end)
-        }
-    ])).
 
 
 delete_s3_storage(_Config) ->
