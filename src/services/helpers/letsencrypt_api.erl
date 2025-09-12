@@ -196,7 +196,7 @@ run_certification_flow(Plugin) ->
 %% Returns implemented authorization challenge types, in order
 %% of prefence - later challenges are attempted if previous failed.
 %% @end
-%%------------------httputil--------------------------------------------------
+%%--------------------------------------------------------------------
 -spec challenge_types() -> [challenge_type()].
 challenge_types() ->
     % Http challenge is preferred if possible as it is more versatile and simpler.

@@ -293,7 +293,7 @@ get_steps(register, Ctx = #{hosts := _Hosts}) ->
     % In case of batch deployment 'ones3_ctx' is attached in 'deploy' step.
     % As all steps are resolved before the first one is run, there are no
     % ones3 hosts (service_ones3 is not yet created and has no hosts).
-    % In case of gui, step by step, deploy ones3 hosts can be fetched.
+    % In case of gui, step by step deploy, ones3 hosts can be fetched.
     OneS3Ctx = maps:get(ones3_ctx, Ctx, #{hosts => service_ones3:get_hosts()}),
 
     [
@@ -1170,10 +1170,10 @@ store_absolute_auth_file_path() ->
 %% @private
 -spec should_run_ones3_step(service:step_ctx()) -> boolean().
 should_run_ones3_step(Ctx) ->
-    % In case of batch deployment 'deploy_ctx' is attached in provider_middleware.
+    % In case of batch deployment 'deploy_ones3' is attached in provider_middleware.
     % As all steps are resolved before the first one is run, service_ones3
     % does not exist yet, so checking it alone may fail.
-    % In case of gui, step by step, deploy ones3 hosts can be fetched.
+    % In case of gui, step by step deploy, ones3 hosts can be fetched.
     maps:get(deploy_ones3, Ctx, false) orelse service_ones3:exists().
 
 

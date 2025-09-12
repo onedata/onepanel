@@ -193,6 +193,7 @@ backup_exisiting_certs() ->
     WebKeyPath = onepanel_env:get(web_key_file),
     WebCertPath = onepanel_env:get(web_cert_file),
     WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
 
     lists:foreach(fun(Path) ->
         case filelib:is_regular(Path) of
@@ -203,14 +204,14 @@ backup_exisiting_certs() ->
                 ]),
                 file:copy(Path, BackupPath)
         end
-    end, [WebKeyPath, WebCertPath, WebChainPath]).
+    end, [WebKeyPath, WebCertPath, WebChainPath, WebFullChainPath]).
 
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Lists certificate-related files present on the current node.
-%% That is: web cert, key, chain file; any content of Let's Encrypt
-%% credentials directory.
+%% That is: web cert, key, chain file, full chain file;
+%% any content of Let's Encrypt credentials directory.
 %% @end
 %%--------------------------------------------------------------------
 -spec list_certificate_files() -> [file:filename()].

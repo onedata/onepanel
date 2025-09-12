@@ -65,6 +65,7 @@
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
 -define(CHAIN_PATH, onepanel_env:get(web_cert_chain_file)).
+-define(FULL_CHAIN_PATH, onepanel_env:get(web_cert_full_chain_file)).
 
 -define(CHECK_DELAY, timer:seconds(application:get_env(
     ?APP_NAME, web_cert_renewal_check_delay, 3600))).
@@ -233,7 +234,8 @@ get_details() ->
         paths => #{
             cert => filename:absname(onepanel_utils:convert(?CERT_PATH, binary)),
             key => filename:absname(onepanel_utils:convert(?KEY_PATH, binary)),
-            chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary))
+            chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary)),
+            full_chain => filename:absname(onepanel_utils:convert(?FULL_CHAIN_PATH, binary))
         },
         domain => Domain,
         dnsNames => DnsNames,
