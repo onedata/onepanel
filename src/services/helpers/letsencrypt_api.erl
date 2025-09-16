@@ -29,8 +29,9 @@
 -define(PRODUCTION_DIRECTORY_URL, application:get_env(?APP_NAME,
     letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory")).
 
--define(ROOT_CA_URL, application:get_env(?APP_NAME,
-    letsencrypt_root_ca_url, "https://letsencrypt.org/certs/isrgrootx1.pem")).
+-define(PEBBLE_MINICA_CA_URL, application:get_env(?APP_NAME, letsencrypt_root_ca_url,
+    "https://raw.githubusercontent.com/jupyterhub/pebble-helm-chart/refs/heads/main/pebble/files/root-cert.pem"
+)).
 
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(LETSENCRYPT_KEYS_DIR, application:get_env(?APP_NAME, letsencrypt_keys_dir,
@@ -68,15 +69,11 @@
 -define(GET_RETRIES, 3).
 -define(POST_RETRIES, 4).
 
--define(HTTP_OPTS, ?HTTP_OPTS(true)).
-
--define(INSECURE_HTTP_OPTS, ?HTTP_OPTS(false)).
-
--define(HTTP_OPTS(__SECURE), [{
+-define(HTTP_OPTS, [{
     connect_timeout, timer:seconds(30)},
     {recv_timeout, timer:seconds(30)},
     {ssl_options, [
-        {secure, __SECURE},
+        {secure, true},
         {cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}
     ]}
 ]).
@@ -210,7 +207,7 @@ trust_pebble_test_ca() ->
         true ->
             Nodes = nodes:all(?SERVICE_PANEL),
             {ok, ?HTTP_200_OK, _, TestCaPem} = http_client:get(
-                ?ROOT_CA_URL, #{}, <<>>, ?INSECURE_HTTP_OPTS
+                ?PEBBLE_MINICA_CA_URL, #{}, <<>>, ?HTTP_OPTS
             ),
             TargetCaFilePath = filename:join(
                 onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME
