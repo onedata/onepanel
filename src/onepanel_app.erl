@@ -21,9 +21,11 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
+
 %%%===================================================================
 %%% Application callbacks
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @doc This function is called whenever an application is started
@@ -51,6 +53,7 @@ start(_StartType, _StartArgs) ->
                 ], true);
             false -> ok
         end,
+        ensure_web_full_chain_pem_exists(),
         case onepanel_sup:start_link() of
             {ok, Supervisor} ->
                 resume_service(),
@@ -84,6 +87,16 @@ stop(_State) ->
 %%% Internal functions
 %%%===================================================================
 
+
+%% @private
+-spec ensure_web_full_chain_pem_exists() -> ok.
+ensure_web_full_chain_pem_exists() ->
+    case filelib:is_regular(onepanel_env:get(web_cert_full_chain_file)) of
+        true -> ok;
+        false -> onepanel_cert:generate_web_full_chain()
+    end.
+
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -102,6 +115,7 @@ resume_service() ->
             ClusterType = onepanel_env:get_cluster_type(),
             Task = service:apply_async(ClusterType, manage_restart, #{}),
             ?info("Resuming ~ts (task id ~ts)", [ClusterType, Task]);
-        false -> ok % new deployment, managed by REST
+        false ->
+            % new deployment, managed by REST
+            ok
     end.
-

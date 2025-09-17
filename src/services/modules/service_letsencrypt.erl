@@ -233,7 +233,7 @@ get_details() ->
             cert => filename:absname(onepanel_utils:convert(?CERT_PATH, binary)),
             key => filename:absname(onepanel_utils:convert(?KEY_PATH, binary)),
             chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary)),
-            full_chain => filename:absname(onepanel_utils:convert(?FULL_CHAIN_PATH, binary))
+            fullChain => filename:absname(onepanel_utils:convert(?FULL_CHAIN_PATH, binary))
         },
         domain => Domain,
         dnsNames => DnsNames,
