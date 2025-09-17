@@ -53,7 +53,8 @@ start(_StartType, _StartArgs) ->
                 ], true);
             false -> ok
         end,
-        ensure_web_full_chain_pem_exists(),
+        onepanel_cert:generate_web_full_chain(),
+
         case onepanel_sup:start_link() of
             {ok, Supervisor} ->
                 resume_service(),
@@ -86,15 +87,6 @@ stop(_State) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-%% @private
--spec ensure_web_full_chain_pem_exists() -> ok.
-ensure_web_full_chain_pem_exists() ->
-    case filelib:is_regular(onepanel_env:get(web_cert_full_chain_file)) of
-        true -> ok;
-        false -> onepanel_cert:generate_web_full_chain()
-    end.
 
 
 %%--------------------------------------------------------------------

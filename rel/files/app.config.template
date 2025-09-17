@@ -128,13 +128,14 @@
         %% NOTE: This functionality is devised for test purposes and must not
         %%  be used in production.
         {treat_test_ca_as_trusted, false},
-        %% The Minica CA cert used to sign pebble server cert.
-        {test_pebble_minica_ca_web_cert_path, "{{platform_etc_dir}}/TestPebbleMinicaCa.pem"},
         %% If enabled, onepanel will trust any server that has a cert signed by
         %% the TestPebbleMinicaCa (e.g. Pebble server used in LE tests).
         %% NOTE: This functionality is devised for test purposes and MUST NOT
         %%  be used in production.
         {treat_test_pebble_minica_ca_as_trusted, false},
+        %% The Minica CA cert used to sign the test Pebble server certificate
+        %% (see the 'treat_test_pebble_minica_ca_as_trusted' env).
+        {test_pebble_minica_ca_web_cert_path, "{{platform_etc_dir}}/TestPebbleMinicaCa.pem"},
 
         %% ===================================================================
         %% General
