@@ -29,10 +29,6 @@
 -define(PRODUCTION_DIRECTORY_URL, application:get_env(?APP_NAME,
     letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory")).
 
--define(PEBBLE_MINICA_CA_URL, application:get_env(?APP_NAME, letsencrypt_root_ca_url,
-    "https://raw.githubusercontent.com/jupyterhub/pebble-helm-chart/refs/heads/main/pebble/files/root-cert.pem"
-)).
-
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(LETSENCRYPT_KEYS_DIR, application:get_env(?APP_NAME, letsencrypt_keys_dir,
     % default
@@ -77,8 +73,6 @@
         {cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}
     ]}
 ]).
-
--define(TEST_CA_FILE_NAME, "LetsEncryptTestRootCa.pem").
 
 
 % Record for the endpoints directory presented by Let's Encrypt
@@ -169,7 +163,6 @@
 
 -export([run_certification_flow/1]).
 -export([challenge_types/0]).
--export([trust_pebble_test_ca/0]).
 
 %%%===================================================================
 %%% Public API
@@ -198,29 +191,6 @@ run_certification_flow(Plugin) ->
 challenge_types() ->
     % Http challenge is preferred if possible as it is more versatile and simpler.
     [http, dns].
-
-
-%% @private
--spec trust_pebble_test_ca() -> ok.
-trust_pebble_test_ca() ->
-    case onepanel_env:get(letsencrypt_pebble_enabled, ?APP_NAME, false) of
-        true ->
-            Nodes = nodes:all(?SERVICE_PANEL),
-            {ok, ?HTTP_200_OK, _, TestCaPem} = http_client:get(
-                ?PEBBLE_MINICA_CA_URL, #{}, <<>>, ?HTTP_OPTS
-            ),
-            TargetCaFilePath = filename:join(
-                onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME
-            ),
-            ok = utils:save_file_on_hosts(Nodes, TargetCaFilePath, TestCaPem),
-
-            ?warning(
-                "Added '~ts' to trusted certificates. Use only for test purposes.",
-                [?TEST_CA_FILE_NAME]
-            );
-        false ->
-            ok
-    end.
 
 
 %%%===================================================================

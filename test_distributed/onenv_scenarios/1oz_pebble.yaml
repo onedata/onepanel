@@ -37,7 +37,7 @@ onezone:
 
   panelOverlayConfig: |-
     [{onepanel, [
-      {letsencrypt_pebble_enabled, true},
+      {treat_test_pebble_minica_ca_as_trusted, true},
       {letsencrypt_directory_url, "https://dev-pebble:443/dir"},
       {letsencrypt_directory_url_staging, "https://dev-pebble:443/dir"},
       {letsencrypt_dns_verification_servers, ["dev-onezone"]},

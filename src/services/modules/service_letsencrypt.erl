@@ -162,8 +162,6 @@ get_steps(import_files, #{reference_host := _}) ->
 %%--------------------------------------------------------------------
 -spec create(#{letsencrypt_plugin := service:name(), _ => _}) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
-    onepanel_env:get(treat_test_ca_as_trusted) andalso letsencrypt_api:trust_pebble_test_ca(),
-
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
     ServiceCtx = #{
         letsencrypt_plugin => Plugin,

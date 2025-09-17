@@ -128,6 +128,13 @@
         %% NOTE: This functionality is devised for test purposes and must not
         %%  be used in production.
         {treat_test_ca_as_trusted, false},
+        %% The Minica CA cert used to sign pebble server cert.
+        {test_pebble_minica_ca_web_cert_path, "{{platform_etc_dir}}/TestPebbleMinicaCa.pem"},
+        %% If enabled, onepanel will trust any server that has a cert signed by
+        %% the TestPebbleMinicaCa (e.g. Pebble server used in LE tests).
+        %% NOTE: This functionality is devised for test purposes and MUST NOT
+        %%  be used in production.
+        {treat_test_pebble_minica_ca_as_trusted, false},
 
         %% ===================================================================
         %% General
@@ -267,10 +274,6 @@
         %% ===================================================================
         %% Let's Encrypt configuration
         %% ===================================================================
-
-        %% Must be set to 'true' in case of tests using Pebble test server in order to
-        %% download and trust it root ca
-        {letsencrypt_pebble_enabled, false},
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance

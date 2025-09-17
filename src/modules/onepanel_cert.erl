@@ -24,6 +24,7 @@
 %% API
 -export([
     generate_csr_and_key/2,
+    generate_web_full_chain/0,
     backup_exisiting_certs/0,
     list_certificate_files/0
 ]).
@@ -181,6 +182,25 @@ get_times(#'Certificate'{} = Cert) ->
     } = Cert#'Certificate'.tbsCertificate,
     {'Validity', NotBeforeStr, NotAfterStr} = Validity,
     {time_str_to_seconds(NotBeforeStr), time_str_to_seconds(NotAfterStr)}.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Generate full chain containing beside chain certificates also leaf certificate.
+%% @end
+%%--------------------------------------------------------------------
+-spec generate_web_full_chain() -> ok.
+generate_web_full_chain() ->
+    WebCertPath = onepanel_env:get(web_cert_file),
+    WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
+
+    CertDers = cert_utils:load_ders(WebCertPath),
+    ChainDers = cert_utils:load_ders(WebChainPath),
+    FullChainDers = CertDers ++ ChainDers,
+    FullChainPem = cert_utils:ders_to_pem(FullChainDers),
+
+    ok = file:write_file(WebFullChainPath, FullChainPem).
 
 
 %%--------------------------------------------------------------------
