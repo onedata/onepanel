@@ -134,6 +134,7 @@
         {mkdir, "data"},
         {copy, "LICENSE.txt", "data/"},
         {copy, "rel/files/OnedataTestWebServerCa.pem", "etc/"},
+        {copy, "rel/files/TestPebbleMinicaCa.pem", "etc/"},
         {template, "rel/files/app.config", "./data/app.config"},
         {template, "rel/files/vm.args", "./data/vm.args"},
 

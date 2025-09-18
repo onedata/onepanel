@@ -65,6 +65,7 @@
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(KEY_PATH, onepanel_env:get(web_key_file)).
 -define(CHAIN_PATH, onepanel_env:get(web_cert_chain_file)).
+-define(FULL_CHAIN_PATH, onepanel_env:get(web_cert_full_chain_file)).
 
 -define(CHECK_DELAY, timer:seconds(application:get_env(
     ?APP_NAME, web_cert_renewal_check_delay, 3600))).
@@ -73,10 +74,9 @@
 -define(CERTIFICATION_ATTEMPTS, application:get_env(
     ?APP_NAME, letsencrypt_attempts, 1)).
 
--define(TEST_CA_FILE_NAME, "LetsEncryptTestRootCa.pem").
 
--type status() :: regenerating | valid | near_expiration
-| expired | domain_mismatch | unknown.
+-type status() :: regenerating | valid | near_expiration | expired | domain_mismatch | unknown.
+
 
 %%%===================================================================
 %%% Service behaviour callbacks
@@ -162,8 +162,6 @@ get_steps(import_files, #{reference_host := _}) ->
 %%--------------------------------------------------------------------
 -spec create(#{letsencrypt_plugin := service:name(), _ => _}) -> ok.
 create(#{letsencrypt_plugin := Plugin}) ->
-    onepanel_env:get(treat_test_ca_as_trusted) andalso trust_test_ca(),
-
     LegacyEnabled = service_oneprovider:pop_legacy_letsencrypt_config(),
     ServiceCtx = #{
         letsencrypt_plugin => Plugin,
@@ -173,20 +171,6 @@ create(#{letsencrypt_plugin := Plugin}) ->
         {ok, _} -> ok;
         ?ONP_ERR_ALREADY_EXISTS -> ok
     end.
-
-
-%% @private
--spec trust_test_ca() -> ok.
-trust_test_ca() ->
-    Nodes = nodes:all(?SERVICE_PANEL),
-    TestCaPem = letsencrypt_api:get_root_ca(),
-    TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), ?TEST_CA_FILE_NAME),
-    ok = utils:save_file_on_hosts(Nodes, TargetCaFilePath, TestCaPem),
-
-    ?warning(
-        "Added '~ts' to trusted certificates. Use only for test purposes.",
-        [?TEST_CA_FILE_NAME]
-    ).
 
 
 %%--------------------------------------------------------------------
@@ -248,7 +232,8 @@ get_details() ->
         paths => #{
             cert => filename:absname(onepanel_utils:convert(?CERT_PATH, binary)),
             key => filename:absname(onepanel_utils:convert(?KEY_PATH, binary)),
-            chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary))
+            chain => filename:absname(onepanel_utils:convert(?CHAIN_PATH, binary)),
+            fullChain => filename:absname(onepanel_utils:convert(?FULL_CHAIN_PATH, binary))
         },
         domain => Domain,
         dnsNames => DnsNames,

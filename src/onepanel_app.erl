@@ -21,9 +21,11 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
+
 %%%===================================================================
 %%% Application callbacks
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @doc This function is called whenever an application is started
@@ -51,6 +53,8 @@ start(_StartType, _StartArgs) ->
                 ], true);
             false -> ok
         end,
+        onepanel_cert:generate_web_full_chain(),
+
         case onepanel_sup:start_link() of
             {ok, Supervisor} ->
                 resume_service(),
@@ -84,6 +88,7 @@ stop(_State) ->
 %%% Internal functions
 %%%===================================================================
 
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -102,6 +107,7 @@ resume_service() ->
             ClusterType = onepanel_env:get_cluster_type(),
             Task = service:apply_async(ClusterType, manage_restart, #{}),
             ?info("Resuming ~ts (task id ~ts)", [ClusterType, Task]);
-        false -> ok % new deployment, managed by REST
+        false ->
+            % new deployment, managed by REST
+            ok
     end.
-
