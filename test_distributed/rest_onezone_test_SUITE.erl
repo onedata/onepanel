@@ -32,18 +32,14 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
-    method_should_return_service_unavailable_error/1,
-    bad_gui_message_id_should_return_not_found/1,
-    patch_should_update_gui_message/1
+    method_should_return_service_unavailable_error/1
 ]).
 
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
-        method_should_return_service_unavailable_error,
-        bad_gui_message_id_should_return_not_found,
-        patch_should_update_gui_message
+        method_should_return_service_unavailable_error
     ]).
 
 -define(TIMEOUT, timer:seconds(5)).
@@ -56,11 +52,6 @@ all() ->
     {<<"/zone/gui_messages/privacy_policy">>, get},
     {<<"/zone/gui_messages/privacy_policy">>, patch}
 ]).
-
--define(GOOD_GUI_MESSAGE_ID, (<<"privacy_policy">>)).
--define(BAD_GUI_MESSAGE_ID, (<<"nonexistent_gui_message">>)).
--define(GUI_MESSAGE_ENABLED, true).
--define(GUI_MESSAGE_BODY, (<<"some html">>)).
 
 %%%===================================================================
 %%% Test functions
@@ -105,34 +96,6 @@ method_should_return_service_unavailable_error(Config) ->
     ])).
 
 
-bad_gui_message_id_should_return_not_found(Config) ->
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _},
-            onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
-            )
-        )
-    end, [
-        {<<"/zone/gui_messages/", ?BAD_GUI_MESSAGE_ID/binary>>, patch}
-    ]).
-
-
-patch_should_update_gui_message(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, patch,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{<<"body">> => ?GUI_MESSAGE_BODY, <<"enabled">> => true}
-            )
-        ),
-        ?assertReceivedNextEqual({service, onezone, update_gui_message, #{
-            message_id => ?GOOD_GUI_MESSAGE_ID, body => ?GUI_MESSAGE_BODY,
-            enabled => ?GUI_MESSAGE_ENABLED
-        }}, ?TIMEOUT)
-    end).
-
-
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -168,34 +131,6 @@ init_per_testcase(method_should_return_service_unavailable_error, Config) ->
     test_utils:mock_new(Nodes, [onepanel_parser]),
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     NewConfig;
-
-
-init_per_testcase(Case, Config) when
-    Case == bad_gui_message_id_should_return_not_found;
-    Case == patch_should_update_gui_message
-->
-    Self = self(),
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(all_nodes, Config),
-    test_utils:mock_expect(Nodes, oz_worker_rpc, gui_message_exists,
-        fun(MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
-    test_utils:mock_expect(Nodes, oz_worker_rpc, gui_message_exists,
-        fun(_Node, MessageId) -> MessageId == ?GOOD_GUI_MESSAGE_ID end),
-
-    Result = #{body => ?GUI_MESSAGE_BODY, enabled => ?GUI_MESSAGE_ENABLED},
-    test_utils:mock_expect(Nodes, service, apply_sync, fun
-        (_, get_gui_message, _) ->
-            [
-                #step_end{module = service_onezone, function = get_gui_message,
-                    good_bad_results = {[{'node@host1', Result}], []}},
-                #action_end{service = service, action = action, result = ok}
-            ];
-        (Service, Action, Ctx) ->
-            Self ! {service, Service, Action, Ctx},
-            [#action_end{service = service, action = action, result = ok}]
-    end),
-    NewConfig;
-
 
 
 init_per_testcase(_Case, Config) ->

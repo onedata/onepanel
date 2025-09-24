@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
+-include("onepanel_test_utils.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
 -include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
@@ -34,14 +35,16 @@
     get_policies_test/1,
     set_policies_test/1,
 
-    get_gui_message_settings_test/1
+    get_gui_message_settings_test/1,
+    update_gui_message_settings_test/1
 ]).
 
 all() -> [
     get_policies_test,
     set_policies_test,
 
-    get_gui_message_settings_test
+    get_gui_message_settings_test,
+    update_gui_message_settings_test
 ].
 
 
@@ -70,6 +73,13 @@ all() -> [
     ],
     forbidden = [peer]
 }).
+
+-define(MESSAGE_IDS, [
+    <<"cookie_consent_notification">>,
+    <<"privacy_policy">>,
+    <<"terms_of_use">>,
+    <<"signin_notification">>
+]).
 
 
 %%%===================================================================
@@ -175,7 +185,8 @@ build_modify_policies_verify_fun() ->
 
 get_gui_message_settings_test(_Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
-    ExpDefaultSettings = #{<<"body">> => <<>>, <<"enabled">> => true},
+    ExpSettings = rand_gui_message_settings(),
+    set_gui_message_settings(ExpSettings),
 
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
@@ -185,23 +196,10 @@ get_gui_message_settings_test(_Config) ->
             client_spec = ?CLIENT_SPEC_FOR_GET,
             data_spec = build_get_gui_message_settings_data_spec(),
 
-            prepare_args_fun = fun(#api_test_ctx{data = TestData}) ->
-                case maps:find(id, TestData) of
-                    {ok, MessageId} ->
-                        #rest_args{
-                            method = get,
-                            path = str_utils:format_bin("zone/gui_messages/~ts", [MessageId])
-                        };
-                    error ->
-                        % Since 'id' is part of the path it cannot be omitted - it is not
-                        % possible to test ERR_MISSING_REQUIRED_VALUE
-                        skip
-                end
-            end,
+            prepare_args_fun = build_gui_message_settings_prepare_args_fun(get),
             validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
-                ?assertEqual(ExpDefaultSettings, Body)
+                ?assertEqual(ExpSettings, Body)
             end)
-
         }
     ])).
 
@@ -211,18 +209,74 @@ get_gui_message_settings_test(_Config) ->
 build_get_gui_message_settings_data_spec() ->
     #data_spec{
         required = [id],
-        correct_values = #{
-            id => [
-                <<"cookie_consent_notification">>,
-                <<"privacy_policy">>,
-                <<"terms_of_use">>,
-                <<"signin_notification">>
-            ]
-        },
+        correct_values = #{id => ?MESSAGE_IDS},
         bad_values = [
             {id, <<"valueNotAllowed">>, ?ERROR_NOT_FOUND}
         ]
     }.
+
+
+update_gui_message_settings_test(_Config) ->
+    OzPanelNodes = oct_background:get_zone_panels(),
+    InitialSettings = rand_gui_message_settings(),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Update Onezone GUI message setting using /zone/gui_messages/{id} endpoint">>,
+            type = rest,
+            target_nodes = OzPanelNodes,
+            client_spec = ?CLIENT_SPEC_FOR_UPDATE,
+            data_spec = build_update_gui_message_settings_data_spec(),
+
+            setup_fun = fun() -> set_gui_message_settings(InitialSettings) end,
+            prepare_args_fun = build_gui_message_settings_prepare_args_fun(patch),
+            validate_result_fun = api_test_validate:http_204_no_content(),
+            verify_fun = build_update_gui_message_settings_verify_fun(InitialSettings)
+        }
+    ])).
+
+
+%% @private
+-spec build_update_gui_message_settings_data_spec() -> api_test_runner:data_spec().
+build_update_gui_message_settings_data_spec() ->
+    #data_spec{
+        required = [id],
+        optional = [
+            <<"enabled">>,
+            <<"body">>
+        ],
+        correct_values = #{
+            id => ?MESSAGE_IDS,
+            <<"enabled">> => [true, false],
+            <<"body">> => [?RAND_STR()]
+        },
+        bad_values = [
+            {id, <<"valueNotAllowed">>, ?ERROR_NOT_FOUND},
+            {<<"enabled">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"enabled">>)},
+            {<<"body">>, 1, ?ERR_BAD_VALUE_STRING(<<"body">>)}
+        ]
+    }.
+
+
+%% @private
+-spec build_update_gui_message_settings_verify_fun(json_utils:json_map()) ->
+    api_test_runner:verify_fun().
+build_update_gui_message_settings_verify_fun(InitialSettings) ->
+    fun
+        (expected_success, #api_test_ctx{data = TestData = #{id := MessageId}}) ->
+            ExpSettings = maps:merge(InitialSettings, maps:without([id], TestData)),
+            Settings = get_gui_message_settings(MessageId),
+
+            ?assertEqual(ExpSettings, Settings),
+            true;
+        (expected_failure, _) ->
+            lists:foreach(fun(MessageId) ->
+                Settings = get_gui_message_settings(MessageId),
+                ?assertEqual(InitialSettings, Settings)
+            end, ?MESSAGE_IDS),
+
+            true
+    end.
 
 
 %%%===================================================================
@@ -244,6 +298,54 @@ get_policies_with_rpc() ->
         <<"oneproviderRegistration">> => atom_to_binary(OneproviderRegistration, utf8),
         <<"subdomainDelegation">> => SubdomainDelegationSupported
     }.
+
+
+%% @private
+-spec rand_gui_message_settings() -> json_utils:json_map().
+rand_gui_message_settings() ->
+    #{
+        <<"enabled">> => ?RAND_BOOL(),
+        <<"body">> => ?RAND_STR()
+    }.
+
+
+%% @private
+-spec get_gui_message_settings(binary()) -> json_utils:json_map().
+get_gui_message_settings(MessageId) ->
+    {ok, Settings} = ?assertMatch({ok, _}, ?rpc(zone, oz_worker_rpc:get_gui_message_as_map(MessageId))),
+    kv_utils:copy_found([{body, <<"body">>}, {enabled, <<"enabled">>}], Settings).
+
+
+%% @private
+-spec set_gui_message_settings(json_utils:json_map()) -> ok.
+set_gui_message_settings(Settings) ->
+    lists:foreach(fun(MessageId) ->
+        ?assertEqual(
+            ok,
+            ?rpc(zone, oz_worker_rpc:update_gui_message(?ROOT, MessageId, Settings))
+        )
+    end, ?MESSAGE_IDS).
+
+
+%% @private
+-spec build_gui_message_settings_prepare_args_fun(get | patch) ->
+    api_test_runner:prepare_args_fun().
+build_gui_message_settings_prepare_args_fun(Method) ->
+    fun(#api_test_ctx{data = TestData}) ->
+        case maps:take(id, TestData) of
+            {MessageId, Body} ->
+                #rest_args{
+                    method = Method,
+                    path = str_utils:format_bin("zone/gui_messages/~ts", [MessageId]),
+                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                    body = json_utils:encode(Body)
+                };
+            error ->
+                % Since 'id' is part of the path it cannot be omitted - it is not
+                % possible to test ERR_MISSING_REQUIRED_VALUE
+                skip
+        end
+    end.
 
 
 %%%===================================================================
