@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Middleware handler for returning current user's cluster ids.
-%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(user_current_user_clusters_get_middleware_handler).

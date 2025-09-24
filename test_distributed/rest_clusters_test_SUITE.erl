@@ -30,7 +30,6 @@
 -export([
     method_should_return_forbidden_error_test/1,
     local_user_should_get_not_found_error_test/1,
-    get_should_return_clusters_list_test/1,
     get_should_return_cluster_details_test/1,
     get_should_return_current_cluster_details_test/1,
     current_cluster_should_work_for_local_user_test/1,
@@ -42,7 +41,6 @@ all() ->
     ?ALL([
         method_should_return_forbidden_error_test,
         local_user_should_get_not_found_error_test,
-        get_should_return_clusters_list_test,
         get_should_return_cluster_details_test,
         get_should_return_current_cluster_details_test,
         current_cluster_should_work_for_local_user_test,
@@ -132,7 +130,6 @@ method_should_return_forbidden_error_test(Config) ->
             ))
         end, [
             {<<"/cluster">>, get},
-            {<<"/user/clusters">>, get},
             {<<"/user/clusters/someClusterId">>, get}
         ])
     end).
@@ -145,22 +142,8 @@ local_user_should_get_not_found_error_test(Config) ->
             ?ROOT_AUTHS(Host)
         ))
     end, [
-        {<<"/user/clusters/">>, get},
         {<<"/user/clusters/someCluster">>, get}
     ]).
-
-
-get_should_return_clusters_list_test(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/user/clusters/">>, get,
-                ?OZ_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody,
-            #{<<"ids">> => maps:keys(?CLUSTERS)})
-    end).
 
 
 get_should_return_cluster_details_test(Config) ->

@@ -52,6 +52,7 @@ stages:
         - _Codetag Tracker
         - _Dialyze
         - _Unit Test
+        - api_common_current_user
         - api_common_emergency_passphrase
         - api_common_emergency_passphrase_not_deployed
         - api_common_internal
@@ -87,7 +88,6 @@ stages:
         - le_oz
         - rest_clusters
         - rest_onepanel
-        - rest_onepanel_user
         - rest_oneprovider
         - rest_onezone
         - rest_service
@@ -275,8 +275,8 @@ _Unit Test:
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
 
-api_common_emergency_passphrase: &ct-onenv-job
-  key: ACEP
+api_common_current_user: &ct-onenv-job
+  key: APICOMMONCURRENTUSER
   other: *common-opts
   tasks:
     - checkout: *fake-checkout
@@ -317,13 +317,20 @@ api_common_emergency_passphrase: &ct-onenv-job
         working-dir: onepanel
   artifacts:
     - &ct_logs
-      name: ct_logs_api_common_emergency_passphrase.tar.gz
+      name: ct_logs_api_common_current_user.tar.gz
       pattern: ct_logs_${bamboo.shortJobName}.tar.gz
       shared: true
       required: false
   requirements:
     - minikube
   artifact-subscriptions: *artifact-onepanel
+
+api_common_emergency_passphrase:
+  <<: *ct-onenv-job
+  key: ACEP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_emergency_passphrase.tar.gz
 
 api_common_emergency_passphrase_not_deployed:
   <<: *ct-onenv-job
@@ -575,13 +582,6 @@ rest_onepanel:
     - <<: *ct_logs
       name: ct_logs_rest_onepanel.tar.gz
 
-rest_onepanel_user:
-  <<: *ct-job
-  key: ROU
-  artifacts:
-    - <<: *ct_logs
-      name: ct_logs_rest_onepanel_user.tar.gz
-
 rest_oneprovider:
   <<: *ct-job
   key: ROP
@@ -687,6 +687,7 @@ Coverage report:
   artifact-subscriptions:
     - artifact: onepanel.tar.gz
     - artifact: cover_eunit.tar.gz
+    - artifact: ct_logs_api_common_current_user.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
     - artifact: ct_logs_api_common_internal.tar.gz
@@ -723,7 +724,6 @@ Coverage report:
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
     - artifact: ct_logs_rest_onepanel.tar.gz
-    - artifact: ct_logs_rest_onepanel_user.tar.gz
     - artifact: ct_logs_rest_oneprovider.tar.gz
     - artifact: ct_logs_rest_onezone.tar.gz
     - artifact: ct_logs_rest_service.tar.gz
