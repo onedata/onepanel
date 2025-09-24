@@ -30,16 +30,14 @@
 -export([
     method_should_return_forbidden_error/1,
     get_current_user_as_oz_user_should_return_privileges/1,
-    get_current_user_as_root_should_fail/1,
-    get_should_list_oz_users/1
+    get_current_user_as_root_should_fail/1
 ]).
 
 all() ->
     ?ALL([
         method_should_return_forbidden_error,
         get_current_user_as_oz_user_should_return_privileges,
-        get_current_user_as_root_should_fail,
-        get_should_list_oz_users
+        get_current_user_as_root_should_fail
     ]).
 
 -define(USER_ID1, <<"joeId">>).
@@ -89,20 +87,6 @@ get_current_user_as_root_should_fail(Config) ->
     )).
 
 
-get_should_list_oz_users(Config) ->
-    Expected = lists:sort(?config(oz_user_ids, Config)),
-
-    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:auth_request(
-            Config, <<"/zone/users">>, get,
-            ?OZ_OR_ROOT_AUTHS(Config, [])
-        )
-    ),
-    onepanel_test_rest:assert_body_fields(JsonBody, [<<"ids">>]),
-    #{<<"ids">> := ReturnedIds} = json_utils:decode(JsonBody),
-    ?assertEqual(Expected, lists:sort(ReturnedIds)).
-
-
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -113,17 +97,6 @@ init_per_suite(Config) ->
     Posthook = fun(NewConfig) -> onepanel_test_utils:init(NewConfig) end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
-
-init_per_testcase(get_should_list_oz_users, Config) ->
-    Config2 = init_per_testcase(default, Config),
-    Nodes = ?config(onepanel_nodes, Config),
-    UserIds = [?USER_ID1, ?USER_ID2],
-    test_utils:mock_new(Nodes, [onezone_users]),
-    test_utils:mock_expect(Nodes, rpc, call, fun
-        (_, rpc_api, apply, [list_users, [?ROOT]]) -> {ok, UserIds};
-        (Node, M, F, A) -> meck:passthrough([Node, M, F, A])
-    end),
-    [{oz_user_ids, UserIds} | Config2];
 
 init_per_testcase(_Case, Config) ->
     Nodes = ?config(onepanel_nodes, Config),

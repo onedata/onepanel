@@ -31,21 +31,78 @@
 ]).
 
 -export([
+    list_users_test/1,
     create_user_test/1,
     get_user_details_test/1,
     set_user_password_test/1
 ]).
 
 all() -> [
+    list_users_test,
     create_user_test,
     get_user_details_test,
     set_user_password_test
 ].
 
 
+-define(CLIENT_SPEC_FOR_GET, #client_spec{
+    correct = [
+        root,
+        member
+    ],
+    unauthorized = [
+        guest,
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ],
+    forbidden = [peer]
+}).
+
+-define(CLIENT_SPEC_FOR_SET, #client_spec{
+    correct = [
+        root,
+        {member, [?CLUSTER_UPDATE]}
+    ],
+    unauthorized = [
+        guest,
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ],
+    forbidden = [peer]
+}).
+
+
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+list_users_test(_Config) ->
+    OzPanelNodes = oct_background:get_zone_panels(),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"List Onezone users using /zone/users rest endpoint">>,
+            type = rest,
+            target_nodes = OzPanelNodes,
+            client_spec = ?CLIENT_SPEC_FOR_GET,
+
+            prepare_args_fun = fun(_) ->
+                #rest_args{
+                    method = get,
+                    path = <<"zone/users">>
+                }
+            end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
+                % Users can be fetched only before actual assert as api test framework creates
+                % users on demand (it is not possible to fetch users once before test starts)
+                ExpUserIds = lists:sort(ozw_test_rpc:list_users()),
+                #{<<"ids">> := UserIds} = ?assertMatch(#{<<"ids">> := _}, Body),
+
+                ?assertEqual(ExpUserIds, lists:sort(UserIds))
+            end)
+        }
+    ])).
 
 
 create_user_test(_Config) ->
@@ -61,20 +118,7 @@ create_user_test(_Config) ->
             name = <<"Add zone user using /zone/users endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer
-                ]
-            },
+            client_spec = ?CLIENT_SPEC_FOR_SET,
 
             data_spec = build_create_user_data_spec(OzWorkerNodes, GroupIds),
             prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
@@ -180,20 +224,7 @@ get_user_details_test(_Config) ->
             name = <<"Get Onezone user details using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer
-                ]
-            },
+            client_spec = ?CLIENT_SPEC_FOR_GET,
 
             setup_fun = build_get_user_details_setup_fun(MemRef),
             data_spec = build_get_user_details_data_spec(OzWorkerNodes),
@@ -267,20 +298,7 @@ set_user_password_test(_Config) ->
             name = <<"Set Onezone user password using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer
-                ]
-            },
+            client_spec = ?CLIENT_SPEC_FOR_SET,
 
             data_spec = build_set_user_password_data_spec(OzWorkerNodes),
             prepare_args_fun = build_set_user_password_prepare_rest_args_fun(MemRef),
@@ -395,8 +413,9 @@ authentication_succeeds(UserName, Password) ->
 
 init_per_suite(Config) ->
     oct_background:init_per_suite(Config, #onenv_test_config{
-        onenv_scenario = "1op"
+        onenv_scenario = "1oz"
     }).
+
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
