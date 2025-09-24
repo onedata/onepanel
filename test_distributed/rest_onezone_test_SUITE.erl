@@ -34,7 +34,6 @@
     method_should_return_forbidden_error/1,
     method_should_return_service_unavailable_error/1,
     bad_gui_message_id_should_return_not_found/1,
-    get_should_return_gui_message/1,
     patch_should_update_gui_message/1
 ]).
 
@@ -44,7 +43,6 @@ all() ->
         method_should_return_forbidden_error,
         method_should_return_service_unavailable_error,
         bad_gui_message_id_should_return_not_found,
-        get_should_return_gui_message,
         patch_should_update_gui_message
     ]).
 
@@ -115,23 +113,8 @@ bad_gui_message_id_should_return_not_found(Config) ->
             )
         )
     end, [
-        {<<"/zone/gui_messages/", ?BAD_GUI_MESSAGE_ID/binary>>, get},
         {<<"/zone/gui_messages/", ?BAD_GUI_MESSAGE_ID/binary>>, patch}
     ]).
-
-
-get_should_return_gui_message(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/zone/gui_messages/", ?GOOD_GUI_MESSAGE_ID/binary>>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, #{
-            <<"body">> => ?GUI_MESSAGE_BODY, <<"enabled">> => ?GUI_MESSAGE_ENABLED
-        })
-    end).
 
 
 patch_should_update_gui_message(Config) ->
@@ -189,7 +172,6 @@ init_per_testcase(method_should_return_service_unavailable_error, Config) ->
 
 init_per_testcase(Case, Config) when
     Case == bad_gui_message_id_should_return_not_found;
-    Case == get_should_return_gui_message;
     Case == patch_should_update_gui_message
 ->
     Self = self(),

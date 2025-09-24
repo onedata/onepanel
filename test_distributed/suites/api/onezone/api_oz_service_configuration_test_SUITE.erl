@@ -31,14 +31,45 @@
 ]).
 
 -export([
-    get_onezone_policies_test/1,
-    set_onezone_policies_test/1
+    get_policies_test/1,
+    set_policies_test/1,
+
+    get_gui_message_settings_test/1
 ]).
 
 all() -> [
-    get_onezone_policies_test,
-    set_onezone_policies_test
+    get_policies_test,
+    set_policies_test,
+
+    get_gui_message_settings_test
 ].
+
+
+-define(CLIENT_SPEC_FOR_GET, #client_spec{
+    correct = [
+        root,
+        member
+    ],
+    unauthorized = [
+        guest,
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ],
+    forbidden = [peer]
+}).
+
+-define(CLIENT_SPEC_FOR_UPDATE, #client_spec{
+    correct = [
+        root,
+        {member, [?CLUSTER_UPDATE, ?CLUSTER_SET_PRIVILEGES]}
+    ],
+    unauthorized = [
+        guest,
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ],
+    forbidden = [peer]
+}).
 
 
 %%%===================================================================
@@ -46,27 +77,16 @@ all() -> [
 %%%===================================================================
 
 
-get_onezone_policies_test(_Config) ->
+get_policies_test(_Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
-    ExpectedPolicies = get_onezone_policies_with_rpc(),
+    ExpectedPolicies = get_policies_with_rpc(),
 
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get Onezone policies using /zone/policies endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    member
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = ?CLIENT_SPEC_FOR_GET,
 
             prepare_args_fun = fun(_) ->
                 #rest_args{
@@ -82,7 +102,7 @@ get_onezone_policies_test(_Config) ->
     ])).
 
 
-set_onezone_policies_test(_Config) ->
+set_policies_test(_Config) ->
     OzPanelNodes = oct_background:get_zone_panels(),
 
     ?assert(api_test_runner:run_tests([
@@ -90,30 +110,19 @@ set_onezone_policies_test(_Config) ->
             name = <<"Set Onezone policies using /zone/policies endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE, ?CLUSTER_SET_PRIVILEGES]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
-            data_spec = build_modify_onezone_policies_data_spec(),
+            client_spec = ?CLIENT_SPEC_FOR_UPDATE,
+            data_spec = build_modify_policies_data_spec(),
 
-            prepare_args_fun = build_modify_onezone_policies_prepare_args_fun(),
+            prepare_args_fun = build_modify_policies_prepare_args_fun(),
             validate_result_fun = api_test_validate:http_204_no_content(),
-            verify_fun = build_modify_onezone_policies_verify_fun()
+            verify_fun = build_modify_policies_verify_fun()
         }
     ])).
 
 
 %% @private
--spec build_modify_onezone_policies_data_spec() -> api_test_runner:data_spec().
-build_modify_onezone_policies_data_spec() ->
+-spec build_modify_policies_data_spec() -> api_test_runner:data_spec().
+build_modify_policies_data_spec() ->
     #data_spec{
         optional = [
             <<"oneproviderRegistration">>,
@@ -138,8 +147,8 @@ build_modify_onezone_policies_data_spec() ->
 
 
 %% @private
--spec build_modify_onezone_policies_prepare_args_fun() -> api_test_runner:prepare_args_fun().
-build_modify_onezone_policies_prepare_args_fun() ->
+-spec build_modify_policies_prepare_args_fun() -> api_test_runner:prepare_args_fun().
+build_modify_policies_prepare_args_fun() ->
     fun(#api_test_ctx{data = Data}) ->
         #rest_args{
             method = patch,
@@ -151,11 +160,11 @@ build_modify_onezone_policies_prepare_args_fun() ->
 
 
 %% @private
--spec build_modify_onezone_policies_verify_fun() -> api_test_runner:verify_fun().
-build_modify_onezone_policies_verify_fun() ->
+-spec build_modify_policies_verify_fun() -> api_test_runner:verify_fun().
+build_modify_policies_verify_fun() ->
     fun
         (expected_success, #api_test_ctx{data = Data}) ->
-            OnezonePolicies = get_onezone_policies_with_rpc(),
+            OnezonePolicies = get_policies_with_rpc(),
 
             ?assert(maps_utils:is_submap(Data, OnezonePolicies)),
             true;
@@ -164,14 +173,66 @@ build_modify_onezone_policies_verify_fun() ->
     end.
 
 
+get_gui_message_settings_test(_Config) ->
+    OzPanelNodes = oct_background:get_zone_panels(),
+    ExpDefaultSettings = #{<<"body">> => <<>>, <<"enabled">> => true},
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get Onezone GUI message setting using /zone/gui_messages/{id} endpoint">>,
+            type = rest,
+            target_nodes = OzPanelNodes,
+            client_spec = ?CLIENT_SPEC_FOR_GET,
+            data_spec = build_get_gui_message_settings_data_spec(),
+
+            prepare_args_fun = fun(#api_test_ctx{data = TestData}) ->
+                case maps:find(id, TestData) of
+                    {ok, MessageId} ->
+                        #rest_args{
+                            method = get,
+                            path = str_utils:format_bin("zone/gui_messages/~ts", [MessageId])
+                        };
+                    error ->
+                        % Since 'id' is part of the path it cannot be omitted - it is not
+                        % possible to test ERR_MISSING_REQUIRED_VALUE
+                        skip
+                end
+            end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(Body) ->
+                ?assertEqual(ExpDefaultSettings, Body)
+            end)
+
+        }
+    ])).
+
+
+%% @private
+-spec build_get_gui_message_settings_data_spec() -> api_test_runner:data_spec().
+build_get_gui_message_settings_data_spec() ->
+    #data_spec{
+        required = [id],
+        correct_values = #{
+            id => [
+                <<"cookie_consent_notification">>,
+                <<"privacy_policy">>,
+                <<"terms_of_use">>,
+                <<"signin_notification">>
+            ]
+        },
+        bad_values = [
+            {id, <<"valueNotAllowed">>, ?ERROR_NOT_FOUND}
+        ]
+    }.
+
+
 %%%===================================================================
 %%% Helper functions
 %%%===================================================================
 
 
 %% @private
--spec get_onezone_policies_with_rpc() -> map().
-get_onezone_policies_with_rpc() ->
+-spec get_policies_with_rpc() -> map().
+get_policies_with_rpc() ->
     OneproviderRegistration = ozw_test_rpc:get_env(provider_registration_policy),
     GuiPackageVerification = ozw_test_rpc:get_env(gui_package_verification),
     HarvesterGuiPackageVerification = ozw_test_rpc:get_env(harvester_gui_package_verification),
