@@ -36,9 +36,7 @@
     method_should_return_forbidden_error/1,
     method_should_return_conflict_error/1,
     method_should_return_service_unavailable_error/1,
-    get_should_return_cluster_ips/1,
     post_should_register_provider/1,
-    patch_should_modify_provider_ips/1,
     delete_should_unregister_provider/1,
     patch_should_configure_auto_storage_import/1,
     get_should_return_autocleaning_reports/1,
@@ -105,9 +103,7 @@ all() ->
         method_should_return_forbidden_error,
         method_should_return_conflict_error,
         method_should_return_service_unavailable_error,
-        get_should_return_cluster_ips,
         post_should_register_provider,
-        patch_should_modify_provider_ips,
         delete_should_unregister_provider,
         patch_should_configure_auto_storage_import,
         get_should_return_autocleaning_reports,
@@ -257,14 +253,6 @@ all() ->
 -define(SPACE_JSON, #{<<"id">> => <<"someId1">>}).
 
 -define(SPACE_IDS, [<<"someId1">>, <<"someId2">>, <<"someId3">>]).
-
--define(CLUSTER_IPS_JSON(_Hosts), #{
-    <<"hosts">> =>
-    lists:foldl(fun(_Host, _Acc) ->
-        maps:put(list_to_binary(_Host), <<"1.2.3.4">>, _Acc)
-    end, #{}, _Hosts),
-    <<"isConfigured">> => false
-}).
 
 
 -define(STORAGE_JSON, (maps:merge(#{
@@ -526,20 +514,6 @@ method_should_return_service_unavailable_error(Config) ->
     ]).
 
 
-get_should_return_cluster_ips(Config) ->
-    Nodes = ?config(oneprovider_nodes, Config),
-    Hosts = lists:map(fun hosts:from_node/1, Nodes),
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/provider/cluster_ips">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, ?CLUSTER_IPS_JSON(Hosts))
-    end).
-
-
 post_should_register_provider(Config) ->
     ?eachHost(Config, fun(Host) ->
         % a proper token must be generated to allow extracting onezone domain
@@ -555,26 +529,6 @@ post_should_register_provider(Config) ->
             oneprovider_domain := <<"somedomain">>,
             oneprovider_geo_latitude := 20.0,
             oneprovider_geo_longitude := 10.0
-        }}, ?TIMEOUT)
-    end).
-
-
-patch_should_modify_provider_ips(Config) ->
-    % There is one node in test environment
-    NewIP = <<"1.2.3.4">>,
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/provider/cluster_ips">>, patch,
-            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]), #{
-                hosts => #{
-                    list_to_binary(Host) => NewIP
-                }
-            }
-        )),
-        ?assertReceivedMatch({service, oneprovider, set_cluster_ips, #{
-            cluster_ips := #{
-                Host := NewIP
-            }
         }}, ?TIMEOUT)
     end).
 
@@ -1254,19 +1208,6 @@ init_per_testcase(get_should_return_provider_details, Config) ->
     test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
         #step_end{module = service_oneprovider, function = get_details,
             good_bad_results = {[{'node@host1', ?PROVIDER_DETAILS_JSON}], []}},
-        #action_end{service = service, action = action, result = ok}
-    ] end),
-    NewConfig;
-
-init_per_testcase(get_should_return_cluster_ips, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(oneprovider_nodes, Config),
-    Hosts = lists:map(fun hosts:from_node/1, Nodes),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        #step_end{module = service_oneprovider, function = format_cluster_ips,
-            good_bad_results = {
-                [{'node@host1', ?CLUSTER_IPS_JSON(Hosts)}], []
-            }},
         #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;

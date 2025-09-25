@@ -31,15 +31,12 @@
 %% tests
 -export([
     method_should_return_unauthorized_error/1,
-    method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
     get_should_return_service_status/1,
     get_should_return_service_host_status/1,
     get_should_return_service_task_results/1,
     get_should_return_nagios_response/1,
-    get_should_return_dns_check/1,
     patch_should_start_stop_service/1,
-    patch_should_configure_dns_check/1,
     post_should_configure_database_service/1,
     post_should_configure_cluster_manager_service/1,
     post_should_configure_cluster_worker_service/1,
@@ -168,15 +165,12 @@ end).
 all() ->
     ?ALL([
         method_should_return_unauthorized_error,
-        method_should_return_forbidden_error,
         method_should_return_not_found_error,
         get_should_return_service_status,
         get_should_return_service_host_status,
         get_should_return_service_task_results,
         get_should_return_nagios_response,
-        get_should_return_dns_check,
         patch_should_start_stop_service,
-        patch_should_configure_dns_check,
         post_should_configure_database_service,
         post_should_configure_cluster_manager_service,
         post_should_configure_cluster_worker_service,
@@ -202,32 +196,6 @@ method_should_return_unauthorized_error(Config) ->
             ))
         end, ?COMMON_ENDPOINTS_WITH_METHODS)
     end).
-
-
-method_should_return_forbidden_error(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun({Endpoint, Method} = EM) ->
-            Auths = ?PEER_AUTHS(Host) ++ case EM of
-                {_, get} ->
-                    [];
-                _ ->
-                    ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
-            end,
-            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, Endpoint/binary>>, Method, Auths
-            ))
-        end, ?COMMON_ENDPOINTS_WITH_METHODS)
-    end),
-
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Host, Endpoint, Method, ?PEER_AUTHS(Host)
-        ))
-    end, [
-        {<<"/dns_check">>, get},
-        {<<"/dns_check/configuration">>, get},
-        {<<"/dns_check/configuration">>, patch}
-    ]).
 
 
 method_should_return_not_found_error(Config) ->
@@ -341,27 +309,6 @@ get_should_return_nagios_response(Config) ->
     ]).
 
 
-get_should_return_dns_check(Config) ->
-    [OpHost | _] = ?config(oneprovider_hosts, Config),
-    [OzHost | _] = ?config(onezone_hosts, Config),
-
-    {_, _, _, OpJsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:auth_request(
-            OpHost, <<"/dns_check">>, get,
-            ?OZ_OR_ROOT_AUTHS(OpHost, [])
-        )
-    ),
-    onepanel_test_rest:assert_body(OpJsonBody, ?DNS_CHECK_JSON_OP),
-
-    {_, _, _, OzJsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:auth_request(
-            OzHost, <<"/dns_check">>, get,
-            ?OZ_OR_ROOT_AUTHS(OzHost, [])
-        )
-    ),
-    onepanel_test_rest:assert_body(OzJsonBody, ?DNS_CHECK_JSON_OZ).
-
-
 patch_should_start_stop_service(Config) ->
     ?run(Config, fun({Host, {Prefix, WorkerService}}) ->
         lists:foreach(fun({Service, Endpoint}) ->
@@ -392,27 +339,6 @@ patch_should_start_stop_service(Config) ->
         {oneprovider_hosts, {<<"/provider">>, op_worker}},
         {onezone_hosts, {<<"/zone">>, oz_worker}}
     ]).
-
-
-patch_should_configure_dns_check(Config) ->
-    ?run(Config, fun({Host, _}) ->
-        ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, <<>>},
-            onepanel_test_rest:auth_request(
-                Host, <<"/dns_check/configuration">>, patch,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{
-                    <<"dnsServers">> => [<<"127.0.0.1">>],
-                    <<"builtInDnsServer">> => true,
-                    <<"dnsCheckAcknowledged">> => true
-                }
-            )
-        ),
-        ?assertReceivedMatch({service, _, configure_dns_check, #{
-            dns_servers := [{127, 0, 0, 1}],
-            dns_check_acknowledged := true,
-            built_in_dns_server := true
-        }}, ?TIMEOUT)
-    end).
 
 
 post_should_configure_database_service(Config) ->
@@ -651,7 +577,6 @@ init_per_suite(Config) ->
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
 
 init_per_testcase(Case, Config) when
-    Case == method_should_return_forbidden_error;
     Case == method_should_return_unauthorized_error
 ->
     NewConfig = init_per_testcase(default, Config),
@@ -699,51 +624,6 @@ init_per_testcase(get_should_return_nagios_response, Config) ->
         #action_end{service = service, action = action, result = ok}
     ] end),
     NewConfig;
-
-init_per_testcase(get_should_return_dns_check, Config) ->
-    Nodes = ?config(all_nodes, Config),
-    OpHosts = ?config(oneprovider_hosts, Config),
-    OzHosts = ?config(onezone_hosts, Config),
-    OpNodes = ?config(oneprovider_nodes, Config),
-    OzNodes = ?config(onezone_nodes, Config),
-
-    test_utils:mock_new(Nodes, [model, onepanel_deployment, service,
-        service_oneprovider, dns_check]),
-    test_utils:mock_expect(Nodes, model, exists,
-        fun(_) -> true end),
-    test_utils:mock_expect(Nodes, onepanel_deployment, is_set,
-        fun(_) -> true end),
-    test_utils:mock_expect(Nodes, service, get_hosts, fun
-        (op_worker) -> OpHosts;
-        (oz_worker) -> OzHosts
-    end),
-    test_utils:mock_expect(OpNodes, service_oneprovider, is_registered, fun() -> true end),
-    test_utils:mock_expect(OpNodes, service_oneprovider, get_oz_domain, fun() -> hd(OzHosts) end),
-    test_utils:mock_expect(OpNodes, dns_check, get, fun
-        (op_worker, _) -> #{
-            timestamp => ?DNS_CHECK_TIMESTAMP,
-            domain => #dns_check{
-                summary = ok, expected = [?SOME_IP_STR1], got = [?SOME_IP_STR1],
-                bind_records = []
-            }
-        } end),
-
-    test_utils:mock_expect(OzNodes, dns_check, get, fun
-        (oz_worker, _) -> #{
-            timestamp => ?DNS_CHECK_TIMESTAMP,
-            domain => #dns_check{
-                summary = ok, expected = [?SOME_IP_STR1], got = [?SOME_IP_STR1],
-                bind_records = []
-            },
-            dnsZone => #dns_check{
-                summary = bad_records, expected = [?SOME_IP_STR1], got = [?SOME_IP_STR2],
-                bind_records = []
-            }
-        } end),
-
-    onepanel_test_rest:set_default_passphrase(Config),
-    onepanel_test_rest:mock_token_authentication(Nodes),
-    Config;
 
 init_per_testcase(get_should_return_service_task_results, Config) ->
     NewConfig = init_per_testcase(default, Config),

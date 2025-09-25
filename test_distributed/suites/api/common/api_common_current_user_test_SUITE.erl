@@ -54,11 +54,11 @@ all() -> [
 
 
 get_current_user_details_from_zone_test(Config) ->
-    get_current_user_details_test_base(Config, ?OP_PANEL, krakow).
+    get_current_user_details_test_base(Config, ?OZ_PANEL, zone).
 
 
 get_current_user_details_from_krakow_test(Config) ->
-    get_current_user_details_test_base(Config, ?OZ_PANEL, zone).
+    get_current_user_details_test_base(Config, ?OP_PANEL, krakow).
 
 
 %% @private
@@ -93,11 +93,11 @@ get_current_user_details_test_base(Config, PanelType, PanelEntitySelector) ->
 
 
 list_current_user_clusters_from_zone_test(Config) ->
-    list_current_user_clusters_test_base(Config, ?OP_PANEL, krakow).
+    list_current_user_clusters_test_base(Config, ?OZ_PANEL, zone).
 
 
 list_current_user_clusters_from_krakow_test(Config) ->
-    list_current_user_clusters_test_base(Config, ?OZ_PANEL, zone).
+    list_current_user_clusters_test_base(Config, ?OP_PANEL, krakow).
 
 
 %% @private

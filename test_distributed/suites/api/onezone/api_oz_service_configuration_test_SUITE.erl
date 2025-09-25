@@ -15,12 +15,7 @@
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
 -include("onepanel_test_utils.hrl").
--include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/headers.hrl").
--include_lib("ctool/include/test/assertions.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
