@@ -52,6 +52,7 @@ stages:
         - _Codetag Tracker
         - _Dialyze
         - _Unit Test
+        - api_common_cluster
         - api_common_current_user
         - api_common_emergency_passphrase
         - api_common_emergency_passphrase_not_deployed
@@ -276,8 +277,8 @@ _Unit Test:
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
 
-api_common_current_user: &ct-onenv-job
-  key: APICOMMONCURRENTUSER
+api_common_cluster: &ct-onenv-job
+  key: APICOMMONCLUSTER
   other: *common-opts
   tasks:
     - checkout: *fake-checkout
@@ -318,13 +319,20 @@ api_common_current_user: &ct-onenv-job
         working-dir: onepanel
   artifacts:
     - &ct_logs
-      name: ct_logs_api_common_current_user.tar.gz
+      name: ct_logs_api_common_cluster.tar.gz
       pattern: ct_logs_${bamboo.shortJobName}.tar.gz
       shared: true
       required: false
   requirements:
     - minikube
   artifact-subscriptions: *artifact-onepanel
+
+api_common_current_user:
+  <<: *ct-onenv-job
+  key: APICOMMONCURRENTUSER
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_current_user.tar.gz
 
 api_common_emergency_passphrase:
   <<: *ct-onenv-job
@@ -695,6 +703,7 @@ Coverage report:
   artifact-subscriptions:
     - artifact: onepanel.tar.gz
     - artifact: cover_eunit.tar.gz
+    - artifact: ct_logs_api_common_cluster.tar.gz
     - artifact: ct_logs_api_common_current_user.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz

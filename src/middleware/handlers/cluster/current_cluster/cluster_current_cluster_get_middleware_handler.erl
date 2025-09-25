@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Middleware handler for getting current cluster information.
-%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(cluster_current_cluster_get_middleware_handler).
