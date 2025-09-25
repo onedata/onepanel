@@ -74,18 +74,9 @@ add_storage_test_base(#add_storage_test_spec{
     ?assert(api_test_runner:run_tests([
         #suite_spec{
             target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
 
             scenario_templates = [#scenario_template{
                 name = <<"Add storage using /provider/storages rest endpoint">>,
@@ -110,18 +101,7 @@ get_storage_test_base(StorageId, ExpStorageDetails) ->
             name = <<"Get storage details using /provider/storages/{storage_id} rest endpoint">>,
             type = rest,
             target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(ProviderId),
             prepare_args_fun = fun(_) ->
                 #rest_args{
                     method = get,
@@ -152,18 +132,9 @@ modify_storage_test_base(TestSpec = #modify_storage_test_spec{
     ?assert(api_test_runner:run_tests([
         #suite_spec{
             target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
 
             setup_fun = SetupFun(MemRef),
             verify_fun = build_modify_storage_verify_fun(MemRef),

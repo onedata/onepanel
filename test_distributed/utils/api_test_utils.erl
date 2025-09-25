@@ -27,6 +27,10 @@
 
 -export_type([placeholder_substitute/0]).
 
+-export([
+    build_member_and_root_allowed_client_spec/1, build_member_and_root_allowed_client_spec/2,
+    build_only_member_allowed_client_spec/1
+]).
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
 -export([substitute_placeholders/2]).
@@ -38,6 +42,65 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec build_member_and_root_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_member_and_root_allowed_client_spec(PanelEntitySelector) ->
+    build_member_and_root_allowed_client_spec(PanelEntitySelector, []).
+
+
+-spec build_member_and_root_allowed_client_spec(
+    oct_background:entity_selector(),
+    [privileges:cluster_privilege()]
+) ->
+    api_test_runner:client_spec().
+build_member_and_root_allowed_client_spec(PanelEntitySelector, MemberPrivs) ->
+    EntityId = oct_background:to_entity_id(PanelEntitySelector),
+    PanelType = case EntityId of
+        <<"onezone">> -> ?OZ_PANEL;
+        _ -> ?OP_PANEL
+    end,
+
+    #client_spec{
+        correct = [
+            root,
+            {member, MemberPrivs}
+        ],
+        unauthorized = [
+            guest,
+            {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+            | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+        ],
+        forbidden = [
+            peer
+        ]
+    }.
+
+
+-spec build_only_member_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_only_member_allowed_client_spec(PanelEntitySelector) ->
+    EntityId = oct_background:to_entity_id(PanelEntitySelector),
+    PanelType = case EntityId of
+        <<"onezone">> -> ?OZ_PANEL;
+        _ -> ?OP_PANEL
+    end,
+
+    #client_spec{
+        correct = [
+            member
+        ],
+        unauthorized = [
+            guest,
+            {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+            | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+        ],
+        forbidden = [
+            {root, ?ERROR_NOT_FOUND},
+            peer
+        ]
+    }.
 
 
 -spec ensure_defined

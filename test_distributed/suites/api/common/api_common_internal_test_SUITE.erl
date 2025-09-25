@@ -61,46 +61,30 @@ all() -> [
 %%%===================================================================
 
 
-get_krakow_details_from_paris_test(Config) ->
-    get_remote_op_details_test_base(Config, ?OP_PANEL, paris, krakow).
+get_krakow_details_from_paris_test(_Config) ->
+    get_remote_op_details_test_base(paris, krakow).
 
 
-get_krakow_details_from_zone_test(Config) ->
-    get_remote_op_details_test_base(Config, ?OZ_PANEL, zone, krakow).
+get_krakow_details_from_zone_test(_Config) ->
+    get_remote_op_details_test_base(zone, krakow).
 
 
-get_krakow_details_from_krakow_test(Config) ->
-    get_remote_op_details_test_base(Config, ?OP_PANEL, krakow, krakow).
+get_krakow_details_from_krakow_test(_Config) ->
+    get_remote_op_details_test_base(krakow, krakow).
 
 
 %% @private
--spec get_remote_op_details_test_base(test_config:config(), atom(), oct_background:entity_selector(), oct_background:entity_selector()) -> boolean().
-get_remote_op_details_test_base(_Config, TargetPanelType, TargetEntitySelector, RemoteProviderSelector) ->
-    TargetId = oct_background:to_entity_id(TargetEntitySelector),
-    TargetPanelNodes = case TargetPanelType of
-        ?OZ_PANEL -> oct_background:get_zone_panels();
-        ?OP_PANEL -> oct_background:get_provider_panels(TargetEntitySelector)
-    end,
-
+-spec get_remote_op_details_test_base(oct_background:entity_selector(), oct_background:entity_selector()) ->
+    boolean().
+get_remote_op_details_test_base(TargetEntitySelector, RemoteProviderSelector) ->
     RemoteProviderId = oct_background:get_provider_id(RemoteProviderSelector),
 
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get remote provider details using /providers rest endpoint">>,
             type = rest,
-            target_nodes = TargetPanelNodes,
-            client_spec = #client_spec{
-                correct = [member],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer,
-                    {root, ?ERROR_NOT_FOUND}
-                ]
-            },
+            target_nodes = panel_test_utils:get_panel_nodes(TargetEntitySelector),
+            client_spec = api_test_utils:build_only_member_allowed_client_spec(TargetEntitySelector),
             data_spec = build_get_remote_op_details_data_spec(),
             prepare_args_fun = build_get_remote_op_details_prepare_args_fun(RemoteProviderId),
 

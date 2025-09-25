@@ -13,10 +13,6 @@
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
--include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/headers.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 -include_lib("onenv_ct/include/chart_values.hrl").
 
@@ -70,18 +66,9 @@ get_storages_ids(_Config) ->
             name = <<"Get storage ids using /provider/storages rest endpoint">>,
             type = rest,
             target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId
+            ),
             prepare_args_fun = fun(_) ->
                 #rest_args{method = get, path = <<"provider/storages">>}
             end,

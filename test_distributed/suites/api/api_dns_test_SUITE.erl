@@ -77,22 +77,21 @@ all() -> [
 
 
 get_zone_dns_check_configuration_test(_Config) ->
-    get_dns_check_configuration_test_base(?OZ_PANEL, zone).
+    get_dns_check_configuration_test_base(zone).
 
 
 get_krakow_dns_check_configuration_test(_Config) ->
-    get_dns_check_configuration_test_base(?OP_PANEL, krakow).
+    get_dns_check_configuration_test_base(krakow).
 
 
 %% @private
--spec get_dns_check_configuration_test_base(atom(), oct_background:entity_selector()) ->
+-spec get_dns_check_configuration_test_base(oct_background:entity_selector()) ->
     boolean().
-get_dns_check_configuration_test_base(TargetPanelType, TargetEntitySelector) ->
+get_dns_check_configuration_test_base(TargetEntitySelector) ->
     % Configuration values are tested in dns_(op|oz)_test_SUITE
     ExpFields = lists:sort([<<"dnsServers">>, <<"builtInDnsServer">>, <<"dnsCheckAcknowledged">>]),
 
     get_test_base(
-        TargetPanelType,
         TargetEntitySelector,
         <<"Get dns check configuration using /dns_check/configuration rest endpoint">>,
         <<"dns_check/configuration">>,
@@ -119,7 +118,7 @@ update_zone_dns_check_configuration_test(_Config) ->
             {<<"dnsCheckAcknowledged">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"dnsCheckAcknowledged">>)}
         ]
     },
-    update_dns_check_configuration_test_base(?OZ_PANEL, zone, DataSpec).
+    update_dns_check_configuration_test_base(zone, DataSpec).
 
 
 update_krakow_dns_check_configuration_test(_Config) ->
@@ -138,21 +137,16 @@ update_krakow_dns_check_configuration_test(_Config) ->
             {<<"dnsCheckAcknowledged">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"dnsCheckAcknowledged">>)}
         ]
     },
-    update_dns_check_configuration_test_base(?OP_PANEL, krakow, DataSpec).
+    update_dns_check_configuration_test_base(krakow, DataSpec).
 
 
 %% @private
--spec update_dns_check_configuration_test_base(
-    atom(),
-    oct_background:entity_selector(),
-    api_test_runner:data_spec()
-) ->
+-spec update_dns_check_configuration_test_base(oct_background:entity_selector(), api_test_runner:data_spec()) ->
     boolean().
-update_dns_check_configuration_test_base(TargetPanelType, TargetEntitySelector, DataSpec) ->
+update_dns_check_configuration_test_base(TargetEntitySelector, DataSpec) ->
     RestPath = <<"dns_check/configuration">>,
 
     update_test_base(
-        TargetPanelType,
         TargetEntitySelector,
         str_utils:format_bin("Update dns check configuration using /~ts rest endpoint", [RestPath]),
         RestPath,
@@ -161,19 +155,18 @@ update_dns_check_configuration_test_base(TargetPanelType, TargetEntitySelector, 
 
 
 perform_zone_dns_check_test(_Config) ->
-    perform_dns_check_test_base(?OZ_PANEL, zone).
+    perform_dns_check_test_base(zone).
 
 
 perform_krakow_dns_check_test(_Config) ->
-    perform_dns_check_test_base(?OP_PANEL, krakow).
+    perform_dns_check_test_base(krakow).
 
 
 %% @private
--spec perform_dns_check_test_base(atom(), oct_background:entity_selector()) ->
+-spec perform_dns_check_test_base(oct_background:entity_selector()) ->
     boolean().
-perform_dns_check_test_base(TargetPanelType, TargetEntitySelector) ->
+perform_dns_check_test_base(TargetEntitySelector) ->
     get_test_base(
-        TargetPanelType,
         TargetEntitySelector,
         <<"Perform dns check using /dns_check rest endpoint">>,
         <<"dns_check">>,
@@ -205,7 +198,6 @@ get_cluster_ips_test_base(TargetPanelType, TargetEntitySelector) ->
     ExpFields = lists:sort([<<"isConfigured">>, <<"hosts">>]),
 
     get_test_base(
-        TargetPanelType,
         TargetEntitySelector,
         str_utils:format_bin("Get cluster ips using /~ts rest endpoint", [RestPath]),
         RestPath,
@@ -243,7 +235,6 @@ update_cluster_ips_test_base(TargetPanelType, TargetEntitySelector) ->
     },
 
     update_test_base(
-        TargetPanelType,
         TargetEntitySelector,
         str_utils:format_bin("Update cluster ips using /~ts rest endpoint", [RestPath]),
         RestPath,
@@ -253,35 +244,21 @@ update_cluster_ips_test_base(TargetPanelType, TargetEntitySelector) ->
 
 %% @private
 -spec get_test_base(
-    atom(),
     oct_background:entity_selector(),
     binary(),
     binary(),
     skip | [binary()]
 ) ->
     boolean().
-get_test_base(TargetPanelType, TargetEntitySelector, Description, Path, ExpFields) ->
-    TargetId = oct_background:to_entity_id(TargetEntitySelector),
-
+get_test_base(TargetEntitySelector, Description, Path, ExpFields) ->
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = Description,
             type = rest,
             target_nodes = panel_test_utils:get_panel_nodes(TargetEntitySelector),
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    member
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer
-                ]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                TargetEntitySelector
+            ),
             prepare_args_fun = fun(_) ->
                 #rest_args{
                     method = get,
@@ -299,30 +276,17 @@ get_test_base(TargetPanelType, TargetEntitySelector, Description, Path, ExpField
 
 
 %% @private
--spec update_test_base(atom(), oct_background:entity_selector(), binary(), binary(), api_test_runner:data_spec()) ->
+-spec update_test_base(oct_background:entity_selector(), binary(), binary(), api_test_runner:data_spec()) ->
     boolean().
-update_test_base(TargetPanelType, TargetEntitySelector, Description, RestPath, DataSpec) ->
-    TargetId = oct_background:to_entity_id(TargetEntitySelector),
-
+update_test_base(TargetEntitySelector, Description, RestPath, DataSpec) ->
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = Description,
             type = rest,
             target_nodes = panel_test_utils:get_panel_nodes(TargetEntitySelector),
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(TargetPanelType, TargetId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [
-                    peer
-                ]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                TargetEntitySelector, [?CLUSTER_UPDATE]
+            ),
             data_spec = DataSpec,
             prepare_args_fun = fun(#api_test_ctx{data = Data}) ->
                 #rest_args{

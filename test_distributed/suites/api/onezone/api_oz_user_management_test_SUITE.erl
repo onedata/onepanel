@@ -14,12 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("api_test_utils.hrl").
--include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/headers.hrl").
--include_lib("ctool/include/test/assertions.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
@@ -45,33 +40,6 @@ all() -> [
 ].
 
 
--define(CLIENT_SPEC_FOR_GET, #client_spec{
-    correct = [
-        root,
-        member
-    ],
-    unauthorized = [
-        guest,
-        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-    ],
-    forbidden = [peer]
-}).
-
--define(CLIENT_SPEC_FOR_SET, #client_spec{
-    correct = [
-        root,
-        {member, [?CLUSTER_UPDATE]}
-    ],
-    unauthorized = [
-        guest,
-        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-    ],
-    forbidden = [peer]
-}).
-
-
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -85,7 +53,7 @@ list_users_test(_Config) ->
             name = <<"List Onezone users using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_GET,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(zone),
 
             prepare_args_fun = fun(_) ->
                 #rest_args{
@@ -118,7 +86,9 @@ create_user_test(_Config) ->
             name = <<"Add zone user using /zone/users endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_SET,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                zone, [?CLUSTER_UPDATE]
+            ),
 
             data_spec = build_create_user_data_spec(OzWorkerNodes, GroupIds),
             prepare_args_fun = build_create_user_prepare_args_fun(MemRef),
@@ -224,7 +194,7 @@ get_user_details_test(_Config) ->
             name = <<"Get Onezone user details using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_GET,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(zone),
 
             setup_fun = build_get_user_details_setup_fun(MemRef),
             data_spec = build_get_user_details_data_spec(OzWorkerNodes),
@@ -298,7 +268,9 @@ set_user_password_test(_Config) ->
             name = <<"Set Onezone user password using /zone/users rest endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_SET,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                zone, [?CLUSTER_UPDATE]
+            ),
 
             data_spec = build_set_user_password_data_spec(OzWorkerNodes),
             prepare_args_fun = build_set_user_password_prepare_rest_args_fun(MemRef),

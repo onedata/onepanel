@@ -13,9 +13,7 @@
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/chart_values.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
@@ -74,18 +72,7 @@ get_provider_details_test(_Config) ->
             name = <<"Get provider details using /provider rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(ProviderId),
             prepare_args_fun = fun(_) -> #rest_args{method = get, path = <<"provider">>} end,
             validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
                 ?assertEqual({?HTTP_200_OK, ExpDetails}, {RespCode, RespBody})
@@ -109,19 +96,9 @@ modify_provider_details_test(_Config) ->
             name = <<"Update provider details using /provider rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
-
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
             prepare_args_fun = fun(#api_test_ctx{data = Data}) ->
                 #rest_args{
                     method = patch,

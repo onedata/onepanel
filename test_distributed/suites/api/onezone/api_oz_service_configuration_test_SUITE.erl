@@ -42,33 +42,6 @@ all() -> [
     update_gui_message_settings_test
 ].
 
-
--define(CLIENT_SPEC_FOR_GET, #client_spec{
-    correct = [
-        root,
-        member
-    ],
-    unauthorized = [
-        guest,
-        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-    ],
-    forbidden = [peer]
-}).
-
--define(CLIENT_SPEC_FOR_UPDATE, #client_spec{
-    correct = [
-        root,
-        {member, [?CLUSTER_UPDATE, ?CLUSTER_SET_PRIVILEGES]}
-    ],
-    unauthorized = [
-        guest,
-        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OZ_PANEL, <<"onezone">>))}
-        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-    ],
-    forbidden = [peer]
-}).
-
 -define(MESSAGE_IDS, [
     <<"cookie_consent_notification">>,
     <<"privacy_policy">>,
@@ -91,7 +64,7 @@ get_policies_test(_Config) ->
             name = <<"Get Onezone policies using /zone/policies endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_GET,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(zone),
 
             prepare_args_fun = fun(_) ->
                 #rest_args{
@@ -115,7 +88,9 @@ set_policies_test(_Config) ->
             name = <<"Set Onezone policies using /zone/policies endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_UPDATE,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                zone, [?CLUSTER_UPDATE]
+            ),
             data_spec = build_modify_policies_data_spec(),
 
             prepare_args_fun = build_modify_policies_prepare_args_fun(),
@@ -188,7 +163,7 @@ get_gui_message_settings_test(_Config) ->
             name = <<"Get Onezone GUI message setting using /zone/gui_messages/{id} endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_GET,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(zone),
             data_spec = build_get_gui_message_settings_data_spec(),
 
             prepare_args_fun = build_gui_message_settings_prepare_args_fun(get),
@@ -220,7 +195,9 @@ update_gui_message_settings_test(_Config) ->
             name = <<"Update Onezone GUI message setting using /zone/gui_messages/{id} endpoint">>,
             type = rest,
             target_nodes = OzPanelNodes,
-            client_spec = ?CLIENT_SPEC_FOR_UPDATE,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                zone, [?CLUSTER_UPDATE]
+            ),
             data_spec = build_update_gui_message_settings_data_spec(),
 
             setup_fun = fun() -> set_gui_message_settings(InitialSettings) end,
