@@ -278,7 +278,7 @@ get_data(Req) ->
 handle_options(Req, State) ->
     {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
-    AllowedHeaders = [?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
+    AllowedHeaders = [?HDR_LOCATION, ?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
     Req3 = http_cors:options_response(<<"*">>, AllowedMethods, AllowedHeaders, Req2),
 
     {ok, Req3, State}.
