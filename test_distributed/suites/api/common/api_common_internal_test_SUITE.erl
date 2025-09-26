@@ -81,7 +81,7 @@ get_remote_op_details_test_base(TargetEntitySelector, RemoteProviderSelector) ->
 
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
-            name = <<"Get remote provider details using /providers rest endpoint">>,
+            name = <<"Get remote provider details using /providers/{id} rest endpoint">>,
             type = rest,
             target_nodes = panel_test_utils:get_panel_nodes(TargetEntitySelector),
             client_spec = api_test_utils:build_only_member_allowed_client_spec(TargetEntitySelector),
@@ -139,6 +139,7 @@ get_expected_provider_details(Provider) ->
         <<"name">> => OpName,
         <<"domain">> => OpDomain,
         <<"id">> => ProviderId,
+        <<"cluster">> => ProviderId,
         <<"online">> => true
     }).
 

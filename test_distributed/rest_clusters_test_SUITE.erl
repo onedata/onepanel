@@ -28,14 +28,12 @@
 
 %% tests
 -export([
-    method_should_return_forbidden_error_test/1,
-    get_should_return_provider_info_test/1
+    method_should_return_forbidden_error_test/1
 ]).
 
 all() ->
     ?ALL([
-        method_should_return_forbidden_error_test,
-        get_should_return_provider_info_test
+        method_should_return_forbidden_error_test
     ]).
 
 
@@ -111,26 +109,6 @@ method_should_return_forbidden_error_test(Config) ->
         ))
     end).
 
-
-get_should_return_provider_info_test(Config) ->
-    Expected = #{
-        <<"id">> => <<?PROVIDER_ID>>,
-        <<"name">> => <<"providerName">>,
-        <<"online">> => true,
-        <<"domain">> => <<"providerDomain">>,
-        <<"geoLongitude">> => 42.0,
-        <<"geoLatitude">> => 7.0,
-        <<"cluster">> => ?PROVIDER_CLUSTER_ID
-    },
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/providers/", ?PROVIDER_ID>>, get,
-                ?OZ_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, Expected)
-    end).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
