@@ -40,10 +40,10 @@ all() -> [
 ].
 
 -record(test_user, {
-    id,
-    privileges,
-    cluster_ids,
-    token
+    id :: binary(),
+    privileges :: privileges:privileges(cluster_privilege()),
+    cluster_ids :: [binary()],
+    token :: tokens:token()
 }).
 -type test_user() :: #test_user{}.
 

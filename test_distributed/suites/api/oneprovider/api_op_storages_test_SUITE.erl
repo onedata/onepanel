@@ -24,9 +24,9 @@
 ]).
 
 -export([
-    get_storages_ids/1,
-    add_s3_storage/1,
-    delete_s3_storage/1
+    get_storages_ids_test/1,
+    add_s3_storage_test/1,
+    delete_s3_storage_test/1
 ]).
 
 -define(S3_STORAGE_NAME, <<"s3Storage-1">>).
@@ -41,9 +41,9 @@
 }).
 
 all() -> [
-    get_storages_ids,
-    add_s3_storage,
-    delete_s3_storage
+    get_storages_ids_test,
+    add_s3_storage_test,
+    delete_s3_storage_test
 ].
 
 
@@ -52,7 +52,7 @@ all() -> [
 %%%===================================================================
 
 
-get_storages_ids(_Config) ->
+get_storages_ids_test(_Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     StoragesIds = opw_test_rpc:get_storages(krakow),
@@ -79,7 +79,7 @@ get_storages_ids(_Config) ->
     ])).
 
 
-add_s3_storage(_Config) ->
+add_s3_storage_test(_Config) ->
     % todo: VFS-6717 delete s3 storage after test
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
@@ -154,7 +154,7 @@ add_request_match_response(RequestBody, StorageDetails) ->
         (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
 
 
-delete_s3_storage(_Config) ->
+delete_s3_storage_test(_Config) ->
     % todo: VFS-6717 add s3 storage before test
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),

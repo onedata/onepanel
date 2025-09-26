@@ -14,6 +14,7 @@
 
 -include("api_test_runner.hrl").
 -include("onepanel_test_utils.hrl").
+-include_lib("ctool/include/privileges.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
@@ -32,11 +33,19 @@
     get_zone_cluster_details_from_zone_test/1,
     get_zone_cluster_details_from_krakow_test/1,
     get_krakow_cluster_details_from_zone_test/1,
-    get_krakow_cluster_details_from_krakow_test/1
+    get_krakow_cluster_details_from_krakow_test/1,
+
+    get_zone_cluster_members_summary_test/1,
+    get_krakow_cluster_members_summary_test/1
 ]).
 
 groups() -> [
-    {all_tests, [parallel], [
+    {sequential_tests, [], [
+        % These tests are sensitive to numbers of users created and should be run first
+        get_zone_cluster_members_summary_test,
+        get_krakow_cluster_members_summary_test
+    ]},
+    {parallel_tests, [parallel], [
         get_current_zone_cluster_details_test,
         get_current_krakow_cluster_details_test,
 
@@ -48,7 +57,8 @@ groups() -> [
 ].
 
 all() -> [
-    {group, all_tests}
+    {group, sequential_tests},
+    {group, parallel_tests}
 ].
 
 
@@ -116,12 +126,62 @@ get_cluster_details_test_base(QueryPanelEntitySelector, TargetClusterEntitySelec
             type = rest,
             target_nodes = panel_test_utils:get_panel_nodes(QueryPanelEntitySelector),
             client_spec = api_test_utils:build_only_member_allowed_client_spec(QueryPanelEntitySelector),
+            data_spec = #data_spec{
+                bad_values = [
+                    {id, <<"inexistentClusterId">>, ?ERROR_NOT_FOUND}
+                ]
+            },
+            prepare_args_fun = fun(#api_test_ctx{data = TestData}) ->
+                Id = maps:get(id, TestData, ClusterId),
+                #rest_args{
+                    method = get,
+                    path = str_utils:format_bin("user/clusters/~ts", [Id])
+                }
+            end,
+            validate_result_fun = build_validate_cluster_details_fun(ExpClusterDetails)
+        }
+    ])).
 
+
+get_zone_cluster_members_summary_test(_Config) ->
+    get_cluster_members_summary_test_base(zone).
+
+
+get_krakow_cluster_members_summary_test(_Config) ->
+    get_cluster_members_summary_test_base(krakow).
+
+
+%% @private
+-spec get_cluster_members_summary_test_base(oct_background:entity_selector()) ->
+    boolean().
+get_cluster_members_summary_test_base(PanelEntitySelector) ->
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get current cluster members summary using /cluster/members_summary REST endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                PanelEntitySelector, [?CLUSTER_VIEW]
+            ),
             prepare_args_fun = fun(_) -> #rest_args{
                 method = get,
-                path = str_utils:format_bin("user/clusters/~ts", [ClusterId])
+                path = <<"cluster/members_summary">>
             } end,
-            validate_result_fun = build_validate_cluster_details_fun(ExpClusterDetails)
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                % Users can be fetched only before actual assert as api test framework creates
+                % users on demand (it is not possible to fetch users once before test starts).
+                % Additionally, it creates 2 users: one added to the cluster and other not 
+                % (see client spec - member vs user)
+                ExpUsersCount = floor(length(ozw_test_rpc:list_users()) / 2),
+
+                ExpMembersSummary = #{
+                    <<"usersCount">> => ExpUsersCount,
+                    <<"groupsCount">> => 0,
+                    <<"effectiveUsersCount">> => ExpUsersCount,
+                    <<"effectiveGroupsCount">> => 0
+                },
+                ?assertEqual(ExpMembersSummary, RespBody)
+            end)
         }
     ])).
 
@@ -152,19 +212,13 @@ end_per_suite(_Config) ->
 get_cluster_details(PanelEntitySelector) ->
     PanelNode = ?RAND_ELEMENT(panel_test_utils:get_panel_nodes(PanelEntitySelector)),
     {ok, ServiceId} = ?rpc(PanelNode, application:get_env(ctool, onedata_service_id)),
-    {ok, PanelReleaseVersion} = ?rpc(PanelNode, application:get_env(ctool, onedata_service_release_version)),
-    {ok, PanelBuildVersion} = ?rpc(PanelNode, application:get_env(ctool, onedata_service_build_version)),
     PanelGuiPackagePath = ?rpc(PanelNode, onepanel_env:get(gui_package_path)),
-    {ok, PanelGuiHash} = ?rpc(PanelNode, gui:package_hash(PanelGuiPackagePath)),
 
     WorkerNode = ?RAND_ELEMENT(panel_test_utils:get_worker_nodes(PanelEntitySelector)),
-    {ok, WorkerReleaseVersion} = ?rpc(WorkerNode, application:get_env(ctool, onedata_service_release_version)),
-    {ok, WorkerBuildVersion} = ?rpc(WorkerNode, application:get_env(ctool, onedata_service_build_version)),
     WorkerGuiPackagePath = case PanelEntitySelector of
         zone -> ozw_test_rpc:get_env(ozw_gui_package_path);
         krakow -> opw_test_rpc:get_env(WorkerNode, gui_package_path)
     end,
-    {ok, WorkerGuiHash} = ?rpc(WorkerNode, gui:package_hash(WorkerGuiPackagePath)),
 
     #{
         <<"id">> => ServiceId,  %% Cluster id == service id
@@ -174,17 +228,40 @@ get_cluster_details(PanelEntitySelector) ->
         end,
         <<"serviceId">> => ServiceId,
         <<"workerVersion">> => #{
-            <<"release">> => WorkerReleaseVersion,
-            <<"build">> => WorkerBuildVersion,
-            <<"gui">> => WorkerGuiHash
+            <<"release">> => get_release_version(WorkerNode),
+            <<"build">> => get_build_version(WorkerNode),
+            <<"gui">> => calc_gui_hash(WorkerNode, WorkerGuiPackagePath)
         },
         <<"onepanelVersion">> => #{
-            <<"release">> => PanelReleaseVersion,
-            <<"build">> => PanelBuildVersion,
-            <<"gui">> => PanelGuiHash
+            <<"release">> => get_release_version(PanelNode),
+            <<"build">> => get_build_version(PanelNode),
+            <<"gui">> => calc_gui_hash(PanelNode, PanelGuiPackagePath)
         },
         <<"onepanelProxy">> => true
     }.
+
+
+%% @private
+-spec get_release_version(node()) -> binary().
+get_release_version(Node) ->
+    {ok, ReleaseVersion} = ?rpc(Node, application:get_env(ctool, onedata_service_release_version)),
+    ReleaseVersion.
+
+
+%% @private
+-spec get_build_version(node()) -> binary().
+get_build_version(Node) ->
+    case ?rpc(Node, application:get_env(ctool, onedata_service_build_version)) of
+        {ok, <<>>} -> <<"unknown">>;
+        {ok, BuildVersion} -> BuildVersion
+    end.
+
+
+%% @private
+-spec calc_gui_hash(node(), string()) -> binary().
+calc_gui_hash(Node, GuiPackagePath) ->
+    {ok, GuiHash} = ?rpc(Node, gui:package_hash(GuiPackagePath)),
+    GuiHash.
 
 
 %% @private
