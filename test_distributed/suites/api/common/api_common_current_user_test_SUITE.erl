@@ -41,7 +41,7 @@ all() -> [
 
 -record(test_user, {
     id :: binary(),
-    privileges :: privileges:privileges(cluster_privilege()),
+    privileges :: [privileges:cluster_privilege()],
     cluster_ids :: [binary()],
     token :: tokens:token()
 }).

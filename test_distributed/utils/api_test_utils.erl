@@ -29,7 +29,8 @@
 
 -export([
     build_member_and_root_allowed_client_spec/1, build_member_and_root_allowed_client_spec/2,
-    build_only_member_allowed_client_spec/1
+    build_only_member_allowed_client_spec/1,
+    build_all_valid_clients_allowed_client_spec/1
 ]).
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
@@ -100,6 +101,30 @@ build_only_member_allowed_client_spec(PanelEntitySelector) ->
             {root, ?ERROR_NOT_FOUND},
             peer
         ]
+    }.
+
+
+-spec build_all_valid_clients_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_all_valid_clients_allowed_client_spec(PanelEntitySelector) ->
+    EntityId = oct_background:to_entity_id(PanelEntitySelector),
+    PanelType = case EntityId of
+        <<"onezone">> -> ?OZ_PANEL;
+        _ -> ?OP_PANEL
+    end,
+
+    #client_spec{
+        correct = [
+            guest,
+            peer,
+            member,
+            root
+        ],
+        unauthorized = [
+            {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+            | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+        ],
+        forbidden = []
     }.
 
 

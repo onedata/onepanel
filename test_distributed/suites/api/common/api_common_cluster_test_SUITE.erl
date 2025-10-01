@@ -36,7 +36,10 @@
     get_krakow_cluster_details_from_krakow_test/1,
 
     get_zone_cluster_members_summary_test/1,
-    get_krakow_cluster_members_summary_test/1
+    get_krakow_cluster_members_summary_test/1,
+
+    get_zone_cluster_public_configuration_test/1,
+    get_krakow_cluster_public_configuration_test/1
 ]).
 
 groups() -> [
@@ -52,7 +55,10 @@ groups() -> [
         get_zone_cluster_details_from_zone_test,
         get_zone_cluster_details_from_krakow_test,
         get_krakow_cluster_details_from_zone_test,
-        get_krakow_cluster_details_from_krakow_test
+        get_krakow_cluster_details_from_krakow_test,
+
+        get_zone_cluster_public_configuration_test,
+        get_krakow_cluster_public_configuration_test
     ]}
 ].
 
@@ -186,6 +192,59 @@ get_cluster_members_summary_test_base(PanelEntitySelector) ->
     ])).
 
 
+get_zone_cluster_public_configuration_test(_Config) ->
+    ExpConfig = #{
+        <<"clusterId">> => <<"onezone">>,
+        <<"serviceType">> => str_utils:to_binary(?ONEZONE),
+        <<"zoneDomain">> => oct_background:get_zone_domain(),
+        <<"zoneName">> => <<"dev-onezone">>,
+        <<"build">> => get_build_version(zone),
+        <<"version">> => get_release_version(zone),
+        <<"deployed">> => true
+    },
+    get_cluster_public_configuration_test(zone, ExpConfig).
+
+
+get_krakow_cluster_public_configuration_test(_Config) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+
+    ExpConfig = #{
+        <<"serviceType">> => str_utils:to_binary(?ONEPROVIDER),
+        <<"providerName">> => oct_background:get_provider_name(krakow),
+        <<"providerDomain">> => oct_background:get_provider_domain(krakow),
+        <<"providerId">> => ProviderId,
+        <<"clusterId">> => ProviderId,
+        <<"zoneDomain">> => oct_background:get_zone_domain(),
+        <<"build">> => get_build_version(krakow),
+        <<"version">> => get_release_version(krakow),
+        <<"deployed">> => true,
+        <<"isRegistered">> => true
+    },
+    get_cluster_public_configuration_test(krakow, ExpConfig).
+
+
+%% @private
+-spec get_cluster_public_configuration_test(oct_background:entity_selector(), json_utils:json_map()) ->
+    boolean().
+get_cluster_public_configuration_test(PanelEntitySelector, ExpConfig) ->
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get current cluster public configuration using /configuration REST endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
+            client_spec = api_test_utils:build_all_valid_clients_allowed_client_spec(PanelEntitySelector),
+
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"configuration">>
+            } end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                ?assertEqual(ExpConfig, RespBody)
+            end)
+        }
+    ])).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -211,7 +270,7 @@ end_per_suite(_Config) ->
     json_utils:json_map().
 get_cluster_details(PanelEntitySelector) ->
     PanelNode = ?RAND_ELEMENT(panel_test_utils:get_panel_nodes(PanelEntitySelector)),
-    {ok, ServiceId} = ?rpc(PanelNode, application:get_env(ctool, onedata_service_id)),
+    ServiceId = get_service_id(PanelNode),
     PanelGuiPackagePath = ?rpc(PanelNode, onepanel_env:get(gui_package_path)),
 
     WorkerNode = ?RAND_ELEMENT(panel_test_utils:get_worker_nodes(PanelEntitySelector)),
@@ -239,6 +298,13 @@ get_cluster_details(PanelEntitySelector) ->
         },
         <<"onepanelProxy">> => true
     }.
+
+
+%% @private
+-spec get_service_id(node()) -> binary().
+get_service_id(Node) ->
+    {ok, ServiceId} = ?rpc(Node, application:get_env(ctool, onedata_service_id)),
+    ServiceId.
 
 
 %% @private
