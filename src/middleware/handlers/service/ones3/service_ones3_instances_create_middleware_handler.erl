@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Adds ones3 nodes (OP only).
-%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_ones3_instances_create_middleware_handler).

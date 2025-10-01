@@ -74,9 +74,9 @@ get_provider_details_test(_Config) ->
             target_nodes = OpPanelNodes,
             client_spec = api_test_utils:build_member_and_root_allowed_client_spec(ProviderId),
             prepare_args_fun = fun(_) -> #rest_args{method = get, path = <<"provider">>} end,
-            validate_result_fun = fun(_, {ok, RespCode, _, RespBody}) ->
-                ?assertEqual({?HTTP_200_OK, ExpDetails}, {RespCode, RespBody})
-            end
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                ?assertEqual(ExpDetails, RespBody)
+            end)
         }
     ])).
 

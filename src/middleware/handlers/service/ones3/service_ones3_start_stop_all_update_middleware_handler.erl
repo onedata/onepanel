@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Starts or stops ones3 on all hosts (OP only).
-%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_ones3_start_stop_all_update_middleware_handler).
@@ -61,5 +60,3 @@ validate(_) ->
 -spec process(state()) -> ok | errors:error().
 process(#onp_req_state{input = Data}) ->
     service_middleware_handler_utils:set_started_all(?SERVICE_ONES3, maps:get(started, Data)).
-
-

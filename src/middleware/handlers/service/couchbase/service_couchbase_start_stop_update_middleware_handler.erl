@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Starts or stops couchbase on a single host (OP/OZ).
-%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_couchbase_start_stop_update_middleware_handler).

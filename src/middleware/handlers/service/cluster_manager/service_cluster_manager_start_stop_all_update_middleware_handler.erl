@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Starts or stops cluster_manager on all hosts (OP/OZ).
-%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_cluster_manager_start_stop_all_update_middleware_handler).

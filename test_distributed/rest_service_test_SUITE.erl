@@ -32,14 +32,8 @@
 -export([
     method_should_return_unauthorized_error/1,
     method_should_return_not_found_error/1,
-    get_should_return_service_status/1,
-    get_should_return_service_host_status/1,
     get_should_return_service_task_results/1,
     get_should_return_nagios_response/1,
-    patch_should_start_stop_service/1,
-    post_should_configure_database_service/1,
-    post_should_configure_cluster_manager_service/1,
-    post_should_configure_cluster_worker_service/1,
     post_should_configure_oneprovider_service/1,
     post_should_configure_onezone_service/1,
     post_should_return_conflict_on_configured_onezone/1,
@@ -48,28 +42,12 @@
 
 -define(TIMEOUT, timer:seconds(5)).
 
--define(COMMON_HOST_ENDPOINTS_WITH_METHODS, [
-    {<<"/databases/someHost">>, get},
-    {<<"/managers/someHost">>, get},
-    {<<"/workers/someHost">>, get},
-    {<<"/databases/someHost">>, patch},
-    {<<"/managers/someHost">>, patch},
-    {<<"/workers/someHost">>, patch}
-]).
-
 -define(COMMON_ENDPOINTS_WITH_METHODS, [
     {<<"/configuration">>, get},
     {<<"/configuration">>, post},
     {<<"/databases">>, get},
     {<<"/managers">>, get},
-    {<<"/workers">>, get},
-    {<<"/databases">>, patch},
-    {<<"/managers">>, patch},
-    {<<"/workers">>, patch},
-    {<<"/databases">>, post},
-    {<<"/managers">>, post},
-    {<<"/workers">>, post} |
-    ?COMMON_HOST_ENDPOINTS_WITH_METHODS
+    {<<"/workers">>, get}
 ]).
 
 -define(STORAGES_JSON, #{
@@ -166,14 +144,8 @@ all() ->
     ?ALL([
         method_should_return_unauthorized_error,
         method_should_return_not_found_error,
-        get_should_return_service_status,
-        get_should_return_service_host_status,
         get_should_return_service_task_results,
         get_should_return_nagios_response,
-        patch_should_start_stop_service,
-        post_should_configure_database_service,
-        post_should_configure_cluster_manager_service,
-        post_should_configure_cluster_worker_service,
         post_should_configure_oneprovider_service,
         post_should_configure_onezone_service,
         post_should_return_conflict_on_configured_onezone,
@@ -204,52 +176,7 @@ method_should_return_not_found_error(Config) ->
             Host, <<"/tasks/someTaskId">>, get,
             ?OZ_OR_ROOT_AUTHS(Host, [])
         ))
-    end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]),
-
-    ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, Endpoint/binary>>, Method,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
-            ))
-        end, ?COMMON_HOST_ENDPOINTS_WITH_METHODS)
-    end).
-
-
-get_should_return_service_status(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun(Endpoint) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-                onepanel_test_rest:auth_request(
-                    Host, <<Prefix/binary, Endpoint/binary>>, get,
-                    ?OZ_OR_ROOT_AUTHS(Host, [])
-                )
-            ),
-            onepanel_test_rest:assert_body_values(JsonBody, [
-                {<<"host1">>, <<"healthy">>},
-                {<<"host2">>, <<"stopped">>},
-                {<<"host3">>, <<"missing">>}
-            ])
-        end, [<<"/databases">>, <<"/managers">>, <<"/workers">>])
-    end).
-
-
-get_should_return_service_host_status(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        lists:foreach(fun({Endpoint, QueryHost}) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-                onepanel_test_rest:auth_request(
-                    Host, <<Prefix/binary, Endpoint/binary, QueryHost/binary>>, get,
-                    ?OZ_OR_ROOT_AUTHS(Host, [])
-                )
-            ),
-            onepanel_test_rest:assert_body(JsonBody, <<"healthy">>)
-        end, [
-            {<<"/databases">>, <<"/host1">>},
-            {<<"/managers">>, <<"/host2">>},
-            {<<"/workers">>, <<"/host2">>}
-        ])
-    end).
+    end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]).
 
 
 get_should_return_service_task_results(Config) ->
@@ -306,85 +233,6 @@ get_should_return_nagios_response(Config) ->
     end, [
         {oneprovider_hosts, <<"/provider">>},
         {onezone_hosts, <<"/zone">>}
-    ]).
-
-
-patch_should_start_stop_service(Config) ->
-    ?run(Config, fun({Host, {Prefix, WorkerService}}) ->
-        lists:foreach(fun({Service, Endpoint}) ->
-            lists:foreach(fun({Action, StartedParam}) ->
-                lists:foreach(fun({Ctx, HostParam}) ->
-                    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _},
-                        onepanel_test_rest:auth_request(
-                            Host, <<Prefix/binary, Endpoint/binary,
-                                HostParam/binary, StartedParam/binary>>,
-                            patch, ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE])
-                        )
-                    ),
-                    ?assertReceivedMatch({service, Service, Action, Ctx}, ?TIMEOUT)
-                end, [
-                    {#{}, <<>>},
-                    {#{hosts => ["host2"]}, <<"/host2">>}
-                ])
-            end, [
-                {start, <<"?started=true">>},
-                {stop, <<"?started=false">>}
-            ])
-        end, [
-            {couchbase, <<"/databases">>},
-            {cluster_manager, <<"/managers">>},
-            {WorkerService, <<"/workers">>}
-        ])
-    end, [
-        {oneprovider_hosts, {<<"/provider">>, op_worker}},
-        {onezone_hosts, {<<"/zone">>, oz_worker}}
-    ]).
-
-
-post_should_configure_database_service(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/databases">>, post,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{hosts => [<<"host1">>, <<"host2">>, <<"host3">>]}
-            )
-        ),
-        ?assertReceivedMatch({service, couchbase, deploy, #{
-            hosts := ["host1", "host2", "host3"]
-        }}, ?TIMEOUT)
-    end).
-
-post_should_configure_cluster_manager_service(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/managers">>, post,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-                #{
-                    mainHost => <<"host1">>,
-                    hosts => [<<"host1">>, <<"host2">>, <<"host3">>]
-                }
-            )
-        ),
-        ?assertReceivedMatch({service, cluster_manager, deploy, #{
-            main_host := "host1",
-            hosts := ["host1", "host2", "host3"]
-        }}, ?TIMEOUT)
-    end).
-
-
-post_should_configure_cluster_worker_service(Config) ->
-    ?run(Config, fun({Host, {Prefix, Service}}) ->
-        ?assertAsyncTask(?TASK_ID, onepanel_test_rest:auth_request(
-            Host, <<Prefix/binary, "/workers">>, post,
-            ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_UPDATE]),
-            #{hosts => [<<"host2">>, <<"host3">>]}
-        )),
-        ?assertReceivedMatch({service, Service, add_nodes, #{
-            new_hosts := ["host2", "host3"]
-        }}, ?TIMEOUT)
-    end, [
-        {oneprovider_hosts, {<<"/provider">>, op_worker}},
-        {onezone_hosts, {<<"/zone">>, oz_worker}}
     ]).
 
 
@@ -597,18 +445,6 @@ init_per_testcase(method_should_return_not_found_error, Config) ->
     onepanel_test_rest:mock_token_authentication(Config),
     Config;
 
-init_per_testcase(get_should_return_service_status, Config) ->
-    mock_service_status(init_per_testcase(default, Config), [
-        {'node@host1', healthy},
-        {'node@host2', stopped},
-        {'node@host3', missing}
-    ]);
-
-init_per_testcase(get_should_return_service_host_status, Config) ->
-    mock_service_status(init_per_testcase(default, Config), [
-        {'node@host1', healthy}
-    ]);
-
 init_per_testcase(get_should_return_nagios_response, Config) ->
     NewConfig = init_per_testcase(default, Config),
     Nodes = ?config(all_nodes, NewConfig),
@@ -671,29 +507,6 @@ init_per_testcase(get_should_return_service_task_results, Config) ->
     NewConfig;
 
 init_per_testcase(Case, Config) when
-    Case == post_should_configure_cluster_manager_service;
-    Case == post_should_configure_database_service;
-    Case == post_should_configure_cluster_worker_service
-->
-    % non-default init because the service must not already have hosts on which it is deployed
-    Nodes = ?config(all_nodes, Config),
-    Self = self(),
-    test_utils:mock_new(Nodes, [service]),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, Action, Ctx) ->
-        Self ! {service, Service, Action, Ctx},
-        [#action_end{service = service, action = action, result = ok}]
-    end),
-    test_utils:mock_expect(Nodes, service, apply_async, fun(Service, Action, Ctx) ->
-        Self ! {service, Service, Action, Ctx},
-        <<"someTaskId">>
-    end),
-
-    onepanel_test_rest:set_default_passphrase(Config),
-    onepanel_test_rest:mock_token_authentication(Nodes),
-    Config;
-
-
-init_per_testcase(Case, Config) when
     Case == post_should_return_conflict_on_configured_onezone;
     Case == post_should_return_conflict_on_configured_oneprovider ->
     Nodes = ?config(all_nodes, Config),
@@ -753,18 +566,3 @@ end_per_testcase(_Case, Config) ->
 
 end_per_suite(_Config) ->
     ok.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-mock_service_status(Config, HostsStatuses) ->
-    Nodes = ?config(all_nodes, Config),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(Service, status, _) ->
-        [
-            #step_end{module = service:get_module(Service), function = status,
-                good_bad_results = {HostsStatuses, []}},
-            #action_end{service = service, action = action, result = ok}
-        ]
-    end),
-    Config.

@@ -71,6 +71,7 @@ stages:
         - api_op_storages
         - api_oz_service_configuration
         - api_oz_user_management
+        - api_services
         - cl_deploy_op_add_ones3_after_certification_with_le
         - cl_deploy_op_add_ones3_after_certification_without_le
         - cl_deploy_op_add_ones3_after_registration
@@ -453,6 +454,13 @@ api_oz_user_management:
     - <<: *ct_logs
       name: ct_logs_api_oz_user_management.tar.gz
 
+api_services:
+  <<: *ct-onenv-job
+  key: APISERVICES
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_services.tar.gz
+
 cl_deploy_op_add_ones3_after_certification_with_le:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHLE
@@ -722,6 +730,7 @@ Coverage report:
     - artifact: ct_logs_api_op_storages.tar.gz
     - artifact: ct_logs_api_oz_service_configuration.tar.gz
     - artifact: ct_logs_api_oz_user_management.tar.gz
+    - artifact: ct_logs_api_services.tar.gz
     - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_with_le.tar.gz
     - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_without_le.tar.gz
     - artifact: ct_logs_cl_deploy_op_add_ones3_after_registration.tar.gz

@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Starts or stops oz_worker on all hosts (OZ only).
-%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_oz_worker_start_stop_all_update_middleware_handler).
@@ -40,7 +39,7 @@
 
 
 -spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
-supported_interfaces(#onp_req_ctx{gri = #gri{aspect = {start_stop_all, <<"oz_worker">>}}}) ->
+supported_interfaces(_) ->
     middleware_handler_utils:if_oz_then([rest]).
 
 
