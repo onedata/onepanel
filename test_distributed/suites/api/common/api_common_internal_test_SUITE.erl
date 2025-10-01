@@ -13,19 +13,14 @@
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
--include("api_test_utils.hrl").
--include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/test/assertions.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/chart_values.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 %% API
--export([all/0]).
-
 -export([
+    groups/0,
+    all/0,
+
     init_per_suite/1,
     end_per_suite/1
 ]).
@@ -34,19 +29,36 @@
     get_krakow_details_from_paris_test/1,
     get_krakow_details_from_zone_test/1,
     get_krakow_details_from_krakow_test/1,
+
     get_krakow_test_image_test/1,
     get_paris_test_image_test/1,
-    get_zone_test_image_test/1
+    get_zone_test_image_test/1,
+
+    get_krakow_panel_health_test/1,
+    get_paris_panel_health_test/1,
+    get_zone_panel_health_test/1
 ]).
 
-all() -> [
-    get_krakow_details_from_paris_test,
-    get_krakow_details_from_zone_test,
-    get_krakow_details_from_krakow_test,
-    get_krakow_test_image_test,
-    get_paris_test_image_test,
-    get_zone_test_image_test
+groups() -> [
+    {all_tests, [parallel], [
+        get_krakow_details_from_paris_test,
+        get_krakow_details_from_zone_test,
+        get_krakow_details_from_krakow_test,
+
+        get_krakow_test_image_test,
+        get_paris_test_image_test,
+        get_zone_test_image_test,
+
+        get_krakow_panel_health_test,
+        get_paris_panel_health_test,
+        get_zone_panel_health_test
+    ]}
 ].
+
+all() -> [
+    {group, all_tests}
+].
+
 
 -define(TEST_IMAGE, <<
     137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0, 37,
@@ -144,43 +156,27 @@ get_expected_provider_details(Provider) ->
     }).
 
 
-get_krakow_test_image_test(Config) ->
-    get_test_image_test_base(Config, ?OP_PANEL, krakow).
+get_krakow_test_image_test(_Config) ->
+    get_test_image_test_base(krakow).
 
 
-get_paris_test_image_test(Config) ->
-    get_test_image_test_base(Config, ?OP_PANEL, paris).
+get_paris_test_image_test(_Config) ->
+    get_test_image_test_base(paris).
 
 
-get_zone_test_image_test(Config) ->
-    get_test_image_test_base(Config, ?OZ_PANEL, zone).
+get_zone_test_image_test(_Config) ->
+    get_test_image_test_base(zone).
 
 
 %% @private
--spec get_test_image_test_base(test_config:config(), atom(), oct_background:entity_selector()) -> ok.
-get_test_image_test_base(_Config, PanelType, EntitySelector) ->
-    EntityId = oct_background:to_entity_id(EntitySelector),
-    PanelNodes = case PanelType of
-        ?OZ_PANEL -> oct_background:get_zone_panels();
-        ?OP_PANEL -> oct_background:get_provider_panels(EntitySelector)
-    end,
+-spec get_test_image_test_base(oct_background:entity_selector()) -> ok.
+get_test_image_test_base(EntitySelector) ->
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get test image using /test_image rest endpoint">>,
             type = rest,
-            target_nodes = PanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    member,
-                    guest,
-                    peer
-                ],
-                unauthorized = [
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ]
-            },
+            target_nodes = panel_test_utils:get_panel_nodes(EntitySelector),
+            client_spec = api_test_utils:build_all_valid_clients_allowed_client_spec(EntitySelector),
             prepare_args_fun = fun(_) -> #rest_args{
                 method = get,
                 path = <<"test_image">>
@@ -188,6 +184,38 @@ get_test_image_test_base(_Config, PanelType, EntitySelector) ->
 
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
                 ?assertEqual(?TEST_IMAGE, RespBody)
+            end)
+        }
+    ])).
+
+
+get_krakow_panel_health_test(_Config) ->
+    get_panel_health_test_base(krakow).
+
+
+get_paris_panel_health_test(_Config) ->
+    get_panel_health_test_base(paris).
+
+
+get_zone_panel_health_test(_Config) ->
+    get_panel_health_test_base(zone).
+
+
+%% @private
+-spec get_panel_health_test_base(oct_background:entity_selector()) -> ok.
+get_panel_health_test_base(EntitySelector) ->
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get panel health using /health rest endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(EntitySelector),
+            client_spec = api_test_utils:build_all_valid_clients_allowed_client_spec(EntitySelector),
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"health">>
+            } end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                ?assertEqual(#{<<"status">> => <<"healthy">>}, RespBody)
             end)
         }
     ])).

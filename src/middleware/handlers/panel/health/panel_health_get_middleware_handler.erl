@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Middleware handler for returning Onepanel health status.
-%%% TODO VFS-13023 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(panel_health_get_middleware_handler).
