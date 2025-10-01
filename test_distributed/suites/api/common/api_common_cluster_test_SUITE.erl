@@ -39,7 +39,10 @@
     get_krakow_cluster_members_summary_test/1,
 
     get_zone_cluster_public_configuration_test/1,
-    get_krakow_cluster_public_configuration_test/1
+    get_krakow_cluster_public_configuration_test/1,
+
+    get_zone_cluster_cookie_test/1,
+    get_krakow_cluster_cookie_test/1
 ]).
 
 groups() -> [
@@ -58,7 +61,10 @@ groups() -> [
         get_krakow_cluster_details_from_krakow_test,
 
         get_zone_cluster_public_configuration_test,
-        get_krakow_cluster_public_configuration_test
+        get_krakow_cluster_public_configuration_test,
+
+        get_zone_cluster_cookie_test,
+        get_krakow_cluster_cookie_test
     ]}
 ].
 
@@ -202,7 +208,7 @@ get_zone_cluster_public_configuration_test(_Config) ->
         <<"version">> => get_release_version(zone),
         <<"deployed">> => true
     },
-    get_cluster_public_configuration_test(zone, ExpConfig).
+    get_cluster_public_configuration_test_base(zone, ExpConfig).
 
 
 get_krakow_cluster_public_configuration_test(_Config) ->
@@ -220,13 +226,13 @@ get_krakow_cluster_public_configuration_test(_Config) ->
         <<"deployed">> => true,
         <<"isRegistered">> => true
     },
-    get_cluster_public_configuration_test(krakow, ExpConfig).
+    get_cluster_public_configuration_test_base(krakow, ExpConfig).
 
 
 %% @private
--spec get_cluster_public_configuration_test(oct_background:entity_selector(), json_utils:json_map()) ->
+-spec get_cluster_public_configuration_test_base(oct_background:entity_selector(), json_utils:json_map()) ->
     boolean().
-get_cluster_public_configuration_test(PanelEntitySelector, ExpConfig) ->
+get_cluster_public_configuration_test_base(PanelEntitySelector, ExpConfig) ->
     ?assert(api_test_runner:run_tests([
         #scenario_spec{
             name = <<"Get current cluster public configuration using /configuration REST endpoint">>,
@@ -240,6 +246,40 @@ get_cluster_public_configuration_test(PanelEntitySelector, ExpConfig) ->
             } end,
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
                 ?assertEqual(ExpConfig, RespBody)
+            end)
+        }
+    ])).
+
+
+get_zone_cluster_cookie_test(_Config) ->
+    get_cluster_cookie_test_base(zone).
+
+
+get_krakow_cluster_cookie_test(_Config) ->
+    get_cluster_cookie_test_base(krakow).
+
+
+%% @private
+-spec get_cluster_cookie_test_base(oct_background:entity_selector()) ->
+    boolean().
+get_cluster_cookie_test_base(PanelEntitySelector) ->
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get current cluster cookie using /cookie REST endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
+            client_spec = #client_spec{
+                correct = [peer, member, root],
+                unauthorized = [guest | api_test_utils:build_unauthorized_clients(PanelEntitySelector)],
+                forbidden = []
+            },
+
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"cookie">>
+            } end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                ?assertEqual(<<"cluster_node">>, RespBody)
             end)
         }
     ])).

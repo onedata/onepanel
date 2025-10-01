@@ -39,7 +39,6 @@
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
     get_as_admin_should_return_hosts/1,
-    get_as_admin_or_peer_should_return_cookie/1,
     get_should_return_node_details/1,
     post_as_admin_should_return_invite_token/1,
     post_as_admin_should_extend_cluster_and_return_hostname/1,
@@ -72,7 +71,6 @@ all() ->
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
         get_as_admin_should_return_hosts,
-        get_as_admin_or_peer_should_return_cookie,
         get_should_return_node_details,
         post_as_admin_should_return_invite_token,
         post_as_admin_should_extend_cluster_and_return_hostname,
@@ -92,7 +90,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, [{<<"/cookie">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 api_caveats_should_restrict_available_endpoints(Config) ->
@@ -155,17 +153,6 @@ get_as_admin_should_return_hosts(Config) ->
     ),
     Hosts = onepanel_utils:get_converted(cluster_hosts, Config, {seq, binary}),
     onepanel_test_rest:assert_body(JsonBody, Hosts).
-
-
-get_as_admin_or_peer_should_return_cookie(Config) ->
-    [Host] = ?config(cluster_hosts, Config),
-    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:auth_request(Config, <<"/cookie">>, get,
-            ?PEER_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Config, [])
-        )
-    ),
-    Cookie = ?callAny(Config, erlang, get_cookie, []),
-    onepanel_test_rest:assert_body(JsonBody, onepanel_utils:convert(Cookie, binary)).
 
 
 get_should_return_node_details(Config) ->

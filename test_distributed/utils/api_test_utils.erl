@@ -30,7 +30,8 @@
 -export([
     build_member_and_root_allowed_client_spec/1, build_member_and_root_allowed_client_spec/2,
     build_only_member_allowed_client_spec/1,
-    build_all_valid_clients_allowed_client_spec/1
+    build_all_valid_clients_allowed_client_spec/1,
+    build_unauthorized_clients/1
 ]).
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
@@ -57,75 +58,49 @@ build_member_and_root_allowed_client_spec(PanelEntitySelector) ->
 ) ->
     api_test_runner:client_spec().
 build_member_and_root_allowed_client_spec(PanelEntitySelector, MemberPrivs) ->
-    EntityId = oct_background:to_entity_id(PanelEntitySelector),
-    PanelType = case EntityId of
-        <<"onezone">> -> ?OZ_PANEL;
-        _ -> ?OP_PANEL
-    end,
-
     #client_spec{
-        correct = [
-            root,
-            {member, MemberPrivs}
-        ],
-        unauthorized = [
-            guest,
-            {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
-            | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-        ],
-        forbidden = [
-            peer
-        ]
+        correct = [root, {member, MemberPrivs}],
+        unauthorized = [guest | build_unauthorized_clients(PanelEntitySelector)],
+        forbidden = [peer]
     }.
 
 
 -spec build_only_member_allowed_client_spec(oct_background:entity_selector()) ->
     api_test_runner:client_spec().
 build_only_member_allowed_client_spec(PanelEntitySelector) ->
-    EntityId = oct_background:to_entity_id(PanelEntitySelector),
-    PanelType = case EntityId of
-        <<"onezone">> -> ?OZ_PANEL;
-        _ -> ?OP_PANEL
-    end,
-
     #client_spec{
-        correct = [
-            member
-        ],
-        unauthorized = [
-            guest,
-            {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
-            | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-        ],
-        forbidden = [
-            {root, ?ERROR_NOT_FOUND},
-            peer
-        ]
+        correct = [member],
+        unauthorized = [guest | build_unauthorized_clients(PanelEntitySelector)],
+        forbidden = [{root, ?ERROR_NOT_FOUND}, peer]
     }.
 
 
 -spec build_all_valid_clients_allowed_client_spec(oct_background:entity_selector()) ->
     api_test_runner:client_spec().
 build_all_valid_clients_allowed_client_spec(PanelEntitySelector) ->
+    #client_spec{
+        correct = [guest, peer, member, root],
+        unauthorized = build_unauthorized_clients(PanelEntitySelector),
+        forbidden = []
+    }.
+
+
+-spec build_unauthorized_clients(oct_background:entity_selector()) ->
+    [
+        api_test_runner:api_client_or_placeholder() |
+        {api_test_runner:api_client_or_placeholder(), Reason :: errors:error()}
+    ].
+build_unauthorized_clients(PanelEntitySelector) ->
     EntityId = oct_background:to_entity_id(PanelEntitySelector),
     PanelType = case EntityId of
         <<"onezone">> -> ?OZ_PANEL;
         _ -> ?OP_PANEL
     end,
 
-    #client_spec{
-        correct = [
-            guest,
-            peer,
-            member,
-            root
-        ],
-        unauthorized = [
-            {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
-            | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-        ],
-        forbidden = []
-    }.
+    [
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ].
 
 
 -spec ensure_defined
