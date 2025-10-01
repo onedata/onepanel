@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Gets auto-cleaning configuration for a space.
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13070 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(space_auto_cleaning_configuration_get_middleware_handler).

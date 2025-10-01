@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Returns mapping onedata_user -> credentials (local or non-local depending on aspect).
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13068 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_luma_onedata_user_to_credentials_mapping_get_middleware_handler).

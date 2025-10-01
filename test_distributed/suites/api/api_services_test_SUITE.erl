@@ -14,7 +14,7 @@
 %%% - cl_services_op_test_SUITE
 %%% - cl_resize_oz_test_SUITE
 %%% - cl_services_oz_test_SUITE
-%%% TODO add real deploy service tests e.g. in cl_resize suite
+%%% TODO VFS-13067 add real deploy service tests e.g. in cl_resize suite
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_services_test_SUITE).

@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Gets auto storage import info for a space.
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13069 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(space_auto_storage_import_info_get_middleware_handler).

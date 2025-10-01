@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Deletes mapping acl_group -> onedata_group (local or non-local depending on aspect).
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13068 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_luma_acl_group_to_onedata_group_mapping_delete_middleware_handler).
