@@ -6,15 +6,17 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% This file provides tests concerning onepanel dns and ips API endpoints (REST).
+%%% This file provides tests concerning onepanel network configuration
+%%% (ips and dns management) API endpoints (REST).
 %%%
 %%% NOTE: only general behaviour is checked in this suite (invalid clients, data, etc.) -
 %%% concrete responses/side effects are tested in suites:
 %%% - dns_op_test_SUITE
 %%% - dns_oz_test_SUITE
+%%% NOTE: SSL cert management api tests are included in le_op|oz_test_SUITE
 %%% @end
 %%%-------------------------------------------------------------------
--module(api_dns_test_SUITE).
+-module(api_network_test_SUITE).
 -author("Bartosz Walkowicz").
 
 -include("api_test_runner.hrl").
@@ -48,7 +50,7 @@
 ]).
 
 groups() -> [
-    {all_tests, [parallel], [
+    {dns_tests, [parallel], [
         get_zone_dns_check_configuration_test,
         get_krakow_dns_check_configuration_test,
 
@@ -56,8 +58,9 @@ groups() -> [
         update_krakow_dns_check_configuration_test,
 
         perform_zone_dns_check_test,
-        perform_krakow_dns_check_test,
-
+        perform_krakow_dns_check_test
+    ]},
+    {ips_tests, [parallel], [
         get_zone_cluster_ips_test,
         get_krakow_cluster_ips_test,
 
@@ -67,7 +70,8 @@ groups() -> [
 ].
 
 all() -> [
-    {group, all_tests}
+    {group, dns_tests},
+    {group, ips_tests}
 ].
 
 

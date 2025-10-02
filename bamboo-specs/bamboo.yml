@@ -57,7 +57,7 @@ stages:
         - api_common_emergency_passphrase
         - api_common_emergency_passphrase_not_deployed
         - api_common_internal
-        - api_dns
+        - api_network
         - api_op_provider
         - api_op_spaces_basic
         - api_op_storage_ceph_deprecated
@@ -356,12 +356,12 @@ api_common_internal:
     - <<: *ct_logs
       name: ct_logs_api_common_internal.tar.gz
 
-api_dns:
+api_network:
   <<: *ct-onenv-job
   key: APIDNS
   artifacts:
     - <<: *ct_logs
-      name: ct_logs_api_dns.tar.gz
+      name: ct_logs_api_network.tar.gz
 
 api_op_provider:
   <<: *ct-onenv-job
@@ -716,7 +716,7 @@ Coverage report:
     - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
     - artifact: ct_logs_api_common_internal.tar.gz
-    - artifact: ct_logs_api_dns.tar.gz
+    - artifact: ct_logs_api_network.tar.gz
     - artifact: ct_logs_api_op_provider.tar.gz
     - artifact: ct_logs_api_op_spaces_basic.tar.gz
     - artifact: ct_logs_api_op_storage_ceph_deprecated.tar.gz

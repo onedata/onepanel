@@ -561,10 +561,7 @@ init_per_suite(Config) ->
 
 
 end_per_suite(_Config) ->
-    test_utils:mock_unload(lists:flatten([
-        oct_background:get_zone_panels(),
-        oct_background:get_provider_panels(krakow)
-    ])),
+    test_utils:mock_unload(oct_background:get_all_panels()),
     oct_background:end_per_suite().
 
 
@@ -576,10 +573,7 @@ end_per_suite(_Config) ->
 %% @private
 -spec mock_handlers() -> ok.
 mock_handlers() ->
-    PanelNodes = lists:flatten([
-        oct_background:get_zone_panels(),
-        oct_background:get_provider_panels(krakow)
-    ]),
+    PanelNodes = oct_background:get_all_panels(),
 
     ?assertEqual(ok, test_utils:mock_new(
         PanelNodes, ?CREATE_SERVICE_HANDLER_MODULES, [passthrough])
@@ -597,9 +591,7 @@ mock_handlers() ->
         test_utils:mock_expect(
             PanelNodes, Module, process, fun(_) -> ok end
         )
-    end, ?UPDATE_SERVICE_HANDLER_MODULES),
-
-    ok.
+    end, ?UPDATE_SERVICE_HANDLER_MODULES).
 
 
 %% @private
