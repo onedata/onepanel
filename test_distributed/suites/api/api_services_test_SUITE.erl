@@ -23,6 +23,7 @@
 -include("api_test_runner.hrl").
 -include_lib("ctool/include/privileges.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 
 %% API
 -export([
@@ -34,6 +35,9 @@
 ]).
 
 -export([
+    get_zone_cluster_workers_nagios_status_test/1,
+    get_krakow_cluster_workers_nagios_status_test/1,
+
     get_zone_cluster_managers_statuses_test/1,
     get_zone_databases_statuses_test/1,
     get_zone_cluster_workers_statuses_test/1,
@@ -76,6 +80,10 @@
 ]).
 
 groups() -> [
+    {get_service_nagios_status_tests, [parallel], [
+        get_zone_cluster_workers_nagios_status_test,
+        get_krakow_cluster_workers_nagios_status_test
+    ]},
     {get_service_status_on_all_hosts_tests, [parallel], [
         get_zone_cluster_managers_statuses_test,
         get_zone_databases_statuses_test,
@@ -124,6 +132,7 @@ groups() -> [
 ].
 
 all() -> [
+    {group, get_service_nagios_status_tests},
     {group, get_service_status_on_all_hosts_tests},
     {group, get_service_status_on_host_tests},
     {group, start_stop_service_on_all_hosts_tests},
@@ -166,6 +175,49 @@ all() -> [
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+get_zone_cluster_workers_nagios_status_test(_Config) ->
+    get_cluster_worker_nagios_status_test_base(zone, "oz_worker", <<"zone/nagios">>).
+
+
+get_krakow_cluster_workers_nagios_status_test(_Config) ->
+    get_cluster_worker_nagios_status_test_base(krakow, "op_worker", <<"provider/nagios">>).
+
+
+%% @private
+-spec get_cluster_worker_nagios_status_test_base(oct_background:entity_selector(), list(), binary()) ->
+    boolean().
+get_cluster_worker_nagios_status_test_base(TargetEntitySelector, WorkerPrefix, RestPath) ->
+    Hosts = lists:map(fun(Host) ->
+        WorkerPrefix ++ "@" ++ binary_to_list(Host)
+    end,cluster_management_test_utils:get_all_hosts(TargetEntitySelector)),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = str_utils:format_bin("Get service nagios report using /~ts rest endpoint", [RestPath]),
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(TargetEntitySelector),
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                TargetEntitySelector
+            ),
+            prepare_args_fun = fun(_) -> #rest_args{method = get, path = RestPath} end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                {XmlReport, []} = xmerl_scan:string(binary_to_list(RespBody)),
+
+                ?assertMatch(
+                    #xmlElement{name = healthdata, attributes = [_, #xmlAttribute{name = status, value = "ok"}]},
+                    XmlReport
+                ),
+                lists:foreach(fun({Host, XmlHostReport}) ->
+                    ?assertMatch(
+                        [#xmlAttribute{name = name, value = Host}, #xmlAttribute{name = status, value = "ok"}],
+                        XmlHostReport#xmlElement.attributes
+                    )
+                end, lists:zip(Hosts, XmlReport#xmlElement.content))
+            end)
+        }
+    ])).
 
 
 get_zone_cluster_managers_statuses_test(_Config) ->

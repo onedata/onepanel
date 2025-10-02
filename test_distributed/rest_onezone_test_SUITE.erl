@@ -30,15 +30,11 @@
 
 %% tests
 -export([
-    method_should_return_unauthorized_error/1,
-    method_should_return_forbidden_error/1,
     method_should_return_service_unavailable_error/1
 ]).
 
 all() ->
     ?ALL([
-        method_should_return_unauthorized_error,
-        method_should_return_forbidden_error,
         method_should_return_service_unavailable_error
     ]).
 
@@ -56,31 +52,6 @@ all() ->
 %%%===================================================================
 %%% Test functions
 %%%===================================================================
-
-method_should_return_unauthorized_error(Config) ->
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        lists:foreach(fun(Auth) ->
-            ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, Auth
-            ))
-        end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, ?COMMON_ENDPOINTS_WITH_METHODS).
-
-
-method_should_return_forbidden_error(Config) ->
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        % highest rights which still should not grant access to these endpoints
-        Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
-            {_, get} ->
-                [];
-            _ ->
-                ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
-        end,
-
-        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Host, Endpoint, Method, Auths
-        ))
-    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 method_should_return_service_unavailable_error(Config) ->
@@ -109,18 +80,6 @@ init_per_suite(Config) ->
         NewConfig2
     end,
     [{?LOAD_MODULES, [onepanel_test_rest]}, {?ENV_UP_POSTHOOK, Posthook} | Config].
-
-
-init_per_testcase(Case, Config) when
-    Case == method_should_return_forbidden_error;
-    Case == method_should_return_unauthorized_error
-->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(all_nodes, Config),
-    % do not require valid payload in requests
-    test_utils:mock_new(Nodes, [onepanel_parser]),
-    test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
-    NewConfig;
 
 
 init_per_testcase(method_should_return_service_unavailable_error, Config) ->

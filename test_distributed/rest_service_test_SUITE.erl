@@ -33,7 +33,6 @@
     method_should_return_unauthorized_error/1,
     method_should_return_not_found_error/1,
     get_should_return_service_task_results/1,
-    get_should_return_nagios_response/1,
     post_should_configure_oneprovider_service/1,
     post_should_configure_onezone_service/1,
     post_should_return_conflict_on_configured_onezone/1,
@@ -89,43 +88,7 @@
     }
 }).
 
-
--define(SOME_IP_STR1, "127.0.0.1").
--define(SOME_IP_STR2, "10.0.0.2").
-
 -define(TOKEN_ONEZONE_DOMAIN, <<"some.onezone.local">>).
-
--define(DNS_CHECK_TIMESTAMP, 1500000000).
--define(DNS_CHECK_JSON_OP, #{
-    <<"timestamp">> => time:seconds_to_iso8601(?DNS_CHECK_TIMESTAMP),
-    <<"domain">> => #{
-        <<"summary">> => <<"ok">>,
-        <<"expected">> => [<<?SOME_IP_STR1>>],
-        <<"got">> => [<<?SOME_IP_STR1>>],
-        <<"recommended">> => []
-    }
-}).
-
--define(DNS_CHECK_JSON_OZ, #{
-    <<"timestamp">> => time:seconds_to_iso8601(?DNS_CHECK_TIMESTAMP),
-    <<"domain">> => #{
-        <<"summary">> => <<"ok">>,
-        <<"expected">> => [<<?SOME_IP_STR1>>],
-        <<"got">> => [<<?SOME_IP_STR1>>],
-        <<"recommended">> => []
-    },
-    <<"dnsZone">> => #{
-        <<"summary">> => <<"bad_records">>,
-        <<"expected">> => [<<?SOME_IP_STR1>>],
-        <<"got">> => [<<?SOME_IP_STR2>>],
-        <<"recommended">> => []
-    }
-}).
-
--define(NAGIOS_REPORT_XML, <<"<?xml version=\"1.0\"?>"
-"<healthdata status=\"ok\">"
-"</healthdata>">>
-).
 
 -define(TASK_ID, "someTaskId").
 
@@ -145,7 +108,6 @@ all() ->
         method_should_return_unauthorized_error,
         method_should_return_not_found_error,
         get_should_return_service_task_results,
-        get_should_return_nagios_response,
         post_should_configure_oneprovider_service,
         post_should_configure_onezone_service,
         post_should_return_conflict_on_configured_onezone,
@@ -220,20 +182,6 @@ get_should_return_service_task_results(Config) ->
             }
         ])
     end, [{oneprovider_hosts, <<>>}, {onezone_hosts, <<>>}]).
-
-
-get_should_return_nagios_response(Config) ->
-    ?run(Config, fun({Host, Prefix}) ->
-        ?assertMatch({ok, ?HTTP_200_OK, _, ?NAGIOS_REPORT_XML},
-            onepanel_test_rest:auth_request(
-                Host, <<Prefix/binary, "/nagios">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [])
-            )
-        )
-    end, [
-        {oneprovider_hosts, <<"/provider">>},
-        {onezone_hosts, <<"/zone">>}
-    ]).
 
 
 post_should_configure_onezone_service(Config) ->
@@ -444,22 +392,6 @@ init_per_testcase(method_should_return_not_found_error, Config) ->
     onepanel_test_rest:set_default_passphrase(Config),
     onepanel_test_rest:mock_token_authentication(Config),
     Config;
-
-init_per_testcase(get_should_return_nagios_response, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(all_nodes, NewConfig),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun(_, _, _) -> [
-        #step_end{module = service_op_worker, function = get_nagios_response,
-            good_bad_results = {
-                [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
-            }},
-        #step_end{module = service_oz_worker, function = get_nagios_response,
-            good_bad_results = {
-                [{'node@host1', {ok, ?HTTP_200_OK, #{}, ?NAGIOS_REPORT_XML}}], []
-            }},
-        #action_end{service = service, action = action, result = ok}
-    ] end),
-    NewConfig;
 
 init_per_testcase(get_should_return_service_task_results, Config) ->
     NewConfig = init_per_testcase(default, Config),

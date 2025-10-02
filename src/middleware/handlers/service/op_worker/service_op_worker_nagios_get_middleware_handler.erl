@@ -7,7 +7,6 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Returns Nagios proxy response for op worker service.
-%%% TODO VFS-13023 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(service_op_worker_nagios_get_middleware_handler).
