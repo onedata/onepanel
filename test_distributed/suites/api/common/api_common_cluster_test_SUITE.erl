@@ -19,14 +19,15 @@
 
 %% API
 -export([
-    groups/0,
-    all/0,
-
-    init_per_suite/1,
-    end_per_suite/1
+    groups/0, all/0,
+    init_per_suite/1, end_per_suite/1,
+    init_per_group/2, end_per_group/2
 ]).
 
 -export([
+    get_zone_cluster_members_summary_test/1,
+    get_krakow_cluster_members_summary_test/1,
+
     get_current_zone_cluster_details_test/1,
     get_current_krakow_cluster_details_test/1,
 
@@ -35,48 +36,112 @@
     get_krakow_cluster_details_from_zone_test/1,
     get_krakow_cluster_details_from_krakow_test/1,
 
-    get_zone_cluster_members_summary_test/1,
-    get_krakow_cluster_members_summary_test/1,
-
     get_zone_cluster_public_configuration_test/1,
     get_krakow_cluster_public_configuration_test/1,
 
     get_zone_cluster_cookie_test/1,
-    get_krakow_cluster_cookie_test/1
+    get_krakow_cluster_cookie_test/1,
+
+    get_zone_cluster_progress_test/1,
+    get_krakow_cluster_progress_test/1,
+
+    update_zone_cluster_progress_test/1,
+    update_krakow_cluster_progress_test/1
 ]).
 
 groups() -> [
-    {sequential_tests, [], [
+    {cluster_members_summery_tests, [], [
         % These tests are sensitive to numbers of users created and should be run first
         get_zone_cluster_members_summary_test,
         get_krakow_cluster_members_summary_test
     ]},
-    {parallel_tests, [parallel], [
+    {cluster_details_tests, [parallel], [
         get_current_zone_cluster_details_test,
         get_current_krakow_cluster_details_test,
 
         get_zone_cluster_details_from_zone_test,
         get_zone_cluster_details_from_krakow_test,
         get_krakow_cluster_details_from_zone_test,
-        get_krakow_cluster_details_from_krakow_test,
-
+        get_krakow_cluster_details_from_krakow_test
+    ]},
+    {cluster_config_tests, [parallel], [
         get_zone_cluster_public_configuration_test,
         get_krakow_cluster_public_configuration_test,
 
         get_zone_cluster_cookie_test,
         get_krakow_cluster_cookie_test
+    ]},
+    {cluster_progress_tests, [], [
+        get_zone_cluster_progress_test,
+        get_krakow_cluster_progress_test,
+
+        update_zone_cluster_progress_test,
+        update_krakow_cluster_progress_test
     ]}
 ].
 
 all() -> [
-    {group, sequential_tests},
-    {group, parallel_tests}
+    {group, cluster_members_summery_tests},
+    {group, cluster_details_tests},
+    {group, cluster_config_tests},
+    {group, cluster_progress_tests}
 ].
+
+
+-define(ZONE_PROGRESS_MARKERS, [
+    <<"clusterNodes">>, <<"clusterIps">>, <<"dnsCheck">>, <<"webCertificate">>
+]).
+-define(PROVIDER_PROGRESS_MARKERS, [
+    <<"clusterNodes">>, <<"clusterIps">>, <<"dnsCheck">>, <<"webCertificate">>, <<"storagesSetup">>
+]).
 
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+get_zone_cluster_members_summary_test(_Config) ->
+    get_cluster_members_summary_test_base(zone).
+
+
+get_krakow_cluster_members_summary_test(_Config) ->
+    get_cluster_members_summary_test_base(krakow).
+
+
+%% @private
+-spec get_cluster_members_summary_test_base(oct_background:entity_selector()) ->
+    boolean().
+get_cluster_members_summary_test_base(PanelEntitySelector) ->
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get current cluster members summary using /cluster/members_summary REST endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                PanelEntitySelector, [?CLUSTER_VIEW]
+            ),
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"cluster/members_summary">>
+            } end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                % Users can be fetched only before actual assert as api test framework creates
+                % users on demand (it is not possible to fetch users once before test starts).
+                % Additionally, it creates 2 users: one added to the cluster and other not
+                % (see client spec - member vs user)
+                ExpUsersCount = floor(length(ozw_test_rpc:list_users()) / 2),
+
+                ExpMembersSummary = #{
+                    <<"usersCount">> => ExpUsersCount,
+                    <<"groupsCount">> => 0,
+                    <<"effectiveUsersCount">> => ExpUsersCount,
+                    <<"effectiveGroupsCount">> => 0
+                },
+                ?assertEqual(ExpMembersSummary, RespBody)
+            end)
+        }
+    ])).
 
 
 get_current_zone_cluster_details_test(_Config) ->
@@ -151,49 +216,6 @@ get_cluster_details_test_base(QueryPanelEntitySelector, TargetClusterEntitySelec
                 }
             end,
             validate_result_fun = build_validate_cluster_details_fun(ExpClusterDetails)
-        }
-    ])).
-
-
-get_zone_cluster_members_summary_test(_Config) ->
-    get_cluster_members_summary_test_base(zone).
-
-
-get_krakow_cluster_members_summary_test(_Config) ->
-    get_cluster_members_summary_test_base(krakow).
-
-
-%% @private
--spec get_cluster_members_summary_test_base(oct_background:entity_selector()) ->
-    boolean().
-get_cluster_members_summary_test_base(PanelEntitySelector) ->
-    ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Get current cluster members summary using /cluster/members_summary REST endpoint">>,
-            type = rest,
-            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
-            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
-                PanelEntitySelector, [?CLUSTER_VIEW]
-            ),
-            prepare_args_fun = fun(_) -> #rest_args{
-                method = get,
-                path = <<"cluster/members_summary">>
-            } end,
-            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                % Users can be fetched only before actual assert as api test framework creates
-                % users on demand (it is not possible to fetch users once before test starts).
-                % Additionally, it creates 2 users: one added to the cluster and other not 
-                % (see client spec - member vs user)
-                ExpUsersCount = floor(length(ozw_test_rpc:list_users()) / 2),
-
-                ExpMembersSummary = #{
-                    <<"usersCount">> => ExpUsersCount,
-                    <<"groupsCount">> => 0,
-                    <<"effectiveUsersCount">> => ExpUsersCount,
-                    <<"effectiveGroupsCount">> => 0
-                },
-                ?assertEqual(ExpMembersSummary, RespBody)
-            end)
         }
     ])).
 
@@ -285,6 +307,118 @@ get_cluster_cookie_test_base(PanelEntitySelector) ->
     ])).
 
 
+get_zone_cluster_progress_test(_Config) ->
+    ExpProgress = lists:foldl(fun(Marker, Acc) ->
+        IsSet = ?RAND_BOOL(),
+        update_progress_marker(zone, Marker, IsSet),
+        Acc#{Marker => IsSet}
+    end, #{}, ?ZONE_PROGRESS_MARKERS),
+
+    get_cluster_progress_test_base(zone, ExpProgress).
+
+
+get_krakow_cluster_progress_test(_Config) ->
+    ExpProgress = lists:foldl(fun(Marker, Acc) ->
+        IsSet = ?RAND_BOOL(),
+        update_progress_marker(krakow, Marker, IsSet),
+        Acc#{Marker => IsSet}
+    end, #{<<"isRegistered">> => true}, ?PROVIDER_PROGRESS_MARKERS),
+
+    get_cluster_progress_test_base(krakow, ExpProgress).
+
+
+%% @private
+-spec get_cluster_progress_test_base(oct_background:entity_selector(), json_utils:json_map()) ->
+    boolean().
+get_cluster_progress_test_base(PanelEntitySelector, ExpProgress) ->
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Get current cluster progress using /progress REST endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(PanelEntitySelector),
+
+            prepare_args_fun = fun(_) -> #rest_args{
+                method = get,
+                path = <<"progress">>
+            } end,
+            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
+                ?assertEqual(ExpProgress, RespBody)
+            end)
+        }
+    ])).
+
+
+update_zone_cluster_progress_test(_Config) ->
+    update_cluster_progress_test_base(zone).
+
+
+update_krakow_cluster_progress_test(_Config) ->
+    update_cluster_progress_test_base(krakow).
+
+
+%% @private
+-spec update_cluster_progress_test_base(oct_background:entity_selector()) ->
+    boolean().
+update_cluster_progress_test_base(PanelEntitySelector) ->
+    MemRef = api_test_memory:init(),
+    api_test_memory:set(MemRef, markers_state, get_markers_state(PanelEntitySelector)),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Update current cluster progress using /progress REST endpoint">>,
+            type = rest,
+            target_nodes = panel_test_utils:get_panel_nodes(PanelEntitySelector),
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                PanelEntitySelector, [?CLUSTER_UPDATE]
+            ),
+            data_spec = #data_spec{
+                optional = [<<"clusterIps">>, <<"webCertificate">>, <<"dnsCheck">>],
+                correct_values = #{
+                    <<"clusterIps">> => [true, false],
+                    <<"webCertificate">> => [true, false],
+                    <<"dnsCheck">> => [true, false]
+                },
+                bad_values = [
+                    {<<"clusterIps">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"clusterIps">>)},
+                    {<<"webCertificate">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"webCertificate">>)},
+                    {<<"dnsCheck">>, not_a_boolean, ?ERR_BAD_VALUE_BOOLEAN(<<"dnsCheck">>)}
+                ]
+            },
+            prepare_args_fun = fun(#api_test_ctx{data = TestData}) ->
+                #rest_args{
+                    method = patch,
+                    path = <<"progress">>,
+                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                    body = json_utils:encode(TestData#{
+                        % Below markers cannot be changed - no matter what is send it will be ignored
+                        <<"clusterNodes">> => ?RAND_BOOL(),
+                        <<"storagesSetup">> => ?RAND_BOOL(),
+                        <<"isRegistered">> => ?RAND_BOOL()
+                    })
+                }
+            end,
+            validate_result_fun = api_test_validate:http_204_no_content(),
+
+            verify_fun = fun
+                (expected_success, #api_test_ctx{data = TestData}) ->
+                    ExpMarkersState = maps:merge(
+                        api_test_memory:get(MemRef, markers_state),
+                        TestData
+                    ),
+                    ?assertEqual(ExpMarkersState, get_markers_state(PanelEntitySelector)),
+                    api_test_memory:set(MemRef, markers_state, ExpMarkersState),
+
+                    true;
+                (expected_failure, _) ->
+                    ExpMarkersState = api_test_memory:get(MemRef, markers_state),
+                    ?assertEqual(ExpMarkersState, get_markers_state(PanelEntitySelector)),
+                    true
+            end
+        }
+    ])).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -298,6 +432,26 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
+
+
+init_per_group(_Group, Config) ->
+    Config.
+
+
+end_per_group(cluster_progress_tests, Config) ->
+    % Those tests mess with cluster deployment progress markers - ensure after tests all markers are set
+    lists:foreach(fun(Marker) ->
+        update_progress_marker(zone, Marker, true)
+    end, ?ZONE_PROGRESS_MARKERS),
+
+    lists:foreach(fun(Marker) ->
+        update_progress_marker(krakow, Marker, true)
+    end, ?PROVIDER_PROGRESS_MARKERS),
+
+    Config;
+
+end_per_group(_Group, Config) ->
+    Config.
 
 
 %%%===================================================================
@@ -379,3 +533,32 @@ build_validate_cluster_details_fun(ExpClusterDetails) ->
         TestedRespBody = maps:without([<<"creationTime">>, <<"creator">>], RespBody),
         ?assertEqual(ExpClusterDetails, TestedRespBody)
     end).
+
+
+%% @private
+-spec update_progress_marker(oct_background:entity_selector(), binary(), boolean()) -> ok.
+update_progress_marker(PanelEntitySelector, Marker, true) ->
+    ?rpc(PanelEntitySelector, onepanel_deployment:set_marker(get_internal_marker_key(Marker)));
+update_progress_marker(PanelEntitySelector, Marker, false) ->
+    ?rpc(PanelEntitySelector, onepanel_deployment:unset_marker(get_internal_marker_key(Marker))).
+
+
+%% @private
+-spec get_internal_marker_key(binary()) -> atom().
+get_internal_marker_key(Marker) ->
+    {_, InternalKey} = lists:keyfind(
+        binary_to_atom(Marker),
+        1,
+        panel_progress_middleware_handler_utils:rest_to_marker_mapping(?ONEPROVIDER)
+    ),
+    InternalKey.
+
+
+%% @private
+-spec get_markers_state(ct_background:entity_selector()) -> json_utils:json_map().
+get_markers_state(PanelEntitySelector) ->
+    {ok, _, _, MarkersState} = ?assertMatch(
+        {ok, ?HTTP_200_OK, _, _},
+        panel_test_rest:get(PanelEntitySelector, <<"/progress">>, #{auth => root})
+    ),
+    MarkersState.

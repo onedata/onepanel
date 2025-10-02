@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Returns whether transfers mock is enabled on op_worker.
-%%% TODO VFS-13023 test endpoint?
+%%% TODO VFS-13075 test endpoint?
 %%% @end
 %%%-------------------------------------------------------------------
 -module(provider_transfers_mock_get_middleware_handler).

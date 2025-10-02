@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Middleware handler for inviting a remote host to the cluster (extend_cluster).
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13073 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(host_instance_create_middleware_handler).

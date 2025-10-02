@@ -7,7 +7,7 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% Middleware handler for removing a host from the cluster.
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13073 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(host_instance_delete_middleware_handler).

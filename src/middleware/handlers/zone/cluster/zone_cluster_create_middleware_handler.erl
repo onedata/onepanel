@@ -8,7 +8,7 @@
 %%% @doc
 %%% Middleware handler for deploying Onezone cluster (batch configuration).
 %%% Available on Onezone panels only.
-%%% TODO VFS-13023 test endpoint
+%%% TODO VFS-13075 test endpoint
 %%% @end
 %%%-------------------------------------------------------------------
 -module(zone_cluster_create_middleware_handler).
@@ -28,6 +28,8 @@
     process/1,
     translate_output/2
 ]).
+
+-onp_handles([{create, onp_zone}]).
 
 -type t() :: ?MODULE.
 -type input() :: map().
