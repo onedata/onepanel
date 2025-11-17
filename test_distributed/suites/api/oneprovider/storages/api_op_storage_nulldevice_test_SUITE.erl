@@ -124,15 +124,11 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             {<<"timeoutProbability">>, <<"string">>, ?ERR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
             {<<"filter">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"filter">>))},
             {<<"simulatedFilesystemParameters">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"simulatedFilesystemParameters">>))},
-            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
-            %% TODO VFS-12391 debug why it returns bad_value_string
-%%            {<<"enableDataVerification">>, 5, ?ERR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
+            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))},
+            {<<"enableDataVerification">>, 5, ?ERR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
         ]
     }.
 
--define(COMMON_BAD_VALUES, [
-
-]).
 
 %% @private
 -spec build_add_nulldevice_storage_prepare_args_fun(
@@ -205,12 +201,10 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             <<"archiveStorage">>,
             <<"latencyMin">>,
             <<"latencyMax">>,
-%%            % TODO VFS-12391 float to binary conversion returns e.g. <<"1.00000000000000005551e-01">>
-%%            <<"timeoutProbability">>,
+            <<"timeoutProbability">>,
             <<"filter">>,
             <<"simulatedFilesystemParameters">>,
-%%            % TODO VFS-12391 float to binary conversion returns e.g. <<"1.00000000000000005551e-01">>
-%%            <<"simulatedFilesystemGrowSpeed">>,
+            <<"simulatedFilesystemGrowSpeed">>,
             <<"enableDataVerification">>
         ],
         correct_values = #{
@@ -233,9 +227,8 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
         },
         bad_values = [
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
-%%            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
 %%            %% TODO: VFS-7641 add records for badly formatted QoS
@@ -247,9 +240,8 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             {<<"timeoutProbability">>, <<"string">>, ?ERR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
             {<<"filter">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"filter">>))},
             {<<"simulatedFilesystemParameters">>, 5, ?ERR_BAD_VALUE_STRING(K(<<"simulatedFilesystemParameters">>))},
-            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))}
-            %% TODO VFS-12391 debug why it returns bad_value_string
-%%            {<<"enableDataVerification">>, 5, ?ERR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
+            {<<"simulatedFilesystemGrowSpeed">>, <<"str">>, ?ERR_BAD_VALUE_FLOAT(K(<<"simulatedFilesystemGrowSpeed">>))},
+            {<<"enableDataVerification">>, 5, ?ERR_BAD_VALUE_BOOLEAN(K(<<"enableDataVerification">>))}
         ]
     }.
 

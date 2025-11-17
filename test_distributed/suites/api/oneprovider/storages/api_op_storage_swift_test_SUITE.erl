@@ -131,7 +131,6 @@ build_add_swift_storage_data_spec(MemRef, swift, correct_args) ->
             <<"blockSize">> => [1024],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            %% TODO VFS-12772 Specify and test which storages can have flat or canonical as storage_path_type
             <<"storagePathType">> => [<<"flat">>],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
@@ -195,7 +194,6 @@ get_storage_test(_Config) ->
     StorageSpec = ?MIN_SWIFT_STORAGE_SPEC,
     StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
 
-    %% TODO VFS-12773 debug why storage get omits timeout parameter
     api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
         <<"id">> => StorageId,
         <<"name">> => StorageName,
@@ -272,9 +270,8 @@ build_modify_swift_storage_data_spec(MemRef, swift, correct_args) ->
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},

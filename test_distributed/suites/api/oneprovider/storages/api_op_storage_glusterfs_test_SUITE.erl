@@ -125,7 +125,6 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            %% TODO VFS-12772 Specify and test which storages can have flat or canonical as storage_path_type
             <<"storagePathType">> => [<<"canonical">>],
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [true, false]
@@ -267,9 +266,8 @@ build_modify_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
                 ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"transport">>), [<<"tcp">>, <<"rdma">>, <<"socket">>])},
             {<<"mountPoint">>, 132, ?ERR_BAD_VALUE_STRING(K(<<"mountPoint">>))},
             {<<"xlatorOptions">>, 132, ?ERR_BAD_VALUE_STRING(K(<<"xlatorOptions">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},

@@ -193,12 +193,12 @@ parse_value(_Value, binary, Keys) ->
 parse_value(Value, atom, _Keys) when is_atom(Value) ->
     Value;
 
-parse_value(Value, boolean, Keys) when is_atom(Value) ->
-    case Value of
-        true -> true;
-        false -> false;
-        _ -> throw(?ERR_BAD_VALUE_BOOLEAN(?err_ctx(), join_keys(Keys)))
-    end;
+parse_value(true, boolean, _Keys) -> true;
+parse_value(<<"true">>, boolean, _Keys) -> true;
+parse_value(false, boolean, _Keys) -> false;
+parse_value(<<"false">>, boolean, _Keys) -> false;
+parse_value(_Value, boolean, Keys) ->
+    throw(?ERR_BAD_VALUE_BOOLEAN(?err_ctx(), join_keys(Keys)));
 
 parse_value(Value, boolean, Keys) ->
     parse_value(parse_value(Value, atom, Keys), boolean, Keys);

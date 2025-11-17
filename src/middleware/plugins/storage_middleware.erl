@@ -287,7 +287,7 @@ validate(#onp_req{operation = create, gri = #gri{aspect = As}, data = Data}, _) 
 ->
     ensure_registered(),
     lists:foreach(fun(StorageName) ->
-        validate_storage_common_args(StorageName, maps:get(StorageName, Data)),
+        validate_storage_timeout(StorageName, maps:get(StorageName, Data)),
         validate_storage_custom_args(StorageName, maps:get(StorageName, Data))
     end, maps:keys(Data));
 
@@ -335,6 +335,7 @@ validate(#onp_req{
     ensure_registered(),
 
     lists:foreach(fun(StorageName) ->
+        validate_storage_timeout(StorageName, maps:get(StorageName, Data)),
         validate_storage_custom_args(StorageName, maps:get(StorageName, Data))
     end, maps:keys(Data)),
 
@@ -687,13 +688,15 @@ parse_add_storages_results(ActionResults) ->
     end, #{}, ActionResults).
 
 
--spec validate_storage_common_args(binary(), map()) -> ok.
-validate_storage_common_args(StorageName, StorageArgs) ->
+-spec validate_storage_timeout(binary(), map()) -> ok.
+validate_storage_timeout(StorageName, StorageArgs) ->
     Timeout =  maps:get(timeout, StorageArgs, ?DEFAULT_STORAGE_TIMEOUT),
-    case Timeout < ?MIN_STORAGE_TIMEOUT of
-        true ->
+    case maps:get(timeout, StorageArgs, undefined) of
+        undefined ->
+            ok;
+        Timeout when Timeout < ?MIN_STORAGE_TIMEOUT ->
             throw(?ERR_BAD_VALUE_TOO_LOW(?err_ctx(), ?STORAGE_KEY(StorageName, timeout), ?MIN_STORAGE_TIMEOUT));
-        false ->
+        _ ->
             ok
     end.
 

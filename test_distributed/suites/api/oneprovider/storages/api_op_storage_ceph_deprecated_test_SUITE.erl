@@ -147,7 +147,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             <<"qosParameters">>,
             <<"archiveStorage">>
 
-            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes - debug
+            %% TODO VFS-13152 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">>
         ],
         correct_values = #{
@@ -158,16 +158,15 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             %% TODO VFS-8782 verify if archiveStorage option works properly on storage
             <<"archiveStorage">> => [?RAND_BOOL()]
 
-            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes - debug
+            %% TODO VFS-13152 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">> => [<<"dummy">>]
         },
 
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
@@ -187,7 +186,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
         ],
         optional = [
             <<"name">>,
-            %% TODO VFS-12391 changing hostname always timeouts
+            %% TODO VFS-13152 changing hostname always timeouts
 %%            <<"monitorHostname">>,
             <<"poolName">>,
             <<"username">>,
@@ -196,7 +195,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, bad_args) ->
         correct_values = #{
             <<"type">> => [<<"ceph">>],
             <<"name">> => [<<"a">>],
-            %% TODO VFS-12391 changing hostname always timeouts
+            %% TODO VFS-13152 changing hostname always timeouts
 %%            <<"monitorHostname">> => [<<"0.0.0.0">>],
             <<"poolName">> => [<<"dummy">>],
             <<"username">> => [<<"dummy">>],

@@ -247,9 +247,8 @@ build_modify_posix_storage_data_spec(MemRef, posix, correct_args) ->
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
             {<<"mountPoint">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"mountPoint">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
