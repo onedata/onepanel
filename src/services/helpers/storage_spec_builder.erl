@@ -90,16 +90,15 @@ description_to_map(#storage_description{
     credentials = Credentials,
     configuration = Configuration
 }) ->
-    BaseMap = #{
+    BaseMap = maps_utils:put_if_defined(#{
         id => Id,
         name => Name,
         type => Type,
-        timeout => Timeout,
         readonly => Readonly,
         importedStorage => Imported,
         archiveStorage => Archive,
         qosParameters => QosParameters
-    },
+    }, timeout, Timeout),
     MapWithLuma = case Luma#luma_spec.feed of
         external ->
             BaseMap#{

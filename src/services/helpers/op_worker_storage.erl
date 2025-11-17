@@ -67,6 +67,7 @@ add(#{name := Name, params := Params}) ->
     {ok, OpNode} = nodes:any(?SERVICE_OPW),
     StorageName = onepanel_utils:convert(Name, binary),
     StorageType = onepanel_utils:get_converted(type, Params, binary),
+    log_gathered_storage_configuration(Name, StorageType, Params),
 
     Result = try
         CreateSpec = storage_spec_builder:build_create_spec(StorageName, Params),
@@ -96,7 +97,7 @@ add(#{name := Name, params := Params}) ->
 update(OpNode, Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
     Name = maps:get(name, Storage),
-    StorageType = onepanel_utils:get_converted(type, Storage, atom),
+    StorageType = maps:get(type, Storage),
 
     try
         UpdateSpec = storage_spec_builder:build_update_spec(StorageType, NewParams),
@@ -358,3 +359,26 @@ parse_file_popularity_configuration(Args) ->
         avg_open_count_per_day_weight => onepanel_utils:get_converted(avg_open_count_per_day_weight, Args, float, undefined),
         max_avg_open_count_per_day => onepanel_utils:get_converted(max_avg_open_count_per_day, Args, float, undefined)
     }).
+
+
+%% @private
+-spec log_gathered_storage_configuration(Name :: binary(), StorageType :: binary(), Params :: storage_params()) ->
+    ok.
+log_gathered_storage_configuration(Name, StorageType, Params) ->
+    ParamsWithBinaryKeys = maps_utils:map_key_value(fun(AtomKey, Value) ->
+        {atom_to_binary(AtomKey, utf8), Value}
+    end, Params),
+    %% TODO redact confidential params
+    RedactedParams = ParamsWithBinaryKeys,
+%%    RedactedParams = op_worker_rpc:redact_confidential_helper_params(
+%%        StorageType, maps:without([<<"type">>], ParamsWithBinaryKeys)
+%%    ),
+    FormattedParams = lists:map(fun
+        ({Key, Value}) when is_binary(Value) ->
+            str_utils:format_bin("    ~ts: ~ts", [Key, Value]);
+        ({Key, Value}) ->
+            str_utils:format_bin("    ~ts: ~tp", [Key, Value])
+    end, maps:to_list(RedactedParams)),
+    ?info("Gathered storage configuration for '~ts' (~ts) - parameters: ~n~ts", [
+        Name, StorageType, str_utils:join_as_binaries(FormattedParams, str_utils:format_bin("~n", []))
+    ]).

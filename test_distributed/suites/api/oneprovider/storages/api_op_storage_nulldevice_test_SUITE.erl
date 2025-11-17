@@ -168,13 +168,11 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>,
-        <<"gid">> => <<"0">>,
-        <<"uid">> => <<"0">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false,
+        <<"gid">> => 0,
+        <<"uid">> => 0
     }).
 
 
@@ -268,7 +266,7 @@ build_modify_nulldevice_storage_setup_fun(MemRef) ->
         ),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

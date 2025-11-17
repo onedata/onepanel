@@ -20,6 +20,7 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 -export([
+    describe_storage/2,
     add_storage_test_base/1,
     get_storage_test_base/2,
     modify_storage_test_base/1
@@ -56,6 +57,14 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec describe_storage(oct_background:entity_selector(), op_worker_storage:id()) ->
+    json_utils:json_map().
+describe_storage(ProviderSelector, StorageId) ->
+    StorageDescription = opw_test_rpc:storage_describe(ProviderSelector, StorageId),
+    StorageDescriptionMap = storage_spec_builder:description_to_map(StorageDescription),
+    onepanel_utils:convert(StorageDescriptionMap, {keys, binary}).
 
 
 -spec add_storage_test_base(add_storage_test_spec()) -> ok.
@@ -129,8 +138,7 @@ get_storage_test_base(StorageId, ExpStorageDetails) ->
                 }
             end,
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
-                ?assertEqual(ExpStorageDetails, RespBodyBinary)
+                ?assertEqual(ExpStorageDetails, RespBody)
             end)
         }
     ])).
@@ -213,7 +221,7 @@ build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
         (expected_success, _) ->
             NewStorageId = api_test_memory:get(MemRef, storage_id),
             ?assertEqual(true, lists:member(NewStorageId, opw_test_rpc:get_storages(krakow)), ?ATTEMPTS),
-            StorageDetails = opw_test_rpc:storage_describe(krakow, NewStorageId),
+            StorageDetails = describe_storage(krakow, NewStorageId),
             check_io_on_storage_if_not_nulldevice(NewStorageId, StorageDetails),
             true;
         (expected_failure, _) ->
@@ -250,14 +258,8 @@ build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
         PrevStorageDetails = api_test_memory:get(MemRef, storage_details),
         StorageDiff = api_test_memory:get(MemRef, storage_diff),
 
-        ExpNewStorageDetails = convert_fields_to_binary(json_utils:merge([
-            PrevStorageDetails, StorageDiff
-        ])),
-        api_test_memory:set(MemRef, storage_details, ExpNewStorageDetails#{
-            % TODO VFS-12391 Despite lumaFeed being changed to binary in response,
-            % when you later asks for details with rpc it is atom :)
-            <<"lumaFeed">> => binary_to_atom(maps:get(<<"lumaFeed">>, ExpNewStorageDetails))
-        }),
+        ExpNewStorageDetails = json_utils:merge([PrevStorageDetails, StorageDiff]),
+        api_test_memory:set(MemRef, storage_details, ExpNewStorageDetails),
 
         ExpResponse = MappingFun(ExpNewStorageDetails#{<<"verificationPassed">> => true}),
         ?assertEqual(ExpResponse, Response)
@@ -268,8 +270,7 @@ build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
 }) ->
     api_test_validate:http_200_ok(fun(Response) ->
         PrevStorageDetails = api_test_memory:get(MemRef, storage_details),
-        ExpStorageDetails = convert_fields_to_binary(PrevStorageDetails),
-        ExpResponse = MappingFun(ExpStorageDetails#{<<"verificationPassed">> => false}),
+        ExpResponse = MappingFun(PrevStorageDetails#{<<"verificationPassed">> => false}),
 
         ?assertEqual(ExpResponse, Response)
     end).
@@ -280,7 +281,7 @@ build_modify_storage_verify_fun(MemRef) ->
     fun(_, _) ->
         StorageId = api_test_memory:get(MemRef, storage_id),
         ExpStorageDetails = api_test_memory:get(MemRef, storage_details),
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = describe_storage(krakow, StorageId),
         ?assertEqual(ExpStorageDetails, StorageDetails),
         check_io_on_storage_if_not_nulldevice(StorageId, StorageDetails),
         true
@@ -291,29 +292,3 @@ check_io_on_storage_if_not_nulldevice(_StorageId, #{<<"type">> := <<"nulldevice"
     ok;
 check_io_on_storage_if_not_nulldevice(StorageId, _StorageDetails) ->
     ?assertMatch({ok, _}, api_test_utils:perform_io_test_on_storage(StorageId), ?ATTEMPTS).
-
-
-% TODO VFS-12391 storage update changes types of several fields to binary - debug
-%% @private
-convert_fields_to_binary(StorageDetails) ->
-    lists:foldl(fun(Key, DetailsAcc) ->
-        case maps:is_key(Key, DetailsAcc) of
-            true -> maps:update_with(Key, fun str_utils:to_binary/1, DetailsAcc);
-            false -> DetailsAcc
-        end
-    end, StorageDetails, [
-        <<"archiveStorage">>,  % TODO VFS-12391 boolean
-        <<"lumaFeed">>,
-        <<"timeout">>,  % TODO VFS-12391 integer
-        <<"maximumCanonicalObjectSize">>,  % TODO VFS-12391 integer
-        <<"verifyServerCertificate">>,  % TODO VFS-12391 boolean
-        <<"connectionPoolSize">>,  % TODO VFS-12391 int
-        <<"maximumUploadSize">>,  % TODO VFS-12391 int
-        <<"latencyMin">>,
-        <<"latencyMax">>,
-        <<"timeoutProbability">>,
-        <<"filter">>,
-        <<"simulatedFilesystemParameters">>,
-        <<"simulatedFilesystemGrowSpeed">>,
-        <<"enableDataVerification">>
-    ]).

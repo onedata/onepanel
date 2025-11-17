@@ -132,7 +132,7 @@ build_add_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
             <<"type">> => [<<"webdav">>],
             <<"endpoint">> => [?WEBDAV_ENDPOINT],
             <<"storagePathType">> => [<<"canonical">>],
-            <<"verifyServerCertificate">> => [<<"true">>, <<"false">>],
+            <<"verifyServerCertificate">> => [true, false],
             <<"connectionPoolSize">> => [1, 10, 100],
             <<"maximumUploadSize">> => [0, 1024],
             <<"timeout">> => [?STORAGE_TIMEOUT],
@@ -214,13 +214,11 @@ get_storage_test(_Config) ->
 
         % default values for not supplied parameters
         <<"authorizationHeader">> => <<"Authorization: Bearer {}">>,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"connectionPoolSize">> => <<"25">>,
+        <<"connectionPoolSize">> => 25,
         <<"dirMode">> => <<"0775">>,
         <<"fileMode">> => <<"0664">>,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"maximumUploadSize">> => <<"0">>,
-        <<"verifyServerCertificate">> => <<"true">>,
+        <<"maximumUploadSize">> => 0,
+        <<"verifyServerCertificate">> => true,
 
         <<"storagePathType">> => <<"canonical">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -231,11 +229,9 @@ get_storage_test(_Config) ->
         },
 
         % default values for not supplied parameters
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -342,7 +338,7 @@ build_modify_webdav_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_WEBDAV_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

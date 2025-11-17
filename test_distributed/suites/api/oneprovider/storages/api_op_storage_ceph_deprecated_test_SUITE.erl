@@ -104,11 +104,9 @@ get_storage_test(_Config) ->
         },
 
         % default values for not supplied parameters
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -215,7 +213,7 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
         StorageId = create_minimal_ceph_storage(StorageName),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

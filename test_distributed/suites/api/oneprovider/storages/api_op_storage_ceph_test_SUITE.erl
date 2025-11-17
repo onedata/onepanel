@@ -207,14 +207,10 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>,
-
-        % TODO VFS-12391 shouldn't this be int?
-        <<"blockSize">> => <<"4194304">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false,
+        <<"blockSize">> => 4194304
     }).
 
 
@@ -322,7 +318,7 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_CEPH_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

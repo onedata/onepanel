@@ -193,13 +193,11 @@ get_storage_test(_Config) ->
     api_op_storages_test_base:get_storage_test_base(StorageId, StorageSpec#{
         <<"id">> => StorageId,
         <<"name">> => StorageName,
-
-        % TODO VFS-12391 shouldn't this be int?
-        <<"port">> => <<"24007">>,
+        <<"port">> => 24007,
 
         % default values for not supplied parameters
-        <<"gid">> => <<"0">>,
-        <<"uid">> => <<"0">>,
+        <<"gid">> => 0,
+        <<"uid">> => 0,
 
         <<"storagePathType">> => <<"canonical">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -208,11 +206,9 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -317,7 +313,7 @@ build_modify_glusterfs_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_GLUSTERFS_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

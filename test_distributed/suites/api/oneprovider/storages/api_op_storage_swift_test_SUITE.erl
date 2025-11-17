@@ -206,8 +206,7 @@ get_storage_test(_Config) ->
         % default values for not supplied parameters
         <<"projectDomainName">> => ?SWIFT_PROJECT_DOMAIN_NAME,
         <<"userDomainName">> => ?SWIFT_USER_DOMAIN_NAME,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"blockSize">> => str_utils:to_binary(?SWIFT_DEFAULT_BLOCK_SIZE),
+        <<"blockSize">> => ?SWIFT_DEFAULT_BLOCK_SIZE,
 
         <<"storagePathType">> => <<"flat">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -216,11 +215,9 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -330,7 +327,7 @@ build_modify_swift_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_SWIFT_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

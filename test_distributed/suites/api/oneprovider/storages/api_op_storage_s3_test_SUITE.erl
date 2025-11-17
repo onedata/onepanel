@@ -217,13 +217,11 @@ get_storage_test(_Config) ->
 
         % default values for not supplied parameters
         <<"region">> => <<"us-east-1">>,
-        <<"signatureVersion">> => <<"4">>,
+        <<"signatureVersion">> => 4,
         <<"dirMode">> => <<"0775">>,
         <<"fileMode">> => <<"0664">>,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"blockSize">> => str_utils:to_binary(?S3_DEFAULT_BLOCK_SIZE),
-        % TODO VFS-12391 shouldn't this be int?
-        <<"maximumCanonicalObjectSize">> => <<"67108864">>,
+        <<"blockSize">> => ?S3_DEFAULT_BLOCK_SIZE,
+        <<"maximumCanonicalObjectSize">> => 67108864,
 
         <<"storagePathType">> => <<"flat">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -232,11 +230,9 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"archiveStorage">> => false,
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -349,7 +345,7 @@ build_modify_s3_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 
