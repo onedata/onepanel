@@ -248,8 +248,7 @@ build_modify_storage_prepare_args_fun(MemRef) ->
 
 %% @private
 build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
-    args_correctness = correct_args,
-    map_storage_description_to_exp_rest_response_fun = MappingFun
+    args_correctness = correct_args
 }) ->
     api_test_validate:http_200_ok(fun(Response) ->
         NewStorageName = maps:get(<<"name">>, Response),
@@ -261,16 +260,15 @@ build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
         ExpNewStorageDetails = json_utils:merge([PrevStorageDetails, StorageDiff]),
         api_test_memory:set(MemRef, storage_details, ExpNewStorageDetails),
 
-        ExpResponse = MappingFun(ExpNewStorageDetails#{<<"verificationPassed">> => true}),
+        ExpResponse = ExpNewStorageDetails#{<<"verificationPassed">> => true},
         ?assertEqual(ExpResponse, Response)
     end);
 build_modify_storage_validate_result_fun(MemRef, #modify_storage_test_spec{
-    args_correctness = bad_args,
-    map_storage_description_to_exp_rest_response_fun = MappingFun
+    args_correctness = bad_args
 }) ->
     api_test_validate:http_200_ok(fun(Response) ->
         PrevStorageDetails = api_test_memory:get(MemRef, storage_details),
-        ExpResponse = MappingFun(PrevStorageDetails#{<<"verificationPassed">> => false}),
+        ExpResponse = PrevStorageDetails#{<<"verificationPassed">> => false},
 
         ?assertEqual(ExpResponse, Response)
     end).

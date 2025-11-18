@@ -1350,10 +1350,12 @@ binary_to_range_write_support(<<"sabredav">>) -> sabredav.
 %%--------------------------------------------------------------------
 -spec parse_s3_hostname(binary()) -> {Scheme :: binary(), Hostname :: binary()}.
 parse_s3_hostname(FullUrl) ->
-    case binary:split(FullUrl, <<"://">>) of
-        [<<"https">> = Scheme, Hostname] -> {Scheme, Hostname};
-        [_, Hostname] -> {<<"http">>, Hostname};
-        [Hostname] -> {<<"https">>, Hostname}  % default to https if no scheme
+    #{scheme := Scheme, host := Host, port := Port, path := Path} = url_utils:infer_components(FullUrl),
+
+    Hostname = str_utils:format_bin("~ts:~B~ts", [Host, Port, Path]),
+    case Scheme of
+        https -> {<<"https">>, Hostname};
+        _ -> {<<"http">>, Hostname}
     end.
 
 

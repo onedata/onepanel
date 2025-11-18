@@ -71,6 +71,7 @@ all() -> [
 %%% API
 %%%===================================================================
 
+
 add_correct_storage_test(_Config) ->
     add_s3_storage_test_base(correct_args).
 
@@ -252,14 +253,7 @@ modify_s3_storage_test_base(ArgsCorrectness) ->
             args_correctness = ArgsCorrectness,
 
             build_data_spec_fun = fun build_modify_s3_storage_data_spec/3,
-            build_setup_fun = fun build_modify_s3_storage_setup_fun/1,
-
-            map_storage_description_to_exp_rest_response_fun = fun(S3Description) ->
-                {Scheme, S3Description2} = maps:take(<<"scheme">>, S3Description),
-                maps:update_with(<<"hostname">>, fun(Hostname) ->
-                    <<Scheme/binary, "://", Hostname/binary>>
-                end, S3Description2)
-            end
+            build_setup_fun = fun build_modify_s3_storage_setup_fun/1
         }).
 
 
