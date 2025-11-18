@@ -324,7 +324,7 @@ build_modify_swift_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_SWIFT_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

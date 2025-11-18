@@ -19,15 +19,6 @@
           "storagePathType": "canonical"
         },
         {
-          "type": "glusterfs",
-          "name": "someGlusterfs",
-          "volume": "data",
-          "transport": "tcp",
-          "mountpoint": "/",
-          "xlatorOptions": "",
-          "storagePathType": "canonical"
-        },
-        {
           "type": "xrootd",
           "name": "someXRootD",
           "storagePathType": "canonical"

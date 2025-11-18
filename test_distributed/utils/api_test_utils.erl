@@ -30,7 +30,7 @@
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
 -export([substitute_placeholders/2]).
--export([get_storage_id_by_name/2]).
+-export([get_storage_id_by_name/2, describe_storage/2]).
 -export([to_hostnames/1]).
 -export([match_location_header/2]).
 -export([perform_io_test_on_storage/1]).
@@ -75,10 +75,18 @@ substitute_placeholders(Data, ReplacementsMap) ->
 -spec get_storage_id_by_name(oct_background:entity_selector(), binary()) -> binary().
 get_storage_id_by_name(EntitySelector, StorageName) ->
     StorageIds = opw_test_rpc:get_storages(EntitySelector),
-    Storages = [opw_test_rpc:storage_describe(EntitySelector, X) || X <- StorageIds],
+    Storages = [describe_storage(EntitySelector, X) || X <- StorageIds],
 
     [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
     StorageId.
+
+
+-spec describe_storage(oct_background:entity_selector(), op_worker_storage:id()) ->
+    json_utils:json_map().
+describe_storage(ProviderSelector, StorageId) ->
+    StorageDescription = opw_test_rpc:storage_describe(ProviderSelector, StorageId),
+    StorageDescriptionMap = storage_spec_builder:description_to_map(StorageDescription),
+    onepanel_utils:convert(StorageDescriptionMap, {keys, binary}).
 
 
 -spec to_hostnames([node()]) -> [binary()].

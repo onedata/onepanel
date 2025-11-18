@@ -212,7 +212,7 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
         StorageId = create_minimal_ceph_storage(StorageName),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = api_op_storages_test_base:describe_storage(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
     end.
 

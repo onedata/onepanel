@@ -20,7 +20,6 @@
 -include_lib("ctool/include/test/test_utils.hrl").
 
 -export([
-    describe_storage/2,
     add_storage_test_base/1,
     get_storage_test_base/2,
     modify_storage_test_base/1
@@ -57,14 +56,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-
--spec describe_storage(oct_background:entity_selector(), op_worker_storage:id()) ->
-    json_utils:json_map().
-describe_storage(ProviderSelector, StorageId) ->
-    StorageDescription = opw_test_rpc:storage_describe(ProviderSelector, StorageId),
-    StorageDescriptionMap = storage_spec_builder:description_to_map(StorageDescription),
-    onepanel_utils:convert(StorageDescriptionMap, {keys, binary}).
 
 
 -spec add_storage_test_base(add_storage_test_spec()) -> ok.
@@ -221,7 +212,7 @@ build_add_storage_verify_fun(MemRef, _ArgsCorrectness) ->
         (expected_success, _) ->
             NewStorageId = api_test_memory:get(MemRef, storage_id),
             ?assertEqual(true, lists:member(NewStorageId, opw_test_rpc:get_storages(krakow)), ?ATTEMPTS),
-            StorageDetails = describe_storage(krakow, NewStorageId),
+            StorageDetails = api_test_utils:describe_storage(krakow, NewStorageId),
             check_io_on_storage_if_not_nulldevice(NewStorageId, StorageDetails),
             true;
         (expected_failure, _) ->
@@ -279,7 +270,7 @@ build_modify_storage_verify_fun(MemRef) ->
     fun(_, _) ->
         StorageId = api_test_memory:get(MemRef, storage_id),
         ExpStorageDetails = api_test_memory:get(MemRef, storage_details),
-        StorageDetails = describe_storage(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         ?assertEqual(ExpStorageDetails, StorageDetails),
         check_io_on_storage_if_not_nulldevice(StorageId, StorageDetails),
         true
