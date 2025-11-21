@@ -34,6 +34,10 @@
     build_prepare_args_fun :: api_op_storages_test_base:prepare_args_fun_builder()
 }).
 
+-record(delete_storage_test_spec, {
+    build_setup_fun :: api_op_storages_test_base:setup_fun_builder()
+}).
+
 -define(STORAGE_DETECTION_FILE_SIZE, 10000).
 
 -define(STORAGE_DATA_KEY(StorageName, Key), iolist_to_binary([StorageName, <<".">>, Key])).

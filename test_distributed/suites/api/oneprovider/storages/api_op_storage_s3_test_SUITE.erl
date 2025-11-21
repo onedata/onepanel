@@ -347,54 +347,19 @@ build_modify_s3_storage_setup_fun(MemRef) ->
     end.
 
 
-%% TODO add delete storage test for each storage?
 delete_storage_test(_Config) ->
-    StorageName = ?RAND_STR(),
-    StorageSpec = ?MIN_S3_STORAGE_SPEC,
-    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => StorageSpec}),
-
-    ProviderId = oct_background:get_provider_id(krakow),
-    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-
-    ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Delete s3 storage using /provider/storages/{storage_id} rest endpoint">>,
-            type = rest,
-            target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root
-                    % todo: VFS-6717 uncomment when there will be no dependencies in test
-                    %{member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = delete,
-                    path = <<"provider/storages/", StorageId/binary>>}
-            end,
-            verify_fun = build_delete_s3_storage_verify_fun(StorageId),
-            validate_result_fun = api_test_validate:http_204_no_content()
-        }
-    ])).
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_s3_storage_setup_fun/1
+        }).
 
 
 %% @private
-build_delete_s3_storage_verify_fun(StorageId) ->
-    fun
-        (ExpectedResult, _) ->
-            StorageIdsAfterDelete = opw_test_rpc:get_storages(krakow),
-            case ExpectedResult of
-                expected_success -> ?assertNot(lists:member(StorageId, StorageIdsAfterDelete));
-                expected_failure -> ?assert(lists:member(StorageId, StorageIdsAfterDelete))
-            end,
-            true
+build_delete_s3_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 

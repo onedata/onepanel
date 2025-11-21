@@ -22,7 +22,8 @@
 -export([
     add_storage_test_base/1,
     get_storage_test_base/2,
-    modify_storage_test_base/1
+    modify_storage_test_base/1,
+    delete_storage_test_base/1
 ]).
 
 -type storage_type() :: ceph | cephrados | glusterfs | http | nfs | nulldevice | posix | s3 | swift | webdav | xrootd.
@@ -30,6 +31,7 @@
 
 -type add_storage_test_spec() :: #add_storage_test_spec{}.
 -type modify_storage_test_spec() :: #modify_storage_test_spec{}.
+-type delete_storage_test_spec() :: #delete_storage_test_spec{}.
 
 -type data_spec_builder() :: fun((_, _, _)-> api_test_runner:data_spec()).
 -type setup_fun_builder() :: fun((api_test_memory:env_ref()) -> api_test_runner:setup_fun_builder()).
@@ -43,6 +45,8 @@
     storage_type/0,
     args_correctness/0,
     add_storage_test_spec/0,
+    modify_storage_test_spec/0,
+    delete_storage_test_spec/0,
     data_spec_builder/0,
     setup_fun_builder/0,
     prepare_args_fun_builder/0,
@@ -180,6 +184,45 @@ modify_storage_test_base(TestSpec = #modify_storage_test_spec{
     ])).
 
 
+-spec delete_storage_test_base(delete_storage_test_spec()) -> ok.
+delete_storage_test_base(#delete_storage_test_spec{
+    build_setup_fun = SetupFun
+}) ->
+
+    MemRef = api_test_memory:init(),
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+
+    ?assert(api_test_runner:run_tests([
+        #suite_spec{
+            target_nodes = ProviderPanelNodes,
+            client_spec = #client_spec{
+                correct = [
+                    root,
+                    {member, [?CLUSTER_UPDATE]}
+                ],
+                unauthorized = [
+                    guest,
+                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
+                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+                ],
+                forbidden = [peer]
+            },
+
+            setup_fun = SetupFun(MemRef),
+            verify_fun = build_delete_storage_verify_fun(MemRef),
+
+            scenario_templates = [#scenario_template{
+                name = <<"Delete storage using /provider/storages/{storage_id} rest endpoint">>,
+                type = rest,
+                prepare_args_fun = build_delete_storage_prepare_args_fun(MemRef),
+                validate_result_fun = api_test_validate:http_204_no_content()
+            }],
+            test_case_generation_policy = randomly_select_scenarios_and_clients
+        }
+    ])).
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -273,6 +316,30 @@ build_modify_storage_verify_fun(MemRef) ->
         StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         ?assertEqual(ExpStorageDetails, StorageDetails),
         check_io_on_storage_if_not_nulldevice(StorageId, StorageDetails),
+        true
+    end.
+
+
+%% @private
+build_delete_storage_prepare_args_fun(MemRef) ->
+    fun(_) ->
+        StorageId = api_test_memory:get(MemRef, storage_id),
+        #rest_args{
+            method = delete,
+            path = <<"provider/storages/", StorageId/binary>>
+        }
+    end.
+
+
+%% @private
+build_delete_storage_verify_fun(MemRef) ->
+    fun(ExpectedResult, _) ->
+        StorageId = api_test_memory:get(MemRef, storage_id),
+        StorageIdsAfterDelete = opw_test_rpc:get_storages(krakow),
+        case ExpectedResult of
+            expected_success -> ?assertNot(lists:member(StorageId, StorageIdsAfterDelete));
+            expected_failure -> ?assert(lists:member(StorageId, StorageIdsAfterDelete))
+        end,
         true
     end.
 

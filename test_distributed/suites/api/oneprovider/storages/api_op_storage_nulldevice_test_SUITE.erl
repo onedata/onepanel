@@ -32,14 +32,16 @@
 -export([
     add_storage_test/1,
     get_storage_test/1,
-    modify_storage_test/1
+    modify_storage_test/1,
+    delete_storage_test/1
 ]).
 
 groups() -> [
     {all_tests, [parallel], [
         add_storage_test,
         get_storage_test,
-        modify_storage_test
+        modify_storage_test,
+        delete_storage_test
     ]}
 ].
 
@@ -260,6 +262,26 @@ build_modify_nulldevice_storage_setup_fun(MemRef) ->
 
         StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+delete_storage_test(_Config) ->
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_nulldevice_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_delete_nulldevice_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = panel_test_rpc:add_storage(krakow,
+            #{StorageName => #{
+                <<"type">> => <<"nulldevice">>
+            }}
+        ),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 

@@ -35,7 +35,9 @@
     get_storage_test/1,
 
     modify_correct_storage_test/1,
-    modify_bad_storage_test/1
+    modify_bad_storage_test/1,
+
+    delete_storage_test/1
 ]).
 
 groups() -> [
@@ -45,7 +47,9 @@ groups() -> [
         get_storage_test,
 
         modify_correct_storage_test,
-        modify_bad_storage_test
+        modify_bad_storage_test,
+
+        delete_storage_test
     ]}
 ].
 
@@ -214,6 +218,22 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
 
         StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+delete_storage_test(_Config) ->
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_ceph_deprecated_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_delete_ceph_deprecated_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = create_minimal_ceph_storage(StorageName),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 

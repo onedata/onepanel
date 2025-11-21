@@ -804,10 +804,7 @@ cephrados_credentials_to_map(#cephrados_credentials{username = Username, key = K
 -spec glusterfs_credentials_to_map(#glusterfs_credentials{}) -> map().
 glusterfs_credentials_to_map(#glusterfs_credentials{uid = Uid, gid = Gid}) ->
     Base = #{uid => Uid},
-    case Gid of
-        undefined -> Base;
-        _ -> Base#{gid => Gid}
-    end.
+    maps_utils:put_if_defined(Base, gid, Gid).
 
 
 %% @private
@@ -819,48 +816,30 @@ http_credentials_to_map(#http_credentials{
     onedata_access_token = OnedataToken
 }) ->
     Base = #{credentialsType => credentials_type_to_binary(CredType)},
-    Base1 = case Credentials of
-        undefined -> Base;
-        _ -> Base#{credentials => Credentials}
-    end,
-    Base2 = case Oauth2Idp of
-        undefined -> Base1;
-        _ -> Base1#{oauth2IdP => Oauth2Idp}
-    end,
-    case OnedataToken of
-        undefined -> Base2;
-        _ -> Base2#{onedataAccessToken => OnedataToken}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, credentials, Credentials),
+    Base2 = maps_utils:put_if_defined(Base1, oauth2IdP, Oauth2Idp),
+    maps_utils:put_if_defined(Base2, onedataAccessToken, OnedataToken).
 
 
 %% @private
 -spec nfs_credentials_to_map(#nfs_credentials{}) -> map().
 nfs_credentials_to_map(#nfs_credentials{uid = Uid, gid = Gid}) ->
     Base = #{uid => Uid},
-    case Gid of
-        undefined -> Base;
-        _ -> Base#{gid => Gid}
-    end.
+    maps_utils:put_if_defined(Base, gid, Gid).
 
 
 %% @private
 -spec nulldevice_credentials_to_map(#nulldevice_credentials{}) -> map().
 nulldevice_credentials_to_map(#nulldevice_credentials{uid = Uid, gid = Gid}) ->
     Base = #{uid => Uid},
-    case Gid of
-        undefined -> Base;
-        _ -> Base#{gid => Gid}
-    end.
+    maps_utils:put_if_defined(Base, gid, Gid).
 
 
 %% @private
 -spec posix_credentials_to_map(#posix_credentials{}) -> map().
 posix_credentials_to_map(#posix_credentials{uid = Uid, gid = Gid}) ->
     Base = #{rootUid => Uid},
-    case Gid of
-        undefined -> Base;
-        _ -> Base#{rootGid => Gid}
-    end.
+    maps_utils:put_if_defined(Base, rootGid, Gid).
 
 
 %% @private
@@ -883,14 +862,8 @@ swift_credentials_to_map(#swift_credentials{
         password => Password,
         projectName => ProjectName
     },
-    Base1 = case UserDomainName of
-        undefined -> Base;
-        _ -> Base#{userDomainName => UserDomainName}
-    end,
-    case ProjectDomainName of
-        undefined -> Base1;
-        _ -> Base1#{projectDomainName => ProjectDomainName}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, userDomainName, UserDomainName),
+    maps_utils:put_if_defined(Base1, projectDomainName, ProjectDomainName).
 
 
 %% @private
@@ -902,18 +875,9 @@ webdav_credentials_to_map(#webdav_credentials{
     onedata_access_token = OnedataToken
 }) ->
     Base = #{credentialsType => credentials_type_to_binary(CredType)},
-    Base1 = case Credentials of
-        undefined -> Base;
-        _ -> Base#{credentials => Credentials}
-    end,
-    Base2 = case Oauth2Idp of
-        undefined -> Base1;
-        _ -> Base1#{oauth2IdP => Oauth2Idp}
-    end,
-    case OnedataToken of
-        undefined -> Base2;
-        _ -> Base2#{onedataAccessToken => OnedataToken}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, credentials, Credentials),
+    Base2 = maps_utils:put_if_defined(Base1, oauth2IdP, Oauth2Idp),
+    maps_utils:put_if_defined(Base2, onedataAccessToken, OnedataToken).
 
 
 %% @private
@@ -975,10 +939,7 @@ cephrados_configuration_to_map(#cephrados_configuration{
         poolName => PoolName,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    case BlockSize of
-        undefined -> Base;
-        _ -> Base#{blockSize => BlockSize}
-    end.
+    maps_utils:put_if_defined(Base, blockSize, BlockSize).
 
 
 %% @private
@@ -997,22 +958,13 @@ glusterfs_configuration_to_map(#glusterfs_configuration{
         hostname => Hostname,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    Base1 = case Port of
-        undefined -> Base;
-        _ -> Base#{port => Port}
-    end,
-    Base2 = case Transport of
-        undefined -> Base1;
-        Transport -> Base1#{transport => transport_to_binary(Transport)}
-    end,
-    Base3 = case MountPoint of
-        undefined -> Base2;
-        _ -> Base2#{mountPoint => MountPoint}
-    end,
-    case XlatorOptions of
-        undefined -> Base3;
-        _ -> Base3#{xlatorOptions => XlatorOptions}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, port, Port),
+    Base2 = maps_utils:put_if_defined(Base1, transport, case Transport of
+        undefined -> undefined;
+        _ -> transport_to_binary(Transport)
+    end),
+    Base3 = maps_utils:put_if_defined(Base2, mountPoint, MountPoint),
+    maps_utils:put_if_defined(Base3, xlatorOptions, XlatorOptions).
 
 
 %% @private
@@ -1030,26 +982,11 @@ http_configuration_to_map(#http_configuration{
         endpoint => Endpoint,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    Base1 = case VerifyServerCert of
-        undefined -> Base;
-        _ -> Base#{verifyServerCertificate => VerifyServerCert}
-    end,
-    Base2 = case AuthHeader of
-        undefined -> Base1;
-        _ -> Base1#{authorizationHeader => AuthHeader}
-    end,
-    Base3 = case PoolSize of
-        undefined -> Base2;
-        _ -> Base2#{connectionPoolSize => PoolSize}
-    end,
-    Base4 = case MaxRequests of
-        undefined -> Base3;
-        _ -> Base3#{maxRequestsPerSession => MaxRequests}
-    end,
-    case FileMode of
-        undefined -> Base4;
-        _ -> Base4#{fileMode => FileMode}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, verifyServerCertificate, VerifyServerCert),
+    Base2 = maps_utils:put_if_defined(Base1, authorizationHeader, AuthHeader),
+    Base3 = maps_utils:put_if_defined(Base2, connectionPoolSize, PoolSize),
+    Base4 = maps_utils:put_if_defined(Base3, maxRequestsPerSession, MaxRequests),
+    maps_utils:put_if_defined(Base4, fileMode, FileMode).
 
 
 %% @private
@@ -1069,26 +1006,11 @@ nfs_configuration_to_map(#nfs_configuration{
         volume => Volume,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    Base1 = case Version of
-        undefined -> Base;
-        _ -> Base#{version => Version}
-    end,
-    Base2 = case ReadAhead of
-        undefined -> Base1;
-        _ -> Base1#{readAhead => ReadAhead}
-    end,
-    Base3 = case DirCache of
-        undefined -> Base2;
-        _ -> Base2#{dirCache => DirCache}
-    end,
-    Base4 = case AutoReconnect of
-        undefined -> Base3;
-        _ -> Base3#{autoReconnect => AutoReconnect}
-    end,
-    case PoolSize of
-        undefined -> Base4;
-        _ -> Base4#{connectionPoolSize => PoolSize}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, version, Version),
+    Base2 = maps_utils:put_if_defined(Base1, readAhead, ReadAhead),
+    Base3 = maps_utils:put_if_defined(Base2, dirCache, DirCache),
+    Base4 = maps_utils:put_if_defined(Base3, autoReconnect, AutoReconnect),
+    maps_utils:put_if_defined(Base4, connectionPoolSize, PoolSize).
 
 
 %% @private
@@ -1104,34 +1026,13 @@ nulldevice_configuration_to_map(#nulldevice_configuration{
     storage_path_type = StoragePathType
 }) ->
     Base = #{storagePathType => storage_path_type_to_binary(StoragePathType)},
-    Base1 = case LatencyMin of
-        undefined -> Base;
-        _ -> Base#{latencyMin => LatencyMin}
-    end,
-    Base2 = case LatencyMax of
-        undefined -> Base1;
-        _ -> Base1#{latencyMax => LatencyMax}
-    end,
-    Base3 = case TimeoutProb of
-        undefined -> Base2;
-        _ -> Base2#{timeoutProbability => TimeoutProb}
-    end,
-    Base4 = case Filter of
-        undefined -> Base3;
-        _ -> Base3#{filter => Filter}
-    end,
-    Base5 = case SimFsParams of
-        undefined -> Base4;
-        _ -> Base4#{simulatedFilesystemParameters => SimFsParams}
-    end,
-    Base6 = case SimFsGrowSpeed of
-        undefined -> Base5;
-        _ -> Base5#{simulatedFilesystemGrowSpeed => SimFsGrowSpeed}
-    end,
-    case EnableDataVerif of
-        undefined -> Base6;
-        _ -> Base6#{enableDataVerification => EnableDataVerif}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, latencyMin, LatencyMin),
+    Base2 = maps_utils:put_if_defined(Base1, latencyMax, LatencyMax),
+    Base3 = maps_utils:put_if_defined(Base2, timeoutProbability, TimeoutProb),
+    Base4 = maps_utils:put_if_defined(Base3, filter, Filter),
+    Base5 = maps_utils:put_if_defined(Base4, simulatedFilesystemParameters, SimFsParams),
+    Base6 = maps_utils:put_if_defined(Base5, simulatedFilesystemGrowSpeed, SimFsGrowSpeed),
+    maps_utils:put_if_defined(Base6, enableDataVerification, EnableDataVerif).
 
 
 %% @private
@@ -1166,34 +1067,13 @@ s3_configuration_to_map(#s3_configuration{
         bucketName => BucketName,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    Base1 = case SignatureVersion of
-        undefined -> Base;
-        _ -> Base#{signatureVersion => SignatureVersion}
-    end,
-    Base2 = case VerifyServerCert of
-        undefined -> Base1;
-        _ -> Base1#{verifyServerCertificate => VerifyServerCert}
-    end,
-    Base3 = case Region of
-        undefined -> Base2;
-        _ -> Base2#{region => Region}
-    end,
-    Base4 = case BlockSize of
-        undefined -> Base3;
-        _ -> Base3#{blockSize => BlockSize}
-    end,
-    Base5 = case MaxCanonicalObjectSize of
-        undefined -> Base4;
-        _ -> Base4#{maximumCanonicalObjectSize => MaxCanonicalObjectSize}
-    end,
-    Base6 = case FileMode of
-        undefined -> Base5;
-        _ -> Base5#{fileMode => FileMode}
-    end,
-    case DirMode of
-        undefined -> Base6;
-        _ -> Base6#{dirMode => DirMode}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, signatureVersion, SignatureVersion),
+    Base2 = maps_utils:put_if_defined(Base1, verifyServerCertificate, VerifyServerCert),
+    Base3 = maps_utils:put_if_defined(Base2, region, Region),
+    Base4 = maps_utils:put_if_defined(Base3, blockSize, BlockSize),
+    Base5 = maps_utils:put_if_defined(Base4, maximumCanonicalObjectSize, MaxCanonicalObjectSize),
+    Base6 = maps_utils:put_if_defined(Base5, fileMode, FileMode),
+    maps_utils:put_if_defined(Base6, dirMode, DirMode).
 
 
 %% @private
@@ -1209,10 +1089,7 @@ swift_configuration_to_map(#swift_configuration{
         containerName => ContainerName,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    case BlockSize of
-        undefined -> Base;
-        _ -> Base#{blockSize => BlockSize}
-    end.
+    maps_utils:put_if_defined(Base, blockSize, BlockSize).
 
 
 %% @private
@@ -1232,34 +1109,16 @@ webdav_configuration_to_map(#webdav_configuration{
         endpoint => Endpoint,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    Base1 = case VerifyServerCert of
-        undefined -> Base;
-        _ -> Base#{verifyServerCertificate => VerifyServerCert}
-    end,
-    Base2 = case AuthHeader of
-        undefined -> Base1;
-        _ -> Base1#{authorizationHeader => AuthHeader}
-    end,
-    Base3 = case RangeWriteSupport of
-        undefined -> Base2;
-        _ -> Base2#{rangeWriteSupport => range_write_support_to_binary(RangeWriteSupport)}
-    end,
-    Base4 = case PoolSize of
-        undefined -> Base3;
-        _ -> Base3#{connectionPoolSize => PoolSize}
-    end,
-    Base5 = case MaxUploadSize of
-        undefined -> Base4;
-        _ -> Base4#{maximumUploadSize => MaxUploadSize}
-    end,
-    Base6 = case FileMode of
-        undefined -> Base5;
-        _ -> Base5#{fileMode => FileMode}
-    end,
-    case DirMode of
-        undefined -> Base6;
-        _ -> Base6#{dirMode => DirMode}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, verifyServerCertificate, VerifyServerCert),
+    Base2 = maps_utils:put_if_defined(Base1, authorizationHeader, AuthHeader),
+    Base3 = maps_utils:put_if_defined(Base2, rangeWriteSupport, case RangeWriteSupport of
+        undefined -> undefined;
+        _ -> range_write_support_to_binary(RangeWriteSupport)
+    end),
+    Base4 = maps_utils:put_if_defined(Base3, connectionPoolSize, PoolSize),
+    Base5 = maps_utils:put_if_defined(Base4, maximumUploadSize, MaxUploadSize),
+    Base6 = maps_utils:put_if_defined(Base5, fileMode, FileMode),
+    maps_utils:put_if_defined(Base6, dirMode, DirMode).
 
 
 %% @private
@@ -1274,14 +1133,8 @@ xrootd_configuration_to_map(#xrootd_configuration{
         url => Url,
         storagePathType => storage_path_type_to_binary(StoragePathType)
     },
-    Base1 = case FileModeMask of
-        undefined -> Base;
-        _ -> Base#{fileModeMask => FileModeMask}
-    end,
-    case DirModeMask of
-        undefined -> Base1;
-        _ -> Base1#{dirModeMask => DirModeMask}
-    end.
+    Base1 = maps_utils:put_if_defined(Base, fileModeMask, FileModeMask),
+    maps_utils:put_if_defined(Base1, dirModeMask, DirModeMask).
 
 
 %% @private
