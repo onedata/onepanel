@@ -87,7 +87,6 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             <<"timeout">>,
             <<"qosParameters">>,
             <<"storagePathType">>,
-            <<"archiveStorage">>,
             <<"latencyMin">>,
             <<"latencyMax">>,
             <<"timeoutProbability">>,
@@ -101,8 +100,6 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             <<"storagePathType">> => [<<"canonical">>, <<"flat">>],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false],
             <<"latencyMin">> => [25],
             <<"latencyMax">> => [75],
             <<"timeoutProbability">> => [0.0],
@@ -120,7 +117,6 @@ build_add_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"storagePathType">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
             {<<"latencyMin">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMin">>))},
             {<<"latencyMax">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMax">>))},
             {<<"timeoutProbability">>, <<"string">>, ?ERR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},
@@ -166,7 +162,6 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => false,
         <<"importedStorage">> => false,
         <<"readonly">> => false,
         <<"gid">> => 0,
@@ -200,7 +195,6 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
             <<"name">>,
             <<"timeout">>,
             <<"qosParameters">>,
-            <<"archiveStorage">>,
             <<"latencyMin">>,
             <<"latencyMax">>,
             <<"timeoutProbability">>,
@@ -217,8 +211,6 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
                 #{<<"key">> => <<"value1">>},
                 #{<<"key">> => <<"value2">>}
             ],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false],
             <<"latencyMin">> => [5],
             <<"latencyMax">> => [55],
             <<"timeoutProbability">> => [0.5],
@@ -236,7 +228,6 @@ build_modify_nulldevice_storage_data_spec(MemRef, nulldevice, correct_args) ->
 %%            %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
             {<<"latencyMin">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMin">>))},
             {<<"latencyMax">>, <<"string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"latencyMax">>))},
             {<<"timeoutProbability">>, <<"string">>, ?ERR_BAD_VALUE_FLOAT(K(<<"timeoutProbability">>))},

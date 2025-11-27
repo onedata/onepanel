@@ -32,7 +32,7 @@
 -type name() :: binary().
 
 %% specification for updating or modifying storage
--type param() :: binary() | boolean() | integer() | float() | qos_parameters().
+-type param() :: binary() | boolean() | integer() | float() | onedata_storage:qos_parameters().
 -type storage_params() :: #{
     Key :: atom() => Value :: param()
 }.
@@ -40,20 +40,14 @@
 %% Storage information retrieved from op_worker
 -type storage_details() :: #{
     lumaFeed := op_worker_rpc:luma_feed(),
-    qosParameters := qos_parameters(),
+    qosParameters := onedata_storage:qos_parameters(),
     verificationPassed => boolean(),
     atom() := binary()
 }.
 
 -type storages_map() :: #{Name :: name() => Params :: storage_params()}.
--type qos_parameters() :: #{binary() => binary()}.
 
-%% Opaque terms from op_worker
-%% Removed unused types: luma_config, luma_feed, helper
-%% These were only used by the old add/4 function which has been replaced.
-% @formatter:on
-
--export_type([id/0, name/0, storage_params/0, storage_details/0, storages_map/0, qos_parameters/0]).
+-export_type([id/0, name/0, storage_params/0, storage_details/0, storages_map/0]).
 
 
 %%%===================================================================

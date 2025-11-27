@@ -116,8 +116,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"xlatorOptions">>,
             <<"timeout">>,
             <<"storagePathType">>,
-            <<"qosParameters">>,
-            <<"archiveStorage">>
+            <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"glusterfs">>],
@@ -129,9 +128,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            <<"storagePathType">> => [<<"canonical">>],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"storagePathType">> => [<<"canonical">>]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
@@ -147,8 +144,7 @@ build_add_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"storagePathType">>, <<"flat">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"canonical">>])},
-            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
+            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))}
         ]
     };
 build_add_glusterfs_storage_data_spec(MemRef, glusterfs, bad_args) ->
@@ -209,7 +205,6 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => false,
         <<"importedStorage">> => false,
         <<"readonly">> => false
     }).
@@ -252,17 +247,14 @@ build_modify_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             <<"transport">>,
             <<"xlatorOptions">>,
             <<"timeout">>,
-            <<"qosParameters">>,
-            <<"archiveStorage">>
+            <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"glusterfs">>],
             <<"transport">> => [<<"rdma">>, <<"socket">>],
             <<"xlatorOptions">> => [<<"TRANSLATOR1.OPTION1=VALUE1">>],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
-            <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS]
         },
 
         bad_values = [
@@ -275,8 +267,7 @@ build_modify_glusterfs_storage_data_spec(MemRef, glusterfs, correct_args) ->
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))}
         ]
     };
 

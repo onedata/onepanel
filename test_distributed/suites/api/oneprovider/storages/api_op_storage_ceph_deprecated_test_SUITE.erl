@@ -108,7 +108,6 @@ get_storage_test(_Config) ->
         },
 
         % default values for not supplied parameters
-        <<"archiveStorage">> => false,
         <<"importedStorage">> => false,
         <<"readonly">> => false
     }).
@@ -148,8 +147,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
         optional = [
             <<"name">>,
             <<"timeout">>,
-            <<"qosParameters">>,
-            <<"archiveStorage">>
+            <<"qosParameters">>
 
             %% TODO VFS-13152 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">>
@@ -158,9 +156,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             <<"type">> => [<<"ceph">>],
             <<"name">> => [?RAND_STR(10)],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
-            <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [?RAND_BOOL()]
+            <<"qosParameters">> => [#{<<"key">> => <<"value">>}]
 
             %% TODO VFS-13152 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">> => [<<"dummy">>]
@@ -175,8 +171,7 @@ build_modify_ceph_storage_data_spec(MemRef, ceph, correct_args) ->
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))}
         ]
     };
 
