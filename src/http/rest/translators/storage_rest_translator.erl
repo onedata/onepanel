@@ -110,17 +110,17 @@ model_to_typemap(Model) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage_model(StorageType :: atom()) -> onepanel_parser:object_spec().
-get_storage_model(posix) -> rest_model:posix_model();
-get_storage_model(s3) -> rest_model:s3_model();
-get_storage_model(ceph) -> rest_model:ceph_model();
-get_storage_model(cephrados) -> rest_model:cephrados_model();
-get_storage_model(swift) -> rest_model:swift_model();
-get_storage_model(glusterfs) -> rest_model:glusterfs_model();
-get_storage_model(nulldevice) -> rest_model:nulldevice_model();
-get_storage_model(webdav) -> rest_model:webdav_model();
-get_storage_model(http) -> rest_model:http_model();
-get_storage_model(xrootd) -> rest_model:xrootd_model();
-get_storage_model(nfs) -> rest_model:nfs_model().
+get_storage_model(posix) -> rest_model:posix_get_model();
+get_storage_model(s3) -> rest_model:s3_get_model();
+get_storage_model(ceph) -> rest_model:ceph_get_model();
+get_storage_model(cephrados) -> rest_model:cephrados_get_model();
+get_storage_model(swift) -> rest_model:swift_get_model();
+get_storage_model(glusterfs) -> rest_model:glusterfs_get_model();
+get_storage_model(nulldevice) -> rest_model:nulldevice_get_model();
+get_storage_model(webdav) -> rest_model:webdav_get_model();
+get_storage_model(http) -> rest_model:http_get_model();
+get_storage_model(xrootd) -> rest_model:xrootd_get_model();
+get_storage_model(nfs) -> rest_model:nfs_get_model().
 
 
 %%--------------------------------------------------------------------
