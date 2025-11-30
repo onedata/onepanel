@@ -15,7 +15,7 @@
 -module(posix_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/posix.hrl").
+-include_lib("op_panel_contracts/include/storage/posix.hrl").
 
 %% API
 -export([

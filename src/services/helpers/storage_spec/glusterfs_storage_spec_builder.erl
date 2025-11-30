@@ -15,7 +15,7 @@
 -module(glusterfs_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/glusterfs.hrl").
+-include_lib("op_panel_contracts/include/storage/glusterfs.hrl").
 
 %% API
 -export([

@@ -15,7 +15,7 @@
 -module(xrootd_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/xrootd.hrl").
+-include_lib("op_panel_contracts/include/storage/xrootd.hrl").
 
 %% API
 -export([

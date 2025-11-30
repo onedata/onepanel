@@ -15,7 +15,7 @@
 -module(swift_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/swift.hrl").
+-include_lib("op_panel_contracts/include/storage/swift.hrl").
 
 %% API
 -export([

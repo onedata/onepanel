@@ -15,7 +15,7 @@
 -module(cephrados_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/cephrados.hrl").
+-include_lib("op_panel_contracts/include/storage/cephrados.hrl").
 
 %% API
 -export([

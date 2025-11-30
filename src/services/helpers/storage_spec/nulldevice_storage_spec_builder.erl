@@ -15,7 +15,7 @@
 -module(nulldevice_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/nulldevice.hrl").
+-include_lib("op_panel_contracts/include/storage/nulldevice.hrl").
 
 %% API
 -export([

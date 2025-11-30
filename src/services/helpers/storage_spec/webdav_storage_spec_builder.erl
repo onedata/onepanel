@@ -15,7 +15,7 @@
 -module(webdav_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/webdav.hrl").
+-include_lib("op_panel_contracts/include/storage/webdav.hrl").
 
 %% API
 -export([

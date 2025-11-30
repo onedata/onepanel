@@ -15,7 +15,7 @@
 -module(ceph_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/ceph.hrl").
+-include_lib("op_panel_contracts/include/storage/ceph.hrl").
 
 %% API
 -export([

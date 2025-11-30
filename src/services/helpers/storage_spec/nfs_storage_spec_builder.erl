@@ -15,7 +15,7 @@
 -module(nfs_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("ctool/include/storage/nfs.hrl").
+-include_lib("op_panel_contracts/include/storage/nfs.hrl").
 
 %% API
 -export([
