@@ -288,12 +288,22 @@ format_onepanel_configuration(oneprovider) ->
                 ProviderName = maps:get(name, Details, undefined),
                 ProviderDomain = maps:get(domain, Details, undefined),
                 ZoneDomain = maps:get(onezoneDomainName, Details, undefined),
+                OneS3Enabled = service_ones3:exists(),
                 maps_utils:undefined_to_null(Common#{
                     providerId => ProviderId,
                     providerName => ProviderName,
                     providerDomain => ProviderDomain,
                     zoneDomain => ZoneDomain,
-                    isRegistered => true
+                    isRegistered => true,
+                    oneS3Enabled => OneS3Enabled,
+                    oneS3Port => case OneS3Enabled of
+                        true -> service_ones3:get_port();
+                        false -> null
+                    end,
+                    oneS3Domain => case OneS3Enabled of
+                        true -> service_ones3:get_domain();
+                        false -> null
+                    end
                 })
             catch
                 _:_ ->
@@ -304,7 +314,10 @@ format_onepanel_configuration(oneprovider) ->
                         providerName => null,
                         providerDomain => null,
                         zoneDomain => list_to_binary(service_oneprovider:get_oz_domain()),
-                        isRegistered => true
+                        isRegistered => true,
+                        oneS3Enabled => false,
+                        oneS3Port => null,
+                        oneS3Domain => null
                     }
             end
     end,
