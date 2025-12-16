@@ -6,6 +6,9 @@ CHANGELOG
 
 ### 25.0
 
+-   **VFS-13222** Switched to the Calendar Versioning model. Version
+    25.0 is equivalent to 21.02.9 in the previous model, and it's
+    cross-compatible with the 21.02 line.
 -   **VFS-13021** Web GUI: Added support for setting custom port for
     OneS3 service on cluster deployment or adding first OneS3 service.
 -   **VFS-12932** Web GUI: Added infinite scroll to some dropdowns
