@@ -30,11 +30,11 @@
 ]}.
 
 {deps, [
-    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "afaafcbba44a"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "3b755638a6b7467f7"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "a0c6ed46d7a00c88a"}}},
+    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "b66de7482c37"}}}},
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "14eb9ceff6a0"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "a0c6ed46d7a0"}}},
     {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "f15bb988388f"}}},
-    {op_panel_contracts, {git, "ssh://git@git.onedata.org:7999/vfs/op-panel-contracts.git", {ref, "c576cf8228b5dd1"}}}
+    {op_panel_contracts, {git, "ssh://git@git.onedata.org:7999/vfs/op-panel-contracts.git", {ref, "d76e0bc0fd7a2917"}}}
 ]}.
 
 {pre_hooks, [
