@@ -122,7 +122,6 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"qosParameters">>,
             <<"storagePathType">>,
             <<"signatureVersion">>,
-            <<"maximumCanonicalObjectSize">>,
             <<"blockSize">>
         ],
         correct_values = #{
@@ -136,8 +135,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             <<"storagePathType">> => [<<"canonical">>, <<"flat">>],
             <<"signatureVersion">> => ?S3_ALLOWED_SIGNATURE_VERSIONS,
-            <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE],
-            <<"maximumCanonicalObjectSize">> => [?STORAGE_DETECTION_FILE_SIZE]
+            <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
@@ -151,9 +149,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
             {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
             {<<"blockSize">>, <<"blockSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
-            {<<"blockSize">>, -1, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>))},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)}
+            {<<"blockSize">>, -1, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)}
         ]
     };
 build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
@@ -222,7 +218,6 @@ get_storage_test(_Config) ->
         <<"dirMode">> => <<"0775">>,
         <<"fileMode">> => <<"0664">>,
         <<"blockSize">> => ?S3_DEFAULT_BLOCK_SIZE,
-        <<"maximumCanonicalObjectSize">> => 67108864,
 
         <<"storagePathType">> => <<"flat">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -270,15 +265,13 @@ build_modify_s3_storage_data_spec(MemRef, s3, correct_args) ->
         optional = [
             <<"name">>,
             <<"timeout">>,
-            <<"qosParameters">>,
-            <<"maximumCanonicalObjectSize">>
+            <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"s3">>],
             <<"name">> => [?RAND_STR(10)],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
-            <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
-            <<"maximumCanonicalObjectSize">> => [5*?STORAGE_DETECTION_FILE_SIZE]
+            <<"qosParameters">> => [#{<<"key">> => <<"value">>}]
         },
 
         bad_values = [
@@ -292,9 +285,7 @@ build_modify_s3_storage_data_spec(MemRef, s3, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
-            {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"maximumCanonicalObjectSize">>))},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)}
+            {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)}
         ]
     };
 

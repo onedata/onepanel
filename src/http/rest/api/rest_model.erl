@@ -1963,6 +1963,7 @@ ceph_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -2145,6 +2146,7 @@ cephrados_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -2334,6 +2336,7 @@ glusterfs_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -2606,6 +2609,7 @@ http_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -2905,6 +2909,7 @@ nfs_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -3158,6 +3163,7 @@ nulldevice_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -3425,6 +3431,7 @@ posix_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -3508,11 +3515,6 @@ s3_create_model() ->
         %% import from an S3 storage, block size must be set to zero, together
         %% with \&quot;canonical\&quot; path type and the read-only mode.
         blockSize => {integer, {optional, 10485760}},
-        %% Defines the maximum size for objects, which can be modified on the S3
-        %% storage in `canonical` path mode. In this mode, entire file
-        %% needs to be downloaded to memory, modified and uploaded back, which
-        %% is impractical for large files (default 64 MiB).
-        maximumCanonicalObjectSize => {integer, {optional, 67108864}},
         %% Defines the file permissions, which files imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0644`.
@@ -3605,11 +3607,6 @@ s3_get_model() ->
         %% import from an S3 storage, block size must be set to zero, together
         %% with \&quot;canonical\&quot; path type and the read-only mode.
         blockSize => {integer, optional},
-        %% Defines the maximum size for objects, which can be modified on the S3
-        %% storage in `canonical` path mode. In this mode, entire file
-        %% needs to be downloaded to memory, modified and uploaded back, which
-        %% is impractical for large files (default 64 MiB).
-        maximumCanonicalObjectSize => {integer, optional},
         %% Defines the file permissions, which files imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0644`.
@@ -3649,6 +3646,7 @@ s3_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -3681,11 +3679,6 @@ s3_modify_model() ->
         %% Allows to specify a custom S3 region, which will be send with each
         %% request to the S3 server.
         region => {string, optional},
-        %% Defines the maximum size for objects, which can be modified on the S3
-        %% storage in `canonical` path mode. In this mode, entire file
-        %% needs to be downloaded to memory, modified and uploaded back, which
-        %% is impractical for large files (default 64 MiB).
-        maximumCanonicalObjectSize => {integer, optional},
         %% Defines the file permissions, which files imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0644`.
@@ -3861,6 +3854,7 @@ swift_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -4152,6 +4146,7 @@ webdav_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},
@@ -4402,6 +4397,7 @@ xrootd_modify_model() ->
         %% Relevant only if lumaFeed equals `external`.
         lumaFeedApiKey => {string, optional},
         %% Map with key-value pairs used for describing storage QoS parameters.
+        %% Overrides all previously set parameters.
         qosParameters => {#{'_' => string}, optional},
         %% Defines whether storage contains existing data to be imported.
         importedStorage => {boolean, optional},

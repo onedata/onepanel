@@ -60,7 +60,6 @@ build_configuration(Params) ->
         verify_server_certificate = maps:get(verifyServerCertificate, Params, undefined),
         region = maps:get(region, Params, undefined),
         block_size = maps:get(blockSize, Params, undefined),
-        maximum_canonical_object_size = maps:get(maximumCanonicalObjectSize, Params, undefined),
         file_mode = maps:get(fileMode, Params, undefined),
         dir_mode = maps:get(dirMode, Params, undefined),
         storage_path_type = storage_spec_builder_utils:binary_to_storage_path_type(
@@ -82,7 +81,6 @@ build_configuration_diff(Params) ->
         signature_version = maps:get(signatureVersion, Params, undefined),
         verify_server_certificate = maps:get(verifyServerCertificate, Params, undefined),
         region = maps:get(region, Params, undefined),
-        maximum_canonical_object_size = maps:get(maximumCanonicalObjectSize, Params, undefined),
         file_mode = maps:get(fileMode, Params, undefined),
         dir_mode = maps:get(dirMode, Params, undefined)
     }.
@@ -102,7 +100,6 @@ configuration_to_map(#s3_configuration{
     verify_server_certificate = VerifyServerCert,
     region = Region,
     block_size = BlockSize,
-    maximum_canonical_object_size = MaxCanonicalObjectSize,
     file_mode = FileMode,
     dir_mode = DirMode,
     storage_path_type = StoragePathType
@@ -116,9 +113,8 @@ configuration_to_map(#s3_configuration{
     Base2 = maps_utils:put_if_defined(Base1, verifyServerCertificate, VerifyServerCert),
     Base3 = maps_utils:put_if_defined(Base2, region, Region),
     Base4 = maps_utils:put_if_defined(Base3, blockSize, BlockSize),
-    Base5 = maps_utils:put_if_defined(Base4, maximumCanonicalObjectSize, MaxCanonicalObjectSize),
-    Base6 = maps_utils:put_if_defined(Base5, fileMode, FileMode),
-    maps_utils:put_if_defined(Base6, dirMode, DirMode).
+    Base5 = maps_utils:put_if_defined(Base4, fileMode, FileMode),
+    maps_utils:put_if_defined(Base5, dirMode, DirMode).
 
 
 %%%===================================================================
