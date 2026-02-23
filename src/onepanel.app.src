@@ -12,7 +12,7 @@
 {application, onepanel, [
     {description, "Management tool for onedata components."},
     %% Beware - this version is parsed and used in Makefile
-    {vsn, "21.02.8"},
+    {vsn, "25.0"},
     {registered, [onepanel_sup]},
     {applications, [
         kernel,

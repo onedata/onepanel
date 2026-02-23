@@ -463,6 +463,7 @@ setup_cert_paths(ServiceName, AppName) ->
         {web_key_file, web_key_file},
         {web_cert_file, web_cert_file},
         {web_cert_chain_file, web_cert_chain_file},
+        {web_cert_full_chain_file, web_cert_full_chain_file},
         {cacerts_dir, cacerts_dir}
     ]).
 

@@ -30,10 +30,10 @@
 ]}.
 
 {deps, [
-    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "afaafcbba44a"}}}},
-    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "5935699b0058"}}},
-    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "924605b883e0"}}},
-    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "6e0ffced4eae"}}}
+    {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "b66de7482c37"}}}},
+    {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "1c57435c30bb"}}},
+    {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "bbd6b6935436"}}},
+    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "05ffe1b84bec"}}}
 ]}.
 
 {pre_hooks, [
@@ -134,6 +134,7 @@
         {mkdir, "data"},
         {copy, "LICENSE.txt", "data/"},
         {copy, "rel/files/OnedataTestWebServerCa.pem", "etc/"},
+        {copy, "rel/files/TestPebbleMinicaCa.pem", "etc/"},
         {template, "rel/files/app.config", "./data/app.config"},
         {template, "rel/files/vm.args", "./data/vm.args"},
 

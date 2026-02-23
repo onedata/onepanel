@@ -24,6 +24,7 @@
 %% API
 -export([
     generate_csr_and_key/2,
+    generate_web_full_chain/0,
     backup_exisiting_certs/0,
     list_certificate_files/0
 ]).
@@ -185,6 +186,25 @@ get_times(#'Certificate'{} = Cert) ->
 
 %%--------------------------------------------------------------------
 %% @doc
+%% Generate full chain containing beside chain certificates also leaf certificate.
+%% @end
+%%--------------------------------------------------------------------
+-spec generate_web_full_chain() -> ok.
+generate_web_full_chain() ->
+    WebCertPath = onepanel_env:get(web_cert_file),
+    WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
+
+    CertDers = cert_utils:load_ders(WebCertPath),
+    ChainDers = cert_utils:load_ders(WebChainPath),
+    FullChainDers = CertDers ++ ChainDers,
+    FullChainPem = cert_utils:ders_to_pem(FullChainDers),
+
+    ok = file:write_file(WebFullChainPath, FullChainPem).
+
+
+%%--------------------------------------------------------------------
+%% @doc
 %% Copies existing certificates to files with timestamped suffix '.bak'.
 %% @end
 %%--------------------------------------------------------------------
@@ -193,6 +213,7 @@ backup_exisiting_certs() ->
     WebKeyPath = onepanel_env:get(web_key_file),
     WebCertPath = onepanel_env:get(web_cert_file),
     WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
 
     lists:foreach(fun(Path) ->
         case filelib:is_regular(Path) of
@@ -203,14 +224,14 @@ backup_exisiting_certs() ->
                 ]),
                 file:copy(Path, BackupPath)
         end
-    end, [WebKeyPath, WebCertPath, WebChainPath]).
+    end, [WebKeyPath, WebCertPath, WebChainPath, WebFullChainPath]).
 
 
 %%--------------------------------------------------------------------
 %% @doc
 %% Lists certificate-related files present on the current node.
-%% That is: web cert, key, chain file; any content of Let's Encrypt
-%% credentials directory.
+%% That is: web cert, key, chain file, full chain file;
+%% any content of Let's Encrypt credentials directory.
 %% @end
 %%--------------------------------------------------------------------
 -spec list_certificate_files() -> [file:filename()].
