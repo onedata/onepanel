@@ -189,14 +189,36 @@ health(_Ctx) ->
     Host = hosts:self(),
     Port = onepanel_env:get(couchbase_admin_port),
 
-    case gen_tcp:connect(Host, Port, [], ConnectTimeout) of
-        {ok, Socket} ->
-            gen_tcp:close(Socket),
-            healthy;
-        {error, Reason} ->
-            ?warning("Cannot connect to couchbase server (~ts:~tp) due to: "
-            "~tp", [Host, Port, Reason]),
+    % gen_tcp:connect/4 and gen_tcp:close/1 can hang beyond ConnectTimeout in
+    % certain TCP states (e.g. kernel retransmitting SYN during Couchbase restart),
+    % which would stall the wait_until retry loop. Run the check in a separate
+    % process and enforce a hard deadline from the outside.
+    Margin = 1000,  % extra ms on top of ConnectTimeout before we forcibly kill
+    Ref = make_ref(),
+    Parent = self(),
+    {Pid, MonRef} = spawn_monitor(fun() ->
+        Result = case gen_tcp:connect(Host, Port, [], ConnectTimeout) of
+            {ok, Socket} ->
+                gen_tcp:close(Socket),
+                healthy;
+            {error, Reason} ->
+                ?warning("Cannot connect to couchbase server (~ts:~tp) due to: "
+                "~tp", [Host, Port, Reason]),
+                unhealthy
+        end,
+        Parent ! {Ref, Result}
+    end),
+    receive
+        {Ref, Status} ->
+            demonitor(MonRef, [flush]),
+            Status;
+        {'DOWN', MonRef, process, Pid, _Reason} ->
             unhealthy
+    after ConnectTimeout + Margin ->
+        demonitor(MonRef, [flush]),
+        exit(Pid, kill),
+        ?warning("Health check timed out for couchbase server (~ts:~tp)", [Host, Port]),
+        unhealthy
     end.
 
 
@@ -206,20 +228,43 @@ health(_Ctx) ->
 %%--------------------------------------------------------------------
 -spec wait_for_init(Ctx :: service:step_ctx()) -> ok | no_return().
 wait_for_init(Ctx) ->
-    StartAttempts = onepanel_env:get(couchbase_wait_for_init_attempts),
+    WaitForInitAttempts = onepanel_env:get(couchbase_wait_for_service_init_attempts),
+    WaitForInitInterval = timer:seconds(onepanel_env:get(couchbase_wait_for_service_init_interval_sec)),
     try
         ?info("Awaiting connection to the couchbase server..."),
-        onepanel_utils:wait_until(?MODULE, status, [Ctx],
-            {equal, healthy}, StartAttempts),
+        onepanel_utils:wait_until(
+            ?MODULE, status, [Ctx], {equal, healthy}, WaitForInitAttempts, WaitForInitInterval
+        ),
         ?info("Connection to the couchbase server OK")
     catch throw:attempts_limit_exceeded ->
         % Couchbase sometimes dies silently. Restart it once in such case
         % to reduce impact of this issue.
-        ?warning("Timed out when waiting for the couchbase server to come up. Attempting restart..."),
-        service_cli:restart(name()),
+        WaitForInitMaxRestarts = onepanel_env:get(couchbase_wait_for_service_init_max_restarts),
 
-        onepanel_utils:wait_until(?MODULE, status, [Ctx],
-            {equal, healthy}, StartAttempts)
+        Success = lists_utils:foldl_while(fun(RetryAttempt, _) ->
+            try
+                ?warning(
+                    "Timed out when waiting for the couchbase server to come up. Attempting restart (no: ~B)...",
+                    [RetryAttempt]
+                ),
+                service_cli:restart(name()),
+
+                onepanel_utils:wait_until(
+                    ?MODULE, status, [Ctx], {equal, healthy}, WaitForInitAttempts, WaitForInitInterval
+                ),
+                {halt, true}
+            catch throw:attempts_limit_exceeded ->
+                {cont, false}
+            end
+        end, false, lists:seq(1, WaitForInitMaxRestarts)),
+
+        case Success of
+            true ->
+                ok;
+            false ->
+                ?error("Max couchbase service init retries exceeded"),
+                throw(attempts_limit_exceeded)
+        end
     end,
 
     service:register_healthcheck(name(), #{hosts => [hosts:self()]}),
@@ -248,7 +293,7 @@ init_cluster(Ctx) ->
     Host = hosts:self(),
     Port = onepanel_env:typed_get(couchbase_admin_port, list),
     Url = onepanel_utils:join(["http://", Host, ":", Port, "/pools/default"]),
-    Timeout = onepanel_env:get(couchbase_init_timeout),
+    Timeout = onepanel_env:get(couchbase_cluster_init_timeout),
     Headers = maps:merge(
         onepanel_utils:get_basic_auth_header(User, Password),
         #{?HDR_CONTENT_TYPE => "application/x-www-form-urlencoded"}
