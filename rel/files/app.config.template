@@ -281,13 +281,15 @@
         {onepanel_custom_config_dir, "{{platform_etc_dir}}/config.d/"},
 
         {couchbase_cmd, "service couchbase-server"},
-        {couchbase_init_timeout, 300000},
-        {couchbase_wait_for_init_attempts, 60},
+        {couchbase_cluster_init_timeout, 300000},
+        {couchbase_wait_for_service_init_attempts, 60},
+        {couchbase_wait_for_service_init_interval_sec, 5},
+        {couchbase_wait_for_service_init_max_restarts, 2},
 
         % Couchbase reports healthy status before it's ready to serve requests.
         % This delay provides additional margin of error before starting workers.
         {couchbase_after_init_delay, 4000}, % 4 seconds
-        {couchbase_connect_timeout, 1000},
+        {couchbase_connect_timeout, 5000},  % 5 seconds
         {couchbase_user, "admin"},
         {couchbase_password, "password"},
         {couchbase_admin_port, 8091},
