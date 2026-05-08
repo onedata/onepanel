@@ -6,6 +6,9 @@
 
 -   **VFS-13466** Web GUI: Fixed an error when supporting spaces with
     HTTP storage.
+-   **VFS-13324** Web GUI: Added experimental support for customizing
+    style of the sidebar using static files without rebuilding the
+    software.
 -   **VFS-13042** Web GUI: Added paging and conflict labels in supported
     spaces table.
 
