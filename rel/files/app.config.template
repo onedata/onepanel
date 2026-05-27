@@ -211,7 +211,9 @@
         %% DB disk usage monitor configuration
         %% ===================================================================
 
-        {db_root_dir, "/opt/couchbase"},
+        %% Note the slash at the end; it's crucial as /opt/couchbase/var/lib/couchbase
+        %% is typically a symlink to the persistence directory.
+        {db_root_dir, "/opt/couchbase/var/lib/couchbase/"},
 
         %% How ofter the db disk usage check on all couchbase nodes in the cluster is performed.
         {db_disk_usage_check_interval_seconds, 300},  % 5 minutes
