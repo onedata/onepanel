@@ -1,6 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% This file has been automatically generated - DO NOT EDIT!!!
-%%%
+%%% @author Bartosz Walkowicz
 %%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.

@@ -35,7 +35,7 @@
     input :: input(),
     storage_details :: op_worker_storage:storage_details()
 }).
--type state() :: state().
+-type state() :: #state{}.
 
 -type output() :: map().
 

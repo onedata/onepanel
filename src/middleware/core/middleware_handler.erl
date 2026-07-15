@@ -16,8 +16,6 @@
 -include("http/rest.hrl").
 -include("middleware/middleware.hrl").
 
--abc([t, input, state, output]).
-
 -type t() :: middleware_handler_types:t().
 
 -type interface() :: rest.

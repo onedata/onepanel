@@ -39,7 +39,7 @@ resolve_handler(Operation, #gri{type = onp_provider, aspect = Aspect}) ->
 
 resolve_handler(Operation, #gri{type = onp_service, aspect = Aspect}) ->
     resolve_service_handler(Aspect, Operation);
-    
+
 resolve_handler(Operation, #gri{type = onp_space, aspect = Aspect}) ->
     resolve_space_handler(Aspect, Operation);
 
@@ -434,6 +434,6 @@ resolve_zone_handler(policies, get) ->
     {true, zone_policies_get_middleware_handler:module_info(module)};
 resolve_zone_handler(policies, update) ->
     {true, zone_policies_update_middleware_handler:module_info(module)};
-    
+
 resolve_zone_handler(_, _) ->
     false.
