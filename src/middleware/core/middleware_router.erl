@@ -23,8 +23,8 @@
 %%%===================================================================
 
 
--spec resolve_handler(middleware_handler:operation(), gri:gri()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_handler(middleware_handler_behaviour:operation(), gri:gri()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_handler(Operation, #gri{type = onp_cluster, aspect = Aspect}) ->
     resolve_cluster_handler(Aspect, Operation);
 
@@ -62,8 +62,8 @@ resolve_handler(_, _) ->
 
 
 %% @private
--spec resolve_cluster_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_cluster_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_cluster_handler(current_cluster, get) ->
     {true, cluster_current_cluster_get_middleware_handler:module_info(module)};
 
@@ -81,8 +81,8 @@ resolve_cluster_handler(_, _) ->
 
 
 %% @private
--spec resolve_host_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_host_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_host_handler(external_ips, get) ->
     {true, host_external_ips_get_middleware_handler:module_info(module)};
 resolve_host_handler(external_ips, update) ->
@@ -106,8 +106,8 @@ resolve_host_handler(_, _) ->
 
 
 %% @private
--spec resolve_panel_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_panel_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_panel_handler(configuration, get) ->
     {true, panel_configuration_get_middleware_handler:module_info(module)};
 
@@ -153,8 +153,8 @@ resolve_panel_handler(_, _) ->
 
 
 %% @private
--spec resolve_provider_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_provider_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_provider_handler(cluster, create) ->
     {true, provider_cluster_create_middleware_handler:module_info(module)};
 resolve_provider_handler(cluster, get) ->
@@ -182,8 +182,8 @@ resolve_provider_handler(_, _) ->
 
 
 %% @private
--spec resolve_service_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_service_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_service_handler(cluster_manager_instances, create) ->
     {true, service_cluster_manager_instances_create_middleware_handler:module_info(module)};
 resolve_service_handler({all_hosts_status, <<"cluster_manager">>}, get) ->
@@ -248,8 +248,8 @@ resolve_service_handler(_, _) ->
 
 
 %% @private
--spec resolve_space_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_space_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_space_handler(auto_cleaning_configuration, get) ->
     {true, space_auto_cleaning_configuration_get_middleware_handler:module_info(module)};
 resolve_space_handler(auto_cleaning_configuration, update) ->
@@ -299,8 +299,8 @@ resolve_space_handler(_, _) ->
 
 
 %% @private
--spec resolve_storage_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_storage_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_storage_handler(instance, get) ->
     {true, storage_instance_get_middleware_handler:module_info(module)};
 resolve_storage_handler(instance, update) ->
@@ -393,8 +393,8 @@ resolve_storage_handler(_, _) ->
 
 
 %% @private
--spec resolve_user_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_user_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_user_handler(current_user, get) ->
     {true, user_current_user_get_middleware_handler:module_info(module)};
 resolve_user_handler(current_user_clusters, get) ->
@@ -415,8 +415,8 @@ resolve_user_handler(_, _) ->
 
 
 %% @private
--spec resolve_zone_handler(gri:aspect(), middleware_handler:operation()) ->
-    {true, middleware_handler:t()} | false.
+-spec resolve_zone_handler(gri:aspect(), middleware_handler_behaviour:operation()) ->
+    {true, middleware_handler_behaviour:t()} | false.
 resolve_zone_handler(cluster, create) ->
     {true, zone_cluster_create_middleware_handler:module_info(module)};
 resolve_zone_handler(cluster, get) ->

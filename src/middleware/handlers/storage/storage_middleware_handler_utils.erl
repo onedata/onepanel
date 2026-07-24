@@ -53,12 +53,12 @@ supported_op_interfaces() ->
     middleware_handler_utils:if_op_then( [rest]).
 
 
--spec common_availability() -> {true, [middleware_handler:availability_level()]}.
+-spec common_availability() -> {true, [middleware_handler_behaviour:availability_level()]}.
 common_availability() ->
     {true, [?SERVICE_OPW, all_healthy_ignoring_ones3]}.
 
 
--spec preauthorize_member(middleware_handler:state()) -> boolean().
+-spec preauthorize_member(middleware_handler_behaviour:state()) -> boolean().
 preauthorize_member(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
     middleware_handler_utils:is_cluster_member(Client).
 

@@ -12,7 +12,7 @@
 -module(panel_web_cert_update_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("middleware/middleware.hrl").
 -include("service.hrl").
@@ -40,13 +40,13 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> {true, [rest]}.
 supported_interfaces(_) ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) ->
+    {true, [middleware_handler_behaviour:availability_level()]}.
 service_availability_requirements(_) ->
     {true, [all_healthy_ignoring_ones3]}.
 

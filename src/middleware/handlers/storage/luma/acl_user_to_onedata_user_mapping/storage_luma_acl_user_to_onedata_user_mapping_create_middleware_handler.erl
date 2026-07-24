@@ -13,7 +13,7 @@
 -module(storage_luma_acl_user_to_onedata_user_mapping_create_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("middleware/middleware.hrl").
 
@@ -39,13 +39,13 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
     storage_middleware_handler_utils:supported_op_interfaces().
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false | {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) ->
+    false | {true, [middleware_handler_behaviour:availability_level()]}.
 service_availability_requirements(_) ->
     storage_middleware_handler_utils:common_availability().
 

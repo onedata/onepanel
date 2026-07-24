@@ -12,7 +12,7 @@
 -module(service_oz_worker_host_status_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("middleware/middleware.hrl").
 
@@ -39,12 +39,12 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
     middleware_handler_utils:if_oz_then([rest]).
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) -> false.
 service_availability_requirements(_) -> false.
 
 
@@ -64,6 +64,6 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = HostBin}}}) ->
     service_middleware_handler_utils:status_on_host(?SERVICE_OZW, Host).
 
 
--spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
+-spec translate_output(state(), output()) -> {ok, middleware_handler_behaviour:rest_output()}.
 translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Status) ->
     {ok, ?OK_REPLY(atom_to_binary(Status, utf8))}.

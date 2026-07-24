@@ -223,7 +223,7 @@ send_response(#rest_resp{code = Code, headers = Headers, body = Body}, Req) ->
 
 
 %% @private
--spec get_input(cowboy_req:req()) -> {cowboy_req:req(), middleware_handler:rest_input()}.
+-spec get_input(cowboy_req:req()) -> {cowboy_req:req(), middleware_handler_behaviour:rest_input()}.
 get_input(Req) ->
     Params = get_qs_params(Req),
     {Req2, Body} = get_data(Req),
@@ -325,7 +325,7 @@ resolve_bindings(Other, _Req) ->
 %% that should be called to handle it.
 %% @end
 %%--------------------------------------------------------------------
--spec method_to_operation(method()) -> middleware_handler:operation().
+-spec method_to_operation(method()) -> middleware_handler_behaviour:operation().
 method_to_operation('POST') -> create;
 method_to_operation('PUT') -> create;
 method_to_operation('GET') -> get;

@@ -14,7 +14,7 @@
 -module(zone_cluster_create_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("deployment_progress.hrl").
 -include("middleware/middleware.hrl").
@@ -44,12 +44,12 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
     middleware_handler_utils:if_oz_then([rest]).
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) -> false.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) -> false.
 service_availability_requirements(_) ->
     false.
 
@@ -142,7 +142,7 @@ process(#onp_req_state{input = Data}) ->
 
 
 -spec translate_output(state(), output()) ->
-    {ok, middleware_handler:rest_output()}.
+    {ok, middleware_handler_behaviour:rest_output()}.
 translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, TaskId) ->
     {ok, ?ASYNC_TASK_REPLY(TaskId)}.
 

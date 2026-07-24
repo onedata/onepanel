@@ -12,7 +12,7 @@
 -module(storage_instance_update_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("middleware/middleware.hrl").
 
@@ -31,7 +31,7 @@
 -type input() :: map().
 
 -record(state, {
-    ctx :: middleware_handler:req_ctx(),
+    ctx :: middleware_handler_behaviour:req_ctx(),
     input :: input(),
     storage_details :: op_worker_storage:storage_details()
 }).
@@ -47,18 +47,18 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
     storage_middleware_handler_utils:supported_op_interfaces().
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false | {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) ->
+    false | {true, [middleware_handler_behaviour:availability_level()]}.
 service_availability_requirements(_) ->
     storage_middleware_handler_utils:common_availability().
 
 
--spec init_state(middleware_handler:req_ctx(), input()) ->
+-spec init_state(middleware_handler_behaviour:req_ctx(), input()) ->
     {ok, state()} | errors:error().
 init_state(OnpReqCtx = #onp_req_ctx{gri = #gri{id = StorageId}}, Input) ->
     case storage_middleware_handler_utils:get_storage(StorageId) of
@@ -110,6 +110,6 @@ process(#state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
     ).
 
 
--spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
+-spec translate_output(state(), output()) -> {ok, middleware_handler_behaviour:rest_output()}.
 translate_output(#state{ctx = #onp_req_ctx{interface = rest}}, Data) ->
     {ok, ?OK_REPLY(Data)}.

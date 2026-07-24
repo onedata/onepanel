@@ -23,15 +23,15 @@
 
 
 -record(onp_req_ctx, {
-    interface :: middleware_handler:interface(),
+    interface :: middleware_handler_behaviour:interface(),
     gri :: gri:gri(),
-    operation :: middleware_handler:operation(),
+    operation :: middleware_handler_behaviour:operation(),
     client :: middleware:client()
 }).
 
 -record(onp_req_state, {
-    ctx :: middleware_handler:req_ctx(),
-    input :: middleware_handler:handler_input()
+    ctx :: middleware_handler_behaviour:req_ctx(),
+    input :: middleware_handler_behaviour:handler_input()
 }).
 
 

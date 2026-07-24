@@ -125,7 +125,7 @@ format_service_configuration(SModule) ->
 %% format.
 %% @end
 %%--------------------------------------------------------------------
--spec get_hosts(Keys :: [atom()], middleware_handler:handler_input()) ->
+-spec get_hosts(Keys :: [atom()], middleware_handler_behaviour:handler_input()) ->
     Hosts :: [service:host()] | no_return().
 get_hosts(Keys, Data) ->
     CommonSuffix = common_hostname_suffix(Data),
@@ -157,7 +157,7 @@ get_hosts(Keys, Data) ->
 %% in cluster description.
 %% @end
 %%--------------------------------------------------------------------
--spec get_cluster_ips(middleware_handler:handler_input()) ->
+-spec get_cluster_ips(middleware_handler_behaviour:handler_input()) ->
     #{service:host() => binary()} | no_return().
 get_cluster_ips(Data) ->
     CommonSuffix = common_hostname_suffix(Data),
@@ -272,7 +272,7 @@ is_service_configured() ->
 %% to create full node hostname.
 %% @end
 %%--------------------------------------------------------------------
--spec common_hostname_suffix(middleware_handler:handler_input()) -> binary().
+-spec common_hostname_suffix(middleware_handler_behaviour:handler_input()) -> binary().
 common_hostname_suffix(Data) ->
     case kv_utils:get([cluster, domainName], Data, <<>>) of
         <<>> -> <<>>;

@@ -34,9 +34,9 @@
 
 % Internal record containing the request state.
 -record(state, {
-    handler :: middleware_handler:t(),
-    req_ctx :: middleware_handler:req_ctx(),
-    handler_state :: middleware_handler:state()
+    handler :: middleware_handler_behaviour:t(),
+    req_ctx :: middleware_handler_behaviour:req_ctx(),
+    handler_state :: middleware_handler_behaviour:state()
 }).
 -type state() :: #state{}.
 
@@ -47,11 +47,11 @@
 
 
 -spec handle(
-    middleware_handler:req_ctx(),
-    middleware_handler:interface_input(),
+    middleware_handler_behaviour:req_ctx(),
+    middleware_handler_behaviour:interface_input(),
     undefined | onepanel_parser:object_spec()
 ) ->
-    ok | {ok, middleware_handler:interface_output()} | errors:error().
+    ok | {ok, middleware_handler_behaviour:interface_output()} | errors:error().
 handle(OnpReqCtx, Input, InputSpec) ->
     try
         Handler = find_handler(OnpReqCtx),
@@ -80,7 +80,7 @@ handle(OnpReqCtx, Input, InputSpec) ->
 
 
 %% @private
--spec find_handler(middleware_handler:req_ctx()) -> middleware_handler:t() | no_return().
+-spec find_handler(middleware_handler_behaviour:req_ctx()) -> middleware_handler_behaviour:t() | no_return().
 find_handler(#onp_req_ctx{operation = Operation, gri = Gri}) ->
     case middleware_router:resolve_handler(Operation, Gri) of
         {true, Handler} -> Handler;
@@ -89,7 +89,7 @@ find_handler(#onp_req_ctx{operation = Operation, gri = Gri}) ->
 
 
 %% @private
--spec assert_interface_supported(middleware_handler:t(), middleware_handler:req_ctx()) ->
+-spec assert_interface_supported(middleware_handler_behaviour:t(), middleware_handler_behaviour:req_ctx()) ->
     ok | no_return().
 assert_interface_supported(Handler, OnpReqCtx) ->
     case is_interface_supported(Handler, OnpReqCtx) of
@@ -99,7 +99,7 @@ assert_interface_supported(Handler, OnpReqCtx) ->
 
 
 %% @private
--spec is_interface_supported(middleware_handler:t(), middleware_handler:req_ctx()) ->
+-spec is_interface_supported(middleware_handler_behaviour:t(), middleware_handler_behaviour:req_ctx()) ->
     boolean().
 is_interface_supported(Handler, OnpReqCtx = #onp_req_ctx{interface = Interface}) ->
     try Handler:supported_interfaces(OnpReqCtx) of
@@ -112,10 +112,10 @@ is_interface_supported(Handler, OnpReqCtx = #onp_req_ctx{interface = Interface})
 
 %% @private
 -spec sanitize_input(
-    middleware_handler:interface_input(),
+    middleware_handler_behaviour:interface_input(),
     undefined | onepanel_parser:object_spec()
 ) ->
-    map() | middleware_handler:handler_input() | no_return().
+    map() | middleware_handler_behaviour:handler_input() | no_return().
 sanitize_input(_, undefined) ->
     #{};
 sanitize_input(Input, InputSpec) ->
@@ -123,7 +123,7 @@ sanitize_input(Input, InputSpec) ->
 
 
 %% @private
--spec assert_required_services_available(middleware_handler:t(), middleware_handler:req_ctx()) ->
+-spec assert_required_services_available(middleware_handler_behaviour:t(), middleware_handler_behaviour:req_ctx()) ->
     ok | no_return().
 assert_required_services_available(Handler, OnpReqCtx) ->
     case Handler:service_availability_requirements(OnpReqCtx) of
@@ -138,7 +138,7 @@ assert_required_services_available(Handler, OnpReqCtx) ->
 
 
 %% @private
--spec is_availability_satisfied(middleware_handler:availability_level()) -> boolean().
+-spec is_availability_satisfied(middleware_handler_behaviour:availability_level()) -> boolean().
 is_availability_satisfied(all_healthy_ignoring_ones3) ->
     service:all_healthy_ignoring_ones3();
 is_availability_satisfied(Service) ->
@@ -147,9 +147,9 @@ is_availability_satisfied(Service) ->
 
 %% @private
 -spec init_state(
-    middleware_handler:t(),
-    middleware_handler:req_ctx(),
-    middleware_handler:handler_input()
+    middleware_handler_behaviour:t(),
+    middleware_handler_behaviour:req_ctx(),
+    middleware_handler_behaviour:handler_input()
 ) ->
     state() | no_return().
 init_state(Handler, OnpReqCtx, HandlerInput) ->
@@ -225,7 +225,7 @@ validate_request(#state{handler = Handler, handler_state = HandlerState}) ->
 
 %% @private
 -spec process_request(state()) ->
-    ok | {ok, middleware_handler:handler_output()} | no_return().
+    ok | {ok, middleware_handler_behaviour:handler_output()} | no_return().
 process_request(#state{
     handler = Handler,
     req_ctx = #onp_req_ctx{operation = Operation, gri = Gri, client = Client},
@@ -257,8 +257,8 @@ client_to_string(?USER(Id)) -> str_utils:format("user:~ts", [Id]).
 
 
 %% @private
--spec translate_output(state(), middleware_handler:handler_output()) ->
-    {ok, middleware_handler:interface_output()} | errors:error().
+-spec translate_output(state(), middleware_handler_behaviour:handler_output()) ->
+    {ok, middleware_handler_behaviour:interface_output()} | errors:error().
 translate_output(State, HandlerOutput) ->
     Handler = State#state.handler,
     Handler:translate_output(State#state.handler_state, HandlerOutput).

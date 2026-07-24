@@ -13,7 +13,7 @@
 -module(storage_luma_acl_group_to_onedata_group_mapping_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("middleware/middleware.hrl").
 
@@ -40,13 +40,13 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> false | {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> false | {true, [rest]}.
 supported_interfaces(_) ->
     storage_middleware_handler_utils:supported_op_interfaces().
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false | {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) ->
+    false | {true, [middleware_handler_behaviour:availability_level()]}.
 service_availability_requirements(_) ->
     storage_middleware_handler_utils:common_availability().
 
@@ -75,6 +75,6 @@ process(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{aspect = {Aspect, AclGroup}
     ).
 
 
--spec translate_output(state(), output()) -> {ok, middleware_handler:rest_output()}.
+-spec translate_output(state(), output()) -> {ok, middleware_handler_behaviour:rest_output()}.
 translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Data) ->
     {ok, ?OK_REPLY(Data)}.

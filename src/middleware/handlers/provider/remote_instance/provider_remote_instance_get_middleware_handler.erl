@@ -12,7 +12,7 @@
 -module(provider_remote_instance_get_middleware_handler).
 -author("Bartosz Walkowicz").
 
--behaviour(middleware_handler).
+-behaviour(middleware_handler_behaviour).
 
 -include("middleware/middleware.hrl").
 
@@ -39,13 +39,13 @@
 %%%===================================================================
 
 
--spec supported_interfaces(middleware_handler:req_ctx()) -> {true, [rest]}.
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> {true, [rest]}.
 supported_interfaces(_) ->
     {true, [rest]}.
 
 
--spec service_availability_requirements(middleware_handler:req_ctx()) ->
-    false | {true, [middleware_handler:availability_level()]}.
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) ->
+    false | {true, [middleware_handler_behaviour:availability_level()]}.
 service_availability_requirements(_) ->
     middleware_handler_utils:if_oz_then([all_healthy_ignoring_ones3]).
 
@@ -68,6 +68,6 @@ process(#onp_req_state{ctx = #onp_req_ctx{client = #client{zone_credentials = Au
 
 
 -spec translate_output(state(), output()) ->
-    {ok, middleware_handler:rest_output()}.
+    {ok, middleware_handler_behaviour:rest_output()}.
 translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, Result) ->
     {ok, ?OK_REPLY(Result)}.

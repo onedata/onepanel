@@ -10,7 +10,7 @@
 %%% middleware operations - serves as a link between API and onepanel internals.
 %%% @end
 %%%-------------------------------------------------------------------
--module(middleware_handler).
+-module(middleware_handler_behaviour).
 -author("Bartosz Walkowicz").
 
 -include("http/rest.hrl").
