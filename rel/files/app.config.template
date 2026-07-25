@@ -5,52 +5,6 @@
         {inet_dist_listen_max, 9139}
     ]},
 
-    %% lager config
-    {lager, [
-        {colored, true},
-        {log_root, "{{platform_log_dir}}"},
-        {handlers, [
-            %% show info level or higher level logs at console
-            {lager_console_backend, [
-                {level, info}, {formatter, lager_default_formatter},
-                {formatter_config, [color, "[", sev, " ", time, " ", pid, "] ", message, "\e[0m\r\n"]}
-            ]},
-            %% rotate error log when it reaches 50 MB; keep 10 rotated logs
-            {lager_file_backend, [
-                {file, "error.log"},
-                {level, error},
-                {size, 52428800},
-                {count, 10},
-                {formatter, lager_default_formatter},
-                {formatter_config, ["[", sev, " ", date, " ", time, " ", pid, "] ", message, "\n"]}
-            ]},
-            %% rotate info log when it reaches 50 MB; keep 10 rotated logs
-            {lager_file_backend, [
-                {file, "info.log"},
-                {level, info},
-                {size, 52428800},
-                {count, 10},
-                {formatter, lager_default_formatter},
-                {formatter_config, ["[", sev, " ", date, " ", time, " ", pid, "] ", message, "\n"]}
-            ]},
-            %% rotate debug log when it reaches 50 MB; keep 10 rotated logs
-            {lager_file_backend, [
-                {file, "debug.log"},
-                {level, debug},
-                {size, 52428800},
-                {count, 10},
-                {formatter, lager_default_formatter},
-                {formatter_config, ["[", sev, " ", date, " ", time, " ", pid, "] ", message, "\n"]}
-            ]}
-        ]},
-        % Limit for the number of messages per second allowed from error_logger
-        {error_logger_hwm, 200},
-        % When lager should change mode to synchronous (log queue is longer than async_threshold)
-        {async_threshold, 500},
-        % When lager should return from synchronous mode to asynchronous (log queue is shorter than (async_threshold - async_threshold_window)
-        {async_threshold_window, 50}
-    ]},
-
     %% mnesia config
     {mnesia, [
         {dir, "{{platform_data_dir}}/mnesia"}
@@ -74,7 +28,8 @@
         % can be overwritten by a newer registry when such is available.
         {current_compatibility_registry_file, "{{platform_etc_dir}}/compatibility.json"},
         % Path to the default compatibility.json for current software version.
-        {default_compatibility_registry_file, "{{platform_data_dir}}/compatibility.default.json"}
+        {default_compatibility_registry_file, "{{platform_data_dir}}/compatibility.default.json"},
+        {log_dir, "{{platform_log_dir}}"}
     ]},
 
     %% onepanel config
@@ -256,7 +211,9 @@
         %% DB disk usage monitor configuration
         %% ===================================================================
 
-        {db_root_dir, "/opt/couchbase"},
+        %% Note the slash at the end; it's crucial as /opt/couchbase/var/lib/couchbase
+        %% is typically a symlink to the persistence directory.
+        {db_root_dir, "/opt/couchbase/var/lib/couchbase/"},
 
         %% How ofter the db disk usage check on all couchbase nodes in the cluster is performed.
         {db_disk_usage_check_interval_seconds, 300},  % 5 minutes
@@ -326,13 +283,15 @@
         {onepanel_custom_config_dir, "{{platform_etc_dir}}/config.d/"},
 
         {couchbase_cmd, "service couchbase-server"},
-        {couchbase_init_timeout, 300000},
-        {couchbase_wait_for_init_attempts, 60},
+        {couchbase_cluster_init_timeout, 300000},
+        {couchbase_wait_for_service_init_attempts, 60},
+        {couchbase_wait_for_service_init_interval_sec, 5},
+        {couchbase_wait_for_service_init_max_restarts, 2},
 
         % Couchbase reports healthy status before it's ready to serve requests.
         % This delay provides additional margin of error before starting workers.
         {couchbase_after_init_delay, 4000}, % 4 seconds
-        {couchbase_connect_timeout, 1000},
+        {couchbase_connect_timeout, 5000},  % 5 seconds
         {couchbase_user, "admin"},
         {couchbase_password, "password"},
         {couchbase_admin_port, 8091},

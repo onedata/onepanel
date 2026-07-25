@@ -1226,8 +1226,10 @@ service_ones3_model() ->
         %% The list of hosts where service should be deployed.
         hosts => [string],
         %% The port on which the OneS3 service will be available.  NOTE: This
-        %% parameter is taken into account only during the initial cluster
-        %% deployment and ignored when adding new hosts to the cluster.
+        %% parameter is considered only during the initial cluster deployment or
+        %% when adding the OneS3 service for the first time. In all other cases,
+        %% it is ignored, and the port will default to that of the already
+        %% deployed OneS3 services in the cluster.
         port => {integer, optional}
     }.
 
@@ -2306,8 +2308,13 @@ http_model() ->
         %% storage will be accessed by all users with access to any space
         %% supported by this storage.
         onedataAccessToken => {string, optional},
-        %% Full URL of the HTTP server, including scheme (http or https) and
-        %% path.
+        %% Base URL of the HTTP server, including scheme (`http` or
+        %% `https`) and optional path prefix. When registering files
+        %% by relative path in `storageFileId`, that path is appended
+        %% to this URL. **Note:** A full URI supplied as
+        %% `storageFileId` always takes precedence and bypasses this
+        %% endpoint, allowing files from any HTTP server reachable by the
+        %% Oneprovider to be registered.
         endpoint => string,
         %% Determines whether Oneprovider should verify the certificate of the
         %% HTTP server.
@@ -2325,6 +2332,18 @@ http_model() ->
         %% header is sent to the server. When set to 0 (default), number of
         %% requests per session is unlimited, unless imposed by the server.
         maxRequestsPerSession => {integer, {optional, 0}},
+        %% Enables fallback emulation of range reads for HTTP servers that do
+        %% not support the `Range` header. When active, the full file
+        %% content is downloaded and only the requested byte range is returned
+        %% to the caller. Has no effect on servers that support range reads
+        %% natively. **Warning:** Emulation causes significant performance
+        %% degradation and increased memory usage; enable only as a last resort.
+        emulateRangeRead => {boolean, optional},
+        %% Maximum file size in bytes eligible for emulated range reads. Files
+        %% exceeding this limit cannot be accessed from servers that lack native
+        %% range read support. Has no effect unless `emulateRangeRead`
+        %% is `true`.
+        maxEmulatedRangeReadFileSize => {integer, {optional, 67108864}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2414,8 +2433,13 @@ http_modify_model() ->
         %% server. Supported only with Readonly option enabled and in manual
         %% import mode.
         type => {discriminator, <<"http">>},
-        %% Full URL of the HTTP server, including scheme (http or https) and
-        %% path.
+        %% Base URL of the HTTP server, including scheme (`http` or
+        %% `https`) and optional path prefix. When registering files
+        %% by relative path in `storageFileId`, that path is appended
+        %% to this URL. **Note:** A full URI supplied as
+        %% `storageFileId` always takes precedence and bypasses this
+        %% endpoint, allowing files from any HTTP server reachable by the
+        %% Oneprovider to be registered.
         endpoint => {string, optional},
         %% Determines whether Oneprovider should verify the certificate of the
         %% HTTP server.
@@ -2441,6 +2465,18 @@ http_modify_model() ->
         %% header is sent to the server. When set to 0 (default), number of
         %% requests per session is unlimited, unless imposed by the server.
         maxRequestsPerSession => {integer, optional},
+        %% Enables fallback emulation of range reads for HTTP servers that do
+        %% not support the `Range` header. When active, the full file
+        %% content is downloaded and only the requested byte range is returned
+        %% to the caller. Has no effect on servers that support range reads
+        %% natively. **Warning:** Emulation causes significant performance
+        %% degradation and increased memory usage; enable only as a last resort.
+        emulateRangeRead => {boolean, optional},
+        %% Maximum file size in bytes eligible for emulated range reads. Files
+        %% exceeding this limit cannot be accessed from servers that lack native
+        %% range read support. Has no effect unless `emulateRangeRead`
+        %% is `true`.
+        maxEmulatedRangeReadFileSize => {integer, optional},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2868,7 +2904,16 @@ op_configuration_model() ->
         %% `null` if the Oneprovider is not registered.
         zoneDomain => string,
         %% True if the Oneprovider has been registered at a Onezone.
-        isRegistered => {boolean, optional}
+        isRegistered => {boolean, optional},
+        %% True if the OneS3 service is deployed (provides an S3-compliant data
+        %% access endpoint).
+        oneS3Enabled => boolean,
+        %% The domain at which the S3 endpoint is available, or `null`
+        %% if the OneS3 service is not deployed.
+        oneS3Domain => string,
+        %% The port at which the S3 endpoint is available, or `null`
+        %% if the OneS3 service is not deployed.
+        oneS3Port => integer
     }.
 
 %%--------------------------------------------------------------------
