@@ -13,10 +13,6 @@
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
--include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/headers.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 -include_lib("onenv_ct/include/chart_values.hrl").
 
@@ -28,10 +24,9 @@
 ]).
 
 -export([
-    get_storages_ids/1,
-    add_s3_storage/1,
-    get_s3_storage/1,
-    delete_s3_storage/1
+    get_storages_ids_test/1,
+    add_s3_storage_test/1,
+    delete_s3_storage_test/1
 ]).
 
 -define(S3_STORAGE_NAME, <<"s3Storage-1">>).
@@ -46,7 +41,9 @@
 }).
 
 all() -> [
-    get_storages_ids, add_s3_storage, get_s3_storage, delete_s3_storage
+    get_storages_ids_test,
+    add_s3_storage_test,
+    delete_s3_storage_test
 ].
 
 
@@ -55,7 +52,7 @@ all() -> [
 %%%===================================================================
 
 
-get_storages_ids(_Config) ->
+get_storages_ids_test(_Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     StoragesIds = opw_test_rpc:get_storages(krakow),
@@ -69,18 +66,9 @@ get_storages_ids(_Config) ->
             name = <<"Get storage ids using /provider/storages rest endpoint">>,
             type = rest,
             target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId
+            ),
             prepare_args_fun = fun(_) ->
                 #rest_args{method = get, path = <<"provider/storages">>}
             end,
@@ -91,7 +79,7 @@ get_storages_ids(_Config) ->
     ])).
 
 
-add_s3_storage(_Config) ->
+add_s3_storage_test(_Config) ->
     % todo: VFS-6717 delete s3 storage after test
     MemRef = api_test_memory:init(),
     ProviderId = oct_background:get_provider_id(krakow),
@@ -166,51 +154,7 @@ add_request_match_response(RequestBody, StorageDetails) ->
         (maps:get(<<"name">>, StorageDetails) =:= ?S3_STORAGE_NAME).
 
 
-get_s3_storage(_Config) ->
-    % todo: VFS-6717 add s3 storage before, and delete after test
-    ProviderId = oct_background:get_provider_id(krakow),
-    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-
-    [StorageName | _] = maps:keys(?S3_STORAGE_SPEC),
-    StorageId = api_test_utils:get_storage_id_by_name(krakow, StorageName),
-
-    ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Get s3 storage details using /provider/storages/{storage_id} rest endpoint">>,
-            type = rest,
-            target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = get,
-                    path = <<"provider/storages/", StorageId/binary>>}
-            end,
-            validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
-                StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
-                StorageDetailsBinary = onepanel_utils:convert_recursive(StorageDetails, {map, binary}),
-                ExpectedScheme = maps:get(<<"scheme">>, StorageDetailsBinary),
-                ExpectedHostname = maps:get(<<"hostname">>, StorageDetailsBinary),
-                ExtendedHostname =  str_utils:join_binary([ExpectedScheme, <<"://">>, ExpectedHostname]),
-                StorageDetails2 = maps:put(<<"hostname">>,ExtendedHostname, maps:remove(<<"scheme">>, StorageDetailsBinary)),
-                RespBodyBinary = onepanel_utils:convert_recursive(RespBody, {map, binary}),
-                ?assertEqual(StorageDetails2, RespBodyBinary)
-            end)
-        }
-    ])).
-
-
-delete_s3_storage(_Config) ->
+delete_s3_storage_test(_Config) ->
     % todo: VFS-6717 add s3 storage before test
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),

@@ -11,21 +11,11 @@
 -module(middleware_utils).
 -author("Wojciech Geisler").
 
--include("authentication.hrl").
 -include("deployment_progress.hrl").
--include("http/rest.hrl").
 -include("middleware/middleware.hrl").
 -include("modules/models.hrl").
--include("names.hrl").
--include("service.hrl").
--include_lib("ctool/include/errors.hrl").
--include_lib("ctool/include/graph_sync/gri.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/oz/oz_providers.hrl").
 
--export([execute_service_action/3]).
--export([result_from_service_action/2, result_from_service_action/3,
-    result_from_service_action/5]).
 -export([has_privilege/2]).
 -export([format_onepanel_configuration/0, format_service_configuration/1]).
 -export([get_hosts/2, get_cluster_ips/1]).
@@ -33,62 +23,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @doc Executes service action and checks for errors.
-%% @end
-%%--------------------------------------------------------------------
--spec execute_service_action(service:name(), service:action(), service:step_ctx()) -> ok.
-execute_service_action(Service, Action, Ctx) ->
-    ActionResults = service:apply_sync(Service, Action, Ctx),
-    service_utils:throw_on_error(ActionResults),
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc
-%% @equiv result_from_service_action(Service, Action, #{}).
-%% @end
-%%--------------------------------------------------------------------
--spec result_from_service_action(service:name(), service:action()) ->
-    term() | errors:error().
-result_from_service_action(Service, Action) ->
-    result_from_service_action(Service, Action, #{}).
-
-
-%%--------------------------------------------------------------------
-%% @doc Executes service action. Returns result of a function named
-%% like the action, defined in service's main module.
-%% @equiv result_from_service_action(Service, Action, Ctx, get_module(Service), Action).
-%% @end
-%%--------------------------------------------------------------------
--spec result_from_service_action(service:name(), service:action(), service:step_ctx()) ->
-    term() | errors:error().
-result_from_service_action(Service, Action, Ctx) ->
-    result_from_service_action(Service, Action, Ctx,
-        service:get_module(Service), Action).
-
-
-%%--------------------------------------------------------------------
-%% @doc Executes service action. Returns result value
-%% of given Module:Function executed as one of the action steps.
-%% If the function was executed on multiple hosts, result from
-%% one host only is returned.
-%% If any step returned an error, the error is thrown.
-%% @end
-%%--------------------------------------------------------------------
--spec result_from_service_action(service:name(), service:action(), service:step_ctx(),
-    module(), Function :: atom()) -> term().
-result_from_service_action(Service, Action, Ctx, Module, Function) ->
-    ActionResults = service:apply_sync(Service, Action, Ctx),
-    case service_utils:results_contain_error(ActionResults) of
-        {true, Error} ->
-            throw(Error);
-        false ->
-            {[{_Host, Result} | _], []} = service_utils:select_service_step(
-                Module, Function, ActionResults),
-            Result
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -191,7 +125,7 @@ format_service_configuration(SModule) ->
 %% format.
 %% @end
 %%--------------------------------------------------------------------
--spec get_hosts(Keys :: [atom()], Args :: middleware:data()) ->
+-spec get_hosts(Keys :: [atom()], middleware_handler_behaviour:handler_input()) ->
     Hosts :: [service:host()] | no_return().
 get_hosts(Keys, Data) ->
     CommonSuffix = common_hostname_suffix(Data),
@@ -223,7 +157,7 @@ get_hosts(Keys, Data) ->
 %% in cluster description.
 %% @end
 %%--------------------------------------------------------------------
--spec get_cluster_ips(middleware:data()) ->
+-spec get_cluster_ips(middleware_handler_behaviour:handler_input()) ->
     #{service:host() => binary()} | no_return().
 get_cluster_ips(Data) ->
     CommonSuffix = common_hostname_suffix(Data),
@@ -351,7 +285,7 @@ is_service_configured() ->
 %% to create full node hostname.
 %% @end
 %%--------------------------------------------------------------------
--spec common_hostname_suffix(middleware:data()) -> binary().
+-spec common_hostname_suffix(middleware_handler_behaviour:handler_input()) -> binary().
 common_hostname_suffix(Data) ->
     case kv_utils:get([cluster, domainName], Data, <<>>) of
         <<>> -> <<>>;

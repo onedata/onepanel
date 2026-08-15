@@ -28,26 +28,12 @@
 
 %% tests
 -export([
-    method_should_return_forbidden_error_test/1,
-    local_user_should_get_not_found_error_test/1,
-    get_should_return_clusters_list_test/1,
-    get_should_return_cluster_details_test/1,
-    get_should_return_current_cluster_details_test/1,
-    current_cluster_should_work_for_local_user_test/1,
-    get_should_return_current_cluster_members_count_test/1,
-    get_should_return_provider_info_test/1
+    method_should_return_forbidden_error_test/1
 ]).
 
 all() ->
     ?ALL([
-        method_should_return_forbidden_error_test,
-        local_user_should_get_not_found_error_test,
-        get_should_return_clusters_list_test,
-        get_should_return_cluster_details_test,
-        get_should_return_current_cluster_details_test,
-        current_cluster_should_work_for_local_user_test,
-        get_should_return_current_cluster_members_count_test,
-        get_should_return_provider_info_test
+        method_should_return_forbidden_error_test
     ]).
 
 
@@ -120,139 +106,9 @@ method_should_return_forbidden_error_test(Config) ->
         ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
             Host, <<"/cluster/invite_user_token">>, post,
             ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_ADD_USER])
-        )),
-        ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-            Host, <<"/cluster/members_summary">>, get,
-            ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Host, privileges:cluster_admin() -- [?CLUSTER_VIEW])
-        )),
-        PeerAuths = ?PEER_AUTHS(Host),
-        lists:foreach(fun({Endpoint, Method}) ->
-            ?assertMatch({ok, ?HTTP_403_FORBIDDEN, _, _}, onepanel_test_rest:auth_request(
-                Host, Endpoint, Method, PeerAuths
-            ))
-        end, [
-            {<<"/cluster">>, get},
-            {<<"/user/clusters">>, get},
-            {<<"/user/clusters/someClusterId">>, get},
-            {<<"/providers/someProvider">>, get}
-        ])
-    end).
-
-
-local_user_should_get_not_found_error_test(Config) ->
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        ?assertMatch({ok, ?HTTP_404_NOT_FOUND, _, _}, onepanel_test_rest:auth_request(
-            Host, <<Endpoint/binary>>, Method,
-            ?ROOT_AUTHS(Host)
         ))
-    end, [
-        {<<"/user/clusters/">>, get},
-        {<<"/user/clusters/someCluster">>, get},
-        {<<"/providers/someProvider">>, get}
-    ]).
-
-
-get_should_return_clusters_list_test(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/user/clusters/">>, get,
-                ?OZ_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody,
-            #{<<"ids">> => maps:keys(?CLUSTERS)})
     end).
 
-
-get_should_return_cluster_details_test(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        lists:foreach(fun(ClusterId) ->
-            {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-                onepanel_test_rest:auth_request(
-                    Host, <<"/user/clusters/", ClusterId/binary>>, get,
-                    ?OZ_AUTHS(Host, [])
-                )
-            ),
-            Expected = maps:with([
-                <<"type">>,
-                <<"workerVersion">>,
-                <<"onepanelVersion">>,
-                <<"serviceId">>,
-                <<"onepanelProxy">>
-            ], maps:get(ClusterId, ?CLUSTERS)),
-            onepanel_test_rest:assert_body(JsonBody, Expected#{<<"id">> => ClusterId})
-        end, maps:keys(?CLUSTERS))
-    end).
-
-
-get_should_return_current_cluster_details_test(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ClusterId = get_cluster_id(Host, Config),
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/cluster">>, get,
-                ?OZ_AUTHS(Host, [])
-            )
-        ),
-        Body = json_utils:decode(JsonBody),
-        {_, _, _, JsonBodyById} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/user/clusters/", ClusterId/binary>>, get,
-                ?OZ_AUTHS(Host, [])
-            )
-        ),
-        BodyById = json_utils:decode(JsonBodyById),
-        ?assertEqual(BodyById, Body)
-    end).
-
-
-current_cluster_should_work_for_local_user_test(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/cluster">>, get,
-                ?ROOT_AUTHS(Host)
-            )
-        )
-    end).
-
-
-get_should_return_current_cluster_members_count_test(Config) ->
-    ?eachHost(Config, fun(Host) ->
-        Expected = #{
-            <<"usersCount">> => 1, <<"effectiveUsersCount">> => 2,
-            <<"groupsCount">> => 3, <<"effectiveGroupsCount">> => 4
-        },
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/cluster/members_summary">>, get,
-                ?OZ_OR_ROOT_AUTHS(Host, [?CLUSTER_VIEW])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, Expected)
-    end).
-
-
-get_should_return_provider_info_test(Config) ->
-    Expected = #{
-        <<"id">> => <<?PROVIDER_ID>>,
-        <<"name">> => <<"providerName">>,
-        <<"online">> => true,
-        <<"domain">> => <<"providerDomain">>,
-        <<"geoLongitude">> => 42.0,
-        <<"geoLatitude">> => 7.0,
-        <<"cluster">> => ?PROVIDER_CLUSTER_ID
-    },
-    ?eachHost(Config, fun(Host) ->
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(
-                Host, <<"/providers/", ?PROVIDER_ID>>, get,
-                ?OZ_AUTHS(Host, [])
-            )
-        ),
-        onepanel_test_rest:assert_body(JsonBody, Expected)
-    end).
 
 %%%===================================================================
 %%% SetUp and TearDown functions
@@ -362,17 +218,3 @@ end_per_testcase(_Case, Config) ->
 
 
 end_per_suite(_Config) -> ok.
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
--spec get_cluster_id(Host :: string(), Config :: proplists:proplist()) -> binary().
-get_cluster_id(Host, Config) ->
-    OpHosts = ?config(oneprovider_hosts, Config),
-    OzHosts = ?config(onezone_hosts, Config),
-    case {lists:member(Host, OpHosts), lists:member(Host, OzHosts)} of
-        {true, _} -> ?PROVIDER_CLUSTER_ID;
-        {_, true} -> ?ZONE_CLUSTER_ID
-    end.

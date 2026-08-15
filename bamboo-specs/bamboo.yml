@@ -52,9 +52,12 @@ stages:
         - _Codetag Tracker
         - _Dialyze
         - _Unit Test
+        - api_common_cluster
+        - api_common_current_user
         - api_common_emergency_passphrase
         - api_common_emergency_passphrase_not_deployed
         - api_common_internal
+        - api_network
         - api_op_provider
         - api_op_spaces_basic
         - api_op_storage_ceph_deprecated
@@ -68,6 +71,7 @@ stages:
         - api_op_storages
         - api_oz_service_configuration
         - api_oz_user_management
+        - api_services
         - cl_deploy_op_add_ones3_after_certification_with_le
         - cl_deploy_op_add_ones3_after_certification_without_le
         - cl_deploy_op_add_ones3_after_registration
@@ -76,8 +80,7 @@ stages:
         - cl_deploy_oz_batch
         - cl_misc
         - cl_resize_op
-        # TODO VFS-12699 research hanging deploy new oz worker test
-#        - cl_resize_oz
+        - cl_resize_oz
         - cl_services_op
         - cl_services_oz
         - db_disk_usage_monitor
@@ -88,7 +91,6 @@ stages:
         - le_oz
         - rest_clusters
         - rest_onepanel
-        - rest_onepanel_user
         - rest_oneprovider
         - rest_onezone
         - rest_service
@@ -276,8 +278,8 @@ _Unit Test:
   requirements: *requirements
   artifact-subscriptions: *artifact-onepanel
 
-api_common_emergency_passphrase: &ct-onenv-job
-  key: ACEP
+api_common_cluster: &ct-onenv-job
+  key: APICOMMONCLUSTER
   other: *common-opts
   tasks:
     - checkout: *fake-checkout
@@ -318,13 +320,27 @@ api_common_emergency_passphrase: &ct-onenv-job
         working-dir: onepanel
   artifacts:
     - &ct_logs
-      name: ct_logs_api_common_emergency_passphrase.tar.gz
+      name: ct_logs_api_common_cluster.tar.gz
       pattern: ct_logs_${bamboo.shortJobName}.tar.gz
       shared: true
       required: false
   requirements:
     - minikube
   artifact-subscriptions: *artifact-onepanel
+
+api_common_current_user:
+  <<: *ct-onenv-job
+  key: APICOMMONCURRENTUSER
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_current_user.tar.gz
+
+api_common_emergency_passphrase:
+  <<: *ct-onenv-job
+  key: ACEP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_emergency_passphrase.tar.gz
 
 api_common_emergency_passphrase_not_deployed:
   <<: *ct-onenv-job
@@ -339,6 +355,13 @@ api_common_internal:
   artifacts:
     - <<: *ct_logs
       name: ct_logs_api_common_internal.tar.gz
+
+api_network:
+  <<: *ct-onenv-job
+  key: APIDNS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_network.tar.gz
 
 api_op_provider:
   <<: *ct-onenv-job
@@ -431,6 +454,13 @@ api_oz_user_management:
     - <<: *ct_logs
       name: ct_logs_api_oz_user_management.tar.gz
 
+api_services:
+  <<: *ct-onenv-job
+  key: APISERVICES
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_services.tar.gz
+
 cl_deploy_op_add_ones3_after_certification_with_le:
   <<: *ct-onenv-job
   key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHLE
@@ -487,13 +517,12 @@ cl_resize_op:
     - <<: *ct_logs
       name: ct_logs_cl_resize_op.tar.gz
 
-# TODO VFS-12699 research hanging deploy new oz worker test
-#cl_resize_oz:
-#  <<: *ct-onenv-job
-#  key: CLUSTERRESIZEOZ
-#  artifacts:
-#    - <<: *ct_logs
-#      name: ct_logs_cl_resize_oz.tar.gz
+cl_resize_oz:
+  <<: *ct-onenv-job
+  key: CLUSTERRESIZEOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_resize_oz.tar.gz
 
 cl_services_op:
   <<: *ct-onenv-job
@@ -576,13 +605,6 @@ rest_onepanel:
   artifacts:
     - <<: *ct_logs
       name: ct_logs_rest_onepanel.tar.gz
-
-rest_onepanel_user:
-  <<: *ct-job
-  key: ROU
-  artifacts:
-    - <<: *ct_logs
-      name: ct_logs_rest_onepanel_user.tar.gz
 
 rest_oneprovider:
   <<: *ct-job
@@ -689,9 +711,12 @@ Coverage report:
   artifact-subscriptions:
     - artifact: onepanel.tar.gz
     - artifact: cover_eunit.tar.gz
+    - artifact: ct_logs_api_common_cluster.tar.gz
+    - artifact: ct_logs_api_common_current_user.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
     - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
     - artifact: ct_logs_api_common_internal.tar.gz
+    - artifact: ct_logs_api_network.tar.gz
     - artifact: ct_logs_api_op_provider.tar.gz
     - artifact: ct_logs_api_op_spaces_basic.tar.gz
     - artifact: ct_logs_api_op_storage_ceph_deprecated.tar.gz
@@ -705,6 +730,7 @@ Coverage report:
     - artifact: ct_logs_api_op_storages.tar.gz
     - artifact: ct_logs_api_oz_service_configuration.tar.gz
     - artifact: ct_logs_api_oz_user_management.tar.gz
+    - artifact: ct_logs_api_services.tar.gz
     - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_with_le.tar.gz
     - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_without_le.tar.gz
     - artifact: ct_logs_cl_deploy_op_add_ones3_after_registration.tar.gz
@@ -725,7 +751,6 @@ Coverage report:
     - artifact: ct_logs_model.tar.gz
     - artifact: ct_logs_rest_clusters.tar.gz
     - artifact: ct_logs_rest_onepanel.tar.gz
-    - artifact: ct_logs_rest_onepanel_user.tar.gz
     - artifact: ct_logs_rest_oneprovider.tar.gz
     - artifact: ct_logs_rest_onezone.tar.gz
     - artifact: ct_logs_rest_service.tar.gz

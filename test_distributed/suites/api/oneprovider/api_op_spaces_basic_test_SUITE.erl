@@ -13,13 +13,8 @@
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
--include_lib("ctool/include/aai/aai.hrl").
--include_lib("ctool/include/logging.hrl").
 -include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/headers.hrl").
 -include_lib("ctool/include/space_support/support_parameters.hrl").
--include_lib("ctool/include/test/assertions.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 
 -define(ATTEMPTS, 60).
@@ -92,18 +87,7 @@ get_space_ids_test_base(ExpSpaceIds) ->
             name = <<"Get space ids using /provider/spaces rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(ProviderId),
             prepare_args_fun = fun(_) ->
                 #rest_args{method = get, path = <<"provider/spaces">>}
             end,
@@ -137,18 +121,9 @@ get_space_details_test_base(SpaceName, StorageName, SupportSize) ->
             name = <<"Get space details using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId
+            ),
             prepare_args_fun = build_get_space_details_prepare_rest_args_fun(SpaceId),
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
                 ?assertEqual(ExpResult1, RespBody)
@@ -192,18 +167,9 @@ support_space_test(_Config) ->
             name = <<"Support space using /provider/spaces rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
 
             setup_fun = build_support_space_setup_fun(MemRef, SpaceName),
             verify_fun = build_support_space_verify_fun(MemRef),
@@ -322,18 +288,9 @@ modify_space_support_test(_Config) ->
             name = <<"Modify space support using /provider/spaces rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
 
             setup_fun = build_modify_space_support_setup_fun(MemRef, SpaceName, SupportSize, StorageId),
             prepare_args_fun = build_modify_space_support_prepare_rest_args_fun(MemRef),
@@ -450,18 +407,9 @@ revoke_space_support_test(_Config) ->
             name = <<"Revoke space support using /provider/spaces/{space_id} rest endpoint">>,
             type = rest,
             target_nodes = OpPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, [?CLUSTER_UPDATE]}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
 
             setup_fun = build_revoke_space_support_setup_fun(MemRef),
             prepare_args_fun = build_revoke_space_support_prepare_rest_args_fun(MemRef),

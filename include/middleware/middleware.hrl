@@ -5,22 +5,33 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc Record definitions for the middleware modules.
+%%% @doc
+%%% Record definitions for the middleware modules.
 %%% @end
 %%%--------------------------------------------------------------------
 -ifndef(ONEPANEL_MIDDLEWARE_HRL).
 -define(ONEPANEL_MIDDLEWARE_HRL, 1).
 
+-include("authentication.hrl").
+-include("http/rest.hrl").
+-include("names.hrl").
 -include_lib("ctool/include/aai/aai.hrl").
+-include_lib("ctool/include/errors.hrl").
+-include_lib("ctool/include/graph_sync/gri.hrl").
+-include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/privileges.hrl").
 
--record(onp_req, {
+
+-record(onp_req_ctx, {
+    interface :: middleware_handler_behaviour:interface(),
     gri :: gri:gri(),
-    operation :: middleware:operation(),
-    client :: middleware:client(),
-    data = undefined :: middleware:data(),
-    data_spec = undefined :: undefined | onepanel_parser:object_spec(),
-    % applicable for create/get requests - returns the revision of resource
-    return_revision = false :: boolean()
+    operation :: middleware_handler_behaviour:operation(),
+    client :: middleware:client()
+}).
+
+-record(onp_req_state, {
+    ctx :: middleware_handler_behaviour:req_ctx(),
+    input :: middleware_handler_behaviour:handler_input()
 }).
 
 
