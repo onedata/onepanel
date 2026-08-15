@@ -246,7 +246,11 @@ get_krakow_cluster_public_configuration_test(_Config) ->
         <<"build">> => get_build_version(krakow),
         <<"version">> => get_release_version(krakow),
         <<"deployed">> => true,
-        <<"isRegistered">> => true
+        <<"isRegistered">> => true,
+        % the "1op" scenario does not deploy the OneS3 service
+        <<"oneS3Enabled">> => false,
+        <<"oneS3Domain">> => null,
+        <<"oneS3Port">> => null
     },
     get_cluster_public_configuration_test_base(krakow, ExpConfig).
 
