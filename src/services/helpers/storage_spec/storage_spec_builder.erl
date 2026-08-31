@@ -9,7 +9,7 @@
 %%% This module is responsible for building storage specifications
 %%% from REST API maps and converting storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(storage_spec_builder).
@@ -163,7 +163,7 @@ normalize_numeric_qos_parameters(QosParameters) ->
 
 
 %% @private
--spec build_credentials(onedata_storage:type(), map()) -> onedata_storage:credentials().
+-spec build_credentials(onedata_storage:type(), map()) -> onedata_storage:helper_credentials().
 build_credentials(<<"ceph">>, Params) -> ceph_storage_spec_builder:build_credentials(Params);
 build_credentials(<<"cephrados">>, Params) -> cephrados_storage_spec_builder:build_credentials(Params);
 build_credentials(<<"glusterfs">>, Params) -> glusterfs_storage_spec_builder:build_credentials(Params);
@@ -179,7 +179,7 @@ build_credentials(<<"xrootd">>, Params) -> xrootd_storage_spec_builder:build_cre
 
 %% @private
 -spec build_credentials_diff(onedata_storage:type(), map()) ->
-    onedata_storage:credentials_diff().
+    onedata_storage:helper_credentials_diff().
 build_credentials_diff(<<"ceph">>, Params) -> ceph_storage_spec_builder:build_credentials_diff(Params);
 build_credentials_diff(<<"cephrados">>, Params) -> cephrados_storage_spec_builder:build_credentials_diff(Params);
 build_credentials_diff(<<"glusterfs">>, Params) -> glusterfs_storage_spec_builder:build_credentials_diff(Params);
@@ -194,7 +194,7 @@ build_credentials_diff(<<"xrootd">>, Params) -> xrootd_storage_spec_builder:buil
 
 
 %% @private
--spec build_configuration(onedata_storage:type(), map()) -> onedata_storage:configuration().
+-spec build_configuration(onedata_storage:type(), map()) -> onedata_storage:helper_configuration().
 build_configuration(<<"ceph">>, Params) -> ceph_storage_spec_builder:build_configuration(Params);
 build_configuration(<<"cephrados">>, Params) -> cephrados_storage_spec_builder:build_configuration(Params);
 build_configuration(<<"glusterfs">>, Params) -> glusterfs_storage_spec_builder:build_configuration(Params);
@@ -210,7 +210,7 @@ build_configuration(<<"xrootd">>, Params) -> xrootd_storage_spec_builder:build_c
 
 %% @private
 -spec build_configuration_diff(onedata_storage:type(), map()) ->
-    onedata_storage:configuration_diff().
+    onedata_storage:helper_configuration_diff().
 build_configuration_diff(<<"ceph">>, Params) -> ceph_storage_spec_builder:build_configuration_diff(Params);
 build_configuration_diff(<<"cephrados">>, Params) -> cephrados_storage_spec_builder:build_configuration_diff(Params);
 build_configuration_diff(<<"glusterfs">>, Params) -> glusterfs_storage_spec_builder:build_configuration_diff(Params);
@@ -225,7 +225,7 @@ build_configuration_diff(<<"xrootd">>, Params) -> xrootd_storage_spec_builder:bu
 
 
 %% @private
--spec credentials_to_map(onedata_storage:type(), onedata_storage:credentials()) -> map().
+-spec credentials_to_map(onedata_storage:type(), onedata_storage:helper_credentials()) -> map().
 credentials_to_map(<<"ceph">>, Creds) -> ceph_storage_spec_builder:credentials_to_map(Creds);
 credentials_to_map(<<"cephrados">>, Creds) -> cephrados_storage_spec_builder:credentials_to_map(Creds);
 credentials_to_map(<<"glusterfs">>, Creds) -> glusterfs_storage_spec_builder:credentials_to_map(Creds);
@@ -240,7 +240,7 @@ credentials_to_map(<<"xrootd">>, Creds) -> xrootd_storage_spec_builder:credentia
 
 
 %% @private
--spec configuration_to_map(onedata_storage:type(), onedata_storage:configuration()) -> map().
+-spec configuration_to_map(onedata_storage:type(), onedata_storage:helper_configuration()) -> map().
 configuration_to_map(<<"ceph">>, Config) -> ceph_storage_spec_builder:configuration_to_map(Config);
 configuration_to_map(<<"cephrados">>, Config) -> cephrados_storage_spec_builder:configuration_to_map(Config);
 configuration_to_map(<<"glusterfs">>, Config) -> glusterfs_storage_spec_builder:configuration_to_map(Config);

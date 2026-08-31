@@ -30,7 +30,7 @@
 
 -type method() :: http_utils:method().
 -type binding() :: {binding, atom()}.
--type params() :: #{binary() => binary()}.
+-type qs_params() :: #{binary() => binary()}.
 -type spec() :: onepanel_parser:object_spec().
 -type bound_gri() :: #b_gri{}.
 
@@ -49,7 +49,7 @@
 }).
 -type state() :: #state{}.
 
--export_type([binding/0, bound_gri/0, method/0, params/0, spec/0,
+-export_type([binding/0, bound_gri/0, method/0, qs_params/0, spec/0,
     zone_credentials/0]).
 
 
@@ -173,36 +173,30 @@ delete_resource(Req, State) ->
 %%--------------------------------------------------------------------
 -spec process_request(cowboy_req:req(), state()) ->
     {stop, cowboy_req:req(), state()}.
-process_request(Req, #state{} = State) ->
+process_request(Req, State = #state{client = Client, rest_req = #rest_req{
+    method = Method,
+    b_gri = GriWithBindings,
+    data_spec = InputSpec
+}}) ->
     try
-        #state{client = Client, rest_req = #rest_req{
-            method = Method,
-            b_gri = GriWithBindings,
-            data_spec = DataSpec
-        }} = State,
-        Operation = method_to_operation(Method),
-        GRI = resolve_gri_bindings(GriWithBindings, Req),
-        Params = get_params(Req),
-        {Req2, Body} = get_data(Req),
-        OnpReq = #onp_req{
-            operation = Operation,
+        OnpReqCtx = #onp_req_ctx{
+            interface = rest,
+            operation = method_to_operation(Method),
             client = Client,
-            gri = GRI,
-            data = maps:merge(Body, Params),
-            data_spec = DataSpec
+            gri = resolve_gri_bindings(GriWithBindings, Req)
         },
-        RestResp = handle_gri_request(OnpReq),
+        {Req2, Input} = get_input(Req),
+
+        RestResp = case middleware:handle(OnpReqCtx, Input, InputSpec) of
+            ok -> ?NO_CONTENT_REPLY;
+            {ok, RestOutput} -> RestOutput;
+            {error, _} = HandlerError -> rest_translator:error_response(HandlerError)
+        end,
         {stop, send_response(RestResp, Req2), State}
-    catch
-        throw:Error ->
-            ErrorResp = rest_translator:error_response(Error),
-            {stop, send_response(ErrorResp, Req), State};
-        Type:Message:Stacktrace ->
-            ?error_stacktrace("Unexpected error in ~tp:process_request - ~tp:~tp", [
-                ?MODULE, Type, Message
-            ], Stacktrace),
-            ErrorResp = rest_translator:error_response(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)),
-            {stop, send_response(ErrorResp, Req), State}
+    catch Class:Reason:Stacktrace ->
+        Error = ?examine_exception(Class, Reason, Stacktrace),
+        ErrorResp = rest_translator:error_response(Error),
+        {stop, send_response(ErrorResp, Req), State}
     end.
 
 
@@ -223,47 +217,27 @@ send_response(#rest_resp{code = Code, headers = Headers, body = Body}, Req) ->
     cowboy_req:reply(Code, Headers, RespBody, Req).
 
 
-%%--------------------------------------------------------------------
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
 %% @private
-%% @doc Returns a map of query string name and associated value.
-%% @end
-%%--------------------------------------------------------------------
--spec get_params(cowboy_req:req()) -> rest_handler:params().
-get_params(Req) ->
+-spec get_input(cowboy_req:req()) -> {cowboy_req:req(), middleware_handler_behaviour:rest_input()}.
+get_input(Req) ->
+    Params = get_qs_params(Req),
+    {Req2, Body} = get_data(Req),
+    {Req2, maps:merge(Body, Params)}.
+
+
+%% @private
+-spec get_qs_params(cowboy_req:req()) -> qs_params().
+get_qs_params(Req) ->
     Params = cowboy_req:parse_qs(Req),
     lists:foldl(fun
         ({Key, true}, Acc) -> maps:put(Key, <<"true">>, Acc);
         ({Key, Value}, Acc) -> maps:put(Key, Value, Acc)
     end, #{}, Params).
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Calls middleware and translates obtained response into REST response
-%% using TranslatorModule.
-%% @end
-%%--------------------------------------------------------------------
--spec handle_gri_request(middleware:req()) -> #rest_resp{}.
-handle_gri_request(#onp_req{operation = Operation, gri = GRI} = ElReq) ->
-    Result = middleware:handle(ElReq),
-    try
-        rest_translator:response(ElReq, Result)
-    catch
-        Type:Message:Stacktrace ->
-            ?error_stacktrace("Cannot translate REST result for:~n"
-            "Operation: ~tp~n"
-            "GRI: ~tp~n"
-            "Result: ~tp~n"
-            "---------~n"
-            "Error was: ~tp:~tp", [
-                Operation, GRI, Result, Type, Message
-            ], Stacktrace),
-            rest_translator:error_response(?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined))
-    end.
 
 
 %%--------------------------------------------------------------------
@@ -304,7 +278,7 @@ get_data(Req) ->
 handle_options(Req, State) ->
     {AllowedMethods, Req2, _} = rest_handler:allowed_methods(Req, State),
 
-    AllowedHeaders = [?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
+    AllowedHeaders = [?HDR_LOCATION, ?HDR_CONTENT_TYPE | tokens:supported_access_token_headers()],
     Req3 = http_cors:options_response(<<"*">>, AllowedMethods, AllowedHeaders, Req2),
 
     {ok, Req3, State}.
@@ -351,7 +325,7 @@ resolve_bindings(Other, _Req) ->
 %% that should be called to handle it.
 %% @end
 %%--------------------------------------------------------------------
--spec method_to_operation(method()) -> middleware:operation().
+-spec method_to_operation(method()) -> middleware_handler_behaviour:operation().
 method_to_operation('POST') -> create;
 method_to_operation('PUT') -> create;
 method_to_operation('GET') -> get;

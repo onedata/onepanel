@@ -9,7 +9,7 @@
 %%% This module is responsible for building HTTP storage specifications
 %%% from REST API maps and converting HTTP storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(http_storage_spec_builder).
@@ -33,9 +33,9 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:http_credentials().
+-spec build_credentials(map()) -> onedata_storage:http_helper_credentials().
 build_credentials(Params) ->
-    #http_credentials{
+    #http_helper_credentials{
         credentials_type = binary_to_credentials_type(maps:get(credentialsType, Params, <<"none">>)),
         credentials = maps:get(credentials, Params, undefined),
         oauth2_idp = maps:get(oauth2IdP, Params, undefined),
@@ -43,9 +43,9 @@ build_credentials(Params) ->
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:http_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:http_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #http_credentials_diff{
+    #http_helper_credentials_diff{
         credentials_type = case maps:get(credentialsType, Params, undefined) of
             undefined -> undefined;
             CredType -> binary_to_credentials_type(CredType)
@@ -56,9 +56,9 @@ build_credentials_diff(Params) ->
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:http_configuration().
+-spec build_configuration(map()) -> onedata_storage:http_helper_configuration().
 build_configuration(Params) ->
-    #http_configuration{
+    #http_helper_configuration{
         endpoint = maps:get(endpoint, Params),
         verify_server_certificate = maps:get(verifyServerCertificate, Params, undefined),
         authorization_header = maps:get(authorizationHeader, Params, undefined),
@@ -71,9 +71,9 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:http_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:http_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #http_configuration_diff{
+    #http_helper_configuration_diff{
         endpoint = maps:get(endpoint, Params, undefined),
         verify_server_certificate = maps:get(verifyServerCertificate, Params, undefined),
         authorization_header = maps:get(authorizationHeader, Params, undefined),
@@ -83,8 +83,8 @@ build_configuration_diff(Params) ->
     }.
 
 
--spec credentials_to_map(onedata_storage:http_credentials()) -> map().
-credentials_to_map(#http_credentials{
+-spec credentials_to_map(onedata_storage:http_helper_credentials()) -> map().
+credentials_to_map(#http_helper_credentials{
     credentials_type = CredType,
     credentials = Credentials,
     oauth2_idp = Oauth2Idp,
@@ -96,8 +96,8 @@ credentials_to_map(#http_credentials{
     maps_utils:put_if_defined(Base2, onedataAccessToken, OnedataToken).
 
 
--spec configuration_to_map(onedata_storage:http_configuration()) -> map().
-configuration_to_map(#http_configuration{
+-spec configuration_to_map(onedata_storage:http_helper_configuration()) -> map().
+configuration_to_map(#http_helper_configuration{
     endpoint = Endpoint,
     verify_server_certificate = VerifyServerCert,
     authorization_header = AuthHeader,

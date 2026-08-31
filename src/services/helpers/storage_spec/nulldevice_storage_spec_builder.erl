@@ -9,7 +9,7 @@
 %%% This module is responsible for building NullDevice storage specifications
 %%% from REST API maps and converting NullDevice storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(nulldevice_storage_spec_builder).
@@ -33,25 +33,25 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:nulldevice_credentials().
+-spec build_credentials(map()) -> onedata_storage:nulldevice_helper_credentials().
 build_credentials(Params) ->
-    #nulldevice_credentials{
+    #nulldevice_helper_credentials{
         uid = maps:get(uid, Params, 0),
         gid = maps:get(gid, Params, 0)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:nulldevice_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:nulldevice_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #nulldevice_credentials_diff{
+    #nulldevice_helper_credentials_diff{
         uid = maps:get(uid, Params, undefined),
         gid = maps:get(gid, Params, undefined)
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:nulldevice_configuration().
+-spec build_configuration(map()) -> onedata_storage:nulldevice_helper_configuration().
 build_configuration(Params) ->
-    #nulldevice_configuration{
+    #nulldevice_helper_configuration{
         latency_min = maps:get(latencyMin, Params, undefined),
         latency_max = maps:get(latencyMax, Params, undefined),
         timeout_probability = maps:get(timeoutProbability, Params, undefined),
@@ -65,9 +65,9 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:nulldevice_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:nulldevice_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #nulldevice_configuration_diff{
+    #nulldevice_helper_configuration_diff{
         latency_min = maps:get(latencyMin, Params, undefined),
         latency_max = maps:get(latencyMax, Params, undefined),
         timeout_probability = maps:get(timeoutProbability, Params, undefined),
@@ -78,14 +78,14 @@ build_configuration_diff(Params) ->
     }.
 
 
--spec credentials_to_map(onedata_storage:nulldevice_credentials()) -> map().
-credentials_to_map(#nulldevice_credentials{uid = Uid, gid = Gid}) ->
+-spec credentials_to_map(onedata_storage:nulldevice_helper_credentials()) -> map().
+credentials_to_map(#nulldevice_helper_credentials{uid = Uid, gid = Gid}) ->
     Base = #{uid => Uid},
     maps_utils:put_if_defined(Base, gid, Gid).
 
 
--spec configuration_to_map(onedata_storage:nulldevice_configuration()) -> map().
-configuration_to_map(#nulldevice_configuration{
+-spec configuration_to_map(onedata_storage:nulldevice_helper_configuration()) -> map().
+configuration_to_map(#nulldevice_helper_configuration{
     latency_min = LatencyMin,
     latency_max = LatencyMax,
     timeout_probability = TimeoutProb,

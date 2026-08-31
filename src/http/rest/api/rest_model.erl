@@ -1903,7 +1903,8 @@ ceph_get_model() ->
         %% The key to access the Ceph cluster. In case of configuring storage,
         %% the key must be the key of admin user passed in `username`.
         key => string,
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -1950,7 +1951,8 @@ ceph_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2006,7 +2008,8 @@ cephrados_create_model() ->
         username => string,
         %% The admin key to access the Ceph cluster.
         key => string,
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2081,7 +2084,8 @@ cephrados_get_model() ->
         username => string,
         %% The admin key to access the Ceph cluster.
         key => string,
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2133,7 +2137,8 @@ cephrados_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2188,7 +2193,8 @@ glusterfs_create_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2267,7 +2273,8 @@ glusterfs_get_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2323,7 +2330,8 @@ glusterfs_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2400,13 +2408,11 @@ http_create_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the HTTP
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2429,16 +2435,21 @@ http_create_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Full URL of the HTTP server, including scheme (http or https) and
-        %% path.
+        %% Base URL of the HTTP server, including scheme (`http` or
+        %% `https`) and optional path prefix. When registering files
+        %% by relative path in `storageFileId`, that path is appended
+        %% to this URL. **Note:** A full URI supplied as
+        %% `storageFileId` always takes precedence and bypasses this
+        %% endpoint, allowing files from any HTTP server reachable by the
+        %% Oneprovider to be registered.
         endpoint => string,
         %% Determines whether Oneprovider should verify the certificate of the
         %% HTTP server.
         verifyServerCertificate => {boolean, {optional, true}},
-        %% The authorization header to be used for passing the access token.
-        %% This field can contain any prefix that should be added to the header
-        %% value. Default is `Authorization: Bearer {}`. The token
-        %% will be placed where `{}` is provided.
+        %% Header format for passing the API/access token to the backend storage
+        %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
+        %% a colon to separate the header name and value, e.g. \&quot;X-API-
+        %% Token: {}\&quot;.
         authorizationHeader => {string, {optional, <<"Authorization: Bearer {}">>}},
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
@@ -2448,6 +2459,18 @@ http_create_model() ->
         %% header is sent to the server. When set to 0 (default), number of
         %% requests per session is unlimited, unless imposed by the server.
         maxRequestsPerSession => {integer, {optional, 0}},
+        %% Enables fallback emulation of range reads for HTTP servers that do
+        %% not support the `Range` header. When active, the full file
+        %% content is downloaded and only the requested byte range is returned
+        %% to the caller. Has no effect on servers that support range reads
+        %% natively. **Warning:** Emulation causes significant performance
+        %% degradation and increased memory usage; enable only as a last resort.
+        emulateRangeRead => {boolean, optional},
+        %% Maximum file size in bytes eligible for emulated range reads. Files
+        %% exceeding this limit cannot be accessed from servers that lack native
+        %% range read support. Has no effect unless `emulateRangeRead`
+        %% is `true`.
+        maxEmulatedRangeReadFileSize => {integer, {optional, 67108864}},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2489,11 +2512,8 @@ http_credentials_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the HTTP
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional}
     }.
 
@@ -2526,13 +2546,11 @@ http_get_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the HTTP
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2555,16 +2573,21 @@ http_get_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% Full URL of the HTTP server, including scheme (http or https) and
-        %% path.
+        %% Base URL of the HTTP server, including scheme (`http` or
+        %% `https`) and optional path prefix. When registering files
+        %% by relative path in `storageFileId`, that path is appended
+        %% to this URL. **Note:** A full URI supplied as
+        %% `storageFileId` always takes precedence and bypasses this
+        %% endpoint, allowing files from any HTTP server reachable by the
+        %% Oneprovider to be registered.
         endpoint => string,
         %% Determines whether Oneprovider should verify the certificate of the
         %% HTTP server.
         verifyServerCertificate => {boolean, optional},
-        %% The authorization header to be used for passing the access token.
-        %% This field can contain any prefix that should be added to the header
-        %% value. Default is `Authorization: Bearer {}`. The token
-        %% will be placed where `{}` is provided.
+        %% Header format for passing the API/access token to the backend storage
+        %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
+        %% a colon to separate the header name and value, e.g. \&quot;X-API-
+        %% Token: {}\&quot;.
         authorizationHeader => {string, optional},
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
@@ -2574,6 +2597,18 @@ http_get_model() ->
         %% header is sent to the server. When set to 0 (default), number of
         %% requests per session is unlimited, unless imposed by the server.
         maxRequestsPerSession => {integer, optional},
+        %% Enables fallback emulation of range reads for HTTP servers that do
+        %% not support the `Range` header. When active, the full file
+        %% content is downloaded and only the requested byte range is returned
+        %% to the caller. Has no effect on servers that support range reads
+        %% natively. **Warning:** Emulation causes significant performance
+        %% degradation and increased memory usage; enable only as a last resort.
+        emulateRangeRead => {boolean, optional},
+        %% Maximum file size in bytes eligible for emulated range reads. Files
+        %% exceeding this limit cannot be accessed from servers that lack native
+        %% range read support. Has no effect unless `emulateRangeRead`
+        %% is `true`.
+        maxEmulatedRangeReadFileSize => {integer, optional},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2596,7 +2631,8 @@ http_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2625,8 +2661,13 @@ http_modify_model() ->
         %% server. Supported only with Readonly option enabled and in manual
         %% import mode.
         type => {discriminator, <<"http">>},
-        %% Full URL of the HTTP server, including scheme (http or https) and
-        %% path.
+        %% Base URL of the HTTP server, including scheme (`http` or
+        %% `https`) and optional path prefix. When registering files
+        %% by relative path in `storageFileId`, that path is appended
+        %% to this URL. **Note:** A full URI supplied as
+        %% `storageFileId` always takes precedence and bypasses this
+        %% endpoint, allowing files from any HTTP server reachable by the
+        %% Oneprovider to be registered.
         endpoint => {string, optional},
         %% Determines whether Oneprovider should verify the certificate of the
         %% HTTP server.
@@ -2648,16 +2689,13 @@ http_modify_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the HTTP
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional},
-        %% The authorization header to be used for passing the access token.
-        %% This field can contain any prefix that should be added to the header
-        %% value. Default is `Authorization: Bearer {}`. The token
-        %% will be placed where `{}` is provided.
+        %% Header format for passing the API/access token to the backend storage
+        %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
+        %% a colon to separate the header name and value, e.g. \&quot;X-API-
+        %% Token: {}\&quot;.
         authorizationHeader => {string, optional},
         %% Defines the maximum number of parallel connections for a single HTTP
         %% storage.
@@ -2667,6 +2705,18 @@ http_modify_model() ->
         %% header is sent to the server. When set to 0 (default), number of
         %% requests per session is unlimited, unless imposed by the server.
         maxRequestsPerSession => {integer, optional},
+        %% Enables fallback emulation of range reads for HTTP servers that do
+        %% not support the `Range` header. When active, the full file
+        %% content is downloaded and only the requested byte range is returned
+        %% to the caller. Has no effect on servers that support range reads
+        %% natively. **Warning:** Emulation causes significant performance
+        %% degradation and increased memory usage; enable only as a last resort.
+        emulateRangeRead => {boolean, optional},
+        %% Maximum file size in bytes eligible for emulated range reads. Files
+        %% exceeding this limit cannot be accessed from servers that lack native
+        %% range read support. Has no effect unless `emulateRangeRead`
+        %% is `true`.
+        maxEmulatedRangeReadFileSize => {integer, optional},
         %% Defines the file permissions, which files imported from HTTP storage
         %% will have in Onedata. Values should be provided in octal format e.g.
         %% `0664`.
@@ -2748,7 +2798,8 @@ nfs_create_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2833,7 +2884,8 @@ nfs_get_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2896,7 +2948,8 @@ nfs_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -2967,7 +3020,8 @@ nulldevice_create_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3010,17 +3064,13 @@ nulldevice_create_model() ->
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
         storagePathType => {string, {optional, <<"canonical">>}},
-        %% Specifies the parameters for a simulated null device filesystem. For
-        %% example `2-2:2-2:0-1` will generate a filesystem tree which
-        %% has 2 directories (`0` and `1`) and 2 files
-        %% (`2` and `3`) in the root of the filesystem, each
-        %% of these directories will have 2 subdirectories (`0` and
-        %% `1`) and 2 files (`2` and `3`) and each
-        %% of these subdirectories has only a single file (`0`). In
-        %% order to specify the size of generated files, a size in bytes needs
-        %% to be added as the last component of the parameter specification, for
-        %% example `2-2:2-2:0-1:1048576`. Default empty string
-        %% disables the simulated filesystem feature.
+        %% Allows simulating a preexisting file/directory tree structure for a
+        %% null device filesystem. For example, \&quot;2-3:4-5:512\&quot; will
+        %% generate a filesystem tree which has 2 directories and 3 files in the
+        %% root of the filesystem. Each of these directories will have 4
+        %% subdirectories and 5 files. Suffix \&quot;:512\&quot; (which is
+        %% optional) will specify the size of generated files to 512 bytes. The
+        %% default empty string disables the simulated filesystem feature.
         simulatedFilesystemParameters => {string, optional},
         %% Determines the simulated filesystem grow rate. Default 0.0 value will
         %% cause all the files and directories defined by the
@@ -3071,7 +3121,8 @@ nulldevice_get_model() ->
         uid => {integer, optional},
         %% Group identifier.
         gid => {integer, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3114,17 +3165,13 @@ nulldevice_get_model() ->
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
         storagePathType => {string, optional},
-        %% Specifies the parameters for a simulated null device filesystem. For
-        %% example `2-2:2-2:0-1` will generate a filesystem tree which
-        %% has 2 directories (`0` and `1`) and 2 files
-        %% (`2` and `3`) in the root of the filesystem, each
-        %% of these directories will have 2 subdirectories (`0` and
-        %% `1`) and 2 files (`2` and `3`) and each
-        %% of these subdirectories has only a single file (`0`). In
-        %% order to specify the size of generated files, a size in bytes needs
-        %% to be added as the last component of the parameter specification, for
-        %% example `2-2:2-2:0-1:1048576`. Default empty string
-        %% disables the simulated filesystem feature.
+        %% Allows simulating a preexisting file/directory tree structure for a
+        %% null device filesystem. For example, \&quot;2-3:4-5:512\&quot; will
+        %% generate a filesystem tree which has 2 directories and 3 files in the
+        %% root of the filesystem. Each of these directories will have 4
+        %% subdirectories and 5 files. Suffix \&quot;:512\&quot; (which is
+        %% optional) will specify the size of generated files to 512 bytes. The
+        %% default empty string disables the simulated filesystem feature.
         simulatedFilesystemParameters => {string, optional},
         %% Determines the simulated filesystem grow rate. Default 0.0 value will
         %% cause all the files and directories defined by the
@@ -3150,7 +3197,8 @@ nulldevice_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3193,17 +3241,13 @@ nulldevice_modify_model() ->
         %% timeout should be simulated. Empty or '*' mean all operations
         %% will be affected.
         filter => {string, optional},
-        %% Specifies the parameters for a simulated null device filesystem. For
-        %% example `2-2:2-2:0-1` will generate a filesystem tree which
-        %% has 2 directories (`0` and `1`) and 2 files
-        %% (`2` and `3`) in the root of the filesystem, each
-        %% of these directories will have 2 subdirectories (`0` and
-        %% `1`) and 2 files (`2` and `3`) and each
-        %% of these subdirectories has only a single file (`0`). In
-        %% order to specify the size of generated files, a size in bytes needs
-        %% to be added as the last component of the parameter specification, for
-        %% example `2-2:2-2:0-1:1048576`. Default empty string
-        %% disables the simulated filesystem feature.
+        %% Allows simulating a preexisting file/directory tree structure for a
+        %% null device filesystem. For example, \&quot;2-3:4-5:512\&quot; will
+        %% generate a filesystem tree which has 2 directories and 3 files in the
+        %% root of the filesystem. Each of these directories will have 4
+        %% subdirectories and 5 files. Suffix \&quot;:512\&quot; (which is
+        %% optional) will specify the size of generated files to 512 bytes. The
+        %% default empty string disables the simulated filesystem feature.
         simulatedFilesystemParameters => {string, optional},
         %% Determines the simulated filesystem grow rate. Default 0.0 value will
         %% cause all the files and directories defined by the
@@ -3257,7 +3301,16 @@ op_configuration_model() ->
         %% `null` if the Oneprovider is not registered.
         zoneDomain => string,
         %% True if the Oneprovider has been registered at a Onezone.
-        isRegistered => {boolean, optional}
+        isRegistered => {boolean, optional},
+        %% True if the OneS3 service is deployed (provides an S3-compliant data
+        %% access endpoint).
+        oneS3Enabled => boolean,
+        %% The domain at which the S3 endpoint is available, or `null`
+        %% if the OneS3 service is not deployed.
+        oneS3Domain => string,
+        %% The port at which the S3 endpoint is available, or `null`
+        %% if the OneS3 service is not deployed.
+        oneS3Port => integer
     }.
 
 %%--------------------------------------------------------------------
@@ -3297,7 +3350,8 @@ posix_create_model() ->
         %% Any POSIX compatible storage, typically attached over high-throughput
         %% local network, such as NFS.
         type => {discriminator, <<"posix">>},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3320,8 +3374,12 @@ posix_create_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% The absolute path to the directory where the POSIX storage is mounted
-        %% on the cluster nodes.
+        %% Absolute path to the root directory of the storage file system. The
+        %% directory must exist and be accessible. In containerized deployments,
+        %% this path refers to a location inside the container (Docker/pod) and
+        %% must be mounted referencing an external persistent storage (e.g.,
+        %% host file system or network storage), except for non-persistent
+        %% (testing) deployments.
         mountPoint => string,
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -3367,7 +3425,8 @@ posix_get_model() ->
         %% Any POSIX compatible storage, typically attached over high-throughput
         %% local network, such as NFS.
         type => {discriminator, <<"posix">>},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3390,8 +3449,12 @@ posix_get_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% The absolute path to the directory where the POSIX storage is mounted
-        %% on the cluster nodes.
+        %% Absolute path to the root directory of the storage file system. The
+        %% directory must exist and be accessible. In containerized deployments,
+        %% this path refers to a location inside the container (Docker/pod) and
+        %% must be mounted referencing an external persistent storage (e.g.,
+        %% host file system or network storage), except for non-persistent
+        %% (testing) deployments.
         mountPoint => string,
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -3418,7 +3481,8 @@ posix_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3446,8 +3510,12 @@ posix_modify_model() ->
         %% Any POSIX compatible storage, typically attached over high-throughput
         %% local network, such as NFS.
         type => {discriminator, <<"posix">>},
-        %% The absolute path to the directory where the POSIX storage is mounted
-        %% on the cluster nodes.
+        %% Absolute path to the root directory of the storage file system. The
+        %% directory must exist and be accessible. In containerized deployments,
+        %% this path refers to a location inside the container (Docker/pod) and
+        %% must be mounted referencing an external persistent storage (e.g.,
+        %% host file system or network storage), except for non-persistent
+        %% (testing) deployments.
         mountPoint => {string, optional},
         %% UID of the user on whose behalf operations in the admin context will
         %% be performed on the storage.
@@ -3473,7 +3541,8 @@ s3_create_model() ->
         accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
         secretKey => {string, {optional, <<"">>}},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3565,7 +3634,8 @@ s3_get_model() ->
         accessKey => {string, {optional, <<"">>}},
         %% The secret key to the S3 storage.
         secretKey => {string, {optional, <<"">>}},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3633,7 +3703,8 @@ s3_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3711,7 +3782,8 @@ swift_create_model() ->
         userDomainName => {string, {optional, <<"Default">>}},
         %% The Keystone project domain name.
         projectDomainName => {string, {optional, <<"Default">>}},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3738,7 +3810,12 @@ swift_create_model() ->
         authUrl => string,
         %% The name of the Swift storage container.
         containerName => string,
-        %% Storage block size in bytes.
+        %% Storage block size in bytes i.e. the maximum object size. Files
+        %% larger than one block will be stripped and stored in a series of
+        %% objects. Must be more than zero for non-imported storage. To enable
+        %% import from an Swift storage, block size must be set to zero,
+        %% together with \&quot;canonical\&quot; path type and the read-only
+        %% mode.
         blockSize => {integer, {optional, 10485760}},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -3794,7 +3871,8 @@ swift_get_model() ->
         userDomainName => {string, {optional, <<"Default">>}},
         %% The Keystone project domain name.
         projectDomainName => {string, {optional, <<"Default">>}},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3821,7 +3899,12 @@ swift_get_model() ->
         authUrl => string,
         %% The name of the Swift storage container.
         containerName => string,
-        %% Storage block size in bytes.
+        %% Storage block size in bytes i.e. the maximum object size. Files
+        %% larger than one block will be stripped and stored in a series of
+        %% objects. Must be more than zero for non-imported storage. To enable
+        %% import from an Swift storage, block size must be set to zero,
+        %% together with \&quot;canonical\&quot; path type and the read-only
+        %% mode.
         blockSize => {integer, optional},
         %% Determines how the logical file paths will be mapped on the storage.
         %% 'canonical' paths reflect the logical file names and
@@ -3841,7 +3924,8 @@ swift_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3897,8 +3981,9 @@ webdav_create_model() ->
         %% Storage backend compatible with
         %% [WebDAV](https://tools.ietf.org/html/rfc4918) protocol.
         type => {discriminator, <<"webdav">>},
-        %% Determines the types of credentials provided in the credentials
-        %% field.
+        %% Determines what credentials will be used to authorize access to the
+        %% WebDAV storage backend. For public endpoints, select
+        %% \&quot;none\&quot;.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
@@ -3914,13 +3999,11 @@ webdav_create_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the WebDAV
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -3949,18 +4032,16 @@ webdav_create_model() ->
         %% Determines whether Oneprovider should verify the certificate of the
         %% WebDAV server.
         verifyServerCertificate => {boolean, {optional, true}},
-        %% The authorization header to be used for passing the access token.
-        %% This field can contain any prefix that should be added to the header
-        %% value. Default is `Authorization: Bearer {}`. The token
-        %% will be placed where `{}` is provided.
+        %% Header format for passing the API/access token to the backend storage
+        %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
+        %% a colon to separate the header name and value, e.g. \&quot;X-API-
+        %% Token: {}\&quot;.
         authorizationHeader => {string, {optional, <<"Authorization: Bearer {}">>}},
-        %% The type of partial write support enabled in the WebDAV server.
-        %% Currently 2 types are supported `sabredav` which assumes
-        %% the server supports the SabreDAV PartialUpdate extension via
-        %% `PATCH` method, and `moddav` which assumes server
-        %% supports partial `PUT` requests with `Content-
-        %% Range` header. If `none` is selected no write support
-        %% is available for this WebDAV storage.
+        %% Select the mechanism used for range writes (partial/random-access
+        %% writes). Since the Onedata filesystem permits partial file
+        %% modifications, writable supports require a storage backend that
+        %% implements the selected method. Standard WebDAV does not support
+        %% range writes and only provides write-once semantics.
         rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, {optional, <<"none">>}},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
@@ -3998,8 +4079,9 @@ webdav_credentials_model() ->
         %% actual type of subject storage - this redundancy is needed due to
         %% limitations of OpenAPI polymorphism.
         type => {discriminator, <<"webdav">>},
-        %% Determines the types of credentials provided in the credentials
-        %% field.
+        %% Determines what credentials will be used to authorize access to the
+        %% WebDAV storage backend. For public endpoints, select
+        %% \&quot;none\&quot;.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
@@ -4015,11 +4097,8 @@ webdav_credentials_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the WebDAV
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional}
     }.
 
@@ -4034,8 +4113,9 @@ webdav_get_model() ->
         %% Storage backend compatible with
         %% [WebDAV](https://tools.ietf.org/html/rfc4918) protocol.
         type => {discriminator, <<"webdav">>},
-        %% Determines the types of credentials provided in the credentials
-        %% field.
+        %% Determines what credentials will be used to authorize access to the
+        %% WebDAV storage backend. For public endpoints, select
+        %% \&quot;none\&quot;.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, {optional, <<"none">>}},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
@@ -4051,13 +4131,11 @@ webdav_get_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the WebDAV
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -4086,18 +4164,16 @@ webdav_get_model() ->
         %% Determines whether Oneprovider should verify the certificate of the
         %% WebDAV server.
         verifyServerCertificate => {boolean, optional},
-        %% The authorization header to be used for passing the access token.
-        %% This field can contain any prefix that should be added to the header
-        %% value. Default is `Authorization: Bearer {}`. The token
-        %% will be placed where `{}` is provided.
+        %% Header format for passing the API/access token to the backend storage
+        %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
+        %% a colon to separate the header name and value, e.g. \&quot;X-API-
+        %% Token: {}\&quot;.
         authorizationHeader => {string, optional},
-        %% The type of partial write support enabled in the WebDAV server.
-        %% Currently 2 types are supported `sabredav` which assumes
-        %% the server supports the SabreDAV PartialUpdate extension via
-        %% `PATCH` method, and `moddav` which assumes server
-        %% supports partial `PUT` requests with `Content-
-        %% Range` header. If `none` is selected no write support
-        %% is available for this WebDAV storage.
+        %% Select the mechanism used for range writes (partial/random-access
+        %% writes). Since the Onedata filesystem permits partial file
+        %% modifications, writable supports require a storage backend that
+        %% implements the selected method. Standard WebDAV does not support
+        %% range writes and only provides write-once semantics.
         rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, optional},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
@@ -4133,7 +4209,8 @@ webdav_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -4167,8 +4244,9 @@ webdav_modify_model() ->
         %% Determines whether Oneprovider should verify the certificate of the
         %% WebDAV server.
         verifyServerCertificate => {boolean, optional},
-        %% Determines the types of credentials provided in the credentials
-        %% field.
+        %% Determines what credentials will be used to authorize access to the
+        %% WebDAV storage backend. For public endpoints, select
+        %% \&quot;none\&quot;.
         credentialsType => {{enum, string, [<<"none">>, <<"basic">>, <<"token">>, <<"oauth2">>]}, optional},
         %% The credentials to authenticate with the WebDAV server.
         %% `basic` credentials should be provided in the form
@@ -4184,24 +4262,19 @@ webdav_modify_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% When registering storage with feed of LUMA DB set to `auto`
-        %% and with `oauth2` external IdP, this field must contain a
-        %% valid Onedata access token of the user on whose behalf the WebDAV
-        %% storage will be accessed by all users with access to any space
-        %% supported by this storage.
+        %% A token specific for this storage backend that will be used to
+        %% authorize data access operations.
         onedataAccessToken => {string, optional},
-        %% The authorization header to be used for passing the access token.
-        %% This field can contain any prefix that should be added to the header
-        %% value. Default is `Authorization: Bearer {}`. The token
-        %% will be placed where `{}` is provided.
+        %% Header format for passing the API/access token to the backend storage
+        %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
+        %% a colon to separate the header name and value, e.g. \&quot;X-API-
+        %% Token: {}\&quot;.
         authorizationHeader => {string, optional},
-        %% The type of partial write support enabled in the WebDAV server.
-        %% Currently 2 types are supported `sabredav` which assumes
-        %% the server supports the SabreDAV PartialUpdate extension via
-        %% `PATCH` method, and `moddav` which assumes server
-        %% supports partial `PUT` requests with `Content-
-        %% Range` header. If `none` is selected no write support
-        %% is available for this WebDAV storage.
+        %% Select the mechanism used for range writes (partial/random-access
+        %% writes). Since the Onedata filesystem permits partial file
+        %% modifications, writable supports require a storage backend that
+        %% implements the selected method. Standard WebDAV does not support
+        %% range writes and only provides write-once semantics.
         rangeWriteSupport => {{enum, string, [<<"none">>, <<"moddav">>, <<"sabredav">>]}, optional},
         %% Defines the maximum number of parallel connections for a single
         %% WebDAV storage.
@@ -4239,7 +4312,8 @@ xrootd_create_model() ->
         %% user and password, e.g. `admin:password`. For
         %% `none` this field is ignored.
         credentials => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -4327,7 +4401,8 @@ xrootd_get_model() ->
         %% user and password, e.g. `admin:password`. For
         %% `none` this field is ignored.
         credentials => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:
@@ -4384,7 +4459,8 @@ xrootd_modify_model() ->
     #{
         %% The name of storage.
         name => {string, optional},
-        %% Storage operation timeout in milliseconds.
+        %% Maximum time to wait for a response from the storage service before
+        %% the request is aborted.
         timeout => {integer, optional},
         %% Type of feed for LUMA DB. Feed is a source of user/group mappings
         %% used to populate the LUMA DB. For more info please read:

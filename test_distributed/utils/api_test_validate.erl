@@ -22,6 +22,7 @@
 -export([
     http_200_ok/1,
     http_201_created/3,
+    http_202_task_started/0,
     http_204_no_content/0,
     http_400_bad_request/1
 ]).
@@ -46,6 +47,17 @@ http_201_created(Path, BodyKey, VerifyFun) ->
         ?assertEqual(HeadersItemId, BodyItemId),
         ?assertEqual(?HTTP_201_CREATED, RespCode),
         VerifyFun(HeadersItemId)
+    end.
+
+
+http_202_task_started() ->
+    fun(_, Response) ->
+        ?assertMatch({
+            ok,
+            ?HTTP_202_ACCEPTED,
+            #{?HDR_LOCATION := <<"/api/v3/onepanel/tasks/", _/binary>>},
+            #{<<"taskId">> := _}
+        }, Response)
     end.
 
 

@@ -9,7 +9,7 @@
 %%% This module is responsible for building XRootD storage specifications
 %%% from REST API maps and converting XRootD storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(xrootd_storage_spec_builder).
@@ -33,18 +33,18 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:xrootd_credentials().
+-spec build_credentials(map()) -> onedata_storage:xrootd_helper_credentials().
 build_credentials(Params) ->
-    #xrootd_credentials{
+    #xrootd_helper_credentials{
         credentials_type = binary_to_credentials_type(
             maps:get(credentialsType, Params, <<"none">>)),
         credentials = maps:get(credentials, Params, undefined)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:xrootd_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:xrootd_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #xrootd_credentials_diff{
+    #xrootd_helper_credentials_diff{
         credentials_type = case maps:get(credentialsType, Params, undefined) of
             undefined -> undefined;
             CredType -> binary_to_credentials_type(CredType)
@@ -53,9 +53,9 @@ build_credentials_diff(Params) ->
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:xrootd_configuration().
+-spec build_configuration(map()) -> onedata_storage:xrootd_helper_configuration().
 build_configuration(Params) ->
-    #xrootd_configuration{
+    #xrootd_helper_configuration{
         url = maps:get(url, Params),
         file_mode_mask = maps:get(fileModeMask, Params, undefined),
         dir_mode_mask = maps:get(dirModeMask, Params, undefined),
@@ -65,17 +65,17 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:xrootd_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:xrootd_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #xrootd_configuration_diff{
+    #xrootd_helper_configuration_diff{
         url = maps:get(url, Params, undefined),
         file_mode_mask = maps:get(fileModeMask, Params, undefined),
         dir_mode_mask = maps:get(dirModeMask, Params, undefined)
     }.
 
 
--spec credentials_to_map(onedata_storage:xrootd_credentials()) -> map().
-credentials_to_map(#xrootd_credentials{
+-spec credentials_to_map(onedata_storage:xrootd_helper_credentials()) -> map().
+credentials_to_map(#xrootd_helper_credentials{
     credentials_type = CredType,
     credentials = Credentials
 }) ->
@@ -86,8 +86,8 @@ credentials_to_map(#xrootd_credentials{
     end.
 
 
--spec configuration_to_map(onedata_storage:xrootd_configuration()) -> map().
-configuration_to_map(#xrootd_configuration{
+-spec configuration_to_map(onedata_storage:xrootd_helper_configuration()) -> map().
+configuration_to_map(#xrootd_helper_configuration{
     url = Url,
     file_mode_mask = FileModeMask,
     dir_mode_mask = DirModeMask,

@@ -9,7 +9,7 @@
 %%% This module is responsible for building S3 storage specifications
 %%% from REST API maps and converting S3 storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(s3_storage_spec_builder).
@@ -33,26 +33,26 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:s3_credentials().
+-spec build_credentials(map()) -> onedata_storage:s3_helper_credentials().
 build_credentials(Params) ->
-    #s3_credentials{
+    #s3_helper_credentials{
         access_key = maps:get(accessKey, Params, <<"">>),
         secret_key = maps:get(secretKey, Params, <<"">>)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:s3_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:s3_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #s3_credentials_diff{
+    #s3_helper_credentials_diff{
         access_key = maps:get(accessKey, Params, undefined),
         secret_key = maps:get(secretKey, Params, undefined)
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:s3_configuration().
+-spec build_configuration(map()) -> onedata_storage:s3_helper_configuration().
 build_configuration(Params) ->
     {Scheme, Hostname} = parse_s3_hostname(maps:get(hostname, Params)),
-    #s3_configuration{
+    #s3_helper_configuration{
         scheme = Scheme,
         hostname = Hostname,
         bucket_name = maps:get(bucketName, Params),
@@ -68,13 +68,13 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:s3_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:s3_helper_configuration_diff().
 build_configuration_diff(Params) ->
     {Scheme, Hostname} = case maps:get(hostname, Params, undefined) of
         undefined -> {undefined, undefined};
         FullUrl -> parse_s3_hostname(FullUrl)
     end,
-    #s3_configuration_diff{
+    #s3_helper_configuration_diff{
         scheme = Scheme,
         hostname = Hostname,
         bucket_name = maps:get(bucketName, Params, undefined),
@@ -86,13 +86,13 @@ build_configuration_diff(Params) ->
     }.
 
 
--spec credentials_to_map(onedata_storage:s3_credentials()) -> map().
-credentials_to_map(#s3_credentials{access_key = AccessKey, secret_key = SecretKey}) ->
+-spec credentials_to_map(onedata_storage:s3_helper_credentials()) -> map().
+credentials_to_map(#s3_helper_credentials{access_key = AccessKey, secret_key = SecretKey}) ->
     #{accessKey => AccessKey, secretKey => SecretKey}.
 
 
--spec configuration_to_map(onedata_storage:s3_configuration()) -> map().
-configuration_to_map(#s3_configuration{
+-spec configuration_to_map(onedata_storage:s3_helper_configuration()) -> map().
+configuration_to_map(#s3_helper_configuration{
     scheme = Scheme,
     hostname = Hostname,
     bucket_name = BucketName,

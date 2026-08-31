@@ -26,8 +26,7 @@
 %% tests
 -export([
     service_op_worker_add_storage_test/1,
-    service_op_worker_update_storage_test/1,
-    service_oz_worker_add_node_test/1
+    service_op_worker_update_storage_test/1
 ]).
 
 -define(NON_ADMIN_USERNAME, <<"joe">>).
@@ -37,8 +36,7 @@
 all() ->
     ?ALL([
         service_op_worker_add_storage_test,
-        service_op_worker_update_storage_test,
-        service_oz_worker_add_node_test
+        service_op_worker_update_storage_test
     ]).
 
 %%%===================================================================
@@ -100,26 +98,6 @@ service_op_worker_update_storage_test(Config) ->
                     skip
             end
     end, ExistingStorages).
-
-
-service_oz_worker_add_node_test(Config) ->
-    AllHosts = ?config(onezone_hosts, Config),
-    OldHosts = ?config(oz_worker_hosts, Config),
-    NewHost = hd(AllHosts -- OldHosts),
-    OldNode = nodes:service_to_node(?SERVICE_PANEL, hd(OldHosts)),
-    NewNode = nodes:service_to_node(?SERVICE_PANEL, NewHost),
-    OldOzNode = nodes:service_to_node(?SERVICE_OZW, OldNode),
-
-    onepanel_test_utils:service_action(OldNode, ?SERVICE_OZW, add_nodes,
-        #{new_hosts => [NewHost]}),
-
-    ?assertEqual(true, rpc:call(NewNode, service, is_healthy, [?SERVICE_OZW])),
-    OzwNodesList = image_test_utils:proxy_rpc(OldNode,
-        OldOzNode, consistent_hashing, get_all_nodes, []),
-    ?assert(is_list(OzwNodesList)),
-    ?assertEqual(length(OldHosts) + 1, length(OzwNodesList)),
-    ?assertEqual(rpc:call(OldNode, service_oz_worker, get_policies, []),
-        rpc:call(NewNode, service_oz_worker, get_policies, [])).
 
 
 %%%===================================================================

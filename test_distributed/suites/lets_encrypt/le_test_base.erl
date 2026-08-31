@@ -173,7 +173,8 @@ get_certificate_metadata_test_base(#le_test_spec{
                     <<"paths">> := #{
                         <<"cert">> := _,
                         <<"key">> := _,
-                        <<"chain">> := _
+                        <<"chain">> := _,
+                        <<"fullChain">> := _
                     },
                     <<"domain">> := ExpDomain,
                     <<"dnsNames">> := _,
@@ -200,7 +201,8 @@ get_certificate_metadata_test_base(#le_test_spec{
                     <<"paths">> := #{
                         <<"cert">> := _,
                         <<"key">> := _,
-                        <<"chain">> := _
+                        <<"chain">> := _,
+                        <<"fullChain">> := _
                     },
                     <<"domain">> := ExpDomain,
                     <<"dnsNames">> := _,

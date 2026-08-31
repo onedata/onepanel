@@ -9,7 +9,7 @@
 %%% This module is responsible for building NFS storage specifications
 %%% from REST API maps and converting NFS storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(nfs_storage_spec_builder).
@@ -33,25 +33,25 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:nfs_credentials().
+-spec build_credentials(map()) -> onedata_storage:nfs_helper_credentials().
 build_credentials(Params) ->
-    #nfs_credentials{
+    #nfs_helper_credentials{
         uid = maps:get(uid, Params, 0),
         gid = maps:get(gid, Params, 0)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:nfs_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:nfs_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #nfs_credentials_diff{
+    #nfs_helper_credentials_diff{
         uid = maps:get(uid, Params, undefined),
         gid = maps:get(gid, Params, undefined)
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:nfs_configuration().
+-spec build_configuration(map()) -> onedata_storage:nfs_helper_configuration().
 build_configuration(Params) ->
-    #nfs_configuration{
+    #nfs_helper_configuration{
         version = maps:get(version, Params, undefined),
         host = maps:get(host, Params),
         volume = maps:get(volume, Params),
@@ -65,9 +65,9 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:nfs_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:nfs_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #nfs_configuration_diff{
+    #nfs_helper_configuration_diff{
         version = maps:get(version, Params, undefined),
         host = maps:get(host, Params, undefined),
         volume = maps:get(volume, Params, undefined),
@@ -78,14 +78,14 @@ build_configuration_diff(Params) ->
     }.
 
 
--spec credentials_to_map(onedata_storage:nfs_credentials()) -> map().
-credentials_to_map(#nfs_credentials{uid = Uid, gid = Gid}) ->
+-spec credentials_to_map(onedata_storage:nfs_helper_credentials()) -> map().
+credentials_to_map(#nfs_helper_credentials{uid = Uid, gid = Gid}) ->
     Base = #{uid => Uid},
     maps_utils:put_if_defined(Base, gid, Gid).
 
 
--spec configuration_to_map(onedata_storage:nfs_configuration()) -> map().
-configuration_to_map(#nfs_configuration{
+-spec configuration_to_map(onedata_storage:nfs_helper_configuration()) -> map().
+configuration_to_map(#nfs_helper_configuration{
     version = Version,
     host = Host,
     volume = Volume,

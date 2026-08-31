@@ -13,10 +13,6 @@
 -author("Piotr Duleba").
 
 -include("api_test_runner.hrl").
--include_lib("ctool/include/logging.hrl").
--include_lib("ctool/include/privileges.hrl").
--include_lib("ctool/include/http/headers.hrl").
--include_lib("ctool/include/test/test_utils.hrl").
 -include_lib("onenv_ct/include/oct_background.hrl").
 -include_lib("onenv_ct/include/chart_values.hrl").
 
@@ -25,11 +21,11 @@
 -export([init_per_suite/1, end_per_suite/1]).
 
 -export([
-    get_storages_ids/1
+    get_storages_ids_test/1
 ]).
 
 all() -> [
-    get_storages_ids
+    get_storages_ids_test
 ].
 
 
@@ -38,7 +34,7 @@ all() -> [
 %%%===================================================================
 
 
-get_storages_ids(_Config) ->
+get_storages_ids_test(_Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     StoragesIds = opw_test_rpc:get_storages(krakow),
@@ -52,18 +48,9 @@ get_storages_ids(_Config) ->
             name = <<"Get storage ids using /provider/storages rest endpoint">>,
             type = rest,
             target_nodes = ProviderPanelNodes,
-            client_spec = #client_spec{
-                correct = [
-                    root,
-                    {member, []}
-                ],
-                unauthorized = [
-                    guest,
-                    {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(?OP_PANEL, ProviderId))}
-                    | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
-                ],
-                forbidden = [peer]
-            },
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId
+            ),
             prepare_args_fun = fun(_) ->
                 #rest_args{method = get, path = <<"provider/storages">>}
             end,

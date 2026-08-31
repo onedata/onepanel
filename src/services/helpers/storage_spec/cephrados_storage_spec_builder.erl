@@ -9,7 +9,7 @@
 %%% This module is responsible for building CephRADOS storage specifications
 %%% from REST API maps and converting CephRADOS storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(cephrados_storage_spec_builder).
@@ -33,25 +33,25 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:cephrados_credentials().
+-spec build_credentials(map()) -> onedata_storage:cephrados_helper_credentials().
 build_credentials(Params) ->
-    #cephrados_credentials{
+    #cephrados_helper_credentials{
         username = maps:get(username, Params),
         key = maps:get(key, Params)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:cephrados_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:cephrados_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #cephrados_credentials_diff{
+    #cephrados_helper_credentials_diff{
         username = maps:get(username, Params, undefined),
         key = maps:get(key, Params, undefined)
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:cephrados_configuration().
+-spec build_configuration(map()) -> onedata_storage:cephrados_helper_configuration().
 build_configuration(Params) ->
-    #cephrados_configuration{
+    #cephrados_helper_configuration{
         monitor_hostname = maps:get(monitorHostname, Params),
         cluster_name = maps:get(clusterName, Params),
         pool_name = maps:get(poolName, Params),
@@ -62,22 +62,22 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:cephrados_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:cephrados_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #cephrados_configuration_diff{
+    #cephrados_helper_configuration_diff{
         monitor_hostname = maps:get(monitorHostname, Params, undefined),
         cluster_name = maps:get(clusterName, Params, undefined),
         pool_name = maps:get(poolName, Params, undefined)
     }.
 
 
--spec credentials_to_map(onedata_storage:cephrados_credentials()) -> map().
-credentials_to_map(#cephrados_credentials{username = Username, key = Key}) ->
+-spec credentials_to_map(onedata_storage:cephrados_helper_credentials()) -> map().
+credentials_to_map(#cephrados_helper_credentials{username = Username, key = Key}) ->
     #{username => Username, key => Key}.
 
 
--spec configuration_to_map(onedata_storage:cephrados_configuration()) -> map().
-configuration_to_map(#cephrados_configuration{
+-spec configuration_to_map(onedata_storage:cephrados_helper_configuration()) -> map().
+configuration_to_map(#cephrados_helper_configuration{
     monitor_hostname = MonitorHostname,
     cluster_name = ClusterName,
     pool_name = PoolName,

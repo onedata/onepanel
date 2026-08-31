@@ -9,7 +9,7 @@
 %%% This module is responsible for building Ceph storage specifications
 %%% from REST API maps and converting Ceph storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(ceph_storage_spec_builder).
@@ -33,25 +33,25 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:ceph_credentials().
+-spec build_credentials(map()) -> onedata_storage:ceph_helper_credentials().
 build_credentials(Params) ->
-    #ceph_credentials{
+    #ceph_helper_credentials{
         username = maps:get(username, Params),
         key = maps:get(key, Params)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:ceph_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:ceph_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #ceph_credentials_diff{
+    #ceph_helper_credentials_diff{
         username = maps:get(username, Params, undefined),
         key = maps:get(key, Params, undefined)
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:ceph_configuration().
+-spec build_configuration(map()) -> onedata_storage:ceph_helper_configuration().
 build_configuration(Params) ->
-    #ceph_configuration{
+    #ceph_helper_configuration{
         monitor_hostname = maps:get(monitorHostname, Params),
         cluster_name = maps:get(clusterName, Params),
         pool_name = maps:get(poolName, Params),
@@ -61,22 +61,22 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:ceph_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:ceph_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #ceph_configuration_diff{
+    #ceph_helper_configuration_diff{
         monitor_hostname = maps:get(monitorHostname, Params, undefined),
         cluster_name = maps:get(clusterName, Params, undefined),
         pool_name = maps:get(poolName, Params, undefined)
     }.
 
 
--spec credentials_to_map(onedata_storage:ceph_credentials()) -> map().
-credentials_to_map(#ceph_credentials{username = Username, key = Key}) ->
+-spec credentials_to_map(onedata_storage:ceph_helper_credentials()) -> map().
+credentials_to_map(#ceph_helper_credentials{username = Username, key = Key}) ->
     #{username => Username, key => Key}.
 
 
--spec configuration_to_map(onedata_storage:ceph_configuration()) -> map().
-configuration_to_map(#ceph_configuration{
+-spec configuration_to_map(onedata_storage:ceph_helper_configuration()) -> map().
+configuration_to_map(#ceph_helper_configuration{
     monitor_hostname = MonitorHostname,
     cluster_name = ClusterName,
     pool_name = PoolName,

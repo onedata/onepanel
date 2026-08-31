@@ -9,7 +9,7 @@
 %%% This module is responsible for building GlusterFS storage specifications
 %%% from REST API maps and converting GlusterFS storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(glusterfs_storage_spec_builder).
@@ -33,25 +33,25 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:glusterfs_credentials().
+-spec build_credentials(map()) -> onedata_storage:glusterfs_helper_credentials().
 build_credentials(Params) ->
-    #glusterfs_credentials{
+    #glusterfs_helper_credentials{
         uid = maps:get(uid, Params, 0),
         gid = maps:get(gid, Params, 0)
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:glusterfs_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:glusterfs_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #glusterfs_credentials_diff{
+    #glusterfs_helper_credentials_diff{
         uid = maps:get(uid, Params, undefined),
         gid = maps:get(gid, Params, undefined)
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:glusterfs_configuration().
+-spec build_configuration(map()) -> onedata_storage:glusterfs_helper_configuration().
 build_configuration(Params) ->
-    #glusterfs_configuration{
+    #glusterfs_helper_configuration{
         volume = maps:get(volume, Params),
         hostname = maps:get(hostname, Params),
         port = maps:get(port, Params, undefined),
@@ -67,9 +67,9 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:glusterfs_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:glusterfs_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #glusterfs_configuration_diff{
+    #glusterfs_helper_configuration_diff{
         volume = maps:get(volume, Params, undefined),
         hostname = maps:get(hostname, Params, undefined),
         port = maps:get(port, Params, undefined),
@@ -82,14 +82,14 @@ build_configuration_diff(Params) ->
     }.
 
 
--spec credentials_to_map(onedata_storage:glusterfs_credentials()) -> map().
-credentials_to_map(#glusterfs_credentials{uid = Uid, gid = Gid}) ->
+-spec credentials_to_map(onedata_storage:glusterfs_helper_credentials()) -> map().
+credentials_to_map(#glusterfs_helper_credentials{uid = Uid, gid = Gid}) ->
     Base = #{uid => Uid},
     maps_utils:put_if_defined(Base, gid, Gid).
 
 
--spec configuration_to_map(onedata_storage:glusterfs_configuration()) -> map().
-configuration_to_map(#glusterfs_configuration{
+-spec configuration_to_map(onedata_storage:glusterfs_helper_configuration()) -> map().
+configuration_to_map(#glusterfs_helper_configuration{
     volume = Volume,
     hostname = Hostname,
     port = Port,

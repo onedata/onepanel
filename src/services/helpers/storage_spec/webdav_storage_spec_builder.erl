@@ -9,7 +9,7 @@
 %%% This module is responsible for building WebDAV storage specifications
 %%% from REST API maps and converting WebDAV storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(webdav_storage_spec_builder).
@@ -33,9 +33,9 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:webdav_credentials().
+-spec build_credentials(map()) -> onedata_storage:webdav_helper_credentials().
 build_credentials(Params) ->
-    #webdav_credentials{
+    #webdav_helper_credentials{
         credentials_type = binary_to_credentials_type(
             maps:get(credentialsType, Params, <<"none">>)),
         credentials = maps:get(credentials, Params, undefined),
@@ -44,9 +44,9 @@ build_credentials(Params) ->
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:webdav_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:webdav_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #webdav_credentials_diff{
+    #webdav_helper_credentials_diff{
         credentials_type = case maps:get(credentialsType, Params, undefined) of
             undefined -> undefined;
             CredType -> binary_to_credentials_type(CredType)
@@ -57,9 +57,9 @@ build_credentials_diff(Params) ->
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:webdav_configuration().
+-spec build_configuration(map()) -> onedata_storage:webdav_helper_configuration().
 build_configuration(Params) ->
-    #webdav_configuration{
+    #webdav_helper_configuration{
         endpoint = maps:get(endpoint, Params),
         verify_server_certificate = maps:get(verifyServerCertificate, Params, undefined),
         authorization_header = maps:get(authorizationHeader, Params, undefined),
@@ -77,9 +77,9 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:webdav_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:webdav_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #webdav_configuration_diff{
+    #webdav_helper_configuration_diff{
         endpoint = maps:get(endpoint, Params, undefined),
         verify_server_certificate = maps:get(verifyServerCertificate, Params, undefined),
         authorization_header = maps:get(authorizationHeader, Params, undefined),
@@ -94,8 +94,8 @@ build_configuration_diff(Params) ->
     }.
 
 
--spec credentials_to_map(onedata_storage:webdav_credentials()) -> map().
-credentials_to_map(#webdav_credentials{
+-spec credentials_to_map(onedata_storage:webdav_helper_credentials()) -> map().
+credentials_to_map(#webdav_helper_credentials{
     credentials_type = CredType,
     credentials = Credentials,
     oauth2_idp = Oauth2Idp,
@@ -107,8 +107,8 @@ credentials_to_map(#webdav_credentials{
     maps_utils:put_if_defined(Base2, onedataAccessToken, OnedataToken).
 
 
--spec configuration_to_map(onedata_storage:webdav_configuration()) -> map().
-configuration_to_map(#webdav_configuration{
+-spec configuration_to_map(onedata_storage:webdav_helper_configuration()) -> map().
+configuration_to_map(#webdav_helper_configuration{
     endpoint = Endpoint,
     verify_server_certificate = VerifyServerCert,
     authorization_header = AuthHeader,

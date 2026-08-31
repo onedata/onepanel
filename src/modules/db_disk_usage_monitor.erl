@@ -42,7 +42,7 @@
 -type circuit_breaker_state() :: open | closed.
 
 
--define(ROOT_DIR, onepanel:get_env(db_root_dir, "/opt/couchbase")).
+-define(ROOT_DIR, onepanel:get_env(db_root_dir, "/opt/couchbase/var/lib/couchbase/")).
 
 -define(CRON_JOB_NAME, ?MODULE).
 

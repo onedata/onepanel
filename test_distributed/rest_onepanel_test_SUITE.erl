@@ -38,12 +38,7 @@
     noauth_method_should_return_unauthorized_error/1,
     method_should_return_forbidden_error/1,
     method_should_return_not_found_error/1,
-    method_should_return_password_status/1,
-    noauth_put_should_set_emergency_passphrase/1,
-    put_should_update_emergency_passphrase/1,
-    passphrase_update_requires_previous_passphrase/1,
     get_as_admin_should_return_hosts/1,
-    get_as_admin_or_peer_should_return_cookie/1,
     get_should_return_node_details/1,
     post_as_admin_should_return_invite_token/1,
     post_as_admin_should_extend_cluster_and_return_hostname/1,
@@ -65,8 +60,7 @@
     {<<"/web_cert">>, get},
     {<<"/web_cert">>, patch},
     {<<"/progress">>, get},
-    {<<"/progress">>, patch},
-    {<<"/emergency_passphrase">>, put}
+    {<<"/progress">>, patch}
 ]).
 
 all() ->
@@ -76,12 +70,7 @@ all() ->
         noauth_method_should_return_unauthorized_error,
         method_should_return_forbidden_error,
         method_should_return_not_found_error,
-        method_should_return_password_status,
-        noauth_put_should_set_emergency_passphrase,
-        put_should_update_emergency_passphrase,
-        passphrase_update_requires_previous_passphrase,
         get_as_admin_should_return_hosts,
-        get_as_admin_or_peer_should_return_cookie,
         get_should_return_node_details,
         post_as_admin_should_return_invite_token,
         post_as_admin_should_extend_cluster_and_return_hostname,
@@ -101,7 +90,7 @@ method_should_return_unauthorized_error(Config) ->
                 Host, Endpoint, Method, Auth
             ))
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
-    end, [{<<"/cookie">>, get}] ++ ?COMMON_ENDPOINTS_WITH_METHODS).
+    end, ?COMMON_ENDPOINTS_WITH_METHODS).
 
 
 api_caveats_should_restrict_available_endpoints(Config) ->
@@ -129,7 +118,6 @@ noauth_method_should_return_unauthorized_error(Config) ->
         end, ?INCORRECT_AUTHS() ++ ?NONE_AUTHS())
     end, [
         % endpoints forbidden without auth when emergency passphrase IS set
-        {<<"/emergency_passphrase">>, put},
         {<<"/join_cluster">>, post}
     ]).
 
@@ -139,9 +127,6 @@ method_should_return_forbidden_error(Config) ->
         Auths = ?PEER_AUTHS(Host) ++ case {Endpoint, Method} of
             {_, get} ->
                 [];
-            {<<"/emergency_passphrase">>, put} ->
-                % even admin coming from Onezone cannot change root password
-                ?OZ_AUTHS(Config, privileges:cluster_admin());
             _ ->
                 ?OZ_AUTHS(Config, privileges:cluster_admin() -- [?CLUSTER_UPDATE])
         end,
@@ -160,63 +145,6 @@ method_should_return_not_found_error(Config) ->
     end, [{<<"/hosts/someHost">>, delete}]).
 
 
-method_should_return_password_status(Config) ->
-    ?eachEndpoint(Config, fun(Host, Endpoint, Method) ->
-        Auths = ?NONE_AUTHS() ++ ?PEER_AUTHS(Host) ++ ?OZ_AUTHS(Config, []),
-        {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-            onepanel_test_rest:auth_request(Host, Endpoint, Method, Auths)
-        ),
-        Expected = #{<<"isSet">> => true},
-        onepanel_test_rest:assert_body(JsonBody, Expected)
-    end, [{<<"/emergency_passphrase">>, get}]).
-
-
-noauth_put_should_set_emergency_passphrase(Config) ->
-    NewPassphrase = <<"newPassphrase">>,
-
-    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:noauth_request(
-        Config, "/emergency_passphrase", put,
-        #{<<"newPassphrase">> => NewPassphrase}
-    )).
-
-
-put_should_update_emergency_passphrase(Config) ->
-    OldPassphrase = ?EMERGENCY_PASSPHRASE,
-    NewPassphrase = <<"newPassphrase">>,
-    Auth = onepanel_test_rest:obtain_local_token(Config, OldPassphrase),
-
-    ?assertMatch({ok, ?HTTP_204_NO_CONTENT, _, _}, onepanel_test_rest:auth_request(
-        Config, "/emergency_passphrase", put, Auth, #{
-            <<"currentPassphrase">> => OldPassphrase,
-            <<"newPassphrase">> => NewPassphrase
-        }
-    )),
-
-    % ensure new password works
-    ?assertMatch({token, _},
-        onepanel_test_rest:obtain_local_token(Config, NewPassphrase)).
-
-
-passphrase_update_requires_previous_passphrase(Config) ->
-    CorrectAuths = ?ROOT_AUTHS(Config),
-    IncorrectPassphrase = <<"IncorrectPassphrase">>,
-
-    {ok, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_401_UNAUTHORIZED, _, _}, onepanel_test_rest:auth_request(
-        Config, "/emergency_passphrase", put, CorrectAuths, #{
-            <<"currentPassphrase">> => IncorrectPassphrase,
-            <<"newPassphrase">> => <<"willNotBeSet">>
-        }
-    )),
-    onepanel_test_rest:assert_body(JsonBody,
-        #{<<"error">> => errors:to_json(?ERR_UNAUTHORIZED(?ERR_BAD_BASIC_CREDENTIALS))}),
-    ?assertMatch({ok, ?HTTP_400_BAD_REQUEST, _, _}, onepanel_test_rest:auth_request(
-        Config, "/emergency_passphrase", put, CorrectAuths, #{
-            <<"newPassphrase">> => <<"willNotBeSet">>
-        }
-    )).
-
-
-
 get_as_admin_should_return_hosts(Config) ->
     {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
         onepanel_test_rest:auth_request(Config, <<"/hosts">>, get,
@@ -225,17 +153,6 @@ get_as_admin_should_return_hosts(Config) ->
     ),
     Hosts = onepanel_utils:get_converted(cluster_hosts, Config, {seq, binary}),
     onepanel_test_rest:assert_body(JsonBody, Hosts).
-
-
-get_as_admin_or_peer_should_return_cookie(Config) ->
-    [Host] = ?config(cluster_hosts, Config),
-    {_, _, _, JsonBody} = ?assertMatch({ok, ?HTTP_200_OK, _, _},
-        onepanel_test_rest:auth_request(Config, <<"/cookie">>, get,
-            ?PEER_AUTHS(Host) ++ ?OZ_OR_ROOT_AUTHS(Config, [])
-        )
-    ),
-    Cookie = ?callAny(Config, erlang, get_cookie, []),
-    onepanel_test_rest:assert_body(JsonBody, onepanel_utils:convert(Cookie, binary)).
 
 
 get_should_return_node_details(Config) ->
@@ -340,12 +257,9 @@ init_per_suite(Config) ->
 
 init_per_testcase(method_should_return_unauthorized_error, Config) ->
     Nodes = ?config(all_nodes, Config),
-    test_utils:mock_new(Nodes, [service, host_middleware, onepanel_parser]),
+    test_utils:mock_new(Nodes, [service, onepanel_parser]),
     test_utils:mock_expect(Nodes, service, is_healthy, fun(_) -> true end),
     test_utils:mock_expect(Nodes, service, all_healthy_ignoring_ones3, fun() -> true end),
-    test_utils:mock_expect(Nodes, host_middleware, fetch_entity, fun
-        (_) -> {ok, {undefined, 1}}
-    end),
     % do not require valid payload in requests
     test_utils:mock_expect(Nodes, onepanel_parser, parse, fun(_, _) -> #{} end),
     init_per_testcase(default, Config);
@@ -460,7 +374,7 @@ init_per_testcase(_Case, Config) ->
 end_per_testcase(_Case, Config) ->
     Nodes = ?config(all_nodes, Config),
     test_utils:mock_unload(Nodes, [
-        service, host_middleware, onepanel_parser, service_onepanel, service_oneprovider, oz_endpoint, onezone_tokens
+        service, onepanel_parser, service_onepanel, service_oneprovider, oz_endpoint, onezone_tokens
     ]),
     lists:foreach(fun(Model) ->
         ?callAll(Config, model, clear, [Model])

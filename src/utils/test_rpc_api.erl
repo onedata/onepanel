@@ -28,7 +28,7 @@
     list_onepanel_deployment/0,
     is_onepanel_initialized/0,
     add_storage/1,
-    support_space/3
+    support_space/3, support_space/4
 ]).
 
 
@@ -104,8 +104,16 @@ add_storage(Data) ->
 
 -spec support_space(binary(), binary(), binary()) -> binary().
 support_space(StorageId, SerializedToken, SupportSize) ->
-    service_oneprovider:support_space(#{
+    support_space(StorageId, SerializedToken, SupportSize, #{}).
+
+
+%% @doc Opts is an optional map of additional support parameters merged into the
+%% support context, e.g. #{storage_import => #{mode => <<"manual">>}},
+%% #{accounting_enabled => true} or #{dir_stats_service_enabled => true}.
+-spec support_space(binary(), binary(), binary(), map()) -> binary().
+support_space(StorageId, SerializedToken, SupportSize, Opts) ->
+    service_oneprovider:support_space(maps:merge(Opts, #{
         storage_id => StorageId,
         size => SupportSize,
         token => SerializedToken
-    }).
+    })).

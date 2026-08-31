@@ -193,8 +193,11 @@ list_user_clusters({rest, Auth}) ->
 fetch_remote_provider_info({rpc, Client}, ProviderId) ->
     case oz_worker_rpc:get_protected_provider_data(Client, ProviderId) of
         {ok, ProviderData} ->
-            % the provider id is not included in the oz-worker logic response
-            format_provider_info(ProviderData#{<<"providerId">> => ProviderId});
+            % the provider/cluster id is not included in the oz-worker logic response
+            format_provider_info(ProviderData#{
+                <<"providerId">> => ProviderId,
+                <<"clusterId">> => ProviderId
+            });
         Error ->
             throw(Error)
     end;
@@ -380,6 +383,6 @@ format_provider_info(OzResponse) ->
         {<<"domain">>, <<"domain">>},
         {<<"longitude">>, <<"geoLongitude">>},
         {<<"latitude">>, <<"geoLatitude">>},
-        {<<"cluster">>, <<"cluster">>},
+        {<<"clusterId">>, <<"cluster">>},
         {<<"online">>, <<"online">>}
     ], OzResponse).

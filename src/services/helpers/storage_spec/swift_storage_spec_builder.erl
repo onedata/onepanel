@@ -9,7 +9,7 @@
 %%% This module is responsible for building Swift storage specifications
 %%% from REST API maps and converting Swift storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and ctool storage records (snake_case atoms, records).
+%%% and op_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(swift_storage_spec_builder).
@@ -33,9 +33,9 @@
 %%%===================================================================
 
 
--spec build_credentials(map()) -> onedata_storage:swift_credentials().
+-spec build_credentials(map()) -> onedata_storage:swift_helper_credentials().
 build_credentials(Params) ->
-    #swift_credentials{
+    #swift_helper_credentials{
         username = maps:get(username, Params),
         password = maps:get(password, Params),
         project_name = maps:get(projectName, Params),
@@ -44,9 +44,9 @@ build_credentials(Params) ->
     }.
 
 
--spec build_credentials_diff(map()) -> onedata_storage:swift_credentials_diff().
+-spec build_credentials_diff(map()) -> onedata_storage:swift_helper_credentials_diff().
 build_credentials_diff(Params) ->
-    #swift_credentials_diff{
+    #swift_helper_credentials_diff{
         username = maps:get(username, Params, undefined),
         password = maps:get(password, Params, undefined),
         project_name = maps:get(projectName, Params, undefined),
@@ -55,9 +55,9 @@ build_credentials_diff(Params) ->
     }.
 
 
--spec build_configuration(map()) -> onedata_storage:swift_configuration().
+-spec build_configuration(map()) -> onedata_storage:swift_helper_configuration().
 build_configuration(Params) ->
-    #swift_configuration{
+    #swift_helper_configuration{
         auth_url = maps:get(authUrl, Params),
         container_name = maps:get(containerName, Params),
         block_size = maps:get(blockSize, Params, undefined),
@@ -67,16 +67,16 @@ build_configuration(Params) ->
     }.
 
 
--spec build_configuration_diff(map()) -> onedata_storage:swift_configuration_diff().
+-spec build_configuration_diff(map()) -> onedata_storage:swift_helper_configuration_diff().
 build_configuration_diff(Params) ->
-    #swift_configuration_diff{
+    #swift_helper_configuration_diff{
         auth_url = maps:get(authUrl, Params, undefined),
         container_name = maps:get(containerName, Params, undefined)
     }.
 
 
--spec credentials_to_map(onedata_storage:swift_credentials()) -> map().
-credentials_to_map(#swift_credentials{
+-spec credentials_to_map(onedata_storage:swift_helper_credentials()) -> map().
+credentials_to_map(#swift_helper_credentials{
     username = Username,
     password = Password,
     project_name = ProjectName,
@@ -92,8 +92,8 @@ credentials_to_map(#swift_credentials{
     maps_utils:put_if_defined(Base1, projectDomainName, ProjectDomainName).
 
 
--spec configuration_to_map(onedata_storage:swift_configuration()) -> map().
-configuration_to_map(#swift_configuration{
+-spec configuration_to_map(onedata_storage:swift_helper_configuration()) -> map().
+configuration_to_map(#swift_helper_configuration{
     auth_url = AuthUrl,
     container_name = ContainerName,
     block_size = BlockSize,
