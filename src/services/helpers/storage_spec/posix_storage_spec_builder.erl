@@ -9,13 +9,13 @@
 %%% This module is responsible for building POSIX storage specifications
 %%% from REST API maps and converting POSIX storage descriptions back to maps.
 %%% It translates between the REST API format (camelCase keys, binaries)
-%%% and op_panel_contracts storage records (snake_case atoms, records).
+%%% and opw_panel_contracts storage records (snake_case atoms, records).
 %%% @end
 %%%--------------------------------------------------------------------
 -module(posix_storage_spec_builder).
 -author("Bartosz Walkowicz").
 
--include_lib("op_panel_contracts/include/storage/posix.hrl").
+-include_lib("opw_panel_contracts/include/storage/posix.hrl").
 
 %% API
 -export([
