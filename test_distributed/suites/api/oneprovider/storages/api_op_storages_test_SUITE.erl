@@ -21,11 +21,11 @@
 -export([init_per_suite/1, end_per_suite/1]).
 
 -export([
-    get_storages_ids_test/1
+    get_storage_ids_test/1
 ]).
 
 all() -> [
-    get_storages_ids_test
+    get_storage_ids_test
 ].
 
 
@@ -34,7 +34,7 @@ all() -> [
 %%%===================================================================
 
 
-get_storages_ids_test(_Config) ->
+get_storage_ids_test(_Config) ->
     ProviderId = oct_background:get_provider_id(krakow),
     ProviderPanelNodes = oct_background:get_provider_panels(krakow),
     StoragesIds = opw_test_rpc:get_storages(krakow),
