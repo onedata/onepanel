@@ -38,17 +38,11 @@
     ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
 % @formatter:on
 
--opaque helper() :: tuple().
--opaque luma_config() :: tuple().
 -opaque storage_data() :: tuple().
--type storage_params() :: op_worker_storage:storage_params().
 -type autocleaning_run_id() :: binary().
 -type autocleaning_run_links_list_limit() :: integer() | all.
 -type autocleaning_run_links_offset() :: integer().
 -type file_popularity_config_id() :: od_space_id().
--type helper_args() :: #{binary() => binary()}.
--type helper_name() :: binary().
--type helper_user_ctx() :: #{binary() => binary()}.
 -type luma_feed() :: atom().
 -type luma_details() :: json_utils:json_map().
 -type luma_uid() :: non_neg_integer().
@@ -63,12 +57,10 @@
 -type storage_import_config() :: map().
 -type auto_storage_import_config() :: map().
 -type storage_id() :: binary().
--type storage_name() :: binary().
 -type storage_import_monitoring_plot_counter_type() :: op_worker_storage_import:metric_type().
 -type storage_import_monitoring_window() :: day | hour | minute.
 
--export_type([storage_data/0, luma_config/0, helper/0, helper_name/0, storage_params/0,
-    helper_args/0, helper_user_ctx/0, od_space_id/0, luma_feed/0, luma_details/0]).
+-export_type([storage_data/0, od_space_id/0, luma_feed/0, luma_details/0]).
 
 -export([storage_create/1, storage_create/2]).
 -export([storage_update/2, storage_update/3]).
@@ -79,7 +71,6 @@
 -export([storage_exists/1, storage_exists/2]).
 -export([storage_is_imported_storage/1, storage_is_imported_storage/2]).
 -export([storage_get_luma_feed/1, storage_get_luma_feed/2]).
--export([storage_verify_configuration/3, storage_verify_configuration/4]).
 -export([luma_clear_db/1, luma_clear_db/2]).
 -export([luma_storage_users_get_and_describe/2, luma_storage_users_get_and_describe/3]).
 -export([luma_storage_users_store/3, luma_storage_users_store/4]).
@@ -100,15 +91,6 @@
 -export([luma_onedata_groups_get_and_describe/2, luma_onedata_groups_get_and_describe/3]).
 -export([luma_onedata_groups_store/3, luma_onedata_groups_store/4]).
 -export([luma_onedata_groups_delete/2, luma_onedata_groups_delete/3]).
--export([new_helper/3, new_helper/4]).
--export([new_luma_config/1, new_luma_config/2]).
--export([new_luma_config_with_external_feed/2, new_luma_config_with_external_feed/3]).
--export([storage_detector_run_diagnostics/3, storage_detector_run_diagnostics/4]).
--export([prepare_helper_args/2, prepare_helper_args/3]).
--export([prepare_user_ctx_params/2, prepare_user_ctx_params/3]).
--export([get_helper_args/1, get_helper_args/2]).
--export([get_helper_admin_ctx/1, get_helper_admin_ctx/2]).
--export([redact_confidential_helper_params/2, redact_confidential_helper_params/3]).
 -export([space_logic_get_storages/1, space_logic_get_storages/2]).
 -export([file_popularity_api_configure/2, file_popularity_api_configure/3]).
 -export([file_popularity_api_get_configuration/1, file_popularity_api_get_configuration/2]).
@@ -251,17 +233,6 @@ storage_get_luma_feed(Storage) ->
 -spec storage_get_luma_feed(node(), storage_data()) -> luma_feed().
 storage_get_luma_feed(Node, Storage) ->
     ?CALL(Node, [Storage]).
-
-
--spec storage_verify_configuration(storage_id() | storage_name(), storage_params(), helper()) ->
-    ok | {error, term()}.
-storage_verify_configuration(NameOrId, StorageParams, Helper) ->
-    ?CALL([NameOrId, StorageParams, Helper]).
-
--spec storage_verify_configuration(node(), storage_id() | storage_name(), storage_params(), helper()) ->
-    ok | {error, term()}.
-storage_verify_configuration(Node, NameOrId, StorageParams, Helper) ->
-    ?CALL(Node, [NameOrId, StorageParams, Helper]).
 
 
 -spec luma_clear_db(storage_id()) -> ok.
@@ -446,95 +417,6 @@ luma_onedata_groups_delete(Storage, AclGroup) ->
 -spec luma_onedata_groups_delete(node(), storage_id(), luma_acl_who()) -> ok.
 luma_onedata_groups_delete(Node, Storage, AclGroup) ->
     ?CALL(Node, [Storage, AclGroup]).
-
-
--spec new_helper(helper_name(), helper_args(), helper_user_ctx()) ->
-    {ok, helper()}.
-new_helper(HelperName, Args, AdminCtx) ->
-    ?CALL([HelperName, Args, AdminCtx]).
-
--spec new_helper(node(), helper_name(), helper_args(), helper_user_ctx()) ->
-    {ok, helper()}.
-new_helper(Node, HelperName, Args, AdminCtx) ->
-    ?CALL(Node, [HelperName, Args, AdminCtx]).
-
-
--spec new_luma_config(Mode :: luma_feed()) ->
-    luma_config().
-new_luma_config(Mode) ->
-    ?CALL([Mode]).
-
--spec new_luma_config(node(), Mode :: luma_feed()) ->
-    luma_config().
-new_luma_config(Node, Mode) ->
-    ?CALL(Node, [Mode]).
-
-
--spec new_luma_config_with_external_feed(URL :: binary(), ApiKey :: binary() | undefined) ->
-    luma_config().
-new_luma_config_with_external_feed(URL, ApiKey) ->
-    ?CALL([URL, ApiKey]).
-
--spec new_luma_config_with_external_feed(node(), URL :: binary(), ApiKey :: binary() | undefined) ->
-    luma_config().
-new_luma_config_with_external_feed(Node, URL, ApiKey) ->
-    ?CALL(Node, [URL, ApiKey]).
-
-
--spec storage_detector_run_diagnostics(helper(), luma_feed(), #{read_write_test := boolean()}) ->
-    ok | {errors:error(), Reason :: term()}.
-storage_detector_run_diagnostics(Helper, LumaFeed, Opts) ->
-    ?CALL([Helper, LumaFeed, Opts]).
-
--spec storage_detector_run_diagnostics(node(), helper(), luma_feed(), #{read_write_test := boolean()}) ->
-    ok | {errors:error(), Reason :: term()}.
-storage_detector_run_diagnostics(Node, Helper, LumaFeed, Opts) ->
-    ?CALL(Node, [Helper, LumaFeed, Opts]).
-
-
--spec prepare_helper_args(helper_name(), helper_args()) -> helper_args().
-prepare_helper_args(HelperName, Params) ->
-    ?CALL([HelperName, Params]).
-
--spec prepare_helper_args(node(), helper_name(), helper_args()) -> helper_args().
-prepare_helper_args(Node, HelperName, Params) ->
-    ?CALL(Node, [HelperName, Params]).
-
-
--spec prepare_user_ctx_params(helper_name(), helper_user_ctx()) -> helper_user_ctx().
-prepare_user_ctx_params(HelperName, Params) ->
-    ?CALL([HelperName, Params]).
-
--spec prepare_user_ctx_params(node(), helper_name(), helper_user_ctx()) -> helper_user_ctx().
-prepare_user_ctx_params(Node, HelperName, Params) ->
-    ?CALL(Node, [HelperName, Params]).
-
-
--spec get_helper_args(helper()) -> helper_args().
-get_helper_args(Helper) ->
-    ?CALL([Helper]).
-
--spec get_helper_args(node(), helper()) -> helper_args().
-get_helper_args(Node, Helper) ->
-    ?CALL(Node, [Helper]).
-
-
--spec get_helper_admin_ctx(helper()) -> helper_user_ctx().
-get_helper_admin_ctx(Helper) ->
-    ?CALL([Helper]).
-
--spec get_helper_admin_ctx(node(), helper()) -> helper_user_ctx().
-get_helper_admin_ctx(Node, Helper) ->
-    ?CALL(Node, [Helper]).
-
-
--spec redact_confidential_helper_params(binary(), map()) -> map().
-redact_confidential_helper_params(HelperName, Params) ->
-    ?CALL([HelperName, Params]).
-
--spec redact_confidential_helper_params(node(), binary(), map()) -> map().
-redact_confidential_helper_params(Node, HelperName, Params) ->
-    ?CALL(Node, [HelperName, Params]).
 
 
 -spec space_logic_get_storages(od_space_id()) -> {ok, [op_worker_storage:id()]}.
