@@ -64,6 +64,8 @@ build_configuration(Params) ->
         authorization_header = maps:get(authorizationHeader, Params, undefined),
         connection_pool_size = maps:get(connectionPoolSize, Params, undefined),
         max_requests_per_session = maps:get(maxRequestsPerSession, Params, undefined),
+        emulate_range_read = maps:get(emulateRangeRead, Params, undefined),
+        max_emulated_range_read_file_size = maps:get(maxEmulatedRangeReadFileSize, Params, undefined),
         file_mode = maps:get(fileMode, Params, undefined),
         storage_path_type = storage_spec_builder_utils:binary_to_storage_path_type(
             maps:get(storagePathType, Params, <<"canonical">>)
@@ -79,6 +81,8 @@ build_configuration_diff(Params) ->
         authorization_header = maps:get(authorizationHeader, Params, undefined),
         connection_pool_size = maps:get(connectionPoolSize, Params, undefined),
         max_requests_per_session = maps:get(maxRequestsPerSession, Params, undefined),
+        emulate_range_read = maps:get(emulateRangeRead, Params, undefined),
+        max_emulated_range_read_file_size = maps:get(maxEmulatedRangeReadFileSize, Params, undefined),
         file_mode = maps:get(fileMode, Params, undefined)
     }.
 
@@ -103,6 +107,8 @@ configuration_to_map(#http_helper_configuration{
     authorization_header = AuthHeader,
     connection_pool_size = PoolSize,
     max_requests_per_session = MaxRequests,
+    emulate_range_read = EmulateRangeRead,
+    max_emulated_range_read_file_size = MaxEmulatedRangeReadFileSize,
     file_mode = FileMode,
     storage_path_type = StoragePathType
 }) ->
@@ -114,7 +120,9 @@ configuration_to_map(#http_helper_configuration{
     Base2 = maps_utils:put_if_defined(Base1, authorizationHeader, AuthHeader),
     Base3 = maps_utils:put_if_defined(Base2, connectionPoolSize, PoolSize),
     Base4 = maps_utils:put_if_defined(Base3, maxRequestsPerSession, MaxRequests),
-    maps_utils:put_if_defined(Base4, fileMode, FileMode).
+    Base5 = maps_utils:put_if_defined(Base4, emulateRangeRead, EmulateRangeRead),
+    Base6 = maps_utils:put_if_defined(Base5, maxEmulatedRangeReadFileSize, MaxEmulatedRangeReadFileSize),
+    maps_utils:put_if_defined(Base6, fileMode, FileMode).
 
 
 %%%===================================================================
