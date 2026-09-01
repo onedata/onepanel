@@ -1939,7 +1939,7 @@ ceph_get_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -2481,7 +2481,7 @@ http_create_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -2619,7 +2619,7 @@ http_get_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -3063,7 +3063,7 @@ nulldevice_create_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}},
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, {optional, <<"canonical">>}},
         %% Allows simulating a preexisting file/directory tree structure for a
         %% null device filesystem. For example, \&quot;2-3:4-5:512\&quot; will
         %% generate a filesystem tree which has 2 directories and 3 files in the
@@ -3164,7 +3164,7 @@ nulldevice_get_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional},
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, optional},
         %% Allows simulating a preexisting file/directory tree structure for a
         %% null device filesystem. For example, \&quot;2-3:4-5:512\&quot; will
         %% generate a filesystem tree which has 2 directories and 3 files in the
@@ -3598,7 +3598,7 @@ s3_create_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"flat">>}}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -3691,7 +3691,7 @@ s3_get_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -3823,7 +3823,7 @@ swift_create_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"flat">>}}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, {optional, <<"flat">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -3912,7 +3912,7 @@ swift_get_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, optional}
     }.
 
 %%--------------------------------------------------------------------
@@ -4358,7 +4358,7 @@ xrootd_create_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, {optional, <<"canonical">>}}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, {optional, <<"canonical">>}}
     }.
 
 %%--------------------------------------------------------------------
@@ -4447,7 +4447,7 @@ xrootd_get_model() ->
         %% renaming the files on the storage. 'flat' paths are based on
         %% unique file UUID's and do not require on-storage rename when
         %% logical file name is changed.
-        storagePathType => {string, optional}
+        storagePathType => {{enum, string, [<<"canonical">>, <<"flat">>]}, optional}
     }.
 
 %%--------------------------------------------------------------------
