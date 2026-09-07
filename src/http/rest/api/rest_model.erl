@@ -2408,8 +2408,12 @@ http_create_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the HTTP server.
         onedataAccessToken => {string, optional},
         %% Maximum time to wait for a response from the storage service before
         %% the request is aborted.
@@ -2512,8 +2516,12 @@ http_credentials_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the HTTP server.
         onedataAccessToken => {string, optional}
     }.
 
@@ -2546,8 +2554,12 @@ http_get_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the HTTP server.
         onedataAccessToken => {string, optional},
         %% Maximum time to wait for a response from the storage service before
         %% the request is aborted.
@@ -2689,8 +2701,12 @@ http_modify_model() ->
         %% HTTP endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the HTTP server.
         onedataAccessToken => {string, optional},
         %% Header format for passing the API/access token to the backend storage
         %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
@@ -3999,8 +4015,12 @@ webdav_create_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the WebDAV server.
         onedataAccessToken => {string, optional},
         %% Maximum time to wait for a response from the storage service before
         %% the request is aborted.
@@ -4097,8 +4117,12 @@ webdav_credentials_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the WebDAV server.
         onedataAccessToken => {string, optional}
     }.
 
@@ -4131,8 +4155,12 @@ webdav_get_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the WebDAV server.
         onedataAccessToken => {string, optional},
         %% Maximum time to wait for a response from the storage service before
         %% the request is aborted.
@@ -4262,8 +4290,12 @@ webdav_modify_model() ->
         %% WebDAV endpoint. If Onezone has only one external IdP, it will be
         %% selected automatically.
         oauth2IdP => {string, optional},
-        %% A token specific for this storage backend that will be used to
-        %% authorize data access operations.
+        %% An access token of the Onedata user in whose name IdP access tokens
+        %% will be acquired. Used only with the `oauth2` credentials
+        %% type, where it is effectively required - Oneprovider verifies it when
+        %% the storage is created or modified and then spends it to obtain and
+        %% refresh access tokens of the IdP indicated by `oauth2IdP`.
+        %% It is never passed to the WebDAV server.
         onedataAccessToken => {string, optional},
         %% Header format for passing the API/access token to the backend storage
         %% server. The token will be inserted in place of \&quot;{}\&quot;. Use
