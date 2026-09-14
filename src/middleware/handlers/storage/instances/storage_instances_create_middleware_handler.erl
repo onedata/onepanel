@@ -63,7 +63,7 @@ validate(#onp_req_state{input = Data}) ->
 
     lists:foreach(fun(StorageName) ->
         StorageArgs = maps:get(StorageName, Data),
-        storage_middleware_handler_utils:validate_storage_common_args(StorageName, StorageArgs),
+        storage_middleware_handler_utils:validate_storage_timeout(StorageName, StorageArgs),
         storage_middleware_handler_utils:validate_storage_custom_args(StorageName, StorageArgs)
     end, maps:keys(Data)).
 

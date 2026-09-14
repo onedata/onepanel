@@ -732,7 +732,10 @@ support_space(#{storage_id := StorageId} = Ctx) ->
 %%--------------------------------------------------------------------
 -spec revoke_space_support(Ctx :: service:step_ctx()) -> ok.
 revoke_space_support(#{id := SpaceId}) ->
-    ok = op_worker_rpc:revoke_space_support(SpaceId).
+    case op_worker_rpc:revoke_space_support(SpaceId) of
+        ok -> ok;
+        {error, _} = Error -> throw(Error)
+    end.
 
 
 %%--------------------------------------------------------------------

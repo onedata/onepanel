@@ -36,7 +36,9 @@
     get_storage_test/1,
 
     modify_correct_storage_test/1,
-    modify_bad_storage_test/1
+    modify_bad_storage_test/1,
+
+    delete_storage_test/1
 ]).
 
 groups() -> [
@@ -47,7 +49,9 @@ groups() -> [
         get_storage_test,
 
         modify_correct_storage_test,
-        modify_bad_storage_test
+        modify_bad_storage_test,
+
+        delete_storage_test
     ]}
 ].
 
@@ -108,8 +112,7 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
         optional = [
             <<"timeout">>,
             <<"qosParameters">>,
-            <<"storagePathType">>,
-            <<"archiveStorage">>
+            <<"storagePathType">>
         ],
         correct_values = #{
             <<"type">> => [<<"posix">>],
@@ -117,9 +120,7 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             %% TODO: VFS-7621 add flat path type to tests
-            <<"storagePathType">> => [<<"canonical">>],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"storagePathType">> => [<<"canonical">>]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
@@ -130,8 +131,7 @@ build_add_posix_storage_data_spec(MemRef, posix, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"storagePathType">>, <<"flat">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"canonical">>])},
-            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
+            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))}
         ]
     };
 build_add_posix_storage_data_spec(MemRef, posix, bad_args) ->
@@ -185,13 +185,10 @@ get_storage_test(_Config) ->
         },
 
         % default values for not supplied parameters
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>,
-        <<"gid">> => <<"0">>,
-        <<"uid">> => <<"0">>
+        <<"importedStorage">> => false,
+        <<"readonly">> => false,
+        <<"rootGid">> => 0,
+        <<"rootUid">> => 0
     }).
 
 
@@ -230,8 +227,7 @@ build_modify_posix_storage_data_spec(MemRef, posix, correct_args) ->
             <<"name">>,
             <<"mountPoint">>,
             <<"timeout">>,
-            <<"qosParameters">>,
-            <<"archiveStorage">>
+            <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"posix">>],
@@ -241,22 +237,18 @@ build_modify_posix_storage_data_spec(MemRef, posix, correct_args) ->
             <<"qosParameters">> => [
                 #{<<"key">> => <<"value1">>},
                 #{<<"key">> => <<"value2">>}
-            ],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            ]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
             {<<"mountPoint">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"mountPoint">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))}
         ]
     };
 
@@ -289,8 +281,24 @@ build_modify_posix_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_POSIX_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+delete_storage_test(_Config) ->
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_posix_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_delete_posix_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_POSIX_STORAGE_SPEC}),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 

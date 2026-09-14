@@ -78,11 +78,10 @@ preauthorize(#state{ctx = #onp_req_ctx{client = Client}}) ->
 validate(#state{storage_details = CurrentDetails, input = Data}) ->
     middleware_handler_utils:validate_op_registered(),
 
-    % Validate only storage-specific args; common S3 constraints handled in create
     lists:foreach(fun(StorageName) ->
-        storage_middleware_handler_utils:validate_storage_custom_args(
-            StorageName, maps:get(StorageName, Data)
-        )
+        StorageArgs = maps:get(StorageName, Data),
+        storage_middleware_handler_utils:validate_storage_timeout(StorageName, StorageArgs),
+        storage_middleware_handler_utils:validate_storage_custom_args(StorageName, StorageArgs)
     end, maps:keys(Data)),
 
     % Swagger spec defines an object to allow for polymorphic storage type.
