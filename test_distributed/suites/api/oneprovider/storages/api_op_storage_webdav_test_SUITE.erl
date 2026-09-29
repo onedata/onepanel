@@ -47,7 +47,9 @@
     get_storage_test/1,
 
     modify_correct_storage_test/1,
-    modify_bad_storage_test/1
+    modify_bad_storage_test/1,
+
+    delete_storage_test/1
 ]).
 
 groups() -> [
@@ -58,7 +60,9 @@ groups() -> [
         get_storage_test,
 
         modify_correct_storage_test,
-        modify_bad_storage_test
+        modify_bad_storage_test,
+
+        delete_storage_test
     ]}
 ].
 
@@ -125,19 +129,16 @@ build_add_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
             <<"connectionPoolSize">>,
             <<"maximumUploadSize">>,
             <<"timeout">>,
-            <<"archiveStorage">>,
             <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"webdav">>],
             <<"endpoint">> => [?WEBDAV_ENDPOINT],
             <<"storagePathType">> => [<<"canonical">>],
-            <<"verifyServerCertificate">> => [<<"true">>, <<"false">>],
+            <<"verifyServerCertificate">> => [true, false],
             <<"connectionPoolSize">> => [1, 10, 100],
             <<"maximumUploadSize">> => [0, 1024],
             <<"timeout">> => [?STORAGE_TIMEOUT],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS]
             },
         bad_values = [
@@ -149,7 +150,6 @@ build_add_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
             {<<"maximumUploadSize">>, <<"not_an_interger">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumUploadSize">>))},
             {<<"timeout">>, -?STORAGE_TIMEOUT, ?REST_ERROR(?ERR_STORAGE_TEST_FAILED(write))},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"timeout">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
@@ -214,13 +214,11 @@ get_storage_test(_Config) ->
 
         % default values for not supplied parameters
         <<"authorizationHeader">> => <<"Authorization: Bearer {}">>,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"connectionPoolSize">> => <<"25">>,
+        <<"connectionPoolSize">> => 25,
         <<"dirMode">> => <<"0775">>,
         <<"fileMode">> => <<"0664">>,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"maximumUploadSize">> => <<"0">>,
-        <<"verifyServerCertificate">> => <<"true">>,
+        <<"maximumUploadSize">> => 0,
+        <<"verifyServerCertificate">> => true,
 
         <<"storagePathType">> => <<"canonical">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -231,11 +229,8 @@ get_storage_test(_Config) ->
         },
 
         % default values for not supplied parameters
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -274,7 +269,6 @@ build_modify_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
             <<"name">>,
             <<"timeout">>,
             <<"qosParameters">>,
-            <<"archiveStorage">>,
             <<"verifyServerCertificate">>,
             <<"connectionPoolSize">>,
             <<"maximumUploadSize">>
@@ -284,8 +278,6 @@ build_modify_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
             <<"name">> => [?RAND_STR(10)],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [?RAND_BOOL()],
             <<"verifyServerCertificate">> => [?RAND_BOOL()],
             <<"connectionPoolSize">> => [40],
             <<"maximumUploadSize">> => [512]
@@ -294,15 +286,13 @@ build_modify_webdav_storage_data_spec(MemRef, webdav, correct_args) ->
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
             {<<"verifyServerCertificate">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"verifyServerCertificate">>))},
             {<<"connectionPoolSize">>, <<"not_an_interger">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"connectionPoolSize">>))},
             {<<"maximumUploadSize">>, <<"not_an_interger">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumUploadSize">>))}
@@ -342,8 +332,24 @@ build_modify_webdav_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_WEBDAV_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+delete_storage_test(_Config) ->
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_webdav_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_delete_webdav_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_WEBDAV_STORAGE_SPEC}),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 

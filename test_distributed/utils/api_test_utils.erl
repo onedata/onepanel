@@ -27,10 +27,16 @@
 
 -export_type([placeholder_substitute/0]).
 
+-export([
+    build_member_and_root_allowed_client_spec/1, build_member_and_root_allowed_client_spec/2,
+    build_only_member_allowed_client_spec/1,
+    build_all_valid_clients_allowed_client_spec/1,
+    build_unauthorized_clients/1
+]).
 -export([ensure_defined/2]).
 -export([maybe_substitute_bad_id/2]).
 -export([substitute_placeholders/2]).
--export([get_storage_id_by_name/2]).
+-export([get_storage_id_by_name/2, describe_storage/2]).
 -export([to_hostnames/1]).
 -export([match_location_header/2]).
 -export([perform_io_test_on_storage/1]).
@@ -38,6 +44,63 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+-spec build_member_and_root_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_member_and_root_allowed_client_spec(PanelEntitySelector) ->
+    build_member_and_root_allowed_client_spec(PanelEntitySelector, []).
+
+
+-spec build_member_and_root_allowed_client_spec(
+    oct_background:entity_selector(),
+    [privileges:cluster_privilege()]
+) ->
+    api_test_runner:client_spec().
+build_member_and_root_allowed_client_spec(PanelEntitySelector, MemberPrivs) ->
+    #client_spec{
+        correct = [root, {member, MemberPrivs}],
+        unauthorized = [guest | build_unauthorized_clients(PanelEntitySelector)],
+        forbidden = [peer]
+    }.
+
+
+-spec build_only_member_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_only_member_allowed_client_spec(PanelEntitySelector) ->
+    #client_spec{
+        correct = [member],
+        unauthorized = [guest | build_unauthorized_clients(PanelEntitySelector)],
+        forbidden = [{root, ?ERROR_NOT_FOUND}, peer]
+    }.
+
+
+-spec build_all_valid_clients_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_all_valid_clients_allowed_client_spec(PanelEntitySelector) ->
+    #client_spec{
+        correct = [guest, peer, member, root],
+        unauthorized = build_unauthorized_clients(PanelEntitySelector),
+        forbidden = []
+    }.
+
+
+-spec build_unauthorized_clients(oct_background:entity_selector()) ->
+    [
+        api_test_runner:api_client_or_placeholder() |
+        {api_test_runner:api_client_or_placeholder(), Reason :: errors:error()}
+    ].
+build_unauthorized_clients(PanelEntitySelector) ->
+    EntityId = oct_background:to_entity_id(PanelEntitySelector),
+    PanelType = case EntityId of
+        <<"onezone">> -> ?OZ_PANEL;
+        _ -> ?OP_PANEL
+    end,
+
+    [
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ].
 
 
 -spec ensure_defined
@@ -75,10 +138,18 @@ substitute_placeholders(Data, ReplacementsMap) ->
 -spec get_storage_id_by_name(oct_background:entity_selector(), binary()) -> binary().
 get_storage_id_by_name(EntitySelector, StorageName) ->
     StorageIds = opw_test_rpc:get_storages(EntitySelector),
-    Storages = [opw_test_rpc:storage_describe(EntitySelector, X) || X <- StorageIds],
+    Storages = [describe_storage(EntitySelector, X) || X <- StorageIds],
 
     [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
     StorageId.
+
+
+-spec describe_storage(oct_background:entity_selector(), op_worker_storage:id()) ->
+    json_utils:json_map().
+describe_storage(ProviderSelector, StorageId) ->
+    StorageDescription = opw_test_rpc:storage_describe(ProviderSelector, StorageId),
+    StorageDescriptionMap = storage_spec_builder:description_to_map(StorageDescription),
+    onepanel_utils:convert(StorageDescriptionMap, {keys, binary}).
 
 
 -spec to_hostnames([node()]) -> [binary()].
