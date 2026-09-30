@@ -92,15 +92,8 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
         #step{hosts = AllHosts, function = wait_for_init},
         #step{hosts = NewHosts, function = init_cluster, selection = first,
             condition = fun(_) -> ClusterHosts == [] end
-        },
-        #step{hosts = NewHosts, function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => lists_utils:hd(NewHosts)},
-            condition = fun(_) -> ClusterHosts == [] end
-        },
-        #step{hosts = NewHosts, function = join_cluster,
-            ctx = Ctx#{cluster_host => lists_utils:hd(ClusterHosts)},
-            condition = fun(_) -> ClusterHosts /= [] end
-        },
+        }
+    ] ++ join_cluster_steps(ClusterHosts, NewHosts, Ctx) ++ [
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
     ];
 
@@ -371,6 +364,28 @@ rebalance_cluster(_Ctx) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Returns steps adding new hosts to the couchbase cluster (or to the one
+%% being initialized on the first new host).
+%% @end
+%%--------------------------------------------------------------------
+-spec join_cluster_steps(ClusterHosts :: [service:host()], NewHosts :: [service:host()],
+    Ctx :: service:step_ctx()) -> [#step{}].
+join_cluster_steps(ClusterHosts, NewHosts, Ctx) ->
+    {ClusterHost, JoiningHosts} = case {ClusterHosts, NewHosts} of
+        {[], []} -> {undefined, []};
+        {[], [FirstNewHost | OtherNewHosts]} -> {FirstNewHost, OtherNewHosts};
+        {[FirstClusterHost | _], _} -> {FirstClusterHost, NewHosts}
+    end,
+    % NOTE: hosts join one by one, as Couchbase fails concurrent addNode requests
+    % while the cluster node renames itself when the first node is added.
+    [
+        #step{hosts = [Host], function = join_cluster, ctx = Ctx#{cluster_host => ClusterHost}}
+        || Host <- JoiningHosts
+    ].
+
 
 %% @private
 -spec rebalance_cluster_with_attempts(string(), string(), string(), string(), non_neg_integer()) ->
