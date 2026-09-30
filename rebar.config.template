@@ -33,7 +33,7 @@
     {compatibility_reference, {raw, {git, "ssh://git@git.onedata.org:7999/vfs/compatibility-reference.git", {ref, "9294f40a147e"}}}},
     {ctool, {git, "ssh://git@git.onedata.org:7999/vfs/ctool.git", {ref, "74552f2b4654"}}},
     {gui, {git, "ssh://git@git.onedata.org:7999/vfs/gui.git", {ref, "e5df82343f81"}}},
-    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "69263ea80d84"}}},
+    {onenv_ct, {git, "ssh://git@git.onedata.org:7999/vfs/onenv-ct.git", {ref, "b956fa1c9a29"}}},
     {opw_panel_contracts, {git, "ssh://git@git.onedata.org:7999/vfs/opw-panel-contracts.git", {ref, "54257f8e4e133d4f"}}}
 ]}.
 
