@@ -287,6 +287,10 @@
         {couchbase_wait_for_service_init_attempts, 60},
         {couchbase_wait_for_service_init_interval_sec, 5},
         {couchbase_wait_for_service_init_max_restarts, 2},
+        % Adding the first node makes couchbase rename the cluster node, which may fail
+        % the request ("please retry") on slow machines.
+        {couchbase_join_cluster_attempts, 5},
+        {couchbase_join_cluster_retry_delay_sec, 10},
 
         % Couchbase reports healthy status before it's ready to serve requests.
         % This delay provides additional margin of error before starting workers.

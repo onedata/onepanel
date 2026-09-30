@@ -379,10 +379,15 @@ join_cluster_steps(ClusterHosts, NewHosts, Ctx) ->
         {[], [FirstNewHost | OtherNewHosts]} -> {FirstNewHost, OtherNewHosts};
         {[FirstClusterHost | _], _} -> {FirstClusterHost, NewHosts}
     end,
-    % NOTE: hosts join one by one, as Couchbase fails concurrent addNode requests
-    % while the cluster node renames itself when the first node is added.
+    % NOTE: hosts join one by one and joining is retried, as Couchbase fails addNode
+    % requests while the cluster node renames itself when the first node is added.
+    Attempts = onepanel_env:get(couchbase_join_cluster_attempts),
+    RetryDelay = timer:seconds(onepanel_env:get(couchbase_join_cluster_retry_delay_sec)),
     [
-        #step{hosts = [Host], function = join_cluster, ctx = Ctx#{cluster_host => ClusterHost}}
+        #step{
+            hosts = [Host], function = join_cluster, ctx = Ctx#{cluster_host => ClusterHost},
+            attempts = Attempts, retry_delay = RetryDelay
+        }
         || Host <- JoiningHosts
     ].
 
