@@ -36,7 +36,9 @@
     get_storage_test/1,
 
     modify_correct_storage_test/1,
-    modify_bad_storage_test/1
+    modify_bad_storage_test/1,
+
+    delete_storage_test/1
 ]).
 
 groups() -> [
@@ -47,7 +49,9 @@ groups() -> [
         get_storage_test,
 
         modify_correct_storage_test,
-        modify_bad_storage_test
+        modify_bad_storage_test,
+
+        delete_storage_test
     ]}
 ].
 
@@ -117,7 +121,6 @@ build_add_ceph_storage_data_spec(MemRef, cephrados, correct_args) ->
             <<"timeout">>,
             <<"qosParameters">>,
             <<"storagePathType">>,
-            <<"archiveStorage">>,
             <<"blockSize">>
         ],
         correct_values = #{
@@ -130,9 +133,7 @@ build_add_ceph_storage_data_spec(MemRef, cephrados, correct_args) ->
             <<"blockSize">> => [1024],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
-            <<"storagePathType">> => [<<"flat">>],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"storagePathType">> => [<<"flat">>]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
@@ -144,8 +145,7 @@ build_add_ceph_storage_data_spec(MemRef, cephrados, correct_args) ->
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"qosParameters.key">>))},
             {<<"storagePathType">>, <<"canonical">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>), [<<"flat">>])},
-            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
+            {<<"storagePathType">>, 1, ?ERR_BAD_VALUE_STRING(?STORAGE_DATA_KEY(StorageName, <<"storagePathType">>))}
         ]
     };
 build_add_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
@@ -207,14 +207,9 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>,
-
-        % TODO VFS-12391 shouldn't this be int?
-        <<"blockSize">> => <<"4194304">>
+        <<"importedStorage">> => false,
+        <<"readonly">> => false,
+        <<"blockSize">> => 4194304
     }).
 
 
@@ -252,36 +247,31 @@ build_modify_ceph_storage_data_spec(MemRef, cephrados, correct_args) ->
         optional = [
             <<"name">>,
             <<"timeout">>,
-            <<"qosParameters">>,
-            <<"archiveStorage">>
+            <<"qosParameters">>
 
-            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes - debug
+            %% TODO VFS-13152 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">>
         ],
         correct_values = #{
             <<"type">> => [<<"cephrados">>],
             <<"name">> => [?RAND_STR(10)],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
-            <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [?RAND_BOOL()]
+            <<"qosParameters">> => [#{<<"key">> => <<"value">>}]
 
-            %% TODO VFS-12391 it passes with dummy data but takes ~14 minutes - debug
+            %% TODO VFS-13152 it passes with dummy data but takes ~14 minutes - debug
 %%            <<"clusterName">> => [<<"dummy">>]
         },
 
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))}
+            {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))}
         ]
     };
 
@@ -295,7 +285,7 @@ build_modify_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
         ],
         optional = [
             <<"name">>,
-            %% TODO VFS-12391 changing hostname always timeouts
+            %% TODO VFS-13152 changing hostname always timeouts
 %%            <<"monitorHostname">>,
             <<"poolName">>,
             <<"username">>,
@@ -304,7 +294,7 @@ build_modify_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
         correct_values = #{
             <<"type">> => [<<"cephrados">>],
             <<"name">> => [<<"a">>],
-            %% TODO VFS-12391 changing hostname always timeouts
+            %% TODO VFS-13152 changing hostname always timeouts
 %%            <<"monitorHostname">> => [<<"0.0.0.0">>],
             <<"poolName">> => [<<"dummy">>],
             <<"username">> => [<<"dummy">>],
@@ -322,8 +312,24 @@ build_modify_ceph_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_CEPH_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+delete_storage_test(_Config) ->
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_ceph_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_delete_ceph_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_CEPH_STORAGE_SPEC}),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 

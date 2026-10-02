@@ -29,9 +29,6 @@
 -define(PRODUCTION_DIRECTORY_URL, application:get_env(?APP_NAME,
     letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory")).
 
--define(ROOT_CA_URL, application:get_env(?APP_NAME,
-    letsencrypt_root_ca_url, "https://letsencrypt.org/certs/isrgrootx1.pem")).
-
 -define(CERT_PATH, onepanel_env:get(web_cert_file)).
 -define(LETSENCRYPT_KEYS_DIR, application:get_env(?APP_NAME, letsencrypt_keys_dir,
     % default
@@ -71,7 +68,10 @@
 -define(HTTP_OPTS, [{
     connect_timeout, timer:seconds(30)},
     {recv_timeout, timer:seconds(30)},
-    {ssl_options, [{cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}]}
+    {ssl_options, [
+        {secure, true},
+        {cacerts, cert_utils:load_ders_in_dir(onepanel_env:get(cacerts_dir))}
+    ]}
 ]).
 
 
@@ -163,7 +163,6 @@
 
 -export([run_certification_flow/1]).
 -export([challenge_types/0]).
--export([get_root_ca/0]).
 
 %%%===================================================================
 %%% Public API
@@ -192,13 +191,6 @@ run_certification_flow(Plugin) ->
 challenge_types() ->
     % Http challenge is preferred if possible as it is more versatile and simpler.
     [http, dns].
-
-
--spec get_root_ca() -> pem().
-get_root_ca() ->
-    % TODO VFS-12381 in case of test env - use insecure connection for Pebble server
-    {ok, ?HTTP_200_OK, _, Pem} = http_client:get(?ROOT_CA_URL, #{}, <<>>, ?HTTP_OPTS),
-    Pem.
 
 
 %%%===================================================================

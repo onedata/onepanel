@@ -202,7 +202,8 @@ deploy_standalone_gui_files() ->
 -spec prepare_test_env_certs() -> ok.
 prepare_test_env_certs() ->
     maybe_generate_test_cert(),
-    maybe_trust_onedata_test_ca().
+    onepanel_env:get(treat_test_ca_as_trusted) andalso trust_test_onedata_ca(),
+    onepanel_env:get(treat_test_pebble_minica_ca_as_trusted) andalso trust_test_pebble_minica_ca().
 
 
 %%--------------------------------------------------------------------
@@ -246,7 +247,7 @@ maybe_generate_test_cert() ->
                 WebKeyPath, WebCertPath, Domain, Subdomains, CAPath, CAPath
             ),
             file:copy(CAPath, WebChainPath),
-            generate_web_full_chain(WebCertPath, WebChainPath, WebFullChainPath),
+            onepanel_cert:generate_web_full_chain(),
             ?warning(
                 "Generated a new cert for domain '~ts'. "
                 "Use only for test purposes.~n"
@@ -263,41 +264,22 @@ maybe_generate_test_cert() ->
     end.
 
 
-%%--------------------------------------------------------------------
-%% @private @doc
-%% Generate full chain containing beside chain certificates also leaf certificate.
-%% @end
-%%--------------------------------------------------------------------
--spec generate_web_full_chain(file:filename_all(), file:filename_all(), file:filename_all()) ->
-    ok.
-generate_web_full_chain(WebCertPath, WebChainPath, WebFullChainPath) ->
-    CertDers = cert_utils:load_ders(WebCertPath),
-    ChainDers = cert_utils:load_ders(WebChainPath),
-    FullChainDers = CertDers ++ ChainDers,
-    FullChainPem = cert_utils:ders_to_pem(FullChainDers),
-    ok = file:write_file(WebFullChainPath, FullChainPem).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc
-%% Adds Onedata test CA to trusted certificates, given that this option is
-%% enabled in env config.
-%% @end
-%%--------------------------------------------------------------------
--spec maybe_trust_onedata_test_ca() -> ok.
-maybe_trust_onedata_test_ca() ->
-    case onepanel_env:get(treat_test_ca_as_trusted) of
-        false ->
-            ok;
-        true ->
-            trust_onedata_test_ca()
-    end.
+%% @private
+-spec trust_test_onedata_ca() -> ok.
+trust_test_onedata_ca() ->
+    trust_test_ca(test_web_cert_ca_path).
 
 
 %% @private
--spec trust_onedata_test_ca() -> ok.
-trust_onedata_test_ca() ->
-    CaFilePath = onepanel_env:get(test_web_cert_ca_path),
+-spec trust_test_pebble_minica_ca() -> ok.
+trust_test_pebble_minica_ca() ->
+    trust_test_ca(test_pebble_minica_ca_web_cert_path).
+
+
+%% @private
+-spec trust_test_ca(atom()) -> ok.
+trust_test_ca(CaFilePathEnvKey) ->
+    CaFilePath = onepanel_env:get(CaFilePathEnvKey),
     CaFileName = filename:basename(CaFilePath),
     TargetCaFilePath = filename:join(onepanel_env:get(cacerts_dir), CaFileName),
     file:copy(CaFilePath, TargetCaFilePath),

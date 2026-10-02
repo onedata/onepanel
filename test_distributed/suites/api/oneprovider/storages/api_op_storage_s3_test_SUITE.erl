@@ -39,7 +39,9 @@
     get_storage_test/1,
 
     modify_correct_storage_test/1,
-    modify_bad_storage_test/1
+    modify_bad_storage_test/1,
+
+    delete_storage_test/1
 ]).
 
 groups() -> [
@@ -50,7 +52,9 @@ groups() -> [
         get_storage_test,
 
         modify_correct_storage_test,
-        modify_bad_storage_test
+        modify_bad_storage_test,
+
+        delete_storage_test
     ]}
 ].
 
@@ -70,6 +74,7 @@ all() -> [
 %%%===================================================================
 %%% API
 %%%===================================================================
+
 
 add_correct_storage_test(_Config) ->
     add_s3_storage_test_base(correct_args).
@@ -117,9 +122,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"qosParameters">>,
             <<"storagePathType">>,
             <<"signatureVersion">>,
-            <<"maximumCanonicalObjectSize">>,
-            <<"blockSize">>,
-            <<"archiveStorage">>
+            <<"blockSize">>
         ],
         correct_values = #{
             <<"bucketName">> => [?S3_BUCKET_NAME],
@@ -132,10 +135,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             <<"qosParameters">> => [?STORAGE_QOS_PARAMETERS],
             <<"storagePathType">> => [<<"canonical">>, <<"flat">>],
             <<"signatureVersion">> => ?S3_ALLOWED_SIGNATURE_VERSIONS,
-            <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE],
-            <<"maximumCanonicalObjectSize">> => [?STORAGE_DETECTION_FILE_SIZE],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"blockSize">> => [?STORAGE_DETECTION_FILE_SIZE]
         },
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"type">>), ?STORAGE_TYPES)},
@@ -149,10 +149,7 @@ build_add_s3_storage_data_spec(MemRef, s3, correct_args) ->
             {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
             {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
             {<<"blockSize">>, <<"blockSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>))},
-            {<<"blockSize">>, -1, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>))},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(?STORAGE_DATA_KEY(StorageName, <<"archiveStorage">>))}
+            {<<"blockSize">>, -1, ?ERR_BAD_VALUE_TOO_LOW(?STORAGE_DATA_KEY(StorageName, <<"blockSize">>), ?S3_MIN_BLOCK_SIZE)}
         ]
     };
 build_add_s3_storage_data_spec(MemRef, s3, bad_args) ->
@@ -217,13 +214,10 @@ get_storage_test(_Config) ->
 
         % default values for not supplied parameters
         <<"region">> => <<"us-east-1">>,
-        <<"signatureVersion">> => <<"4">>,
+        <<"signatureVersion">> => 4,
         <<"dirMode">> => <<"0775">>,
         <<"fileMode">> => <<"0664">>,
-        % TODO VFS-12391 shouldn't this be int?
-        <<"blockSize">> => str_utils:to_binary(?S3_DEFAULT_BLOCK_SIZE),
-        % TODO VFS-12391 shouldn't this be int?
-        <<"maximumCanonicalObjectSize">> => <<"67108864">>,
+        <<"blockSize">> => ?S3_DEFAULT_BLOCK_SIZE,
 
         <<"storagePathType">> => <<"flat">>,
         <<"lumaFeed">> => <<"auto">>,
@@ -232,11 +226,8 @@ get_storage_test(_Config) ->
             <<"providerId">> => oct_background:get_provider_id(krakow),
             <<"storageId">> => StorageId
         },
-        <<"archiveStorage">> => <<"false">>,
-        <<"importedStorage">> => <<"false">>,
-        <<"readonly">> => <<"false">>,
-        <<"rootGid">> => <<"0">>,
-        <<"rootUid">> => <<"0">>
+        <<"importedStorage">> => false,
+        <<"readonly">> => false
     }).
 
 
@@ -256,14 +247,7 @@ modify_s3_storage_test_base(ArgsCorrectness) ->
             args_correctness = ArgsCorrectness,
 
             build_data_spec_fun = fun build_modify_s3_storage_data_spec/3,
-            build_setup_fun = fun build_modify_s3_storage_setup_fun/1,
-
-            map_storage_description_to_exp_rest_response_fun = fun(S3Description) ->
-                {Scheme, S3Description2} = maps:take(<<"scheme">>, S3Description),
-                maps:update_with(<<"hostname">>, fun(Hostname) ->
-                    <<Scheme/binary, "://", Hostname/binary>>
-                end, S3Description2)
-            end
+            build_setup_fun = fun build_modify_s3_storage_setup_fun/1
         }).
 
 
@@ -281,36 +265,27 @@ build_modify_s3_storage_data_spec(MemRef, s3, correct_args) ->
         optional = [
             <<"name">>,
             <<"timeout">>,
-            <<"qosParameters">>,
-            <<"maximumCanonicalObjectSize">>,
-            <<"archiveStorage">>
+            <<"qosParameters">>
         ],
         correct_values = #{
             <<"type">> => [<<"s3">>],
             <<"name">> => [?RAND_STR(10)],
             <<"timeout">> => [?STORAGE_TIMEOUT, ?STORAGE_TIMEOUT div 2],
-            <<"qosParameters">> => [#{<<"key">> => <<"value">>}],
-            <<"maximumCanonicalObjectSize">> => [5*?STORAGE_DETECTION_FILE_SIZE],
-            %% TODO VFS-8782 verify if archiveStorage option works properly on storage
-            <<"archiveStorage">> => [true, false]
+            <<"qosParameters">> => [#{<<"key">> => <<"value">>}]
         },
 
         bad_values = [
             {<<"type">>, <<"bad_storage_type">>, ?ERR_BAD_VALUE_NOT_ALLOWED(K(<<"type">>), ?MODIFY_STORAGE_TYPES)},
             {<<"name">>, 1, ?ERR_BAD_VALUE_STRING(K(<<"name">>))},
-            % TODO VFS-12391 timeout is being changed to binary and not validated
-%%            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
-%%            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
+            {<<"timeout">>, -?STORAGE_TIMEOUT, ?ERR_BAD_VALUE_TOO_LOW(K(<<"timeout">>), 1)},
             {<<"timeout">>, <<"timeout_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"timeout">>))},
             %% TODO: VFS-7641 add records for badly formatted QoS
             {<<"qosParameters">>, <<"qos_not_a_map">>, ?ERR_MISSING_REQUIRED_VALUE(K(<<"qosParameters._">>))},
             {<<"qosParameters">>, #{<<"key">> => 1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"qosParameters">>, #{<<"key">> => 0.1}, ?ERR_BAD_VALUE_STRING(K(<<"qosParameters.key">>))},
             {<<"signatureVersion">>, <<"signatureVersion_as_string">>, ?ERR_BAD_VALUE_INTEGER(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>))},
-            {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)},
-            {<<"archiveStorage">>, <<"not_a_boolean">>, ?ERR_BAD_VALUE_BOOLEAN(K(<<"archiveStorage">>))},
-            {<<"maximumCanonicalObjectSize">>, <<"maximumCanonicalObjectSize_as_string">>, ?ERR_BAD_VALUE_INTEGER(K(<<"maximumCanonicalObjectSize">>))},
-            {<<"maximumCanonicalObjectSize">>, 0, ?ERR_BAD_VALUE_TOO_LOW(K(<<"maximumCanonicalObjectSize">>), ?S3_MIN_MAX_CANONICAL_OBJECT_SIZE)}
+            {<<"signatureVersion">>, 2, ?ERR_BAD_VALUE_LIST_NOT_ALLOWED(?STORAGE_DATA_KEY(StorageName, <<"signatureVersion">>), ?S3_ALLOWED_SIGNATURE_VERSIONS)}
         ]
     };
 
@@ -349,8 +324,24 @@ build_modify_s3_storage_setup_fun(MemRef) ->
         StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
         api_test_memory:set(MemRef, storage_id, StorageId),
 
-        StorageDetails = opw_test_rpc:storage_describe(krakow, StorageId),
+        StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
         api_test_memory:set(MemRef, storage_details, StorageDetails)
+    end.
+
+
+delete_storage_test(_Config) ->
+    api_op_storages_test_base:delete_storage_test_base(
+        #delete_storage_test_spec{
+            build_setup_fun = fun build_delete_s3_storage_setup_fun/1
+        }).
+
+
+%% @private
+build_delete_s3_storage_setup_fun(MemRef) ->
+    fun() ->
+        StorageName = ?RAND_STR(),
+        StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
+        api_test_memory:set(MemRef, storage_id, StorageId)
     end.
 
 
