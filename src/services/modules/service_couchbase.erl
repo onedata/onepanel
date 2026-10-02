@@ -92,15 +92,8 @@ get_steps(deploy, #{hosts := Hosts} = Ctx) ->
         #step{hosts = AllHosts, function = wait_for_init},
         #step{hosts = NewHosts, function = init_cluster, selection = first,
             condition = fun(_) -> ClusterHosts == [] end
-        },
-        #step{hosts = NewHosts, function = join_cluster, selection = rest,
-            ctx = Ctx#{cluster_host => lists_utils:hd(NewHosts)},
-            condition = fun(_) -> ClusterHosts == [] end
-        },
-        #step{hosts = NewHosts, function = join_cluster,
-            ctx = Ctx#{cluster_host => lists_utils:hd(ClusterHosts)},
-            condition = fun(_) -> ClusterHosts /= [] end
-        },
+        }
+    ] ++ join_cluster_steps(ClusterHosts, NewHosts, Ctx) ++ [
         #step{hosts = AllHosts, function = rebalance_cluster, selection = first}
     ];
 
@@ -306,12 +299,12 @@ init_cluster(Ctx) ->
     ),
 
     Cmd = [?CLI, "cluster-init", "-c", Host ++ ":" ++ Port,
-        str_utils:format("--cluster-init-username=~ts", [User]),
-        str_utils:format("--cluster-init-ramsize=~B", [ServerQuota])
+        str_utils:format("--cluster-username=~ts", [User]),
+        str_utils:format("--cluster-ramsize=~B", [ServerQuota])
     ],
     shell_utils:ensure_success(
-        Cmd ++ ["--cluster-init-password=" ++ Password],
-        Cmd ++ ["--cluster-init-password=*****"]),
+        Cmd ++ ["--cluster-password=" ++ Password],
+        Cmd ++ ["--cluster-password=*****"]),
 
     ClusterType = onepanel_env:get_cluster_type(),
     Buckets = kv_utils:get(ClusterType, onepanel_env:get(couchbase_buckets)),
@@ -372,6 +365,33 @@ rebalance_cluster(_Ctx) ->
 %%% Internal functions
 %%%===================================================================
 
+%%--------------------------------------------------------------------
+%% @private @doc
+%% Returns steps adding new hosts to the couchbase cluster (or to the one
+%% being initialized on the first new host).
+%% @end
+%%--------------------------------------------------------------------
+-spec join_cluster_steps(ClusterHosts :: [service:host()], NewHosts :: [service:host()],
+    Ctx :: service:step_ctx()) -> [#step{}].
+join_cluster_steps(ClusterHosts, NewHosts, Ctx) ->
+    {ClusterHost, JoiningHosts} = case {ClusterHosts, NewHosts} of
+        {[], []} -> {undefined, []};
+        {[], [FirstNewHost | OtherNewHosts]} -> {FirstNewHost, OtherNewHosts};
+        {[FirstClusterHost | _], _} -> {FirstClusterHost, NewHosts}
+    end,
+    % NOTE: hosts join one by one and joining is retried, as Couchbase fails addNode
+    % requests while the cluster node renames itself when the first node is added.
+    Attempts = onepanel_env:get(couchbase_join_cluster_attempts),
+    RetryDelay = timer:seconds(onepanel_env:get(couchbase_join_cluster_retry_delay_sec)),
+    [
+        #step{
+            hosts = [Host], function = join_cluster, ctx = Ctx#{cluster_host => ClusterHost},
+            attempts = Attempts, retry_delay = RetryDelay
+        }
+        || Host <- JoiningHosts
+    ].
+
+
 %% @private
 -spec rebalance_cluster_with_attempts(string(), string(), string(), string(), non_neg_integer()) ->
     ok | no_return().
@@ -410,7 +430,7 @@ create_bucket(Host, Port, User, Password, Bucket, BucketQuota) ->
     Cmd = [?CLI, "bucket-create", "-c", Host ++ ":" ++ Port,
         "-u", User, "--bucket=" ++ Bucket,
         str_utils:format("--bucket-ramsize=~B", [BucketQuota]),
-        "--bucket-eviction-policy=fullEviction", "--wait"],
+        "--bucket-eviction-policy=fullEviction", "--bucket-type=couchbase", "--wait"],
     shell_utils:ensure_success(
         Cmd ++ ["-p", Password],
         Cmd ++ ["-p", "****"]
