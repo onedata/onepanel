@@ -42,7 +42,9 @@ build_create_spec(Name, Params) ->
         readonly = maps:get(readonly, Params, false),
         imported = maps:get(importedStorage, Params, false),
         luma = build_luma_spec(Params),
-        qos_parameters = extract_qos_parameters(Params),
+        % passed on as the request had them - op-worker stores as numbers
+        % those that a QoS expression reads as numbers
+        qos_parameters = maps:get(qosParameters, Params, #{}),
         credentials = build_credentials(Type, Params),
         configuration = build_configuration(Type, Params)
     }.
@@ -140,26 +142,6 @@ binary_to_luma_feed(<<"external">>) -> external.
 luma_feed_to_binary(auto) -> <<"auto">>;
 luma_feed_to_binary(local) -> <<"local">>;
 luma_feed_to_binary(external) -> <<"external">>.
-
-
-%% @private
--spec extract_qos_parameters(map()) -> onedata_storage:qos_parameters().
-extract_qos_parameters(Params) ->
-    normalize_numeric_qos_parameters(maps:get(qosParameters, Params, #{})).
-
-
-%% @private
--spec normalize_numeric_qos_parameters(#{binary() => binary()}) ->
-    #{binary() => binary() | number()}.
-normalize_numeric_qos_parameters(QosParameters) ->
-    maps:map(fun(_Key, Value) ->
-        try
-            %% JSON decoding parses any number (integer or float) expressed as string
-            json_utils:decode(Value)
-        catch
-            _:invalid_json -> Value
-        end
-    end, QosParameters).
 
 
 %% @private
