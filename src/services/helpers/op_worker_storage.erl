@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -125,8 +125,9 @@ remove(OpNode, Id) ->
         ok ->
             ?info("Successfully removed storage with id ~tp", [Id]),
             ok;
-        {error, storage_in_use} ->
-            throw(?ERR_STORAGE_IN_USE(?err_ctx()))
+        {error, _} = Error ->
+            % op-worker's own error, a storage in use among others
+            throw(Error)
     end.
 
 

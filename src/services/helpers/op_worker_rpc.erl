@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C) 2019 ACK CYFRONET AGH
+%%% @copyright (C) 2019 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -179,11 +179,11 @@ storage_describe(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec storage_safe_remove(op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
+-spec storage_safe_remove(op_worker_storage:id()) -> ok | od_error_storage_in_use:t() | {error, term()}.
 storage_safe_remove(StorageId) ->
     ?CALL([StorageId]).
 
--spec storage_safe_remove(node(), op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
+-spec storage_safe_remove(node(), op_worker_storage:id()) -> ok | od_error_storage_in_use:t() | {error, term()}.
 storage_safe_remove(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
