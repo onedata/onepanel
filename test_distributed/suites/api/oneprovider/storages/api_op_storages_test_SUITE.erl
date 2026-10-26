@@ -115,19 +115,31 @@ modify_storage_test(_Config) ->
                 ProviderId, [?CLUSTER_UPDATE]
             ),
             prepare_args_fun = fun(#api_test_ctx{data = Data}) ->
-                {Id, _} = api_test_utils:maybe_substitute_bad_id(StorageId, Data),
+                {Id, LeftoverData} = api_test_utils:maybe_substitute_bad_id(StorageId, Data),
+                Body = case LeftoverData of
+                    #{body := BadBody} -> BadBody;
+                    _ -> #{StorageName => #{<<"type">> => StorageType}}
+                end,
                 #rest_args{
                     method = patch,
                     path = <<"provider/storages/", Id/binary>>,
                     headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-                    body = json_utils:encode(#{StorageName => #{<<"type">> => StorageType}})
+                    body = json_utils:encode(Body)
                 }
             end,
             validate_result_fun = api_test_validate:http_200_ok(fun(RespBody) ->
                 ?assertMatch(#{<<"id">> := StorageId, <<"verificationPassed">> := true}, RespBody)
             end),
             data_spec = #data_spec{
-                bad_values = [{bad_id, ?INEXISTENT_STORAGE_ID, ?ERROR_NOT_FOUND}]
+                bad_values = [
+                    {bad_id, ?INEXISTENT_STORAGE_ID, ?ERROR_NOT_FOUND},
+                    % the body names exactly the storage in the path
+                    {body, #{}, ?ERR_MISSING_REQUIRED_VALUE(StorageName)},
+                    {body, #{
+                        StorageName => #{<<"type">> => StorageType},
+                        <<"otherStorage">> => #{<<"type">> => StorageType}
+                    }, ?ERR_BAD_VALUE_NOT_ALLOWED(<<"otherStorage">>, [StorageName])}
+                ]
             }
         }
     ])).

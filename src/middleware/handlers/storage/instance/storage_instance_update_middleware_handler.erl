@@ -93,18 +93,20 @@ validate(#state{storage_details = CurrentDetails, input = Data}) ->
 
     % Swagger spec defines an object to allow for polymorphic storage type.
     % As a result, it is ensured here that only the storage with
-    % id specified in path is modified.
+    % id specified in path is modified: the body names it, and nothing else.
+    #{name := ActualName, type := ActualType} = CurrentDetails,
 
-    [{OldName, #{type := Type}}] = maps:to_list(Data),
-
-    case CurrentDetails of
-        #{name := OldName, type := Type} ->
+    case maps:to_list(Data) of
+        [] ->
+            throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), ActualName));
+        [{ActualName, #{type := ActualType}}] ->
             ok;
-        #{name := ActualName, type := _} when ActualName /= OldName ->
-            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), OldName, [ActualName]));
-        #{name := OldName, type := ActualType} ->
-            Key = str_utils:join_as_binaries([OldName, type], <<".">>),
-            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), Key, [ActualType]))
+        [{ActualName, #{type := _}}] ->
+            Key = str_utils:join_as_binaries([ActualName, type], <<".">>),
+            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), Key, [ActualType]));
+        StoragesData ->
+            [OtherName | _] = [Name || {Name, _} <- StoragesData, Name /= ActualName],
+            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), OtherName, [ActualName]))
     end.
 
 
