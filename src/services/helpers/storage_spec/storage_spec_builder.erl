@@ -120,14 +120,20 @@ build_luma_spec(Params) ->
 %% @private
 -spec build_luma_spec_diff(map()) -> onedata_storage:luma_spec() | undefined.
 build_luma_spec_diff(Params) ->
-    #luma_spec{
-        feed = case maps:get(lumaFeed, Params, undefined) of
-            undefined -> undefined;
-            Feed -> binary_to_luma_feed(Feed)
-        end,
-        url = maps:get(lumaFeedUrl, Params, undefined),
-        api_key = maps:get(lumaFeedApiKey, Params, undefined)
-    }.
+    case maps:with([lumaFeed, lumaFeedUrl, lumaFeedApiKey], Params) of
+        LumaParams when map_size(LumaParams) == 0 ->
+            % the request doesn't touch LUMA
+            undefined;
+        _ ->
+            #luma_spec{
+                feed = case maps:get(lumaFeed, Params, undefined) of
+                    undefined -> undefined;
+                    Feed -> binary_to_luma_feed(Feed)
+                end,
+                url = maps:get(lumaFeedUrl, Params, undefined),
+                api_key = maps:get(lumaFeedApiKey, Params, undefined)
+            }
+    end.
 
 
 %% @private

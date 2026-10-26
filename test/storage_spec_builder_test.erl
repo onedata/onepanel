@@ -6,9 +6,10 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Unit tests of the QoS parameters in the storage specs built from REST
-%%% requests. They go to op-worker as the request had them, as strings:
-%%% op-worker stores as numbers those that a QoS expression reads as numbers.
+%%% Unit tests of the storage specs built from REST requests: the QoS
+%%% parameters go to op-worker as the request had them, as strings (op-worker
+%%% stores as numbers those that a QoS expression reads as numbers), and an
+%%% update carries a LUMA spec only when the request names a LUMA setting.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_spec_builder_test).
@@ -50,3 +51,22 @@ update_spec_without_qos_parameters_leaves_them_out_test() ->
     ),
 
     ?assertEqual(undefined, QosParameters).
+
+
+%% An update that names no LUMA setting must not send a LUMA spec: op-worker
+%% would take it for a change of the LUMA config.
+update_spec_without_luma_parameters_leaves_luma_out_test() ->
+    #storage_update_spec{luma = Luma} = storage_spec_builder:build_update_spec(
+        <<"posix">>, #{name => <<"new-name">>}
+    ),
+
+    ?assertEqual(undefined, Luma).
+
+
+update_spec_with_a_luma_parameter_carries_it_test() ->
+    #storage_update_spec{luma = Luma} = storage_spec_builder:build_update_spec(
+        <<"posix">>, #{lumaFeedUrl => <<"https://luma.example.com">>}
+    ),
+
+    ?assertEqual(#luma_spec{url = <<"https://luma.example.com">>}, Luma).
+
