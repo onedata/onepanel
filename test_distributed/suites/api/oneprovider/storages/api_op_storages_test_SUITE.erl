@@ -26,13 +26,15 @@
 -export([
     get_storage_ids_test/1,
     get_storage_test/1,
-    modify_storage_test/1
+    modify_storage_test/1,
+    add_storage_with_external_luma_feed_without_url_test/1
 ]).
 
 all() -> [
     get_storage_ids_test,
     get_storage_test,
-    modify_storage_test
+    modify_storage_test,
+    add_storage_with_external_luma_feed_without_url_test
 ].
 
 -define(INEXISTENT_STORAGE_ID, <<"inexistentStorageId">>).
@@ -145,6 +147,41 @@ modify_storage_test(_Config) ->
     ])).
 
 
+%% The REST model has the feed's URL optional; a storage with an external feed
+%% and no URL could resolve none of its users' mappings.
+add_storage_with_external_luma_feed_without_url_test(_Config) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+    StorageName = <<"externalLumaFeedWithoutUrl">>,
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Add storage with an external LUMA feed and no URL using /provider/storages rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
+            prepare_args_fun = fun(_) ->
+                #rest_args{
+                    method = post,
+                    path = <<"provider/storages">>,
+                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                    body = json_utils:encode(#{StorageName => #{
+                        <<"type">> => <<"posix">>,
+                        <<"mountPoint">> => ?POSIX_MOUNTPOINT,
+                        <<"lumaFeed">> => <<"external">>
+                    }})
+                }
+            end,
+            validate_result_fun = api_test_validate:http_400_bad_request(fun(RespBody) ->
+                ?assertEqual(#{StorageName => ?REST_ERROR(?ERR_MISSING_REQUIRED_VALUE(<<"url">>))}, RespBody),
+                ?assertEqual([], storage_ids_named(StorageName))
+            end)
+        }
+    ])).
+
+
 %%%===================================================================
 %%% SetUp and TearDown functions
 %%%===================================================================
@@ -157,3 +194,14 @@ init_per_suite(Config) ->
 
 end_per_suite(_Config) ->
     oct_background:end_per_suite().
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+
+%% @private
+storage_ids_named(StorageName) ->
+    [StorageId || StorageId <- opw_test_rpc:get_storages(krakow),
+        maps:get(<<"name">>, api_test_utils:describe_storage(krakow, StorageId)) == StorageName].
