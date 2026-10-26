@@ -61,11 +61,18 @@ service_availability_requirements(_) ->
 -spec init_state(middleware_handler_behaviour:req_ctx(), input()) ->
     {ok, state()} | errors:error().
 init_state(OnpReqCtx = #onp_req_ctx{gri = #gri{id = StorageId}}, Input) ->
-    case storage_middleware_handler_utils:get_storage(StorageId) of
-        {ok, StorageDetails} ->
-            {ok, #state{ctx = OnpReqCtx, input = Input, storage_details = StorageDetails}};
-        {error, _} = Error ->
-            Error
+    % checked first, as the GET handler does - the fetch below fails with an
+    % internal error for an id that no storage has
+    case op_worker_storage:exists(StorageId) of
+        false ->
+            ?ERROR_NOT_FOUND;
+        true ->
+            case storage_middleware_handler_utils:get_storage(StorageId) of
+                {ok, StorageDetails} ->
+                    {ok, #state{ctx = OnpReqCtx, input = Input, storage_details = StorageDetails}};
+                {error, _} = Error ->
+                    Error
+            end
     end.
 
 
