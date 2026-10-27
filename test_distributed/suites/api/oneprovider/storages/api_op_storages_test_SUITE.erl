@@ -32,7 +32,8 @@
     add_http_storage_without_credentials_test/1,
     modify_http_storage_to_credentials_type_without_credentials_test/1,
     add_storage_with_external_luma_feed_with_empty_url_test/1,
-    modify_storage_to_external_luma_feed_with_empty_url_test/1
+    modify_storage_to_external_luma_feed_with_empty_url_test/1,
+    remove_storage_supporting_space_test/1
 ]).
 
 all() -> [
@@ -44,7 +45,9 @@ all() -> [
     modify_http_storage_to_credentials_type_without_credentials_test,
     add_storage_with_external_luma_feed_with_empty_url_test,
     % modifies the storage the other tests find first, should the refusal fail
-    modify_storage_to_external_luma_feed_with_empty_url_test
+    modify_storage_to_external_luma_feed_with_empty_url_test,
+    % removes a storage that supports a space, should the refusal fail
+    remove_storage_supporting_space_test
 ].
 
 -define(INEXISTENT_STORAGE_ID, <<"inexistentStorageId">>).
@@ -357,6 +360,40 @@ modify_storage_to_external_luma_feed_with_empty_url_test(_Config) ->
                 ?assertEqual(?REST_ERROR(?ERR_BAD_VALUE_EMPTY(<<"url">>)), RespBody),
                 ?assertEqual(StorageDetails, api_test_utils:describe_storage(krakow, StorageId))
             end)
+        }
+    ])).
+
+
+%% A storage that supports a space can't be removed, so the correct request is
+%% refused too, and the storage stays for the other tests.
+remove_storage_supporting_space_test(_Config) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+    [SpaceId | _] = opw_test_rpc:get_spaces(krakow),
+    [StorageId | _] = opw_test_rpc:get_space_local_storages(krakow, SpaceId),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Remove storage that supports a space using /provider/storages/{id} rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
+            prepare_args_fun = fun(#api_test_ctx{data = Data}) ->
+                {Id, _} = api_test_utils:maybe_substitute_bad_id(StorageId, Data),
+                #rest_args{
+                    method = delete,
+                    path = <<"provider/storages/", Id/binary>>
+                }
+            end,
+            validate_result_fun = api_test_validate:http_400_bad_request(fun(RespBody) ->
+                ?assertEqual(?REST_ERROR(?ERR_STORAGE_IN_USE), RespBody),
+                ?assert(lists:member(StorageId, opw_test_rpc:get_storages(krakow)))
+            end),
+            data_spec = #data_spec{
+                bad_values = [{bad_id, ?INEXISTENT_STORAGE_ID, ?ERROR_NOT_FOUND}]
+            }
         }
     ])).
 
