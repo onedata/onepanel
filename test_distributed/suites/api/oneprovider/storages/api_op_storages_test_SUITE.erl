@@ -7,8 +7,9 @@
 %%%-------------------------------------------------------------------
 %%% @doc
 %%% This file provides tests concerning provider storages API (REST): the
-%%% operations' answers that don't depend on a storage's type. The details
-%%% that do are checked by each type's suite.
+%%% operations' answers that don't depend on a storage's type, and those of a
+%%% type that need no backend of that type to run against. The details that
+%%% do are checked by each type's suite.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(api_op_storages_test_SUITE).
@@ -27,14 +28,18 @@
     get_storage_ids_test/1,
     get_storage_test/1,
     modify_storage_test/1,
-    add_storage_with_external_luma_feed_without_url_test/1
+    add_storage_with_external_luma_feed_without_url_test/1,
+    add_http_storage_without_credentials_test/1,
+    modify_http_storage_to_credentials_type_without_credentials_test/1
 ]).
 
 all() -> [
     get_storage_ids_test,
     get_storage_test,
     modify_storage_test,
-    add_storage_with_external_luma_feed_without_url_test
+    add_storage_with_external_luma_feed_without_url_test,
+    add_http_storage_without_credentials_test,
+    modify_http_storage_to_credentials_type_without_credentials_test
 ].
 
 -define(INEXISTENT_STORAGE_ID, <<"inexistentStorageId">>).
@@ -140,7 +145,12 @@ modify_storage_test(_Config) ->
                     {body, #{
                         StorageName => #{<<"type">> => StorageType},
                         <<"otherStorage">> => #{<<"type">> => StorageType}
-                    }, ?ERR_BAD_VALUE_NOT_ALLOWED(<<"otherStorage">>, [StorageName])}
+                    }, ?ERR_BAD_VALUE_NOT_ALLOWED(<<"otherStorage">>, [StorageName])},
+                    % refused by Onezone, as a refusal and not as a failed
+                    % verification of the storage
+                    {body, #{
+                        StorageName => #{<<"type">> => StorageType, <<"name">> => <<"a">>}
+                    }, ?ERR_BAD_VALUE_NAME(undefined)}
                 ]
             }
         }
@@ -180,6 +190,98 @@ add_storage_with_external_luma_feed_without_url_test(_Config) ->
             end)
         }
     ])).
+
+
+%% The REST model has the credentials optional, while every use of an HTTP
+%% storage requires them unless its credentials type is none. The diagnostics
+%% skip HTTP, so no HTTP server is needed for the storage to be added.
+add_http_storage_without_credentials_test(_Config) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+    StorageName = <<"httpWithoutCredentials">>,
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Add HTTP storage with basic credentials type and no credentials using /provider/storages rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
+            prepare_args_fun = fun(_) ->
+                #rest_args{
+                    method = post,
+                    path = <<"provider/storages">>,
+                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                    body = json_utils:encode(#{StorageName => #{
+                        <<"type">> => <<"http">>,
+                        <<"endpoint">> => <<"https://example.com">>,
+                        <<"credentialsType">> => <<"basic">>,
+                        % an HTTP storage can't be written to, and a readonly
+                        % storage must be imported
+                        <<"readonly">> => true,
+                        <<"importedStorage">> => true
+                    }})
+                }
+            end,
+            validate_result_fun = api_test_validate:http_400_bad_request(fun(RespBody) ->
+                ?assertEqual(
+                    #{StorageName => ?REST_ERROR(?ERR_MISSING_REQUIRED_VALUE(<<"credentials">>))},
+                    RespBody
+                ),
+                ?assertEqual([], storage_ids_named(StorageName))
+            end)
+        }
+    ])).
+
+
+%% As above: a credentials type other than none needs the credentials, which
+%% the update must refuse to leave out, and report as a refusal.
+modify_http_storage_to_credentials_type_without_credentials_test(_Config) ->
+    ProviderId = oct_background:get_provider_id(krakow),
+    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
+    StorageName = <<"httpWithNoCredentialsType">>,
+    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => #{
+        <<"type">> => <<"http">>,
+        <<"endpoint">> => <<"https://example.com">>,
+        <<"credentialsType">> => <<"none">>,
+        <<"readonly">> => true,
+        <<"importedStorage">> => true
+    }}),
+
+    ?assert(api_test_runner:run_tests([
+        #scenario_spec{
+            name = <<"Modify HTTP storage to basic credentials type with no credentials using /provider/storages/{id} rest endpoint">>,
+            type = rest,
+            target_nodes = ProviderPanelNodes,
+            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
+                ProviderId, [?CLUSTER_UPDATE]
+            ),
+            prepare_args_fun = fun(_) ->
+                #rest_args{
+                    method = patch,
+                    path = <<"provider/storages/", StorageId/binary>>,
+                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
+                    body = json_utils:encode(#{StorageName => #{
+                        <<"type">> => <<"http">>,
+                        <<"credentialsType">> => <<"basic">>
+                    }})
+                }
+            end,
+            validate_result_fun = api_test_validate:http_400_bad_request(fun(RespBody) ->
+                ?assertEqual(?REST_ERROR(?ERR_MISSING_REQUIRED_VALUE(<<"credentials">>)), RespBody),
+                ?assertMatch(
+                    #{<<"credentialsType">> := <<"none">>},
+                    api_test_utils:describe_storage(krakow, StorageId)
+                )
+            end)
+        }
+    ])),
+
+    ?assertMatch(
+        {ok, ?HTTP_204_NO_CONTENT, _, _},
+        panel_test_rest:delete(krakow, <<"/provider/storages/", StorageId/binary>>, #{auth => root})
+    ).
 
 
 %%%===================================================================

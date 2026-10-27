@@ -110,12 +110,17 @@ validate(#state{storage_details = CurrentDetails, input = Data}) ->
     end.
 
 
--spec process(state()) -> {ok, output()} | errors:error().
+%%--------------------------------------------------------------------
+%% @doc
+%% Calls op-worker directly rather than through a service action: the update
+%% is op-worker's alone and runs the same on any of its nodes, so an error is
+%% returned as op-worker gives it, with no node to report it on.
+%% @end
+%%--------------------------------------------------------------------
+-spec process(state()) -> {ok, output()} | no_return().
 process(#state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
     [{_OldName, Params}] = maps:to_list(Data),
-    middleware_handler_utils:service_call(
-        ?SERVICE_OPW, update_storage, #{id => Id, storage => Params}
-    ).
+    {ok, op_worker_storage:update(Id, Params)}.
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler_behaviour:rest_output()}.

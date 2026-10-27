@@ -6,10 +6,12 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Unit tests of what a storage removal does with op-worker's refusal. The
-%%% middleware checks that the storage supports no space before the removal,
-%%% so op-worker refuses only when a support appears in between or Onezone
-%%% fails the delete, which no REST request can make happen on purpose.
+%%% Unit tests of what a storage removal and a storage update do with
+%%% op-worker's answers. The middleware checks that the storage supports no
+%%% space before the removal, so op-worker refuses it only when a support
+%%% appears in between or Onezone fails the delete, which no REST request can
+%%% make happen on purpose. An update reports a failed storage test in the
+%%% storage's details, and passes op-worker's other errors on.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(op_worker_storage_test).
@@ -19,6 +21,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -define(STORAGE_ID, <<"someStorageId">>).
+-define(STORAGE_DETAILS, #{id => ?STORAGE_ID, name => <<"someStorage">>, type => <<"posix">>}).
 
 
 %%%===================================================================
@@ -40,6 +43,34 @@ remove_passes_on_op_workers_other_errors_test_() ->
     end}.
 
 
+successful_update_reports_passed_verification_test_() ->
+    {setup, fun() -> mock_update(ok) end, fun unmock_all/1, fun() ->
+        ?assertEqual(
+            ?STORAGE_DETAILS#{verificationPassed => true},
+            op_worker_storage:update(?STORAGE_ID, #{})
+        )
+    end}.
+
+
+%% The storage test runs before op-worker changes anything, so the storage is
+%% left as it was.
+failed_storage_test_is_reported_as_failed_verification_test_() ->
+    Error = ?ERR_STORAGE_TEST_FAILED(?err_ctx(), access),
+    {setup, fun() -> mock_update(Error) end, fun unmock_all/1, fun() ->
+        ?assertEqual(
+            ?STORAGE_DETAILS#{verificationPassed => false},
+            op_worker_storage:update(?STORAGE_ID, #{})
+        )
+    end}.
+
+
+update_passes_on_op_workers_refusal_test_() ->
+    Error = ?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), <<"credentials">>),
+    {setup, fun() -> mock_update(Error) end, fun unmock_all/1, fun() ->
+        ?assertThrow(Error, op_worker_storage:update(?STORAGE_ID, #{}))
+    end}.
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -54,3 +85,19 @@ mock_safe_remove(Result) ->
 %% @private
 unmock(_) ->
     meck:unload(op_worker_rpc).
+
+
+%% @private
+mock_update(Result) ->
+    meck:new(onedata_logger, [passthrough, no_link]),
+    meck:expect(onedata_logger, should_log, fun(_Loglevel) -> true end),
+    meck:expect(onedata_logger, log, fun(_Loglevel, _Metadata, _FormattedLog) -> ok end),
+    meck:new(op_worker_rpc, [no_link]),
+    meck:expect(op_worker_rpc, storage_update, fun(_StorageId, _UpdateSpec) -> Result end),
+    meck:new(op_worker_storage, [passthrough, no_link]),
+    meck:expect(op_worker_storage, get, fun(_StorageId) -> ?STORAGE_DETAILS end).
+
+
+%% @private
+unmock_all(_) ->
+    meck:unload().
