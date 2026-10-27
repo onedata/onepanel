@@ -68,5 +68,5 @@ update_spec_with_a_luma_parameter_carries_it_test() ->
         <<"posix">>, #{lumaFeedUrl => <<"https://luma.example.com">>}
     ),
 
-    ?assertEqual(#luma_spec{url = <<"https://luma.example.com">>}, Luma).
+    ?assertEqual(#luma_spec_diff{url = <<"https://luma.example.com">>}, Luma).
 
