@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Bartosz Walkowicz
-%%% @copyright (C) 2024 ACK CYFRONET AGH
+%%% @copyright (C) 2024 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -58,7 +58,7 @@ deploy_using_batch_config_test(Config) ->
     [OpIpHost1, OpIpHost2] = lists:map(fun ip_test_utils:get_node_ip/1, OpPanelNodes),
     [OpHost1, OpHost2] = hosts:from_nodes(OpPanelNodes),
 
-    OpPanelNode1 = hd(OpPanelNodes),
+    [OpPanelNode1, OpPanelNode2] = OpPanelNodes,
     panel_test_rpc:set_emergency_passphrase(OpPanelNode1, ?ONENV_EMERGENCY_PASSPHRASE),
 
     DefaultOneS3Port = ?rpc(OpPanelNode1, onepanel_env:get(ones3_http_port, ?APP_NAME)),
@@ -133,7 +133,14 @@ deploy_using_batch_config_test(Config) ->
     cluster_management_test_utils:assert_onedata_service_domain(OpPanelNodes, OpDomain),
 
     ?assertEqual(ExpOneS3Port, ?rpc(OpPanelNode1, service_ones3:get_port())),
-    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS).
+    ?assertMatch({ok, _}, gen_tcp:connect(OpIpHost2, ExpOneS3Port, [], 10), ?AWAIT_DEPLOYMENT_READY_ATTEMPTS),
+
+    % OneS3 is started during registration, before the provider's web cert is obtained,
+    % so it must get the provider id from Onepanel instead of asking the Oneprovider for it
+    ?assertMatch(
+        #{<<"provider_id">> := OpId},
+        cluster_management_test_utils:get_ones3_config(OpPanelNode2)
+    ).
 
 
 %%%===================================================================

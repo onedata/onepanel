@@ -30,7 +30,7 @@
 -record(state, {}).
 
 % Cookies are long-lived (a week by default), perform cleaning more often.
--define(CLEANING_INTERVAL, gui_session:cookie_ttl() div 7).
+-define(CLEANING_INTERVAL, timer:seconds(gui_session:cookie_ttl()) div 7).
 -define(CLEAN_STALE_AUTH_REQ, clean_stale_auth).
 
 
@@ -105,8 +105,13 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}.
 handle_info(?CLEAN_STALE_AUTH_REQ, #state{} = State) ->
-    clean_sessions(),
-    authorization_nonce:delete_expired_nonces(),
+    try
+        clean_sessions(),
+        authorization_nonce:delete_expired_nonces()
+    catch Class:Reason:Stacktrace ->
+        % tables are missing e.g. while the node is reset (service_onepanel:reset_node/1)
+        ?warning_exception("Failed to clean stale authorization data", Class, Reason, Stacktrace)
+    end,
     schedule_stale_auth_cleaning(),
     {noreply, State};
 

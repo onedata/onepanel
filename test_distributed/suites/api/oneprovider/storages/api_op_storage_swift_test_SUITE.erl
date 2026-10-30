@@ -41,7 +41,8 @@
 ]).
 
 groups() -> [
-    {all_tests, [parallel], [
+    % NOTE: sequential, as the test swift server is too slow for concurrent storage verifications on CI
+    {all_tests, [], [
         add_correct_storage_test,
         add_bad_storage_test,
 

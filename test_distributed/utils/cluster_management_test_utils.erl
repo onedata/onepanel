@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Bartosz Walkowicz
-%%% @copyright (C) 2025 ACK CYFRONET AGH
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -31,6 +31,7 @@
     get_service_hosts/3,
 
     get_ones3_port/1,
+    get_ones3_config/1,
 
     get_ones3_status_cluster_wide/1,
 
@@ -107,6 +108,18 @@ get_service_hosts(PanelNode, Product, Service) ->
 -spec get_ones3_port(node()) -> non_neg_integer().
 get_ones3_port(PanelNode) ->
     panel_test_rpc:call(PanelNode, onepanel_env, get, [ones3_http_port, ?APP_NAME]).
+
+
+%% Returns options written by Onepanel to the OneS3 config file on the given (OneS3) node.
+-spec get_ones3_config(node()) -> #{binary() => binary()}.
+get_ones3_config(PanelNode) ->
+    ConfigPath = panel_test_rpc:call(PanelNode, onepanel_env, get, [ones3_config_path, ?APP_NAME]),
+    {ok, Content} = panel_test_rpc:call(PanelNode, file, read_file, [ConfigPath]),
+
+    maps:from_list(lists:map(fun(Line) ->
+        [Option, Value] = binary:split(Line, <<"=">>),
+        {Option, Value}
+    end, binary:split(Content, <<"\n">>, [global, trim_all]))).
 
 
 -spec get_ones3_status_cluster_wide(node()) -> map().

@@ -99,7 +99,7 @@ init([]) ->
 
         start_listeners(),
 
-        {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
+        {ok, {#{strategy => one_for_one, intensity => 3, period => 1}, [
             service_executor_spec(),
             onepanel_cron_spec(),
             onepanel_auth_gc_spec()

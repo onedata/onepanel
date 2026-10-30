@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Bartosz Walkowicz
-%%% @copyright (C) 2024 ACK CYFRONET AGH
+%%% @copyright (C) 2024 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -404,6 +404,9 @@ build_config() ->
         {"verbose_log_level", onepanel_env:get(ones3_log_level)},
         {"onezone_host", service_oneprovider:get_oz_domain()},
         {"provider_host", service_op_worker:get_domain()},
+        % Given explicitly so that OneS3 does not have to fetch it from the Oneprovider
+        % at startup, which fails as long as the provider's domain or web cert is not valid
+        {"provider_id", service_oneprovider:get_id()},
         {"ones3_https_port", get_port()},
         {"ones3_ssl_cert", get_abs_path(web_cert_full_chain_file)},
         {"ones3_ssl_key", get_abs_path(web_key_file)}
