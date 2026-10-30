@@ -6,16 +6,15 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Unit tests of the storage specs built from REST requests: the QoS
-%%% parameters go to op-worker as the request had them, as strings (op-worker
-%%% stores as numbers those that a QoS expression reads as numbers), and an
-%%% update carries a LUMA spec only when the request names a LUMA setting.
+%%% Unit tests of storage_spec_builder: the storage specs it builds from REST
+%%% requests.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_spec_builder_test).
 -author("Bartosz Walkowicz").
 
 -include_lib("opw_panel_contracts/include/storage/common.hrl").
+-include_lib("opw_panel_contracts/include/storage/s3.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 -define(QOS_PARAMETERS, #{<<"priority">> => <<"2">>, <<"region">> => <<"eu">>}).
@@ -69,4 +68,21 @@ update_spec_with_a_luma_parameter_carries_it_test() ->
     ),
 
     ?assertEqual(#luma_spec_diff{url = <<"https://luma.example.com">>}, Luma).
+
+
+%% op-worker refuses an S3 storage at s3.amazonaws.com without a region, so
+%% the REST model must not fill in a default one.
+create_spec_of_s3_without_region_carries_no_region_test() ->
+    #{<<"some-storage">> := Params} = onepanel_parser:parse(
+        #{<<"some-storage">> => #{
+            <<"type">> => <<"s3">>,
+            <<"hostname">> => <<"https://s3.amazonaws.com">>,
+            <<"bucketName">> => <<"some-bucket">>
+        }},
+        rest_model:storage_create_request_model()
+    ),
+    #storage_create_spec{configuration = #s3_helper_configuration{region = Region}} =
+        storage_spec_builder:build_create_spec(<<"some-storage">>, Params),
+
+    ?assertEqual(undefined, Region).
 
