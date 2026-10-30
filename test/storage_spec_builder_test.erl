@@ -6,10 +6,8 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Unit tests of the storage specs built from REST requests: the QoS
-%%% parameters go to op-worker as the request had them, as strings (op-worker
-%%% stores as numbers those that a QoS expression reads as numbers), and an
-%%% update carries a LUMA spec only when the request names a LUMA setting.
+%%% Unit tests of storage_spec_builder: the storage specs it builds from REST
+%%% requests.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(storage_spec_builder_test).

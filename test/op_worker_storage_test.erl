@@ -6,12 +6,8 @@
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @doc
-%%% Unit tests of what a storage removal and a storage update do with
-%%% op-worker's answers. The middleware checks that the storage supports no
-%%% space before the removal, so op-worker refuses it only when a support
-%%% appears in between or Onezone fails the delete, which no REST request can
-%%% make happen on purpose. An update reports a failed storage test in the
-%%% storage's details, and passes op-worker's other errors on.
+%%% Unit tests of op_worker_storage: what a storage removal and update return for
+%%% op-worker's answers.
 %%% @end
 %%%-------------------------------------------------------------------
 -module(op_worker_storage_test).
