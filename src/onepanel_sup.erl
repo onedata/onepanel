@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -99,7 +99,7 @@ init([]) ->
 
         start_listeners(),
 
-        {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
+        {ok, {#{strategy => one_for_one, intensity => 3, period => 1}, [
             service_executor_spec(),
             onepanel_cron_spec(),
             onepanel_auth_gc_spec()
