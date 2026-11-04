@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Piotr Duleba
-%%% @copyright (C) 2021 ACK CYFRONET AGH
+%%% @copyright (C) 2021 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -284,7 +284,6 @@ build_modify_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
         ],
         optional = [
-            <<"name">>,
             %% TODO VFS-13152 changing hostname always timeouts
 %%            <<"monitorHostname">>,
             <<"poolName">>,
@@ -293,7 +292,6 @@ build_modify_ceph_storage_data_spec(MemRef, cephrados, bad_args) ->
         ],
         correct_values = #{
             <<"type">> => [<<"cephrados">>],
-            <<"name">> => [<<"a">>],
             %% TODO VFS-13152 changing hostname always timeouts
 %%            <<"monitorHostname">> => [<<"0.0.0.0">>],
             <<"poolName">> => [<<"dummy">>],

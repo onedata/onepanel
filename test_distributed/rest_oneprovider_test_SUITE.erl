@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -1387,30 +1387,6 @@ init_per_testcase(Case, Config) when
     end),
     test_utils:mock_expect(Nodes, service_oneprovider, is_space_supported,
         fun(#{space_id := _Id}) -> true end),
-    NewConfig;
-
-init_per_testcase(patch_should_update_storage, Config) ->
-    NewConfig = init_per_testcase(default, Config),
-    Nodes = ?config(oneprovider_nodes, Config),
-    Self = self(),
-    test_utils:mock_expect(Nodes, service, apply_sync, fun
-        (?SERVICE_OPW = Service, update_storage = Action, Ctx) ->
-            Data = ?STORAGE_JSON#{timeout => 10000, verificationPassed => true},
-            Result = onepanel_utils:convert(Data, {keys, atom}),
-            Self ! {service, Service, Action, Ctx},
-            [
-                #step_end{module = service_op_worker, function = update_storage,
-                    good_bad_results = {[{hd(Nodes), Result}], []}},
-                #action_end{service = service, action = action, result = ok}
-            ];
-        (?SERVICE_OPW, get_storages, _) -> [
-            #step_end{module = service_op_worker, function = get_storages,
-                good_bad_results = {
-                    [{'node@host1', keys_to_atoms(?STORAGE_JSON)}],
-                    []
-                }}
-        ]
-    end),
     NewConfig;
 
 init_per_testcase(get_should_return_autocleaning_report, Config) ->

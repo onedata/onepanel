@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2017 ACK CYFRONET AGH
+%%% @copyright (C) 2017 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end

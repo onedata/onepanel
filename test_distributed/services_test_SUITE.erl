@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -26,7 +26,7 @@
 %% tests
 -export([
     service_op_worker_add_storage_test/1,
-    service_op_worker_update_storage_test/1
+    op_worker_storage_update_test/1
 ]).
 
 -define(NON_ADMIN_USERNAME, <<"joe">>).
@@ -36,7 +36,7 @@
 all() ->
     ?ALL([
         service_op_worker_add_storage_test,
-        service_op_worker_update_storage_test
+        op_worker_storage_update_test
     ]).
 
 %%%===================================================================
@@ -66,14 +66,11 @@ service_op_worker_add_storage_test(Config) ->
     ?assertEqual(ErrorOccurred, false).
 
 
-service_op_worker_update_storage_test(Config) ->
+op_worker_storage_update_test(Config) ->
     [Node | _] = ?config(oneprovider_nodes, Config),
-    [Host | _] = ?config(oneprovider_hosts, Config),
 
-    %% These storage parameter changes should provide invalid storage connection
-    %% or access details (e.g. fake url or mountpoint), as the test will verify
-    %% the parameter modification based on the lack of connectivity to the storage
-    %% after the change.
+    %% These changes point the storage at a backend that can't be reached, so
+    %% the storage test fails, and the storage must be left as it was.
     ChangesByName = #{
         <<"someXRootD">> => #{
             type => <<"xrootd">>,
@@ -87,13 +84,7 @@ service_op_worker_update_storage_test(Config) ->
             case maps:find(Name, ChangesByName) of
                 {ok, Changes} ->
                     Expected = Storage#{verificationPassed => false},
-
-                    Results = onepanel_test_utils:service_action(Node, op_worker, update_storage, #{
-                        hosts => [Host], storage => Changes, id => Id
-                    }),
-                    onepanel_test_utils:assert_service_action_result(service:get_module(op_worker),
-                        update_storage, [Node], Expected, Results
-                    );
+                    ?assertEqual(Expected, rpc:call(Node, op_worker_storage, update, [Id, Changes]));
                 error ->
                     skip
             end

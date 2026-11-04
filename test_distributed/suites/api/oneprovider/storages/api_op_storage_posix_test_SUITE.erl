@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Piotr Duleba
-%%% @copyright (C) 2021 ACK CYFRONET AGH
+%%% @copyright (C) 2021 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -261,12 +261,10 @@ build_modify_posix_storage_data_spec(MemRef, posix, bad_args) ->
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
         ],
         optional = [
-            <<"name">>,
             <<"mountPoint">>
         ],
         correct_values = #{
             <<"type">> => [<<"posix">>],
-            <<"name">> => [<<"a">>],
             <<"mountPoint">> => [<<"/volumes/wrong/path">>]
         },
         at_least_one_optional_value_in_data_sets = true

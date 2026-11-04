@@ -58,9 +58,16 @@ preauthorize(#onp_req_state{ctx = #onp_req_ctx{client = Client}}) ->
 validate(#onp_req_state{ctx = #onp_req_ctx{gri = #gri{id = Id}}}) ->
     middleware_handler_utils:validate_op_registered(),
 
-    case op_worker_storage:can_be_removed(Id) of
-        true -> ok;
-        false -> ?ERR_STORAGE_IN_USE(?err_ctx())
+    % checked first, as the GET and PATCH handlers do - can_be_removed/1 fails
+    % with an internal error for an id that no storage has
+    case op_worker_storage:exists(Id) of
+        false ->
+            ?ERROR_NOT_FOUND;
+        true ->
+            case op_worker_storage:can_be_removed(Id) of
+                true -> ok;
+                false -> ?ERR_STORAGE_IN_USE(?err_ctx())
+            end
     end.
 
 
