@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -19,7 +19,7 @@
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/1, list/0, get/1, exists/1, exists/2, update/3, remove/2]).
+-export([add/1, list/0, get/1, exists/1, exists/2, update/2, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
 -export([is_imported_storage/2, can_be_removed/1]).
@@ -85,32 +85,32 @@ add(#{name := Name, params := Params}) ->
     {StorageName, Result}.
 
 
--spec update(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
-    storage_details().
-update(OpNode, Id, NewParams) ->
+%%--------------------------------------------------------------------
+%% @doc
+%% Modifies the storage and returns its details. A failed storage test leaves
+%% the storage as it was, which the details report as verificationPassed
+%% false; op-worker's other errors are thrown.
+%% @end
+%%--------------------------------------------------------------------
+-spec update(Id :: id(), Params :: storage_params()) -> storage_details() | no_return().
+update(Id, NewParams) ->
     Storage = op_worker_storage:get(Id),
     Name = maps:get(name, Storage),
     StorageType = maps:get(type, Storage),
 
-    try
-        UpdateSpec = storage_spec_builder:build_update_spec(StorageType, NewParams),
-        case op_worker_rpc:storage_update(OpNode, Id, UpdateSpec) of
-            ok -> 
-                Details = ?MODULE:get(Id),
-                ?info("Modified storage ~tp (~tp)", [Name, Id]),
-                Details#{verificationPassed => true};
-            {error, _} = Error ->
-                ?error(?autoformat_with_msg("Storage modification failed", [Id, Name], Error)),
-                DetailsOnError = ?MODULE:get(Id),
-                DetailsOnError#{verificationPassed => false}
-        end
-    catch Class:Reason:Stacktrace ->
-        DetailsOnException = ?MODULE:get(Id),
-        ?error_exception(
-            ?autoformat_with_msg("Storage modification failed", [Id, Name]),
-            Class, Reason, Stacktrace
-        ),
-        DetailsOnException#{verificationPassed => false}
+    UpdateSpec = storage_spec_builder:build_update_spec(StorageType, NewParams),
+    case op_worker_rpc:storage_update(Id, UpdateSpec) of
+        ok ->
+            Details = ?MODULE:get(Id),
+            ?info("Modified storage ~tp (~tp)", [Name, Id]),
+            Details#{verificationPassed => true};
+        ?ERR_STORAGE_TEST_FAILED(_, _) = Error ->
+            ?error(?autoformat_with_msg("Storage modification failed", [Id, Name, Error])),
+            DetailsOnError = ?MODULE:get(Id),
+            DetailsOnError#{verificationPassed => false};
+        {error, _} = Error ->
+            ?error(?autoformat_with_msg("Storage modification failed", [Id, Name, Error])),
+            throw(Error)
     end.
 
 
@@ -125,8 +125,9 @@ remove(OpNode, Id) ->
         ok ->
             ?info("Successfully removed storage with id ~tp", [Id]),
             ok;
-        {error, storage_in_use} ->
-            throw(?ERR_STORAGE_IN_USE(?err_ctx()))
+        {error, _} = Error ->
+            % op-worker's own error, a storage in use among others
+            throw(Error)
     end.
 
 

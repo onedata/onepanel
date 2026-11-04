@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Bartosz Walkowicz
-%%% @copyright (C) 2025 ACK CYFRONET AGH
+%%% @copyright (C) 2025 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -285,7 +285,6 @@ build_modify_swift_storage_data_spec(MemRef, swift, bad_args) ->
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
         ],
         optional = [
-            <<"name">>,
             <<"authUrl">>,
             <<"projectName">>,
             <<"username">>,
@@ -296,7 +295,6 @@ build_modify_swift_storage_data_spec(MemRef, swift, bad_args) ->
         ],
         correct_values = #{
             <<"type">> => [<<"swift">>],
-            <<"name">> => [<<"a">>],
             <<"authUrl">> => [<<"nonexistent.host">>],
             <<"projectName">> => [<<"nonexistent_project_name">>],
             <<"username">> => [<<"invalid_user">>],

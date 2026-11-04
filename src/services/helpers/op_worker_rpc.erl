@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C) 2019 ACK CYFRONET AGH
+%%% @copyright (C) 2019 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -21,18 +21,24 @@
 -include_lib("ctool/include/oz/oz_users.hrl").
 
 % @formatter:off
+-define(NO_EXCEPTION_CALL(Node, Args, Timeout),
+    rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args], Timeout)).
+
 -define(NO_EXCEPTION_CALL(Node, Args),
-    rpc:call(Node, rpc_api, apply, [?FUNCTION_NAME, Args])).
+    ?NO_EXCEPTION_CALL(Node, Args, infinity)).
 
 -define(NO_EXCEPTION_CALL(Args),
     ?NO_EXCEPTION_CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
 
--define(CALL(Node, Args),
-    case ?NO_EXCEPTION_CALL(Node, Args) of
+-define(CALL(Node, Args, Timeout),
+    case ?NO_EXCEPTION_CALL(Node, Args, Timeout) of
         {badrpc, nodedown} -> throw(?ERR_SERVICE_UNAVAILABLE(?err_ctx()));
         {badrpc, _} = __Error -> error(__Error);
         __Result -> __Result
     end).
+
+-define(CALL(Node, Args),
+    ?CALL(Node, Args, infinity)).
 
 -define(CALL(Args),
     ?CALL(element(2, {ok, _} = nodes:any(?SERVICE_OPW)), Args)).
@@ -158,13 +164,21 @@ storage_create(Node, CreateSpec) ->
 -spec storage_update(storage_id(), onedata_storage:update_spec()) ->
     ok | {error, term()}.
 storage_update(StorageId, UpdateSpec) ->
-    ?CALL([StorageId, UpdateSpec]).
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    storage_update(Node, StorageId, UpdateSpec).
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Bounded by rpc_timeout, as a call made from a service action is: an update
+%% runs the storage diagnostics on every op_worker node, so it may take long,
+%% and nothing else bounds the REST request that waits for it.
+%% @end
+%%--------------------------------------------------------------------
 -spec storage_update(node(), storage_id(), onedata_storage:update_spec()) ->
     ok | {error, term()}.
 storage_update(Node, StorageId, UpdateSpec) ->
-    ?CALL(Node, [StorageId, UpdateSpec]).
+    ?CALL(Node, [StorageId, UpdateSpec], onepanel_env:get(rpc_timeout)).
 
 
 -spec storage_describe(storage_id()) ->
@@ -179,11 +193,11 @@ storage_describe(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
 
--spec storage_safe_remove(op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
+-spec storage_safe_remove(op_worker_storage:id()) -> ok | od_error_storage_in_use:t() | {error, term()}.
 storage_safe_remove(StorageId) ->
     ?CALL([StorageId]).
 
--spec storage_safe_remove(node(), op_worker_storage:id()) -> ok | {error, storage_in_use | term()}.
+-spec storage_safe_remove(node(), op_worker_storage:id()) -> ok | od_error_storage_in_use:t() | {error, term()}.
 storage_safe_remove(Node, StorageId) ->
     ?CALL(Node, [StorageId]).
 
