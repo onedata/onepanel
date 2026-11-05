@@ -61,11 +61,18 @@ service_availability_requirements(_) ->
 -spec init_state(middleware_handler_behaviour:req_ctx(), input()) ->
     {ok, state()} | errors:error().
 init_state(OnpReqCtx = #onp_req_ctx{gri = #gri{id = StorageId}}, Input) ->
-    case storage_middleware_handler_utils:get_storage(StorageId) of
-        {ok, StorageDetails} ->
-            {ok, #state{ctx = OnpReqCtx, input = Input, storage_details = StorageDetails}};
-        {error, _} = Error ->
-            Error
+    % checked first, as the GET handler does - the fetch below fails with an
+    % internal error for an id that no storage has
+    case op_worker_storage:exists(StorageId) of
+        false ->
+            ?ERROR_NOT_FOUND;
+        true ->
+            case storage_middleware_handler_utils:get_storage(StorageId) of
+                {ok, StorageDetails} ->
+                    {ok, #state{ctx = OnpReqCtx, input = Input, storage_details = StorageDetails}};
+                {error, _} = Error ->
+                    Error
+            end
     end.
 
 
@@ -86,27 +93,34 @@ validate(#state{storage_details = CurrentDetails, input = Data}) ->
 
     % Swagger spec defines an object to allow for polymorphic storage type.
     % As a result, it is ensured here that only the storage with
-    % id specified in path is modified.
+    % id specified in path is modified: the body names it, and nothing else.
+    #{name := ActualName, type := ActualType} = CurrentDetails,
 
-    [{OldName, #{type := Type}}] = maps:to_list(Data),
-
-    case CurrentDetails of
-        #{name := OldName, type := Type} ->
+    case maps:to_list(Data) of
+        [] ->
+            throw(?ERR_MISSING_REQUIRED_VALUE(?err_ctx(), ActualName));
+        [{ActualName, #{type := ActualType}}] ->
             ok;
-        #{name := ActualName, type := _} when ActualName /= OldName ->
-            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), OldName, [ActualName]));
-        #{name := OldName, type := ActualType} ->
-            Key = str_utils:join_as_binaries([OldName, type], <<".">>),
-            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), Key, [ActualType]))
+        [{ActualName, #{type := _}}] ->
+            Key = str_utils:join_as_binaries([ActualName, type], <<".">>),
+            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), Key, [ActualType]));
+        StoragesData ->
+            [OtherName | _] = [Name || {Name, _} <- StoragesData, Name /= ActualName],
+            throw(?ERR_BAD_VALUE_NOT_ALLOWED(?err_ctx(), OtherName, [ActualName]))
     end.
 
 
--spec process(state()) -> {ok, output()} | errors:error().
+%%--------------------------------------------------------------------
+%% @doc
+%% Calls op-worker directly rather than through a service action: the update
+%% is op-worker's alone and runs the same on any of its nodes, so an error is
+%% returned as op-worker gives it, with no node to report it on.
+%% @end
+%%--------------------------------------------------------------------
+-spec process(state()) -> {ok, output()} | no_return().
 process(#state{ctx = #onp_req_ctx{gri = #gri{id = Id}}, input = Data}) ->
     [{_OldName, Params}] = maps:to_list(Data),
-    middleware_handler_utils:service_call(
-        ?SERVICE_OPW, update_storage, #{id => Id, storage => Params}
-    ).
+    {ok, op_worker_storage:update(Id, Params)}.
 
 
 -spec translate_output(state(), output()) -> {ok, middleware_handler_behaviour:rest_output()}.

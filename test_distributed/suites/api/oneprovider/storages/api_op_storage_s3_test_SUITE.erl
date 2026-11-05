@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Piotr Duleba
-%%% @copyright (C) 2021 ACK CYFRONET AGH
+%%% @copyright (C) 2021 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -298,7 +298,6 @@ build_modify_s3_storage_data_spec(MemRef, s3, bad_args) ->
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
         ],
         optional = [
-            <<"name">>,
             <<"hostname">>,
             <<"bucketName">>,
             <<"accessKey">>,
@@ -306,7 +305,6 @@ build_modify_s3_storage_data_spec(MemRef, s3, bad_args) ->
         ],
         correct_values = #{
             <<"type">> => [<<"s3">>],
-            <<"name">> => [<<"a">>],
             <<"hostname">> => [<<"http://0.0.0.0:9000">>],
             <<"bucketName">> => [<<"dummyBucket">>],
             <<"accessKey">> => [<<"dummyAccessKey">>],

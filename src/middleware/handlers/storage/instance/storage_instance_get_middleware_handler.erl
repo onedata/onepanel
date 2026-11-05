@@ -81,9 +81,8 @@ translate_output(#onp_req_state{ctx = #onp_req_ctx{interface = rest}}, StorageDe
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc All storage helper parameters are stored as binaries in op_worker.
-%% This function attempts to find their desired type in API model
-%% used for creating them and convert accordingly.
+%% @doc Converts the binary values of the details to the types that the GET
+%% model of the storage's type declares for them.
 %% @end
 %%--------------------------------------------------------------------
 -spec format_storage_details(#{Key => term()}) ->
@@ -125,7 +124,7 @@ model_to_type_map(Model) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Finds REST model used for creating storage of given type.
+%% @doc Returns the GET model of the given storage type.
 %% @end
 %%--------------------------------------------------------------------
 -spec get_storage_model(StorageType :: atom()) -> onepanel_parser:object_spec().

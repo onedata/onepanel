@@ -126,7 +126,7 @@ configuration_to_map(#s3_helper_configuration{
 %% @private
 %% @doc Parses S3 hostname URL into scheme and hostname parts.
 %% S3 REST API sends full URL like "https://s3.amazonaws.com:443"
-%% but ctool records need scheme and hostname separately.
+%% but the contract's record keeps the scheme and the hostname apart.
 %% @end
 %%--------------------------------------------------------------------
 -spec parse_s3_hostname(binary()) -> {Scheme :: binary(), Hostname :: binary()}.

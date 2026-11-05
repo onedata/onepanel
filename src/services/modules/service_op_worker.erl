@@ -1,6 +1,6 @@
 %%%--------------------------------------------------------------------
 %%% @author Krzysztof Trzepla
-%%% @copyright (C) 2016 ACK CYFRONET AGH
+%%% @copyright (C) 2016 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -59,7 +59,7 @@
     get_nagios_response/1, get_nagios_status/1,
     synchronize_clock_upon_start/1,
     add_storage/1, get_storages/1,
-    update_storage/1, remove_storage/1,
+    remove_storage/1,
     reload_webcert/1, set_transfers_mock/1
 ]).
 
@@ -164,9 +164,6 @@ get_steps(get_storages, #{hosts := Hosts}) ->
 
 get_steps(get_storages, Ctx) ->
     get_steps(get_storages, Ctx#{hosts => get_hosts()});
-
-get_steps(update_storage, _Ctx) ->
-    [#step{function = update_storage, selection = any}];
 
 get_steps(Function, _Ctx) when 
     Function == remove_storage;
@@ -457,17 +454,6 @@ get_storages(#{id := Id}) ->
 
 get_storages(_Ctx) ->
     op_worker_storage:list().
-
-
-%%--------------------------------------------------------------------
-%% @doc Modifies storage configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec update_storage(Ctx :: service:step_ctx()) ->
-    op_worker_storage:storage_params() | no_return().
-update_storage(#{id := Id, storage := Params}) ->
-    {ok, Node} = nodes:any(name()),
-    op_worker_storage:update(Node, Id, Params).
 
 
 %%--------------------------------------------------------------------

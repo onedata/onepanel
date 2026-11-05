@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Piotr Duleba
-%%% @copyright (C) 2021 ACK CYFRONET AGH
+%%% @copyright (C) 2021 Onedata (onedata.org)
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -308,14 +308,12 @@ build_modify_webdav_storage_data_spec(MemRef, webdav, bad_args) ->
             {<<"type">>, ?ERR_MISSING_REQUIRED_VALUE(?STORAGE_DATA_KEY(StorageName, <<"type">>))}
         ],
         optional = [
-            <<"name">>,
             <<"endpoint">>,
             <<"credentials">>,
             <<"rangeWriteSupport">>
         ],
         correct_values = #{
             <<"type">> => [<<"webdav">>],
-            <<"name">> => [<<"a">>],
             <<"endpoint">> => [<<"http://0.0.0.0">>],
             <<"credentials">> => [<<"dummy:dummy">>],
             <<"rangeWriteSupport">> => [<<"moddav">>]

@@ -3363,8 +3363,11 @@ oz_configuration_model() ->
 posix_create_model() ->
     #{
         %% The type of storage.  `type = \&quot;posix\&quot;`
-        %% Any POSIX compatible storage, typically attached over high-throughput
-        %% local network, such as NFS.
+        %% Any storage exposed to Oneprovider as a locally mounted POSIX
+        %% filesystem, such as a parallel filesystem (Lustre, GPFS, BeeGFS), a
+        %% local disk or a SAN volume. In multi-node deployments, the storage
+        %% must be mounted at the same path on every node where Oneprovider
+        %% runs.
         type => {discriminator, <<"posix">>},
         %% Maximum time to wait for a response from the storage service before
         %% the request is aborted.
@@ -3438,8 +3441,11 @@ posix_credentials_model() ->
 posix_get_model() ->
     #{
         %% The type of storage.  `type = \&quot;posix\&quot;`
-        %% Any POSIX compatible storage, typically attached over high-throughput
-        %% local network, such as NFS.
+        %% Any storage exposed to Oneprovider as a locally mounted POSIX
+        %% filesystem, such as a parallel filesystem (Lustre, GPFS, BeeGFS), a
+        %% local disk or a SAN volume. In multi-node deployments, the storage
+        %% must be mounted at the same path on every node where Oneprovider
+        %% runs.
         type => {discriminator, <<"posix">>},
         %% Maximum time to wait for a response from the storage service before
         %% the request is aborted.
@@ -3523,8 +3529,11 @@ posix_modify_model() ->
         %% imported storages.
         readonly => {boolean, optional},
         %% The type of storage.  `type = \&quot;posix\&quot;`
-        %% Any POSIX compatible storage, typically attached over high-throughput
-        %% local network, such as NFS.
+        %% Any storage exposed to Oneprovider as a locally mounted POSIX
+        %% filesystem, such as a parallel filesystem (Lustre, GPFS, BeeGFS), a
+        %% local disk or a SAN volume. In multi-node deployments, the storage
+        %% must be mounted at the same path on every node where Oneprovider
+        %% runs.
         type => {discriminator, <<"posix">>},
         %% Absolute path to the root directory of the storage file system. The
         %% directory must exist and be accessible. In containerized deployments,
@@ -3581,8 +3590,11 @@ s3_create_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% The URL of the S3 service endpoint, including the scheme (http or
-        %% https) and optionally a port (after a colon).
+        %% URL of the S3 endpoint. It must include the scheme (http or https)
+        %% and may include a port after a colon. For the global AWS endpoint
+        %% (s3.amazonaws.com), the `region` field is required, and
+        %% requests go to that region's endpoint (e.g. for `eu-
+        %% west-3`, `https://s3.eu-west-3.amazonaws.com`).
         hostname => string,
         %% The storage bucket name.
         bucketName => string,
@@ -3591,9 +3603,12 @@ s3_create_model() ->
         signatureVersion => {integer, {optional, 4}},
         %% Enables or disables verification of the S3 server SSL certificate.
         verifyServerCertificate => {boolean, optional},
-        %% Allows to specify a custom S3 region, which will be send with each
-        %% request to the S3 server.
-        region => {string, {optional, <<"us-east-1">>}},
+        %% Region of the bucket. Required for the global AWS endpoint
+        %% (s3.amazonaws.com), so that requests go straight to the right region
+        %% without an extra lookup. Optional for other endpoints; defaults to
+        %% us-east-1. A region in the hostname (e.g. s3.eu-west-3.amazonaws.com)
+        %% takes precedence over this field.
+        region => {string, optional},
         %% Storage block size in bytes i.e. the maximum object size. Files
         %% larger than one block will be stripped and stored in a series of
         %% objects. Must be more than zero for non-imported storage. To enable
@@ -3674,8 +3689,11 @@ s3_get_model() ->
         %% actually configured as readonly. This option is available only for
         %% imported storages.
         readonly => {boolean, optional},
-        %% The URL of the S3 service endpoint, including the scheme (http or
-        %% https) and optionally a port (after a colon).
+        %% URL of the S3 endpoint. It must include the scheme (http or https)
+        %% and may include a port after a colon. For the global AWS endpoint
+        %% (s3.amazonaws.com), the `region` field is required, and
+        %% requests go to that region's endpoint (e.g. for `eu-
+        %% west-3`, `https://s3.eu-west-3.amazonaws.com`).
         hostname => string,
         %% The storage bucket name.
         bucketName => string,
@@ -3684,8 +3702,11 @@ s3_get_model() ->
         signatureVersion => {integer, optional},
         %% Enables or disables verification of the S3 server SSL certificate.
         verifyServerCertificate => {boolean, optional},
-        %% Allows to specify a custom S3 region, which will be send with each
-        %% request to the S3 server.
+        %% Region of the bucket. Required for the global AWS endpoint
+        %% (s3.amazonaws.com), so that requests go straight to the right region
+        %% without an extra lookup. Optional for other endpoints; defaults to
+        %% us-east-1. A region in the hostname (e.g. s3.eu-west-3.amazonaws.com)
+        %% takes precedence over this field.
         region => {string, optional},
         %% Storage block size in bytes i.e. the maximum object size. Files
         %% larger than one block will be stripped and stored in a series of
@@ -3749,8 +3770,11 @@ s3_modify_model() ->
         %% S3](http://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
         %% compatible storage.
         type => {discriminator, <<"s3">>},
-        %% The URL of the S3 service endpoint, including the scheme (http or
-        %% https) and optionally a port (after a colon).
+        %% URL of the S3 endpoint. It must include the scheme (http or https)
+        %% and may include a port after a colon. For the global AWS endpoint
+        %% (s3.amazonaws.com), the `region` field is required, and
+        %% requests go to that region's endpoint (e.g. for `eu-
+        %% west-3`, `https://s3.eu-west-3.amazonaws.com`).
         hostname => {string, optional},
         %% The storage bucket name.
         bucketName => {string, optional},
@@ -3763,8 +3787,11 @@ s3_modify_model() ->
         signatureVersion => {integer, optional},
         %% Enables or disables verification of the S3 server SSL certificate.
         verifyServerCertificate => {boolean, optional},
-        %% Allows to specify a custom S3 region, which will be send with each
-        %% request to the S3 server.
+        %% Region of the bucket. Required for the global AWS endpoint
+        %% (s3.amazonaws.com), so that requests go straight to the right region
+        %% without an extra lookup. Optional for other endpoints; defaults to
+        %% us-east-1. A region in the hostname (e.g. s3.eu-west-3.amazonaws.com)
+        %% takes precedence over this field.
         region => {string, optional},
         %% Defines the file permissions, which files imported from S3 storage
         %% will have in Onedata. Values should be provided in octal format e.g.
