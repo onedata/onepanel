@@ -9,6 +9,12 @@
 %%% This module handles synchronizing clocks of nodes in Onezone cluster.
 %%% All nodes are periodically synchronized with the designated master node (in
 %%% the context of clocks sync) - see the cluster_clocks module for more info.
+%%%
+%%% For testing/debugging purposes, the master node's reference clock may be
+%%% started with a fixed bias, offsetting the global clock of the whole
+%%% deployment. This is controlled by the undocumented onepanel env key
+%%% 'onezone_clock_bias_milliseconds' (default 0 = local system time); see
+%%% restart_periodic_sync/0.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onezone_cluster_clocks).
@@ -34,10 +40,22 @@ synchronize_node_upon_start(Node) ->
 
 -spec restart_periodic_sync() -> ok | no_return().
 restart_periodic_sync() ->
-    % make sure the master node is using the system time - it will be the
-    % reference clock for all nodes on Onezone and all subject Oneproviders
+    % set up the master node's reference clock - it will be the reference
+    % clock for all nodes on Onezone and all subject Oneproviders; normally
+    % the local system time is used, but a fixed bias may be configured for
+    % testing purposes
     service_onepanel:run_on_master_node(fun() ->
-        global_clock:reset_to_system_time(),
+        case onepanel_env:get(onezone_clock_bias_milliseconds, ?APP_NAME, 0) of
+            0 ->
+                global_clock:reset_to_system_time();
+            Bias when is_integer(Bias) ->
+                ?warning(
+                    "Applying a configured clock bias of ~Bms to the Onezone "
+                    "master clock (TESTING option onezone_clock_bias_milliseconds)",
+                    [Bias]
+                ),
+                global_clock:store_bias(local_clock, Bias)
+        end,
         true
     end),
     cluster_clocks:restart_periodic_sync(fun prepare_cluster_clock_sync/0).
