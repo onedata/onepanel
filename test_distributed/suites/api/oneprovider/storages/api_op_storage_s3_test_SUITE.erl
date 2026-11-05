@@ -213,7 +213,6 @@ get_storage_test(_Config) ->
         <<"secretKey">> => <<"*****">>,
 
         % default values for not supplied parameters
-        <<"region">> => <<"us-east-1">>,
         <<"signatureVersion">> => 4,
         <<"dirMode">> => <<"0775">>,
         <<"fileMode">> => <<"0664">>,
