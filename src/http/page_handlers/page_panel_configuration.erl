@@ -17,6 +17,8 @@
 
 -include("deployment_progress.hrl").
 -include("names.hrl").
+-include_lib("ctool/include/http/codes.hrl").
+-include_lib("ctool/include/http/headers.hrl").
 
 -export([handle/2]).
 
@@ -29,10 +31,10 @@
 %% {@link dynamic_page_behaviour} callback handle/2.
 %% @end
 %%--------------------------------------------------------------------
--spec handle(new_gui:method(), cowboy_req:req()) -> cowboy_req:req().
+-spec handle(gui:method(), cowboy_req:req()) -> cowboy_req:req().
 handle(<<"GET">>, Req) ->
-    cowboy_req:reply(200,
-        #{<<"content-type">> => <<"application/json">>},
-        json_utils:encode(rest_replier:format_onepanel_configuration()),
+    cowboy_req:reply(?HTTP_200_OK,
+        #{?HDR_CONTENT_TYPE => <<"application/json">>},
+        json_utils:encode(middleware_utils:format_onepanel_configuration()),
         Req
     ).

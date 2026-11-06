@@ -14,8 +14,12 @@
 -author("Krzysztof Trzepla").
 
 -include("names.hrl").
+-include_lib("ctool/include/onedata.hrl").
 
 -behaviour(oz_plugin_behaviour).
+
+-type auth() :: none | op_panel | provider | {token, tokens:serialized()}.
+-export_type([auth/0]).
 
 %% OZ behaviour callbacks
 -export([get_oz_url/0, get_oz_rest_port/0, get_oz_rest_api_prefix/0]).
@@ -32,7 +36,8 @@
 %%--------------------------------------------------------------------
 -spec get_oz_url() -> string().
 get_oz_url() ->
-    "https://" ++ get_env(oz_domain, list).
+    Domain = service_oneprovider:get_oz_domain(),
+    "https://" ++ onepanel_utils:convert(Domain, list).
 
 
 %%--------------------------------------------------------------------
@@ -59,6 +64,7 @@ get_oz_rest_api_prefix() ->
 %%--------------------------------------------------------------------
 -spec get_cacerts_dir() -> file:name_all().
 get_cacerts_dir() ->
+    % called by https_listener before op_worker is available
     onepanel_env:get(cacerts_dir).
 
 
@@ -76,15 +82,34 @@ get_provider_cacerts_dir() ->
 %% @doc {@link oz_plugin_behaviour:auth_to_rest_client/1}
 %% @end
 %%--------------------------------------------------------------------
--spec auth_to_rest_client(Auth :: term()) -> {user, token, binary()} |
-{user, macaroon, {Macaroon :: binary(), DischargeMacaroons :: [binary()]}} |
-{user, basic, binary()} | {provider, Macaroon :: binary()} | none.
+-spec auth_to_rest_client(Auth :: auth()) ->
+    {headers, #{Header :: binary() => Value :: binary()}} |
+    {provider, tokens:serialized()} |
+    none.
 auth_to_rest_client(none) ->
     none;
+
+auth_to_rest_client({token, Token}) ->
+    OneproviderIdentityToken = service_oneprovider:get_identity_token(),
+    OpPanelIdentityToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderIdentityToken
+    ),
+    {headers, maps:merge(
+        tokens:access_token_header(Token),
+        tokens:service_token_header(OpPanelIdentityToken)
+    )};
+
+auth_to_rest_client(op_panel) ->
+    OneproviderAccessToken = service_oneprovider:get_access_token(),
+    OpPanelAccessToken = tokens:add_oneprovider_service_indication(
+        ?OP_PANEL, OneproviderAccessToken
+    ),
+    {headers, tokens:access_token_header(OpPanelAccessToken)};
+
 auth_to_rest_client(provider) ->
-    [Node | _] = service_op_worker:get_nodes(),
-    {ok, ProviderMacaroon} = rpc:call(Node, provider_auth, get_auth_macaroon, []),
-    {provider, ProviderMacaroon}.
+    ProviderAccessToken = service_oneprovider:get_access_token(),
+    {provider, ProviderAccessToken}.
+
 
 %%%===================================================================
 %%% Internal function
@@ -95,22 +120,15 @@ auth_to_rest_client(provider) ->
 %% converts it according to provided type.
 %% @end
 %%--------------------------------------------------------------------
--spec get_env(Key :: onepanel_env:key(), Type :: onepanel_utils:type()) ->
+-spec get_env(atom(), Type :: onepanel_utils:type() | path) ->
     Value :: term().
 get_env(Key, path) ->
     Path = get_env(Key, list),
-    case filename:absname(Path) of
-        Path ->
-            Path;
-        _ ->
-            [Node | _] = service_op_worker:get_nodes(),
-            {ok, Cwd} = rpc:call(Node, file, get_cwd, []),
-            filename:join(Cwd, Path)
-    end;
+    service_utils:absolute_path(?SERVICE_OPW, Path);
+
 get_env(Key, Type) ->
-    Hosts = service_op_worker:get_hosts(),
-    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
-    Name = service_op_worker:name(),
+    Name = ?SERVICE_OPW,
+    Nodes = nodes:all(#{service => ?SERVICE_PANEL, hosts => hosts:all(Name)}),
     {ok, Value} = onepanel_rpc:call_any(Nodes, onepanel_env, read_effective,
         [[Name, Key], Name]),
     onepanel_utils:convert(Value, Type).

@@ -1,0 +1,186 @@
+%%%-------------------------------------------------------------------
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2020 ACK CYFRONET AGH
+%%% This software is released under the MIT license
+%%% cited in 'LICENSE.txt'.
+%%% @end
+%%%-------------------------------------------------------------------
+%%% @doc
+%%% Utility functions used in API tests.
+%%% @end
+%%%-------------------------------------------------------------------
+-module(api_test_utils).
+-author("Bartosz Walkowicz").
+
+-include("api_test_runner.hrl").
+-include("api_test_utils.hrl").
+-include("api_test_storages.hrl").
+
+-include_lib("ctool/include/test/test_utils.hrl").
+-include_lib("ctool/include/test/assertions.hrl").
+-include_lib("ctool/include/http/headers.hrl").
+
+% an object containing API request data, serializable to json
+-type data() :: map()| undefined.
+
+-type placeholder_substitute() :: #placeholder_substitute{}.
+
+-export_type([placeholder_substitute/0]).
+
+-export([
+    build_member_and_root_allowed_client_spec/1, build_member_and_root_allowed_client_spec/2,
+    build_only_member_allowed_client_spec/1,
+    build_all_valid_clients_allowed_client_spec/1,
+    build_unauthorized_clients/1
+]).
+-export([ensure_defined/2]).
+-export([maybe_substitute_bad_id/2]).
+-export([substitute_placeholders/2]).
+-export([get_storage_id_by_name/2, describe_storage/2]).
+-export([to_hostnames/1]).
+-export([match_location_header/2]).
+-export([perform_io_test_on_storage/1]).
+
+%%%===================================================================
+%%% API
+%%%===================================================================
+
+
+-spec build_member_and_root_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_member_and_root_allowed_client_spec(PanelEntitySelector) ->
+    build_member_and_root_allowed_client_spec(PanelEntitySelector, []).
+
+
+-spec build_member_and_root_allowed_client_spec(
+    oct_background:entity_selector(),
+    [privileges:cluster_privilege()]
+) ->
+    api_test_runner:client_spec().
+build_member_and_root_allowed_client_spec(PanelEntitySelector, MemberPrivs) ->
+    #client_spec{
+        correct = [root, {member, MemberPrivs}],
+        unauthorized = [guest | build_unauthorized_clients(PanelEntitySelector)],
+        forbidden = [peer]
+    }.
+
+
+-spec build_only_member_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_only_member_allowed_client_spec(PanelEntitySelector) ->
+    #client_spec{
+        correct = [member],
+        unauthorized = [guest | build_unauthorized_clients(PanelEntitySelector)],
+        forbidden = [{root, ?ERROR_NOT_FOUND}, peer]
+    }.
+
+
+-spec build_all_valid_clients_allowed_client_spec(oct_background:entity_selector()) ->
+    api_test_runner:client_spec().
+build_all_valid_clients_allowed_client_spec(PanelEntitySelector) ->
+    #client_spec{
+        correct = [guest, peer, member, root],
+        unauthorized = build_unauthorized_clients(PanelEntitySelector),
+        forbidden = []
+    }.
+
+
+-spec build_unauthorized_clients(oct_background:entity_selector()) ->
+    [
+        api_test_runner:api_client_or_placeholder() |
+        {api_test_runner:api_client_or_placeholder(), Reason :: errors:error()}
+    ].
+build_unauthorized_clients(PanelEntitySelector) ->
+    EntityId = oct_background:to_entity_id(PanelEntitySelector),
+    PanelType = case EntityId of
+        <<"onezone">> -> ?OZ_PANEL;
+        _ -> ?OP_PANEL
+    end,
+
+    [
+        {user, ?ERR_TOKEN_SERVICE_FORBIDDEN(?SERVICE(PanelType, EntityId))}
+        | ?INVALID_API_CLIENTS_AND_AUTH_ERRORS
+    ].
+
+
+-spec ensure_defined
+    (undefined, DefaultValue) -> DefaultValue when DefaultValue :: term();
+    (Value, DefaultValue :: term()) -> Value when Value :: term().
+ensure_defined(undefined, DefaultValue) -> DefaultValue;
+ensure_defined(Value, _DefaultValue) -> Value.
+
+
+-spec maybe_substitute_bad_id
+    (ValidId :: binary(), undefined) -> {ValidId :: binary(), undefined};
+    (ValidId :: binary(), Data :: map()) -> {Id :: binary(), map()}.
+maybe_substitute_bad_id(ValidId, undefined) ->
+    {ValidId, undefined};
+maybe_substitute_bad_id(ValidId, Data) ->
+    case maps:take(bad_id, Data) of
+        {BadId, LeftoverData} -> {BadId, LeftoverData};
+        error -> {ValidId, Data}
+    end.
+
+
+-spec substitute_placeholders(data(), kv_utils:nested(#{Key :: binary() => #{Placeholder :: atom() => #placeholder_substitute{}}})) -> data().
+substitute_placeholders(Data, ReplacementsMap) ->
+    maps:map(fun(Key, ValueOrPlaceholder) ->
+        case kv_utils:find([Key, ValueOrPlaceholder], ReplacementsMap) of
+            error ->
+                ValueOrPlaceholder;
+            {ok, #placeholder_substitute{value = Value, posthook = Posthook}} ->
+                Posthook(),
+                Value
+        end
+    end, Data).
+
+
+-spec get_storage_id_by_name(oct_background:entity_selector(), binary()) -> binary().
+get_storage_id_by_name(EntitySelector, StorageName) ->
+    StorageIds = opw_test_rpc:get_storages(EntitySelector),
+    Storages = [describe_storage(EntitySelector, X) || X <- StorageIds],
+
+    [StorageId | _] = [maps:get(<<"id">>, X) || X <- Storages, (maps:get(<<"name">>, X) == StorageName)],
+    StorageId.
+
+
+-spec describe_storage(oct_background:entity_selector(), op_worker_storage:id()) ->
+    json_utils:json_map().
+describe_storage(ProviderSelector, StorageId) ->
+    StorageDescription = opw_test_rpc:storage_describe(ProviderSelector, StorageId),
+    StorageDescriptionMap = storage_spec_builder:description_to_map(StorageDescription),
+    onepanel_utils:convert(StorageDescriptionMap, {keys, binary}).
+
+
+-spec to_hostnames([node()]) -> [binary()].
+to_hostnames(Nodes) ->
+    [list_to_binary(utils:get_host(X)) || X <- Nodes].
+
+
+-spec match_location_header(map(), binary()) -> binary().
+match_location_header(Headers, Path) ->
+    Location = maps:get(?HDR_LOCATION, Headers),
+    {match, [Item]} = ?assertMatch({match, [_]}, re:run(Location, Path ++ "(.+)", [{capture, all_but_first, binary}])),
+    Item.
+
+
+-spec perform_io_test_on_storage(binary()) -> {ok, binary()} | {error, binary()}.
+perform_io_test_on_storage(StorageId) ->
+    SpaceName = str_utils:rand_hex(10),
+    UserId = oct_background:get_user_id(joe),
+    SpaceId = ozw_test_rpc:create_space(UserId, SpaceName),
+    SerializedToken = ozw_test_rpc:create_space_support_token(UserId, SpaceId),
+    panel_test_rpc:support_space(krakow, StorageId, SerializedToken, 10000000),
+    AccessToken = ozw_test_rpc:create_user_temporary_access_token(zone, UserId),
+    ?assertEqual(SpaceId, opw_test_rpc:get_user_space_by_name(krakow, SpaceName, AccessToken), ?ATTEMPTS),
+    ?assertEqual(true, lists:member(SpaceId, opw_test_rpc:get_spaces(krakow)), ?ATTEMPTS),
+    Path = filename:join(["/", SpaceName]),
+    case opw_test_rpc:perform_io_test(krakow, Path, AccessToken) of
+        ok -> {ok, SpaceId};
+        error -> {error, SpaceId}
+    end.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================

@@ -19,18 +19,13 @@
 %%--------------------------------------------------------------------
 %% Sets txt record in the dns.
 %%--------------------------------------------------------------------
--callback set_txt_record(#{txt_name := binary(), txt_ttl := non_neg_integer(),
-                           txt_value:= binary(), _=>_}) -> ok.
+-callback set_txt_record(#{txt_name  := binary(), txt_ttl := non_neg_integer(),
+                           txt_value := binary(), _=>_}) -> ok.
 
 %%--------------------------------------------------------------------
 %% Removes txt record from dns.
 %%--------------------------------------------------------------------
 -callback remove_txt_record(#{txt_name := binary(), _ => _}) -> ok.
-
-%%--------------------------------------------------------------------
-%% Sets static http content.
-%%--------------------------------------------------------------------
--callback set_http_record(Name :: binary(), Value :: binary()) -> ok.
 
 %%--------------------------------------------------------------------
 %% Returns hostname of the server at which txt record is set.
@@ -45,16 +40,19 @@
 %%--------------------------------------------------------------------
 %% Returns admin email to be used in Let's Encrypt registration.
 %%--------------------------------------------------------------------
--callback get_admin_email(service:ctx()) -> binary() | undefined.
+-callback get_admin_email() -> binary() | undefined.
 
 %%--------------------------------------------------------------------
-%% Checks if service supports Let's Encrypt challenge of given type.
+%% Checks if Let's Encrypt challenge of given type can be currently
+%% fulfilled by the plugin service.
+%% Throws in conditions preventing certification regardless of the
+%% challenge type.
 %%--------------------------------------------------------------------
 -callback supports_letsencrypt_challenge(letsencrypt_api:challenge_type()) ->
-    boolean() | unknown.
+    boolean().
 
 %%--------------------------------------------------------------------
 %% Clears worker ssl cache to ensure certificates changed on disk
 %% are reloaded.
 %%--------------------------------------------------------------------
--callback reload_webcert(service:ctx()) -> ok.
+-callback reload_webcert(service:step_ctx()) -> ok.

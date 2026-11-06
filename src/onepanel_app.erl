@@ -21,12 +21,14 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
+
 %%%===================================================================
 %%% Application callbacks
 %%%===================================================================
 
+
 %%--------------------------------------------------------------------
-%% @private @doc This function is called whenever an application is started
+%% @doc This function is called whenever an application is started
 %% using application:start/[1,2], and should start the processes of the
 %% application. If the application is structured according to the OTP
 %% design principles as a supervision tree, this means starting the
@@ -43,7 +45,7 @@ start(_StartType, _StartArgs) ->
         test_node_starter:maybe_start_cover(),
         case onepanel_env:legacy_config_exists(onepanel) of
             true ->
-                onepanel_env:migrate_generated_config(onepanel, [
+                onepanel_env:upgrade_app_config(onepanel, [
                     [onepanel, advertise_address],
                     [onepanel, generate_test_web_cert],
                     [onepanel, test_web_cert_domain],
@@ -51,19 +53,25 @@ start(_StartType, _StartArgs) ->
                 ], true);
             false -> ok
         end,
-        Supervisor = onepanel_sup:start_link(),
-        resume_service(),
-        Supervisor
+        onepanel_cert:generate_web_full_chain(),
+
+        case onepanel_sup:start_link() of
+            {ok, Supervisor} ->
+                resume_service(),
+                {ok, Supervisor};
+            Error ->
+                Error
+        end
     catch
-        _:Reason ->
-            ?error_stacktrace("Cannot start onepanel application due to: ~p",
-                [Reason]),
+        _:Reason:Stacktrace ->
+            ?error_stacktrace("Cannot start onepanel application due to: ~tp",
+                [Reason], Stacktrace),
             {error, Reason}
     end.
 
 
 %%--------------------------------------------------------------------
-%% @private @doc This function is called whenever an application has stopped.
+%% @doc This function is called whenever an application has stopped.
 %% It is intended to be the opposite of Module:start/2 and should do
 %% any necessary cleaning up. The return value is ignored.
 %% @end
@@ -71,6 +79,7 @@ start(_StartType, _StartArgs) ->
 -spec stop(State :: term()) -> term().
 stop(_State) ->
     https_listener:stop(),
+    http_listener:stop(),
     test_node_starter:maybe_stop_cover(),
     ok.
 
@@ -78,6 +87,7 @@ stop(_State) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -90,14 +100,14 @@ resume_service() ->
     % Must be consistent with condition for blocking deployment request
     % (see rest_service:is_service_configured/0)
     ClusterExists = model:exists(onepanel_deployment)
-        andalso onepanel_deployment:is_completed(?PROGRESS_READY),
+        andalso onepanel_deployment:is_set(?PROGRESS_READY),
 
     case ClusterExists of
         true ->
-            ReleaseType = onepanel_env:get(release_type),
-            Task = service:apply_async(ReleaseType, manage_restart, #{}),
-            ?info("Resuming ~s (task id ~s)", [ReleaseType, Task]);
-        false -> ok % new deployment, managed by REST
-    end,
-    ok.
-
+            ClusterType = onepanel_env:get_cluster_type(),
+            Task = service:apply_async(ClusterType, manage_restart, #{}),
+            ?info("Resuming ~ts (task id ~ts)", [ClusterType, Task]);
+        false ->
+            % new deployment, managed by REST
+            ok
+    end.

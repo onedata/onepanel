@@ -14,13 +14,17 @@
 
 -ifdef(TEST).
 
+-include_lib("eunit/include/eunit.hrl").
+-include("modules/errors.hrl").
+-include_lib("public_key/include/OTP-PUB-KEY.hrl").
+
 -define(DATA_DIR, "./test/" ++ ?MODULE_STRING ++ "_data/").
 -define(LOCALHOST_CERT, filename:join(?DATA_DIR, "localhost_cert.pem")).
 -define(MULTIDOMAIN_CERT, filename:join(?DATA_DIR, "multidomain_cert.pem")).
 
--include("modules/errors.hrl").
--include_lib("public_key/include/OTP-PUB-KEY.hrl").
--include_lib("eunit/include/eunit.hrl").
+% validity dates of the localhost_cert stored in test data
+-define(SINCE, 1518104419). % Feb  8 15:40:19 2018 GMT
+-define(UNTIL, 1833464419). % Feb  6 15:40:19 2028 GMT
 
 %%%===================================================================
 %%% Test functions
@@ -45,11 +49,20 @@ read_issuer_common_name_test() ->
 
 
 read_dates_as_epoch_test() ->
-    ExpectedSince = 1518104419, % Feb  8 15:40:19 2018 GMT
-    ExpectedUntil = 1833464419, % Feb  6 15:40:19 2028 GMT
     {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
-    ?assertEqual({ExpectedSince, ExpectedUntil},
-        onepanel_cert:get_times(Cert)).
+    ?assertEqual({?SINCE, ?UNTIL}, onepanel_cert:get_times(Cert)).
+
+
+get_seconds_till_expiration_test_() ->
+    {setup, 
+        fun node_cache:init/0, 
+        fun(_) -> node_cache:destroy() end, 
+        fun() ->
+            {ok, Cert} = onepanel_cert:read(?LOCALHOST_CERT),
+            ?assertEqual(?UNTIL - global_clock:timestamp_seconds(),
+                onepanel_cert:get_seconds_till_expiration(Cert))
+        end
+    }.
 
 
 verify_accepts_domain_test() ->
@@ -69,5 +82,27 @@ verify_rejects_domain_test() ->
 
     ?assertEqual(invalid, onepanel_cert:verify_hostname(Cert1, <<"not_in_cert.com">>)),
     ?assertEqual(invalid, onepanel_cert:verify_hostname(Cert2, <<"not_in_cert.com">>)).
+
+
+list_certificate_files_test() ->
+    utils:run_with_tempdir(fun(TmpDir) ->
+        LEDir = filename:join([TmpDir, letsencrypt]),
+        LECredentials = filename:join([LEDir, staging, private_key]),
+        ok = onepanel_env:set(letsencrypt_keys_dir, LEDir),
+        ok = filelib:ensure_dir(LECredentials),
+        ok = file:write_file(LECredentials, <<>>),
+
+        Files = lists:map(fun(Var) ->
+            Path = filename:join(TmpDir, Var),
+            ok = file:write_file(Path, <<>>),
+            ok = onepanel_env:set(Var, Path),
+            Path
+        end, [web_key_file, web_cert_file, web_cert_chain_file, web_cert_full_chain_file]),
+        Files2 = lists:sort([LECredentials | Files]),
+
+        ?assertEqual(Files2, lists:sort(onepanel_cert:list_certificate_files()))
+    end).
+
+
 
 -endif.

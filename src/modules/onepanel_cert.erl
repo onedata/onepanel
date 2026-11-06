@@ -22,9 +22,17 @@
 -export_type([pem/0, cert/0]).
 
 %% API
--export([generate_csr_and_key/1, backup_exisiting_certs/0]).
--export([read/1, verify_hostname/2, get_subject_cn/1, get_issuer_cn/1,
-    get_seconds_till_expiration/1]).
+-export([
+    generate_csr_and_key/2,
+    generate_web_full_chain/0,
+    backup_exisiting_certs/0,
+    list_certificate_files/0
+]).
+-export([
+    read/1, verify_hostname/2,
+    get_subject_cn/1, get_dns_names/1, get_issuer_cn/1,
+    get_seconds_till_expiration/1
+]).
 -export([get_times/1]).
 
 %%%===================================================================
@@ -35,18 +43,29 @@
 %% @doc Generates Certificate Signing Request and matching private key.
 %% @end
 %%--------------------------------------------------------------------
--spec generate_csr_and_key(Domain :: string()) ->
+-spec generate_csr_and_key(Domain :: string(), [string()]) ->
     {ok, CSR :: pem(), Key :: pem()} | error.
-generate_csr_and_key(Domain) ->
-    KeyFile = onepanel_shell:mktemp(),
-    CSRFile = onepanel_shell:mktemp(),
+generate_csr_and_key(Domain, Subdomains) ->
+    KeyFile = shell_utils:mktemp(),
+    CSRFile = shell_utils:mktemp(),
+
+    BasicCmd = [
+        "openssl req"
+        " -new -batch",
+        " -nodes", % no password on keyfile
+        " -keyout ", KeyFile,
+        " -out ", CSRFile,
+        " -subj '/CN=", Domain, "'"
+    ],
+
+    SubjectAltNames = lists:foldl(fun(Subdomain, Acc) ->
+        Acc ++ [",DNS:", Subdomain]
+    end, [" -addext 'subjectAltName=DNS:", Domain], Subdomains) ++ "'",
+
+    Cmd = BasicCmd ++ SubjectAltNames,
 
     try
-        os:cmd([
-            "openssl req -new -batch -subj '/CN=", Domain, "/'",
-            " -nodes", % no password on keyfile
-            " -keyout ", KeyFile,
-            " -out ", CSRFile]),
+        os:cmd(Cmd),
 
         {ok, KeyPem} = file:read_file(KeyFile),
         {ok, CSRPem} = file:read_file(CSRFile),
@@ -101,6 +120,14 @@ get_subject_cn(#'Certificate'{} = Cert) ->
     get_common_name(SubjectParts).
 
 
+-spec get_dns_names(cert()) -> [binary()].
+get_dns_names(Cert = #'Certificate'{}) ->
+    lists:map(
+        fun str_utils:to_binary/1,
+        ssl_verify_fun_cert_helpers:extract_dns_names(to_otp(Cert))
+    ).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Extracts issuer Common Name from a certificate.
@@ -138,7 +165,7 @@ verify_hostname(Cert, Hostname) ->
 -spec get_seconds_till_expiration(cert()) -> integer().
 get_seconds_till_expiration(#'Certificate'{} = Cert) ->
     {_, ExpirationTime} = get_times(Cert),
-    ExpirationTime - time_utils:system_time_seconds().
+    ExpirationTime - global_clock:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------
@@ -154,7 +181,26 @@ get_times(#'Certificate'{} = Cert) ->
         validity = Validity
     } = Cert#'Certificate'.tbsCertificate,
     {'Validity', NotBeforeStr, NotAfterStr} = Validity,
-    {time_str_to_epoch(NotBeforeStr), time_str_to_epoch(NotAfterStr)}.
+    {time_str_to_seconds(NotBeforeStr), time_str_to_seconds(NotAfterStr)}.
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Generate full chain containing beside chain certificates also leaf certificate.
+%% @end
+%%--------------------------------------------------------------------
+-spec generate_web_full_chain() -> ok.
+generate_web_full_chain() ->
+    WebCertPath = onepanel_env:get(web_cert_file),
+    WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
+
+    CertDers = cert_utils:load_ders(WebCertPath),
+    ChainDers = cert_utils:load_ders(WebChainPath),
+    FullChainDers = CertDers ++ ChainDers,
+    FullChainPem = cert_utils:ders_to_pem(FullChainDers),
+
+    ok = file:write_file(WebFullChainPath, FullChainPem).
 
 
 %%--------------------------------------------------------------------
@@ -167,17 +213,36 @@ backup_exisiting_certs() ->
     WebKeyPath = onepanel_env:get(web_key_file),
     WebCertPath = onepanel_env:get(web_cert_file),
     WebChainPath = onepanel_env:get(web_cert_chain_file),
+    WebFullChainPath = onepanel_env:get(web_cert_full_chain_file),
 
     lists:foreach(fun(Path) ->
         case filelib:is_regular(Path) of
             false -> ok;
             true ->
-                BackupPath = str_utils:format("~s.~B.bak", [
-                    Path, time_utils:system_time_seconds()
+                BackupPath = str_utils:format("~ts.~B.bak", [
+                    Path, global_clock:timestamp_seconds()
                 ]),
                 file:copy(Path, BackupPath)
         end
-    end, [WebKeyPath, WebCertPath, WebChainPath]).
+    end, [WebKeyPath, WebCertPath, WebChainPath, WebFullChainPath]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Lists certificate-related files present on the current node.
+%% That is: web cert, key, chain file, full chain file;
+%% any content of Let's Encrypt credentials directory.
+%% @end
+%%--------------------------------------------------------------------
+-spec list_certificate_files() -> [file:filename()].
+list_certificate_files() ->
+    lists:filter(fun filelib:is_regular/1, [
+        onepanel_env:get(web_key_file),
+        onepanel_env:get(web_cert_file),
+        onepanel_env:get(web_cert_chain_file),
+        onepanel_env:get(web_cert_full_chain_file)
+        | filelib:wildcard([onepanel_env:get(letsencrypt_keys_dir), "/**"])
+    ]).
 
 
 %%%===================================================================
@@ -187,7 +252,7 @@ backup_exisiting_certs() ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% Converts plain 'Certificate' record to 'OTPCertificate.
+%% Converts plain 'Certificate' record to 'OTPCertificate'.
 %% @end
 %%--------------------------------------------------------------------
 -spec to_otp(cert()) -> #'OTPCertificate'{}.
@@ -221,24 +286,24 @@ get_common_name(RdnSequence) ->
 %% Converts time string YYmmDDHHMMSS to epoch seconds.
 %% @end
 %%--------------------------------------------------------------------
--spec time_str_to_epoch({utcTime | generalTime, string()}) -> integer().
-time_str_to_epoch({utcTime, [Y1,Y2,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,Z]}) ->
+-spec time_str_to_seconds({utcTime | generalTime, string()}) -> integer().
+time_str_to_seconds({utcTime, [Y1,Y2,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,Z]}) ->
     case list_to_integer([Y1,Y2]) of
         N when N >= 50 ->
-            time_str_to_epoch({generalTime,
+            time_str_to_seconds({generalTime,
                 [$1,$9,Y1,Y2,M1,M2,D1,D2,
                     H1,H2,M3,M4,S1,S2,Z]});
         _ ->
-            time_str_to_epoch({generalTime,
+            time_str_to_seconds({generalTime,
                 [$2,$0,Y1,Y2,M1,M2,D1,D2,
                     H1,H2,M3,M4,S1,S2,Z]})
     end;
 
-time_str_to_epoch({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
+time_str_to_seconds({_,[Y1,Y2,Y3,Y4,M1,M2,D1,D2,H1,H2,M3,M4,S1,S2,$Z]}) ->
     Year  = list_to_integer([Y1, Y2, Y3, Y4]),
     Month = list_to_integer([M1, M2]),
     Day   = list_to_integer([D1, D2]),
     Hour  = list_to_integer([H1, H2]),
     Min   = list_to_integer([M3, M4]),
     Sec   = list_to_integer([S1, S2]),
-    time_utils:datetime_to_epoch({{Year, Month, Day}, {Hour, Min, Sec}}).
+    time:datetime_to_seconds({{Year, Month, Day}, {Hour, Min, Sec}}).

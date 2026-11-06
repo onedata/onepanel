@@ -13,12 +13,13 @@
 
 -include("modules/errors.hrl").
 -include("names.hrl").
+-include("modules/models.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
 -export([init/0, destroy/0]).
--export([wait_for_tables/0]).
--export([create_tables/0, copy_tables/0, delete_tables/0]).
+-export([wait_for_tables/0, global_wait_for_tables/0]).
+-export([create_tables/0, copy_tables/0, delete_tables/0, upgrade_tables/0]).
 -export([add_node/1, remove_node/1, get_nodes/0]).
 
 %%%===================================================================
@@ -36,7 +37,9 @@ init() ->
     case mnesia:create_schema([Node]) of
         ok -> ok;
         {error, {Node, {already_exists, Node}}} -> ok;
-        {error, Reason} -> ?throw_error(Reason, [])
+        {error, _} = Error ->
+            ?critical("Error creating mnesia database schema: ~tp", [Error]),
+            error(Error)
     end,
     ok = mnesia:start().
 
@@ -53,7 +56,7 @@ destroy() ->
 
 
 %%--------------------------------------------------------------------
-%% @doc Creates database tables and initializes them.
+%% @doc Creates database tables
 %% @end
 %%--------------------------------------------------------------------
 -spec create_tables() -> ok.
@@ -61,21 +64,21 @@ create_tables() ->
     lists:foreach(fun(Model) ->
         Table = model:get_table_name(Model),
         case mnesia:create_table(Table, [
-            {attributes, Model:get_fields()},
-            {record_name, Model},
-            {disc_copies, [node()]}
+            {attributes, model:get_fields()},
+            {record_name, ?WRAPPER_RECORD},
+            {disc_copies, get_nodes()}
         ]) of
             {atomic, ok} ->
                 Model:seed(),
                 ok;
-            {aborted, {already_exists, Model}} -> ok;
-            {aborted, Reason} -> throw(Reason)
+            {aborted, {already_exists, Table}} -> ok;
+            {aborted, Reason} -> error(Reason)
         end
     end, model:get_models()).
 
 
 %%--------------------------------------------------------------------
-%% @doc Waits for all tables to be available.
+%% @doc Waits for all tables known to mnesia to be available.
 %% In multinode setup this requires other nodes to be online
 %% unless current node was the last one to be stopped.
 %% @end
@@ -83,8 +86,46 @@ create_tables() ->
 -spec wait_for_tables() -> ok.
 wait_for_tables() ->
     Timeout = infinity,
-    Tables = lists:map(fun model:get_table_name/1, model:get_models()),
+    Tables = mnesia:system_info(tables),
     ok = mnesia:wait_for_tables(Tables, Timeout).
+
+
+%%--------------------------------------------------------------------
+%% @doc Waits for all known nodes to be available and for mnesia
+%% on them to be ready.
+%% This is different from local wait_for_tables, which does not wait
+%% for other nodes if the current node has the newest state.
+%% Always returns ok in a new cluster (before service_onepanel:init_cluster/1)
+%% as the mnesia nodes list is empty.
+%% @end
+%%--------------------------------------------------------------------
+-spec global_wait_for_tables() -> ok | no_return().
+global_wait_for_tables() ->
+    Nodes = get_nodes(),
+    Attempts = application:get_env(?APP_NAME, wait_for_cluster_attempts, 600),
+    Delay = application:get_env(?APP_NAME, wait_for_cluster_delay, 1000),
+    onepanel_utils:wait_until(onepanel_rpc, call,
+        [Nodes, onepanel_db, wait_for_tables, []],
+        {validator, fun(Results) ->
+            {_GoodResults, BadResults} = service_utils:partition_results(Results),
+            case BadResults of
+                [] -> ok;
+                _ ->
+                    {BadNodes, _} = lists:unzip(BadResults),
+                    ?info("Missing/not ready nodes: ", [onepanel_utils:join(BadNodes, <<" ">>)]),
+                    error(cluster_incomplete)
+            end
+        end}, Attempts, Delay).
+
+
+-spec upgrade_tables() -> ok.
+upgrade_tables() ->
+    lists:foreach(fun(Model) ->
+        ?debug("Upgrading model ~tp", [Model]),
+        Table = model:get_table_name(Model),
+        upgrade_table(Table, Model),
+        ?debug("Model ~tp upgraded", [Model])
+    end, model:get_models()).
 
 
 %%--------------------------------------------------------------------
@@ -114,7 +155,7 @@ delete_tables() ->
         case mnesia:del_table_copy(Table, node()) of
             {atomic, ok} -> ok;
             {aborted, {no_exists, _}} -> ok;
-            {aborted, Reason} -> ?throw_error(Reason, [])
+            {aborted, Reason} -> error(Reason)
         end
     end, model:get_models()).
 
@@ -146,3 +187,29 @@ remove_node(Node) ->
 -spec get_nodes() -> Nodes :: [node()].
 get_nodes() ->
     mnesia:table_info(schema, disc_copies).
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Invokes upgrade function on all elements in the table
+%% to ensure they have up-to-date schema.
+%% On the first run after upgrading from 18.02
+%% handles migration to records being wrapped in #document{}.
+%% @end
+%%--------------------------------------------------------------------
+-spec upgrade_table(Table :: atom(), Model :: model:model()) ->
+    ok | no_return().
+upgrade_table(Table, Model) ->
+    case mnesia:transform_table(
+        Table,
+        fun(Record) -> model:upgrade(Model, Record) end,
+        model:get_fields(),
+        ?WRAPPER_RECORD
+    ) of
+        {atomic, ok} -> ok;
+        {aborted, Reason} -> error(Reason)
+    end.

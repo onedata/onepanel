@@ -23,6 +23,9 @@
 % user acknowledged the DNS check results
 -define(DNS_CHECK_ACKNOWLEDGED, dns_check_acknowledged).
 
+% at least one storage has been added
+-define(PROGRESS_STORAGE_SETUP, storage_setup).
+
 % all steps of configuration have been performed
 -define(PROGRESS_READY, ready).
 

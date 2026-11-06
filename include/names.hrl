@@ -13,6 +13,23 @@
 
 -define(APP_NAME, onepanel).
 -define(SERVICE_EXECUTOR_NAME, service_executor).
--define(SERVICE_WATCHER_NAME, service_watcher).
+-define(ONEPANEL_CRON_NAME, onepanel_cron).
+
+-define(SERVICE_PANEL, ?APP_NAME).
+-define(SERVICE_CB, couchbase).
+-define(SERVICE_CM, cluster_manager).
+-define(SERVICE_CW, cluster_worker).
+-define(SERVICE_LE, letsencrypt).
+-define(SERVICE_OP, oneprovider).
+-define(SERVICE_OPW, op_worker).
+-define(SERVICE_OZ, onezone).
+-define(SERVICE_OZW, oz_worker).
+
+-define(SERVICE_ONES3, ones3).
+
+-define(DNS_CHECK_TIMESTAMP_KEY, dns_check_attempt_timestamp).
+-define(DNS_CHECK_CACHE_KEY, dns_check).
+
+-define(OP_DEREGISTRATION_MONITORING_JOB_NAME, op_deregistration_monitoring_job).
 
 -endif.

@@ -5,193 +5,212 @@
 %%% cited in 'LICENSE.txt'.
 %%% @end
 %%%--------------------------------------------------------------------
-%%% @doc This module contains helper function used during op_worker service
+%%% @doc This module contains helper functions used during op_worker service
 %%% storage configuration.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(op_worker_storage).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
 -include("modules/errors.hrl").
 
 -include_lib("hackney/include/hackney_lib.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 %% API
--export([add/2, get/0, get/1, update/2]).
+-export([add/1, list/0, get/1, exists/1, exists/2, update/3, remove/2]).
 -export([get_supporting_storage/2, get_supporting_storages/2,
     get_file_popularity_configuration/2, get_auto_cleaning_configuration/2]).
--export([is_mounted_in_root/3]).
--export([add_storage/5, maybe_update_file_popularity/3,
-    maybe_update_auto_cleaning/3, invalidate_luma_cache/1]).
+-export([is_imported_storage/2, can_be_removed/1]).
+-export([maybe_update_file_popularity/3,
+    maybe_update_auto_cleaning/3]).
 
+% @formatter:off
 -type id() :: binary().
+-type space_id() :: op_worker_rpc:od_space_id().
 -type name() :: binary().
--type storage_params_map() :: #{Key :: atom() | binary() => Value :: binary()}.
--type storage_map() :: #{Name :: name() => Params :: storage_params_map()}.
--type luma_config() :: {atom(), binary(), undefined | binary()}.
+
+%% specification for updating or modifying storage
+-type param() :: binary() | boolean() | integer() | float() | onedata_storage:qos_parameters().
+-type storage_params() :: #{
+    Key :: atom() => Value :: param()
+}.
+
+%% Storage information retrieved from op_worker
+-type storage_details() :: #{
+    lumaFeed := op_worker_rpc:luma_feed(),
+    qosParameters := onedata_storage:qos_parameters(),
+    verificationPassed => boolean(),
+    atom() := binary()
+}.
+
+-type storages_map() :: #{Name :: name() => Params :: storage_params()}.
+
+-export_type([id/0, name/0, storage_params/0, storage_details/0, storages_map/0]).
+
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
 
+
+-spec add(Ctx :: #{name := name(), params := storage_params()}) ->
+    {op_worker_storage:name(), {ok, op_worker_storage:id()} | {error, term()}}.
+add(#{name := Name, params := Params}) ->
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
+    StorageName = onepanel_utils:convert(Name, binary),
+    StorageType = onepanel_utils:get_converted(type, Params, binary),
+
+    Result = try
+        CreateSpec = storage_spec_builder:build_create_spec(StorageName, Params),
+        op_worker_rpc:storage_create(OpNode, CreateSpec)
+    catch
+        _:{error, Reason} ->
+            {error, Reason};
+        Class:Reason:Stacktrace ->
+            ?error_stacktrace("Unexpected error when adding storage '~ts' (~ts) - ~w:~tp", [
+                StorageName, StorageType, Class, Reason
+            ], Stacktrace),
+            {error, storage_add_failed}
+    end,
+    case Result of
+        {ok, AddedStorageId} ->
+            ?notice("Successfully added storage '~ts' (~ts) with Id: '~ts'", [
+                StorageName, StorageType, AddedStorageId
+            ]);
+        {error, _} = Error ->
+            ?error(?autoformat_with_msg("Failed to add storage '~ts' (~ts)", [StorageName, StorageType], Error))
+    end,
+    {StorageName, Result}.
+
+
+-spec update(OpNode :: node(), Id :: id(), Params :: storage_params()) ->
+    storage_details().
+update(OpNode, Id, NewParams) ->
+    Storage = op_worker_storage:get(Id),
+    Name = maps:get(name, Storage),
+    StorageType = maps:get(type, Storage),
+
+    try
+        UpdateSpec = storage_spec_builder:build_update_spec(StorageType, NewParams),
+        case op_worker_rpc:storage_update(OpNode, Id, UpdateSpec) of
+            ok -> 
+                Details = ?MODULE:get(Id),
+                ?info("Modified storage ~tp (~tp)", [Name, Id]),
+                Details#{verificationPassed => true};
+            {error, _} = Error ->
+                ?error(?autoformat_with_msg("Storage modification failed", [Id, Name], Error)),
+                DetailsOnError = ?MODULE:get(Id),
+                DetailsOnError#{verificationPassed => false}
+        end
+    catch Class:Reason:Stacktrace ->
+        DetailsOnException = ?MODULE:get(Id),
+        ?error_exception(
+            ?autoformat_with_msg("Storage modification failed", [Id, Name]),
+            Class, Reason, Stacktrace
+        ),
+        DetailsOnException#{verificationPassed => false}
+    end.
+
+
 %%--------------------------------------------------------------------
-%% @doc Verifies that each of provided storages is accessible for all op_worker
-%% service nodes. In case of a successful verification proceeds with storage
-%% addition.
+%% @doc Removes given storage.
+%% Fails if any space is supported by this storage.
 %% @end
 %%--------------------------------------------------------------------
--spec add(Storages :: storage_map(), IgnoreExists :: boolean()) -> ok | no_return().
-add(Storages, IgnoreExists) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    ?info("Adding ~b storage(s)", [maps:size(Storages)]),
-    maps:fold(fun(Key, Value, _) ->
-        StorageName = onepanel_utils:convert(Key, binary),
-        StorageType = onepanel_utils:typed_get(type, Value, binary),
-
-        ?info("Gathering storage configuration: \"~s\" (~s)", [StorageName, StorageType]),
-        ReadOnly = onepanel_utils:typed_get(readonly, Value, boolean, false),
-        {ok, UserCtx} = get_storage_user_ctx(Node, StorageType, Value),
-        {ok, Helper} = get_storage_helper(Node, StorageType, UserCtx, Value),
-        LumaConfig = get_luma_config(Node, Value),
-        maybe_verify_storage(Helper, ReadOnly),
-
-        ?info("Adding storage: \"~s\" (~s)", [StorageName, StorageType]),
-        Result = add_storage(Node, StorageName, [Helper], ReadOnly, LumaConfig),
-        case {Result, IgnoreExists} of
-            {{ok, _StorageId}, _} ->
-                ?info("Successfully added storage: \"~s\" (~s)", [StorageName, StorageType]),
-                ok;
-            {{error, already_exists}, true} ->
-                ?info("Storage already exists, skipping: \"~s\" (~s)", [StorageName, StorageType]),
-                ok;
-            {{error, Reason}, _} ->
-                ?throw_error({?ERR_STORAGE_ADDITION, Reason})
-        end
-    end, [], Storages),
-    ok.
+-spec remove(OpNode :: node(), id()) -> ok | no_return().
+remove(OpNode, Id) ->
+    case op_worker_rpc:storage_safe_remove(OpNode, Id) of
+        ok ->
+            ?info("Successfully removed storage with id ~tp", [Id]),
+            ok;
+        {error, storage_in_use} ->
+            throw(?ERR_STORAGE_IN_USE(?err_ctx()))
+    end.
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns lists of storages' details currently configured in op_worker
+%% @doc Returns lists of storage ids currently configured in op_worker
 %% service.
 %% @end
 %%--------------------------------------------------------------------
--spec get() -> list().
-get() ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    {ok, Storages} = rpc:call(Node, storage, list, []),
-    Ids = lists:map(fun(Storage) ->
-        rpc:call(Node, storage, get_id, [Storage])
-    end, Storages),
-    [{ids, Ids}].
+-spec list() -> [id()].
+list() ->
+    {ok, Ids} = op_worker_rpc:get_storages(),
+    Ids.
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns details of a selected storage from op_worker service.
 %% @end
 %%--------------------------------------------------------------------
--spec get(Id :: id()) -> storage_params_map().
+-spec get(Id :: id()) -> storage_details().
 get(Id) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    {ok, Storage} = rpc:call(Node, storage, get, [Id]),
-    get_storage(Node, Storage).
+    {ok, OpNode} = nodes:any(?SERVICE_OPW),
+    {ok, Description} = op_worker_rpc:storage_describe(OpNode, Id),
+    storage_spec_builder:description_to_map(Description).
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns storage supporting given space on given Node.
+%% @doc Returns storage supporting given space on given OpNode.
 %% @end
 %%--------------------------------------------------------------------
--spec get_supporting_storage(Node :: node(), SpaceId :: id()) -> id().
-get_supporting_storage(Node, SpaceId) ->
-    hd(get_supporting_storages(Node, SpaceId)).
+-spec get_supporting_storage(OpNode :: node(), SpaceId :: id()) -> id().
+get_supporting_storage(OpNode, SpaceId) ->
+    {ok, StorageIds} = get_supporting_storages(OpNode, SpaceId),
+    hd(StorageIds).
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns all storages supporting given space on given Node.
+%% @doc Returns all storages supporting given space on given OpNode.
 %% @end
 %%--------------------------------------------------------------------
--spec get_supporting_storages(Node :: node(), SpaceId :: id()) -> [id()].
-get_supporting_storages(Node, SpaceId) ->
-    {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
-    rpc:call(Node, space_storage, get_storage_ids, [SpaceStorage]).
+-spec get_supporting_storages(OpNode :: node(), SpaceId :: id()) -> {ok, [id()]}.
+get_supporting_storages(OpNode, SpaceId) ->
+    op_worker_rpc:space_logic_get_storages(OpNode, SpaceId).
 
 
 %%--------------------------------------------------------------------
 %% @doc Checks whether space storage is mounted in root.
 %% @end
 %%--------------------------------------------------------------------
--spec is_mounted_in_root(Node :: node(), SpaceId :: id(), StorageId :: id()) ->
+-spec is_imported_storage(OpNode :: node(), StorageId :: id()) ->
     boolean().
-is_mounted_in_root(Node, SpaceId, StorageId) ->
-    {ok, SpaceStorage} = rpc:call(Node, space_storage, get, [SpaceId]),
-    MountedInRoot = rpc:call(Node, space_storage, get_mounted_in_root,
-        [SpaceStorage]
-    ),
-    lists:member(StorageId, MountedInRoot).
-
-
-%%--------------------------------------------------------------------
-%% @doc Updates details of a selected storage in op_worker service.
-%% @end
-%%--------------------------------------------------------------------
--spec update(Name :: name(), Args :: maps:map()) -> ok.
-update(Id, Args) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    Storage = op_worker_storage:get(Id),
-    {ok, Id} = onepanel_maps:get(id, Storage),
-    {ok, Type} = onepanel_maps:get(type, Storage),
-    Args2 = #{<<"timeout">> => onepanel_utils:typed_get(timeout, Args, binary)},
-    {ok, _} = rpc:call(Node, storage, update_helper, [Id, Type, Args2]),
-    ok.
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks if storage with given name exists.
-%% @end
-%%--------------------------------------------------------------------
--spec exists(Node :: node(), StorageName :: name()) -> boolean().
-exists(Node, StorageName) ->
-    case rpc:call(Node, storage, select, [StorageName]) of
-        {error, not_found} -> false;
-        {ok, _} -> true
-    end.
-
+is_imported_storage(OpNode, StorageId) ->
+    op_worker_rpc:storage_is_imported_storage(OpNode, StorageId).
 
 %%-------------------------------------------------------------------
-%% @private
 %% @doc
 %% Enables or disables file popularity.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(),
-    maps:map()) -> ok.
+-spec maybe_update_file_popularity(Node :: node(), SpaceId :: id(), map()) -> ok.
 maybe_update_file_popularity(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
 maybe_update_file_popularity(Node, SpaceId, Args) ->
     Configuration = parse_file_popularity_configuration(Args),
-    case rpc:call(Node, file_popularity_api, configure, [SpaceId, Configuration]) of
-        {error, Reason} ->
-            ?throw_error({?ERR_CONFIG_FILE_POPULARITY, Reason});
+    case op_worker_rpc:file_popularity_api_configure(Node, SpaceId, Configuration) of
+        {error, _} = Error -> throw(Error);
         Result -> Result
     end.
 
+
 %%-------------------------------------------------------------------
-%% @private
 %% @doc
 %% Updates autocleaning configuration.
 %% @end
 %%-------------------------------------------------------------------
--spec maybe_update_auto_cleaning(Node :: node(), SpaceId :: id(), maps:map()) -> ok.
-maybe_update_auto_cleaning(_Node, _SpaceId, Args) when map_size(Args) =:= 0 ->
+-spec maybe_update_auto_cleaning(OpNode :: node(), space_id(), map()) -> ok.
+maybe_update_auto_cleaning(_OpNode, _SpaceId, Args) when map_size(Args) =:= 0 ->
     ok;
-maybe_update_auto_cleaning(Node, SpaceId, Args) ->
+maybe_update_auto_cleaning(OpNode, SpaceId, Args) ->
     Configuration = parse_auto_cleaning_configuration(Args),
-    case rpc:call(Node, autocleaning_api, configure, [SpaceId, Configuration]) of
-        {error, Reason} ->
-            ?throw_error({?ERR_CONFIG_AUTO_CLEANING, Reason});
+    case op_worker_rpc:autocleaning_configure(OpNode, SpaceId, Configuration) of
+        {error, _} = Error -> throw(Error);
         Result -> Result
     end.
+
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -199,19 +218,22 @@ maybe_update_auto_cleaning(Node, SpaceId, Args) ->
 %% configuration from provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_file_popularity_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_file_popularity_configuration(Node, SpaceId) ->
-    case rpc:call(Node, file_popularity_api, get_configuration, [SpaceId]) of
+-spec get_file_popularity_configuration(OpNode :: node(),
+    space_id()) -> #{atom() => term()}.
+get_file_popularity_configuration(OpNode, SpaceId) ->
+    case op_worker_rpc:file_popularity_api_get_configuration(OpNode, SpaceId) of
         {ok, DetailsMap} ->
-            maps:to_list(onepanel_maps:get_store_multiple([
-                {[enabled], [enabled]},
-                {[example_query], [exampleQuery]},
-                {[last_open_hour_weight], [lastOpenHourWeight]},
-                {[avg_open_count_per_day_weight], [avgOpenCountPerDayWeight]},
-                {[max_avg_open_count_per_day], [maxAvgOpenCountPerDay]}
-            ], DetailsMap));
-        {error, Reason} ->
-            ?throw_error({?ERR_FILE_POPULARITY, Reason})
+            kv_utils:copy_found([
+                {enabled, enabled},
+                {example_query, exampleQuery},
+                {last_open_hour_weight, lastOpenHourWeight},
+                {avg_open_count_per_day_weight, avgOpenCountPerDayWeight},
+                {max_avg_open_count_per_day, maxAvgOpenCountPerDay}
+            ], DetailsMap);
+        {error, _} = Error ->
+            % the only possible errors here are from op-worker datastore,
+            % cannot be handled gracefully by Onepanel
+            error(Error)
     end.
 
 %%-------------------------------------------------------------------
@@ -220,10 +242,10 @@ get_file_popularity_configuration(Node, SpaceId) ->
 %% provider.
 %% @end
 %%-------------------------------------------------------------------
--spec get_auto_cleaning_configuration(Node :: node(), SpaceId :: id()) -> proplists:proplist().
-get_auto_cleaning_configuration(Node, SpaceId) ->
-    DetailsMap = rpc:call(Node, autocleaning_api, get_configuration, [SpaceId]),
-    DetailsMap2 = onepanel_maps:get_store_multiple([
+-spec get_auto_cleaning_configuration(OpNode :: node(), space_id()) -> #{atom() => term()}.
+get_auto_cleaning_configuration(OpNode, SpaceId) ->
+    DetailsMap = op_worker_rpc:autocleaning_get_configuration(OpNode, SpaceId),
+    DetailsMap2 = kv_utils:copy_found([
         {[rules, min_file_size], [rules, minFileSize]},
         {[rules, max_file_size], [rules, maxFileSize]},
         {[rules, min_hours_since_last_open], [rules, minHoursSinceLastOpen]},
@@ -232,309 +254,54 @@ get_auto_cleaning_configuration(Node, SpaceId) ->
         {[rules, max_daily_moving_average], [rules, maxDailyMovingAverage]},
         {[rules, max_monthly_moving_average], [rules, maxMonthlyMovingAverage]}
     ], DetailsMap, DetailsMap),
-    onepanel_lists:map_undefined_to_null(onepanel_maps:to_list(DetailsMap2)).
+    maps_utils:undefined_to_null(DetailsMap2).
 
 %%-------------------------------------------------------------------
 %% @doc
-%% This function is responsible for invalidating luma cache on given
-%% provider for given storage.
+%% Checks if given storage can be removed, i.e. does not support
+%% any space.
 %% @end
 %%-------------------------------------------------------------------
--spec invalidate_luma_cache(StorageId :: binary) -> ok.
-invalidate_luma_cache(StorageId) ->
-    Node = onepanel_cluster:service_to_node(service_op_worker:name()),
-    ok = rpc:call(Node, luma_cache, invalidate, [StorageId]).
+-spec can_be_removed(id()) -> boolean().
+can_be_removed(StorageId) ->
+    not op_worker_rpc:storage_supports_any_space(StorageId).
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
+
 %%--------------------------------------------------------------------
-%% @private @doc Returns storage user context record.
+%% @doc Checks if storage with given id exists.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage_user_ctx(Node :: node(), StorageType :: binary(),
-    Params :: storage_params_map()) -> {ok, UserCtx :: any()}.
-get_storage_user_ctx(Node, <<"ceph">>, Params) ->
-    rpc:call(Node, helper, new_ceph_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(key, Params, binary)
-    ]);
+-spec exists(id()) -> boolean().
+exists(StorageId) ->
+    {ok, Node} = nodes:any(?SERVICE_OPW),
+    op_worker_rpc:storage_exists(Node, StorageId).
 
-get_storage_user_ctx(Node, <<"cephrados">>, Params) ->
-    rpc:call(Node, helper, new_cephrados_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(key, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"posix">>, _Params) ->
-    rpc:call(Node, helper, new_posix_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"s3">>, Params) ->
-    rpc:call(Node, helper, new_s3_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(accessKey, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(secretKey, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"swift">>, Params) ->
-    rpc:call(Node, helper, new_swift_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(username, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(password, Params, binary)
-    ]);
-
-get_storage_user_ctx(Node, <<"glusterfs">>, _Params) ->
-    rpc:call(Node, helper, new_glusterfs_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"nulldevice">>, _Params) ->
-    rpc:call(Node, helper, new_nulldevice_user_ctx, [0, 0]);
-
-get_storage_user_ctx(Node, <<"webdav">>, Params) ->
-    rpc:call(Node, helper, new_webdav_user_ctx, [
-        <<_/binary>> = onepanel_utils:typed_get(credentialsType, Params, binary),
-        <<_/binary>> = onepanel_utils:typed_get(credentials, Params, binary, <<>>),
-        <<_/binary>> = onepanel_utils:typed_get(onedataAccessToken, Params, binary, <<>>)
-    ]).
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns storage helper record.
+%% @doc Checks if storage with given id exists,
+%% using provided op_worker node for rpc.
 %% @end
 %%--------------------------------------------------------------------
--spec get_storage_helper(Node :: node(), StorageType :: binary(), UserCtx :: any(),
-    Params :: storage_params_map()) -> {ok, Helper :: any()}.
-get_storage_helper(Node, <<"ceph">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_ceph_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"cephrados">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_cephrados_helper, [
-        onepanel_utils:typed_get(monitorHostname, Params, binary),
-        onepanel_utils:typed_get(clusterName, Params, binary),
-        onepanel_utils:typed_get(poolName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"posix">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_posix_helper, [
-        onepanel_utils:typed_get(mountPoint, Params, binary),
-        get_helper_opt_args([{timeout, binary}], Params),
-        UserCtx,
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"s3">>, UserCtx, Params) ->
-    #hackney_url{scheme = S3Scheme, host = S3Host, port = S3Port} =
-        hackney_url:parse_url(onepanel_utils:typed_get(hostname, Params, binary)),
-    rpc:call(Node, helper, new_s3_helper, [
-        onepanel_utils:join([S3Host, S3Port], <<":">>),
-        onepanel_utils:typed_get(bucketName, Params, binary),
-        S3Scheme =:= https,
-        get_helper_opt_args([
-            {signatureVersion, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"swift">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_swift_helper, [
-        onepanel_utils:typed_get(authUrl, Params, binary),
-        onepanel_utils:typed_get(containerName, Params, binary),
-        onepanel_utils:typed_get(tenantName, Params, binary),
-        get_helper_opt_args([
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"flat">>)
-    ]);
-get_storage_helper(Node, <<"glusterfs">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_glusterfs_helper, [
-        onepanel_utils:typed_get(volume, Params, binary),
-        onepanel_utils:typed_get(hostname, Params, binary),
-        get_helper_opt_args([
-            {port, binary},
-            {mountPoint, binary},
-            {transport, binary},
-            {xlatorOptions, binary},
-            {timeout, binary},
-            {blockSize, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"nulldevice">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_nulldevice_helper, [
-        get_helper_opt_args([
-            {latencyMin, binary},
-            {latencyMax, binary},
-            {timeoutProbability, binary},
-            {filter, binary},
-            {simulatedFilesystemParameters, binary},
-            {simulatedFilesystemGrowSpeed, binary},
-            {timeout, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]);
-get_storage_helper(Node, <<"webdav">>, UserCtx, Params) ->
-    rpc:call(Node, helper, new_webdav_helper, [
-        onepanel_utils:typed_get(endpoint, Params, binary),
-        get_helper_opt_args([
-            {verifyServerCertificate, binary},
-            {authorizationHeader, binary},
-            {rangeWriteSupport, binary},
-            {connectionPoolSize, binary},
-            {maximumUploadSize, binary},
-            {timeout, binary},
-            {oauth2IdP, binary}
-        ], Params),
-        UserCtx,
-        onepanel_utils:typed_get(insecure, Params, boolean, false),
-        onepanel_utils:typed_get(storagePathType, Params, binary, <<"canonical">>)
-    ]).
+-spec exists(Node :: node(), id()) -> boolean().
+exists(Node, StorageId) ->
+    op_worker_rpc:storage_exists(Node, StorageId).
 
-%%--------------------------------------------------------------------
-%% @private @doc Returns storage helper optional argument.
-%% @end
-%%--------------------------------------------------------------------
--spec get_helper_opt_args(KeySpec :: [{Key :: atom(), Type :: onepanel_utils:type()}],
-    Params :: storage_params_map()) -> OptArgs :: #{}.
-get_helper_opt_args(KeysSpec, Params) ->
-    lists:foldl(fun({Key, Type}, OptArgs) ->
-        case onepanel_utils:typed_get(Key, Params, Type) of
-            #error{} ->
-                OptArgs;
-            Value ->
-                maps:put(onepanel_utils:convert(Key, binary), Value, OptArgs)
-        end
-    end, #{}, KeysSpec).
-
-%%--------------------------------------------------------------------
-%% @private @doc For read-write storage verifies that it is accessible for all
-%% op_worker service nodes.
-%% @end
-%%--------------------------------------------------------------------
--spec maybe_verify_storage(Helper :: any(), Readonly :: boolean()) ->
-    ok | no_return().
-maybe_verify_storage(_Helper, true) ->
-    ok;
-maybe_verify_storage(Helper, _) ->
-    ?info("Verifying write access to storage"),
-    verify_storage(Helper).
-
-%%--------------------------------------------------------------------
-%% @private @doc Verifies that storage is accessible for all op_worker
-%% service nodes.
-%% @end
-%%--------------------------------------------------------------------
--spec verify_storage(Helper :: any()) ->
-    ok | no_return().
-verify_storage(Helper) ->
-    [Node | _] = service_op_worker:get_nodes(),
-    rpc:call(Node, storage_detector, verify_storage_on_all_nodes, [Helper]).
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Adds storage to the op_worker service configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec add_storage(Node :: node(), StorageName :: binary(), Helpers :: list(),
-    ReadOnly :: boolean(), LumaConfig :: luma_config()) ->
-    {ok, StorageId :: binary()} | {error, Reason :: term()}.
-add_storage(Node, StorageName, Helpers, ReadOnly, LumaConfig) ->
-    case exists(Node, StorageName) of
-        true ->
-            {error, already_exists};
-        false ->
-            Storage = rpc:call(Node, storage, new, [StorageName, Helpers, ReadOnly, LumaConfig]),
-            rpc:call(Node, storage, create, [Storage])
-    end.
-
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns storage details from op_worker service configuration.
-%% @end
-%%--------------------------------------------------------------------
--spec get_storage(Node :: node(), Storage :: any()) ->
-    Storage :: storage_params_map().
-get_storage(Node, Storage) ->
-    [Helper | _] = rpc:call(Node, storage, get_helpers, [Storage]),
-    AdminCtx = rpc:call(Node, helper, get_admin_ctx, [Helper]),
-    AdminCtx2 = maps:with([<<"username">>, <<"accessKey">>], AdminCtx),
-    HelperArgs = rpc:call(Node, helper, get_args, [Helper]),
-    LumaConfig = rpc:call(Node, storage, get_luma_config_map, [Storage]),
-
-    Params = maps:merge(AdminCtx2, HelperArgs),
-    Params#{
-        id => rpc:call(Node, storage, get_id, [Storage]),
-        name => rpc:call(Node, storage, get_name, [Storage]),
-        type => rpc:call(Node, helper, get_name, [Helper]),
-        readonly => rpc:call(Node, storage, is_readonly, [Storage]),
-        insecure => rpc:call(Node, helper, is_insecure, [Helper]),
-        storagePathType => rpc:call(Node, helper, get_storage_path_type, [Helper]),
-        lumaEnabled => maps:get(enabled, LumaConfig, false),
-        lumaUrl => maps:get(url, LumaConfig, null)
-    }.
-
-%%--------------------------------------------------------------------
-%% @private @doc Parses LUMA config arguments if lumaEnabled is set to
-%% true in StorageParams and returns luma config acquired from provider.
-%% Throws error if lumaEnabled is true and other arguments are missing.
-%% @end
-%%--------------------------------------------------------------------
--spec get_luma_config(Node :: node(), StorageParams :: storage_params_map()) ->
-    undefined | luma_config().
-get_luma_config(Node, StorageParams) ->
-    case onepanel_utils:typed_get(lumaEnabled, StorageParams, boolean, false) of
-        true ->
-            Url = get_required_luma_arg(StorageParams, lumaUrl, binary),
-            ApiKey = onepanel_utils:typed_get(lumaApiKey, StorageParams, binary, undefined),
-            rpc:call(Node, luma_config, new, [Url, ApiKey]);
-        false ->
-            undefined
-    end.
-
-%%--------------------------------------------------------------------
-%% @private @doc Returns LUMA argument value associated with Key
-%% in StorageParams. Throws error if key is missing
-%% @end
-%%--------------------------------------------------------------------
--spec get_required_luma_arg(StorageParams :: storage_params_map(), Key :: atom(),
-    Type :: onepanel_utils:type()) -> term().
-get_required_luma_arg(StorageParams, Key, Type) ->
-    case onepanel_utils:typed_get(Key, StorageParams, Type) of
-        {error, _} ->
-            ?throw_error(?ERR_LUMA_CONFIG(Key));
-        Value ->
-            Value
-    end.
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses and validates auto-cleaning configuration
 %% arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_configuration(maps:maps()) -> maps:map().
+-spec parse_auto_cleaning_configuration(map()) -> map().
 parse_auto_cleaning_configuration(Args) ->
-    onepanel_maps:remove_undefined(#{
-        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        target => onepanel_utils:typed_get([target], Args, integer, undefined),
-        threshold => onepanel_utils:typed_get([threshold], Args, integer, undefined),
+    maps_utils:remove_undefined(#{
+        enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
+        target => onepanel_utils:get_converted([target], Args, integer, undefined),
+        threshold => onepanel_utils:get_converted([threshold], Args, integer, undefined),
         rules => parse_auto_cleaning_rules(Args)
     }).
 
@@ -543,10 +310,10 @@ parse_auto_cleaning_configuration(Args) ->
 %% configuration arguments.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_rules(maps:maps()) -> maps:map().
+-spec parse_auto_cleaning_rules(map()) -> map().
 parse_auto_cleaning_rules(Args) ->
     ParsedRules = #{
-        enabled => onepanel_utils:typed_get([rules, enabled], Args, boolean, undefined)
+        enabled => onepanel_utils:get_converted([rules, enabled], Args, boolean, undefined)
     },
     ParsedRules2 = lists:foldl(fun(RuleName, AccIn) ->
         RuleSettingConfig = parse_auto_cleaning_rule_setting(RuleName, Args),
@@ -560,28 +327,28 @@ parse_auto_cleaning_rules(Args) ->
         min_file_size, max_file_size, min_hours_since_last_open, max_open_count,
         max_hourly_moving_average, max_daily_moving_average, max_monthly_moving_average
     ]),
-    onepanel_maps:remove_undefined(ParsedRules2).
+    maps_utils:remove_undefined(ParsedRules2).
 
 %%--------------------------------------------------------------------
 %% @private @doc Parses and validates auto-cleaning rule setting.
 %% @end
 %%--------------------------------------------------------------------
--spec parse_auto_cleaning_rule_setting(atom(), maps:map()) -> maps:map().
+-spec parse_auto_cleaning_rule_setting(atom(), map()) -> map().
 parse_auto_cleaning_rule_setting(RuleName, Args) ->
-    onepanel_maps:remove_undefined(#{
-        enabled => onepanel_utils:typed_get([rules, RuleName, enabled], Args, boolean, undefined),
-        value => onepanel_utils:typed_get([rules, RuleName, value], Args, integer, undefined)
+    maps_utils:remove_undefined(#{
+        enabled => onepanel_utils:get_converted([rules, RuleName, enabled], Args, boolean, undefined),
+        value => onepanel_utils:get_converted([rules, RuleName, value], Args, integer, undefined)
     }).
 
 %%-------------------------------------------------------------------
 %% @private @doc Parses and validates file-popularity configuration
 %% @end
 %%-------------------------------------------------------------------
--spec parse_file_popularity_configuration(maps:map()) -> maps:map().
+-spec parse_file_popularity_configuration(map()) -> map().
 parse_file_popularity_configuration(Args) ->
-    onepanel_maps:remove_undefined(#{
-        enabled => onepanel_utils:typed_get(enabled, Args, boolean, undefined),
-        last_open_hour_weight => onepanel_utils:typed_get(last_open_hour_weight, Args, float, undefined),
-        avg_open_count_per_day_weight => onepanel_utils:typed_get(avg_open_count_per_day_weight, Args, float, undefined),
-        max_avg_open_count_per_day => onepanel_utils:typed_get(max_avg_open_count_per_day, Args, float, undefined)
+    maps_utils:remove_undefined(#{
+        enabled => onepanel_utils:get_converted(enabled, Args, boolean, undefined),
+        last_open_hour_weight => onepanel_utils:get_converted(last_open_hour_weight, Args, float, undefined),
+        avg_open_count_per_day_weight => onepanel_utils:get_converted(avg_open_count_per_day_weight, Args, float, undefined),
+        max_avg_open_count_per_day => onepanel_utils:get_converted(max_avg_open_count_per_day, Args, float, undefined)
     }).

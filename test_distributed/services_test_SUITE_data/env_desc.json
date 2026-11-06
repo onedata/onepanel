@@ -19,50 +19,17 @@
           "storagePathType": "canonical"
         },
         {
-          "type": "ceph",
-          "name": "someCeph",
-          "pool": "onedata:8",
-          "storagePathType": "flat"
-        },
-        {
-          "type": "cephrados",
-          "name": "someCephRados",
-          "pool": "onedata:8",
-          "storagePathType": "flat"
-        },
-        {
-          "type": "s3",
-          "name": "someS3",
-          "bucket": "onedata",
-          "storagePathType": "flat",
-          "disable_iam_mock": false
-        },
-        {
-          "type": "swift",
-          "name": "someSwift",
-          "container": "swift",
-          "storagePathType": "flat"
-        },
-        {
-          "type": "glusterfs",
-          "name": "someGlusterfs",
-          "volume": "data",
-          "transport": "tcp",
-          "mountpoint": "/",
-          "xlatorOptions": "",
-          "storagePathType": "canonical"
-        },
-        {
-          "type": "webdav",
-          "name": "someWebDAV",
+          "type": "xrootd",
+          "name": "someXRootD",
           "storagePathType": "canonical"
         }
+
       ]
     }
   },
   "onepanel_domains": {
     "onezone": {
-      "image": "docker.onedata.org/onezone-dev:develop",
+      "image": "docker.onedata.org/onezone-dev:25-latest",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -70,7 +37,8 @@
           },
           "sys.config": {
             "onepanel": {
-              "release_type": "onezone"
+              "cluster_type": "onezone",
+              "clock_synchronization_interval_seconds": 5
             }
           }
         },
@@ -80,7 +48,8 @@
           },
           "sys.config": {
             "onepanel": {
-              "release_type": "onezone"
+              "cluster_type": "onezone",
+              "clock_synchronization_interval_seconds": 5
             }
           }
         }
@@ -88,7 +57,7 @@
     },
     "oneprovider": {
       "os_config": "cfg1",
-      "image": "docker.onedata.org/oneprovider-dev:ID-9b9898a24f",
+      "image": "docker.onedata.org/oneprovider-dev:25-latest",
       "onepanel": {
         "node1": {
           "vm.args": {
@@ -96,9 +65,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "advertise_address": {
-                "string": "239.255.1.1"
-              }
+              "clock_synchronization_interval_seconds": 5
             }
           }
         },
@@ -108,9 +75,7 @@
           },
           "sys.config": {
             "onepanel": {
-              "advertise_address": {
-                "string": "239.255.1.1"
-              }
+              "clock_synchronization_interval_seconds": 5
             }
           }
         }

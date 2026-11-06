@@ -16,33 +16,78 @@
 
 -include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 -include("modules/models.hrl").
 -include("names.hrl").
 -include("service.hrl").
 
+-define(DEFAULT_STATUS, healthy).
+
 %% Model behaviour callbacks
--export([get_fields/0, seed/0, create/1, save/1, update/2, get/1, exists/1,
-    delete/1, list/0]).
+-export([get_fields/0, get_record_version/0, seed/0, upgrade/2, create/1,
+    save/1, update/2, get/1, exists/1, delete/1, list/0]).
 
 %% API
--export([start/3, stop/2, status/2, apply/3, apply/4, apply_async/3,
-    apply_sync/3, apply_sync/4, get_results/1, get_results/2, abort_task/1,
+-export([apply/3, apply/4]).
+-export([apply_async/2, apply_async/3]).
+-export([apply_sync/2, apply_sync/3, apply_sync/4]).
+-export([get_results/1, get_results/2, abort_task/1,
     exists_task/1]).
--export([get_module/1, get_hosts/1, get_nodes/1, is_member/2, add_host/2]).
--export([get_ctx/1, update_ctx/2]).
+-export([register_healthcheck/2, deregister_healthcheck/2]).
+-export([update_status/2, update_status/3, all_healthy_ignoring_ones3/0, is_healthy/1]).
+-export([get_module/1, get_hosts/1, has_host/2, add_host/2]).
+-export([get_ctx/1, update_ctx/2, store_in_ctx/3]).
 
--type name() :: atom().
+% @formatter:off
+-type name() :: ?SERVICE_OZ | ?SERVICE_OP
+    | ?SERVICE_OPW | ?SERVICE_OZW | ?SERVICE_CW
+    | ?SERVICE_CM | ?SERVICE_CB | ?SERVICE_PANEL
+    | ?SERVICE_LE | ?SERVICE_ONES3.
 -type action() :: atom().
--type ctx() :: maps:map().
 -type notify() :: pid() | undefined.
 -type host() :: string().
 -type step() :: #step{} | #steps{}.
--type condition() :: fun((ctx()) -> boolean()).
--type stage() :: action_begin | action_end | step_begin | step_end.
+-type condition() :: boolean() | fun((step_ctx()) -> boolean()).
+-type event() :: action_begin | action_steps_count | action_end |
+                 step_begin | step_end.
+-type status() :: starting | healthy | unhealthy | stopping | stopped | missing.
+
+
+%% record field used for arbitrary information about the service
+-type model_ctx() :: service_op_worker:model_ctx() | service_oz_worker:model_ctx()
+| service_oneprovider:model_ctx() | service_onezone:model_ctx()
+| service_cluster_manager:model_ctx() | service_letsencrypt:model_ctx()
+| service_couchbase:model_ctx().
+
 -type record() :: #service{}.
 
--export_type([name/0, action/0, ctx/0, notify/0, host/0, step/0, condition/0,
-    stage/0]).
+
+%% A map stored in #step and #steps records and by default provided
+%% as argument of the invoked functions.
+%% This type spec lists common values used in the step ctx.
+%% Note the keys are optional (=>).
+-type step_ctx() :: #{
+    %% 'hosts' - list of hosts on which step should be performed, used when
+    %%           #step.hosts is not set explicitly
+    hosts => [service:host()],
+    %% 'rest' - filled by service:resolve_hosts/1 when executing on 'first' host,
+    %%          contains the remainder of the hosts list
+    rest => [service:host()],
+    %% 'first' - filled by service:resolve_hosts/1 when executing on 'rest' hosts,
+    %%           contains the first host (excluded from step execution)
+    first => service:host(),
+    %% 'all' - filled by service:resolve_hosts/1 when selecting
+    %%         'first' or 'rest' hosts, contains the original hosts list
+    all => [service:host()],
+
+    %% function-specific arguments
+    term() => term()
+}.
+% @formatter:on
+
+
+-export_type([name/0, action/0, status/0, model_ctx/0, step_ctx/0, notify/0, host/0,
+    step/0, condition/0, event/0]).
 
 %%%===================================================================
 %%% Model behaviour callbacks
@@ -58,6 +103,15 @@ get_fields() ->
 
 
 %%--------------------------------------------------------------------
+%% @doc {@link model_behaviour:get_record_version/0}
+%% @end
+%%--------------------------------------------------------------------
+-spec get_record_version() -> model_behaviour:version().
+get_record_version() ->
+    1.
+
+
+%%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:seed/0}
 %% @end
 %%--------------------------------------------------------------------
@@ -66,12 +120,18 @@ seed() ->
     ok.
 
 
+-spec upgrade(PreviousVsn :: model_behaviour:version(), PreviousRecord :: tuple()) ->
+    no_return().
+upgrade(_PreviousVsn, _PreviousRecord) ->
+    error(?ERROR_NOT_SUPPORTED).
+
+
 %%--------------------------------------------------------------------
 %% @doc {@link model_behaviour:create/1}
 %% @end
 %%--------------------------------------------------------------------
 -spec create(Record :: record()) ->
-    {ok, name()} | #error{} | no_return().
+    {ok, name()} | {error, _} | no_return().
 create(Record) ->
     model:create(?MODULE, Record).
 
@@ -90,9 +150,9 @@ save(Record) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec update(Key :: model_behaviour:key(), Diff :: model_behaviour:diff()) ->
-    ok | no_return().
+    {ok, UpdatedRecord :: record()} | no_return().
 update(Key, Diff) ->
-    model:update(?MODULE, Key, Diff).
+    {ok, _} = model:update(?MODULE, Key, Diff).
 
 
 %%--------------------------------------------------------------------
@@ -100,7 +160,7 @@ update(Key, Diff) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec get(Key :: model_behaviour:key()) ->
-    {ok, Record :: record()} | #error{} | no_return().
+    {ok, Record :: record()} | {error, _} | no_return().
 get(Key) ->
     model:get(?MODULE, Key).
 
@@ -137,55 +197,72 @@ list() ->
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc Sets the system limits and starts the service using an init script
-%% in a shell.
+%% @doc @equiv update_status(Service, hosts:self(), Status)
 %% @end
 %%--------------------------------------------------------------------
--spec start(string(), maps:map(), atom()) -> ok | no_return().
-start(InitScript, SystemLimits, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} when is_list(Cmd) -> [Cmd];
-        _ -> ["service", InitScript, "start"]
-    end,
-    Tokens2 = maps:fold(fun
-        (open_files, Value, Acc) -> ["ulimit", "-n", Value, ";" | Acc];
-        (_, _, Acc) -> Acc
-    end, Tokens, SystemLimits),
-    onepanel_shell:ensure_success(Tokens2).
-
+-spec update_status(name(), status()) -> status().
+update_status(Service, Status) ->
+    update_status(Service, hosts:self(), Status).
 
 %%--------------------------------------------------------------------
-%% @doc Stops the service using an init script in a shell.
+%% @doc
+%% Updates service status cache value for given service and host
+%% if service isn't stopping.
 %% @end
 %%--------------------------------------------------------------------
--spec stop(string(), atom()) -> ok | no_return().
-stop(InitScript, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} when is_list(Cmd) -> [Cmd];
-        _ -> ["service", InitScript, "stop"]
-    end,
-    case onepanel_shell:execute(Tokens) of
-        {0, _} -> ok;
-        _ ->
-            ?warning("Failed to stop service '~s'", [InitScript]),
-            ok
-    end.
+-spec update_status(name(), host(), status()) -> status() | no_return().
+update_status(Service, Host, Status) ->
+    {ok, NewCtx} = update_ctx(Service, fun(OldCtx) ->
+        case kv_utils:get([status, Host], OldCtx, undefined) of
+            % Currently services can report 'healthy' status for some time
+            % while being stopped (some other process issued stop).
+            % Prevent overwriting status in such cases.
+            stopping when Status /= stopped andalso Status /= missing ->
+                OldCtx;
+            Status ->
+                OldCtx;
+            _ ->
+                ?info("Service ~ts on host ~ts changed status to: ~tp", [
+                    Service, Host, Status
+                ]),
+                kv_utils:put([status, Host], Status, OldCtx)
+        end
+    end),
+    kv_utils:get([status, Host], NewCtx).
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns the service status using an init script in a shell.
+%% @doc
+%% Checks if all deployed services have reported healthy status
+%% on last check ignoring ?SERVICE_ONES3.
 %% @end
 %%--------------------------------------------------------------------
--spec status(string(), atom()) -> running | stopped | missing.
-status(InitScript, CustomCmdEnv) ->
-    Tokens = case onepanel_env:find(CustomCmdEnv) of
-        {ok, Cmd} when is_list(Cmd) -> [Cmd];
-        _ -> ["service", InitScript, "status"]
-    end,
-    case onepanel_shell:execute(Tokens) of
-        {0, _} -> running;
-        {127, _} -> missing;
-        _ -> stopped
+-spec all_healthy_ignoring_ones3() -> boolean().
+all_healthy_ignoring_ones3() ->
+    lists:all(fun
+        (#service{name = ?SERVICE_ONES3}) ->
+            true;
+        (#service{hosts = Hosts, ctx = Ctx}) ->
+            lists:all(fun(Status) ->
+                healthy == Status
+            end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))))
+    end, service:list()).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Checks if all nodes of given service have reported healthy status
+%% on last check.
+%% @end
+%%--------------------------------------------------------------------
+-spec is_healthy(name()) -> boolean().
+is_healthy(Service) ->
+    case ?MODULE:get(Service) of
+        {ok, #service{hosts = Hosts, ctx = Ctx}} ->
+            lists:all(fun(Status) ->
+                healthy == Status
+            end, maps:values(maps:with(Hosts, maps:get(status, Ctx, #{}))));
+        _Error -> false
     end.
 
 
@@ -193,8 +270,8 @@ status(InitScript, CustomCmdEnv) ->
 %% @doc @equiv apply(Service, Action, Ctx, undefined)
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx()) ->
-    ok | {error, Reason :: term()}.
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx()) ->
+    ok | {error, _}.
 apply(Service, Action, Ctx) ->
     apply(Service, Action, Ctx, undefined).
 
@@ -203,26 +280,43 @@ apply(Service, Action, Ctx) ->
 %% @doc Executes the service action and notifies about the process.
 %% @end
 %%--------------------------------------------------------------------
--spec apply(Service :: name(), Action :: action(), Ctx :: ctx(), Notify :: notify()) ->
-    ok | {error, Reason :: term()}.
-apply([], _Action, _Ctx, _Notify) ->
-    ok;
-
+-spec apply(Service :: name(), Action :: action(), Ctx :: step_ctx(), Notify :: notify()) ->
+    ok | {error, _}.
 apply(Service, Action, Ctx, Notify) ->
-    TaskDelay = maps:get(task_delay, Ctx, 0),
-    ?debug("Delaying task ~p:~p by ~p ms", [Service, Action, TaskDelay]),
-    timer:sleep(TaskDelay),
-    service_utils:notify({action_begin, {Service, Action}}, Notify),
+    service_utils:notify(#action_begin{service = Service, action = Action}, Notify),
     Result = try
         Steps = service_utils:get_steps(Service, Action, Ctx),
-        ?debug("Execution of ~p:~p requires following steps:~n~s",
+
+        service_utils:notify(#action_steps_count{
+            service = Service, action = Action, count = length(Steps)
+        }, Notify),
+
+        ?debug("Execution of ~tp:~tp requires following steps:~n~ts",
             [Service, Action, service_utils:format_steps(Steps, "")]),
         apply_steps(Steps, Notify)
     catch
-        _:Reason -> ?make_stacktrace(Reason)
+        throw:{error, _} = Error -> Error;
+        Type:Error:Stacktrace ->
+            ?error_stacktrace("Error executing action ~tp:~tp: ~tp:~tp",
+                [Service, Action, Type, Error], Stacktrace),
+            ?ERR_INTERNAL_SERVER_ERROR(?err_ctx(), undefined)
     end,
-    service_utils:notify({action_end, {Service, Action, Result}}, Notify),
+    % If one of the steps failed, the action Result is {error, {Module, Function, Status}.
+    % Result might of different format if steps resolution itself failed.
+    service_utils:notify(#action_end{
+        service = Service, action = Action, result = Result
+    }, Notify),
     Result.
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv apply_async(Service, Action, #{})
+%% @end
+%%--------------------------------------------------------------------
+-spec apply_async(Service :: service:name(), Action :: service:action()) ->
+    TaskId :: service_executor:task_id().
+apply_async(Service, Action) ->
+    apply_async(Service, Action, #{}).
 
 
 %%--------------------------------------------------------------------
@@ -230,9 +324,19 @@ apply(Service, Action, Ctx, Notify) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_async(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> TaskId :: service_executor:task_id().
+    Ctx :: service:step_ctx()) -> TaskId :: service_executor:task_id().
 apply_async(Service, Action, Ctx) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {apply, Service, Action, Ctx}).
+
+
+%%--------------------------------------------------------------------
+%% @doc @equiv apply_sync(Service, Action, #{})
+%% @end
+%%--------------------------------------------------------------------
+-spec apply_sync(Service :: service:name(), Action :: service:action()) ->
+    Results :: service_executor:results() | {error, _}.
+apply_sync(Service, Action) ->
+    apply_sync(Service, Action, #{}).
 
 
 %%--------------------------------------------------------------------
@@ -240,7 +344,7 @@ apply_async(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx()) -> Results :: service_executor:results() | #error{}.
+    Ctx :: service:step_ctx()) -> Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx) ->
     apply_sync(Service, Action, Ctx, infinity).
 
@@ -251,8 +355,8 @@ apply_sync(Service, Action, Ctx) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec apply_sync(Service :: service:name(), Action :: service:action(),
-    Ctx :: service:ctx(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+    Ctx :: service:step_ctx(), timeout()) ->
+    Results :: service_executor:results() | {error, _}.
 apply_sync(Service, Action, Ctx, Timeout) ->
     TaskId = apply_async(Service, Action, Ctx),
     Result = service_executor:receive_results(TaskId, Timeout),
@@ -264,8 +368,9 @@ apply_sync(Service, Action, Ctx, Timeout) ->
 %% @doc @equiv get_results(TaskId, infinity)
 %% @end
 %%--------------------------------------------------------------------
--spec get_results(TaskId :: service_executor:task_id()) ->
-    Results :: service_executor:results() | #error{}.
+-spec get_results(service_executor:task_id()) -> {Results, StepsCount} when
+    Results :: service_executor:results() | {error, _},
+    StepsCount :: non_neg_integer() | {error, _}.
 get_results(TaskId) ->
     get_results(TaskId, infinity).
 
@@ -274,20 +379,26 @@ get_results(TaskId) ->
 %% @doc Returns the asynchronous operation results.
 %% @end
 %%--------------------------------------------------------------------
--spec get_results(TaskId :: service_executor:task_id(), Timeout :: timeout()) ->
-    Results :: service_executor:results() | #error{}.
+-spec get_results(service_executor:task_id(), timeout()) -> {Results, StepsCount} when
+    Results :: service_executor:results() | {error, _},
+    StepsCount :: non_neg_integer() | {error, _}.
 get_results(TaskId, Timeout) ->
-    case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_results, TaskId}) of
+    Results = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_results, TaskId}) of
         ok -> service_executor:receive_results(TaskId, Timeout);
-        #error{} = Error -> Error
-    end.
+        {error, _} = Error -> Error
+    end,
+    StepsCount = case gen_server:call(?SERVICE_EXECUTOR_NAME, {get_count, TaskId}) of
+        ok -> service_executor:receive_count(TaskId, Timeout);
+        {error, _} = Error2 -> Error2
+    end,
+    {Results, StepsCount}.
 
 
 %%--------------------------------------------------------------------
 %% @doc Aborts the asynchronous operation.
 %% @end
 %%--------------------------------------------------------------------
--spec abort_task(TaskId :: binary()) -> ok | #error{}.
+-spec abort_task(TaskId :: binary()) -> ok | {error, _}.
 abort_task(TaskId) ->
     gen_server:call(?SERVICE_EXECUTOR_NAME, {abort_task, TaskId}).
 
@@ -316,33 +427,19 @@ get_module(Service) ->
 %%--------------------------------------------------------------------
 -spec get_hosts(Service :: name()) -> Hosts :: [host()].
 get_hosts(Service) ->
-    {ok, #service{hosts = Hosts}} = service:get(Service),
-    Hosts.
+    case service:get(Service) of
+        {ok, #service{hosts = Hosts}} -> Hosts;
+        {error, _} -> []
+    end.
 
 
 %%--------------------------------------------------------------------
-%% @doc Returns lists of onepanel nodes for hosts where provided service is
-%% deployed.
+%% @doc Returns whether a service is deployed on given host.
 %% @end
 %%--------------------------------------------------------------------
--spec get_nodes(Service :: name()) -> Nodes :: [node()].
-get_nodes(Service) ->
-    onepanel_cluster:service_to_nodes(Service, get_hosts(Service)).
-
-
-%%--------------------------------------------------------------------
-%% @doc Checks whether service is deployed on provided host.
-%% @end
-%%--------------------------------------------------------------------
--spec is_member(Service :: name(), Host :: host()) ->
-    boolean() | {error, Reason :: term()}.
-is_member(Service, Host) ->
-    model:transaction(fun() ->
-        case ?MODULE:get(Service) of
-            {ok, #service{hosts = Hosts}} -> lists:member(Host, Hosts);
-            _ -> false
-        end
-    end).
+-spec has_host(name(), host()) -> boolean().
+has_host(Service, Host) ->
+    lists:member(Host, get_hosts(Service)).
 
 
 %%--------------------------------------------------------------------
@@ -351,16 +448,77 @@ is_member(Service, Host) ->
 %%--------------------------------------------------------------------
 -spec add_host(Service :: name(), Host :: host()) -> ok.
 add_host(Service, Host) ->
-    ?MODULE:update(Service, fun(#service{hosts = Hosts} = S) ->
-        S#service{hosts = [Host | lists:delete(Host, Hosts)]}
-    end).
+    {ok, _} = ?MODULE:update(Service, fun(#service{hosts = Hosts, ctx = Ctx} = S) ->
+        OldStatus = maps:get(status, Ctx, #{}),
+        NewStatus = OldStatus#{Host => maps:get(Host, OldStatus, ?DEFAULT_STATUS)},
+        S#service{
+            hosts = lists:usort([Host | Hosts]),
+            % ensure statuses map contains all hosts
+            ctx = Ctx#{status => NewStatus}
+        }
+    end),
+    ok.
+
+
+-spec register_healthcheck(Service :: name(), Ctx :: step_ctx()) -> ok.
+register_healthcheck(Service, Ctx) ->
+    Period = onepanel_env:get(services_check_period),
+    Module = service:get_module(Service),
+    Name = healthcheck_name(Service, Ctx),
+
+    Condition = fun() ->
+        case (catch Module:status(Ctx)) of
+            starting -> false;
+            healthy -> false;
+            unhealthy -> false;
+            stopping -> false;
+            _ -> true
+        end
+    end,
+
+    Action = fun() ->
+        ?critical("Service ~ts is not running. Restarting...", [Name]),
+        Results = service:apply_sync(Service, resume, Ctx#{hosts => [hosts:self()]}),
+        case service_utils:results_contain_error(Results) of
+            {true, Error} ->
+                ?critical("Failed to restart service ~ts due to:~n~tp",
+                    [Name, Error]);
+            false -> ok
+        end
+    end,
+
+    ok = onepanel_cron:add_job(Name, Action, Period, Condition).
+
+
+-spec deregister_healthcheck(service:name(), step_ctx()) -> ok.
+deregister_healthcheck(Service, Ctx) ->
+    onepanel_cron:remove_job(healthcheck_name(Service, Ctx)).
+
+
+%% @private
+-spec healthcheck_name(service:name(), step_ctx()) -> binary().
+healthcheck_name(Service, #{id := Id}) ->
+    str_utils:format_bin("~tp (id ~tp)", [Service, Id]);
+healthcheck_name(Service, _) ->
+    str_utils:format_bin("~tp", [Service]).
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns the "ctx" field of a service model.
+%% Verbose typespec to make up for the lack of different models/records
+%% in the service model.
 %% @end
 %%--------------------------------------------------------------------
--spec get_ctx(name()) -> ctx() | #error{} | no_return().
+-spec get_ctx
+    (?SERVICE_OPW) -> service_op_worker:model_ctx() | {error, _};
+    (?SERVICE_OZW) -> service_oz_worker:model_ctx() | {error, _};
+    (?SERVICE_OP) -> service_oneprovider:model_ctx() | {error, _};
+    (?SERVICE_OZ) -> service_onezone:model_ctx() | {error, _};
+    (?SERVICE_CM) -> service_cluster_manager:model_ctx() | {error, _};
+    (?SERVICE_LE) -> service_letsencrypt:model_ctx() | {error, _};
+    (?SERVICE_CB) -> service_couchbase:model_ctx() | {error, _};
+    % #service model is not created for service_onepanel module
+    (?SERVICE_PANEL) -> ?ONP_ERR_DOC_NOT_FOUND | {error, _}.
 get_ctx(Service) ->
     case ?MODULE:get(Service) of
         {ok, #service{ctx = Ctx}} -> Ctx;
@@ -372,45 +530,112 @@ get_ctx(Service) ->
 %% @doc Updates the "ctx" field of a service model.
 %% @end
 %%--------------------------------------------------------------------
--spec update_ctx(Service :: service:name(), Diff) -> ok | no_return()
-    when Diff :: map() | fun((map()) -> map()).
+-spec update_ctx(Service :: service:name(), Diff) -> {ok, model_ctx()} | no_return()
+    when Diff :: map() | fun((service:model_ctx()) -> service:model_ctx()).
 update_ctx(Service, Diff) when is_map(Diff) ->
     update_ctx(Service, fun(Ctx) ->
         maps:merge(Ctx, Diff)
     end);
 
 update_ctx(Service, Diff) when is_function(Diff, 1) ->
-    service:update(Service, fun(#service{ctx = Ctx} = S) ->
+    {ok, #service{ctx = NewCtx}} = service:update(Service, fun(#service{ctx = Ctx} = S) ->
         S#service{ctx = Diff(Ctx)}
-    end).
+    end),
+    {ok, NewCtx}.
 
+
+-spec store_in_ctx(Service :: name(), Keys :: kv_utils:path(), Value :: term()) ->
+    ok | no_return().
+store_in_ctx(Service, Keys, Value) ->
+    {ok, _} = update_ctx(Service, fun(Ctx) ->
+        kv_utils:put(Keys, Value, Ctx)
+    end),
+    ok.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
+
 %%--------------------------------------------------------------------
 %% @private @doc Applies the service steps associated with an action.
 %%--------------------------------------------------------------------
--spec apply_steps(Steps :: [step()], Notify :: notify()) -> ok | #error{}.
+-spec apply_steps(Steps :: [step()], Notify :: notify()) ->
+    ok | {error, {module(), Function :: atom(), service_executor:hosts_results()}}.
 apply_steps([], _Notify) ->
     ok;
 
-apply_steps([#step{hosts = Hosts, module = Module, function = Function,
-    args = Args, attempts = Attempts, retry_delay = Delay} = Step | Steps], Notify) ->
+apply_steps([#step{} = Step | StepsTail], Notify) ->
+    case resolve_hosts(Step) of
+        #step{hosts = []} ->
+            apply_steps(StepsTail, Notify);
+        #step{
+            module = Module, function = Function, hosts = Hosts,
+            args = Args, attempts = Attempts, retry_delay = Delay
+        } = StepWithHosts ->
+            Nodes = nodes:service_to_nodes(?APP_NAME, Hosts),
+            service_utils:notify(#step_begin{module = Module, function = Function}, Notify),
 
-    Nodes = onepanel_cluster:service_to_nodes(?APP_NAME, Hosts),
-    service_utils:notify({step_begin, {Module, Function}}, Notify),
+            Results = onepanel_rpc:call(Nodes, Module, Function, Args),
+            Status = service_utils:partition_results(Results),
 
-    Results = onepanel_rpc:call(Nodes, Module, Function, Args),
-    Status = service_utils:partition_results(Results),
+            service_utils:notify(#step_end{
+                module = Module, function = Function, good_bad_results = Status
+            }, Notify),
 
-    service_utils:notify({step_end, {Module, Function, Status}}, Notify),
-
-    case {Status, Attempts} of
-        {{_, []}, _} -> apply_steps(Steps, Notify);
-        {{_, _}, 1} -> ?make_error({Module, Function, Status});
-        {{_, _}, _} ->
-            timer:sleep(Delay),
-            apply_steps([Step#step{attempts = Attempts - 1} | Steps], Notify)
+            case {Status, Attempts} of
+                {{_, []}, _} -> apply_steps(StepsTail, Notify);
+                {{_, _}, 1} -> {error, {Module, Function, Status}};
+                {{_, _}, _} ->
+                    timer:sleep(Delay),
+                    apply_steps([StepWithHosts#step{attempts = Attempts - 1} | StepsTail], Notify)
+            end
     end.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc Calculates host te be used for executing a step.
+%% First available (non-undefined) source is used:
+%% - #step.hosts field
+%% - #step.ctx hosts key
+%% - hosts:all(Service)
+%%
+%% After obtaining the steps list, the selection mode is applied.
+%%--------------------------------------------------------------------
+-spec resolve_hosts(#step{}) -> #step{}.
+resolve_hosts(#step{hosts = undefined, ctx = #{hosts := Hosts}} = Step) ->
+    resolve_hosts(Step#step{hosts = Hosts});
+
+resolve_hosts(#step{hosts = undefined, service = Service} = Step) ->
+    case hosts:all(Service) of
+        [] ->
+            % do not silently skip steps because of empty list in service model,
+            % unless it is explicitly given in step ctx or hosts field.
+            throw(?ERR_NO_SERVICE_NODES(?err_ctx(), Service));
+        Hosts ->
+            resolve_hosts(Step#step{hosts = Hosts})
+    end;
+
+resolve_hosts(#step{hosts = []} = Step) ->
+    Step;
+
+resolve_hosts(#step{hosts = Hosts, verify_hosts = true} = Step) ->
+    ok = onepanel_utils:ensure_known_hosts(Hosts),
+    resolve_hosts(Step#step{verify_hosts = false});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = any} = Step) ->
+    Host = lists_utils:random_element(Hosts),
+    resolve_hosts(Step#step{hosts = [Host], selection = all,
+        ctx = Ctx#{rest => lists:delete(Host, Hosts), all => Hosts}});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = first} = Step) ->
+    resolve_hosts(Step#step{hosts = [hd(Hosts)],
+        ctx = Ctx#{rest => tl(Hosts), all => Hosts}, selection = all});
+
+resolve_hosts(#step{hosts = Hosts, ctx = Ctx, selection = rest} = Step) ->
+    resolve_hosts(Step#step{hosts = tl(Hosts),
+        ctx = Ctx#{first => hd(Hosts), all => Hosts}, selection = all});
+
+resolve_hosts(#step{} = Step) ->
+    Step.

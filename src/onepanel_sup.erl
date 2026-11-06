@@ -11,6 +11,8 @@
 -module(onepanel_sup).
 -author("Krzysztof Trzepla").
 
+-include("names.hrl").
+-include("modules/errors.hrl").
 -include_lib("ctool/include/logging.hrl").
 
 -behaviour(supervisor).
@@ -21,6 +23,10 @@
 %% Supervisor callbacks
 -export([init/1]).
 
+-define(UPGRADE_TIMEOUT,
+    onepanel_env:get(upgrade_tables_timeout, ?APP_NAME, timer:seconds(60))).
+-define(PROCESS_NAME, ?MODULE).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -30,10 +36,9 @@
 %% Starts the supervisor
 %% @end
 %%--------------------------------------------------------------------
--spec start_link() ->
-    {ok, Pid :: pid()} | ignore | {error, Reason :: term()}.
+-spec start_link() -> {ok, pid()} | ignore | {error, Reason :: term()}.
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({local, ?PROCESS_NAME}, ?MODULE, []).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -50,44 +55,74 @@ start_link() ->
     {ok, {SupFlags :: supervisor:sup_flags(),
         [ChildSpec :: supervisor:child_spec()]}} | ignore.
 init([]) ->
-    % Initialization done here rather than in onepanel_app:start
-    % because too long wait before spawning supervisor causes timeout
-    % and exit of application
+    node_cache:init(),
+    global_clock:try_to_restore_previous_synchronization(),
+    try
+        % Initialization done here rather than in onepanel_app:start
+        % because too long wait before spawning supervisor causes timeout
+        % and exit of the application.
+        % This is because of node_package/.../runner configuration, which
+        % uses onepanel_sup presence as a healthcheck for the Onepanel.
 
-    service_onepanel:init_cluster(#{}),
+        ?info("Waiting for distributed database on nodes ~tp", [onepanel_db:get_nodes()]),
+        % in a new deployment this will complete immediately since the node list is empty
+        ok = onepanel_db:global_wait_for_tables(),
 
-    ?info("Waiting for distributed database to be ready"),
-    onepanel_db:wait_for_tables(),
+        Self = node(),
+        [First | _] = Nodes = lists:usort([Self | onepanel_db:get_nodes()]),
 
-    https_listener:start(),
-    onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok},
-        onepanel_env:get(rest_listener_status_check_attempts)),
+        case Self == First of
+            true ->
+                ?info("Creating database tables"),
+                service_onepanel:init_cluster(#{}),
+                ok = onepanel_db:global_wait_for_tables(),
 
-    {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
-        onepanel_discovery_spec(),
-        service_executor_spec(),
-        service_watcher_spec(),
-        onepanel_session_gc_spec()
-    ]}}.
+                ?info("Performing database upgrades"),
+                onepanel_db:upgrade_tables(),
+                ok = onepanel_db:global_wait_for_tables(),
+
+                ?info("Upgrades finished"),
+                lists:foreach(fun(Node) ->
+                    {?PROCESS_NAME, Node} ! db_upgrade_finished
+                end, Nodes -- [Self]);
+            false ->
+                ?info("Waiting for node ~tp to perform database upgrades (~tp seconds)",
+                    [First, ?UPGRADE_TIMEOUT div 1000]),
+                receive
+                    db_upgrade_finished -> ok
+                after ?UPGRADE_TIMEOUT ->
+                    ?error("Wait for database upgrade timed out"),
+                    error(upgrade_timeout)
+                end
+        end,
+        ?info("Database ready"),
+
+        start_listeners(),
+
+        {ok, {#{strategy => one_for_all, intensity => 3, period => 1}, [
+            service_executor_spec(),
+            onepanel_cron_spec(),
+            onepanel_auth_gc_spec()
+        ]}}
+    catch throw:Error ->
+        % throws would be treated as return value in gen_server/supervisor init
+        error(Error)
+    end.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @private @doc Returns a worker child_spec for a onepanel_discovery gen_server.
-%% @end
-%%--------------------------------------------------------------------
--spec onepanel_discovery_spec() -> supervisor:child_spec().
-onepanel_discovery_spec() ->
-    #{
-        id => onepanel_discovery,
-        start => {onepanel_discovery, start_link, []},
-        restart => transient,
-        shutdown => timer:seconds(10),
-        type => worker,
-        modules => [onepanel_discovery]
-    }.
+%% @private
+-spec start_listeners() -> ok.
+start_listeners() ->
+    Attempts = onepanel_env:get(rest_listener_status_check_attempts),
+
+    http_listener:start(),
+    onepanel_utils:wait_until(http_listener, healthcheck, [], {equal, ok}, Attempts),
+
+    https_listener:start(),
+    onepanel_utils:wait_until(https_listener, healthcheck, [], {equal, ok}, Attempts).
 
 %%--------------------------------------------------------------------
 %% @private @doc Returns a worker child_spec for a service_executor gen_server.
@@ -105,32 +140,33 @@ service_executor_spec() ->
     }.
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns a worker child_spec for a service_watcher gen_server.
+%% @private @doc Returns a worker child_spec for a onepanel_cron gen_server.
 %% @end
 %%--------------------------------------------------------------------
--spec service_watcher_spec() -> supervisor:child_spec().
-service_watcher_spec() ->
+-spec onepanel_cron_spec() -> supervisor:child_spec().
+onepanel_cron_spec() ->
     #{
-        id => service_watcher,
-        start => {service_watcher, start_link, []},
+        id => onepanel_cron,
+        start => {onepanel_cron, start_link, []},
         restart => transient,
         shutdown => timer:seconds(10),
         type => worker,
-        modules => [service_watcher]
+        modules => [onepanel_cron]
     }.
 
 %%--------------------------------------------------------------------
-%% @private @doc Returns a worker child_spec for a onepanel_session_gc
-%% gen_server.
+%% @private
+%% @doc
+%% Returns a worker child_spec for a onepanel_auth_gc gen_server.
 %% @end
 %%--------------------------------------------------------------------
--spec onepanel_session_gc_spec() -> supervisor:child_spec().
-onepanel_session_gc_spec() ->
+-spec onepanel_auth_gc_spec() -> supervisor:child_spec().
+onepanel_auth_gc_spec() ->
     #{
-        id => onepanel_session_gc,
-        start => {onepanel_session_gc, start_link, []},
+        id => onepanel_auth_gc,
+        start => {onepanel_auth_gc, start_link, []},
         restart => permanent,
         shutdown => timer:seconds(10),
         type => worker,
-        modules => [onepanel_session_gc]
+        modules => [onepanel_auth_gc]
     }.

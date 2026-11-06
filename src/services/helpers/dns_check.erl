@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Wojciech Geisler
-%%% @copyright (C): 2018 ACK CYFRONET AGH
+%%% @copyright (C) 2018 ACK CYFRONET AGH
 %%% This software is released under the MIT license
 %%% cited in 'LICENSE.txt'.
 %%% @end
@@ -26,22 +26,20 @@
 -include("deployment_progress.hrl").
 -include("names.hrl").
 -include_lib("ctool/include/logging.hrl").
+-include_lib("ctool/include/errors.hrl").
 
 -define(REFRESH_INTERVAL, onepanel_env:get(dns_check_interval)). % 6 hours
 
 % Set to multiple of ?REFRESH_INTERVAL to allow some failed tests
 -define(CACHE_TTL, ?REFRESH_INTERVAL * 3). % 18 hours
 
--define(TIMESTAMP_KEY, dns_check_attempt_timestamp).
--define(CACHE_KEY, dns_check).
-
 % Check names match expected fields in REST API.
--type check() :: domain | dnsZone.
+-type check() :: domain | dnsZone | oneS3Subdomain.
 -type worker_service() :: op_worker | oz_worker.
 
 % @formatter:off
 -type result() :: #{
-    timestamp := non_neg_integer(),
+    timestamp := time:seconds(),
     check() => #dns_check{}
 }.
 % @formatter:on
@@ -82,10 +80,10 @@ get(Service, _ForceRefresh = false) ->
 %%--------------------------------------------------------------------
 -spec update_cache(worker_service()) -> result() | no_return().
 update_cache(Service) ->
-    service:update_ctx(Service, #{?TIMESTAMP_KEY => get_timestamp()}),
+    service:update_ctx(Service, #{?DNS_CHECK_TIMESTAMP_KEY => get_timestamp()}),
     Checks = get_checks(Service),
     Result = compute_results(Service, Checks),
-    service:update_ctx(Service, #{?CACHE_KEY => Result}),
+    service:update_ctx(Service, #{?DNS_CHECK_CACHE_KEY => Result}),
     Result.
 
 
@@ -101,12 +99,12 @@ async_update_cache(Service) ->
         try
             update_cache(Service)
         catch
-            throw:#error{reason = ?ERR_DNS_CHECK_ERROR(Message)} ->
-                ?error("DNS check refresh failed: ~s", [Message]);
+            throw:?ERR_DNS_SERVERS_UNREACHABLE(UsedServers) ->
+                ?error("DNS check refresh failed: no connection to servers ~tps", [UsedServers]);
             Type:Error ->
                 % Catch all as a process failure with exception
                 % causes an ugly error log
-                ?error("DNS check refresh failed: ~p:~p", [Type, Error])
+                ?error("DNS check refresh failed: ~tp:~tp", [Type, Error])
         end
     end),
     ok.
@@ -122,7 +120,7 @@ should_update_cache(Service) ->
     Now = get_timestamp(),
     Interval = ?REFRESH_INTERVAL,
     case service:get_ctx(Service) of
-        #{?TIMESTAMP_KEY := LastAttempt}
+        #{?DNS_CHECK_TIMESTAMP_KEY := LastAttempt}
             when LastAttempt + Interval > Now ->
             false;
         _ ->
@@ -137,10 +135,11 @@ should_update_cache(Service) ->
 %%--------------------------------------------------------------------
 -spec invalidate_cache(worker_service()) -> ok | no_return().
 invalidate_cache(Service) ->
-    service:update(Service, fun(#service{ctx = Ctx} = S) ->
-        Ctx2 = lists:foldl(fun maps:remove/2, Ctx, [?CACHE_KEY, ?TIMESTAMP_KEY]),
+    {ok, _} = service:update(Service, fun(#service{ctx = Ctx} = S) ->
+        Ctx2 = maps:without([?DNS_CHECK_CACHE_KEY, ?DNS_CHECK_TIMESTAMP_KEY], Ctx),
         S#service{ctx = Ctx2}
-    end).
+    end),
+    ok.
 
 
 %%--------------------------------------------------------------------
@@ -151,9 +150,9 @@ invalidate_cache(Service) ->
 -spec get_configuration() -> #{atom() := term()}.
 get_configuration() ->
     #{
-        builtInDnsServer => expect_delegation(oz_worker),
-        dnsCheckAcknowledged => onepanel_deployment:is_completed(?DNS_CHECK_ACKNOWLEDGED),
-        dnsServers => lists:map(fun onepanel_ip:ip4_to_binary/1, get_dns_servers())
+        builtInDnsServer => expect_delegation(),
+        dnsCheckAcknowledged => onepanel_deployment:is_set(?DNS_CHECK_ACKNOWLEDGED),
+        dnsServers => dns_servers_to_json()
     }.
 
 
@@ -175,8 +174,8 @@ configure_dns_check(#{dns_servers := DnsServers} = Ctx) ->
 
 configure_dns_check(#{dns_check_acknowledged := Acknowledged} = Ctx) ->
     case Acknowledged of
-        true -> onepanel_deployment:mark_completed(?DNS_CHECK_ACKNOWLEDGED);
-        false -> onepanel_deployment:mark_not_completed(?DNS_CHECK_ACKNOWLEDGED)
+        true -> onepanel_deployment:set_marker(?DNS_CHECK_ACKNOWLEDGED);
+        false -> onepanel_deployment:unset_marker(?DNS_CHECK_ACKNOWLEDGED)
     end,
     configure_dns_check(maps:remove(dns_check_acknowledged, Ctx));
 
@@ -205,7 +204,7 @@ retrieve_cached(Service) ->
     TTL = ?CACHE_TTL,
 
     case service:get_ctx(Service) of
-        #{?CACHE_KEY := #{timestamp := Timestamp} = Cached} when
+        #{?DNS_CHECK_CACHE_KEY := #{timestamp := Timestamp} = Cached} when
             Timestamp + TTL >= Now ->
             {ok, Cached};
         _ -> error
@@ -234,10 +233,19 @@ get_dns_servers() -> onepanel_env:get(dns_check_servers).
 get_checks(Service) ->
     Module = service:get_module(Service),
     Domain = Module:get_domain(),
+
     case onepanel_ip:is_ip(Domain) of
-        true -> [];
-        false ->
-            case expect_delegation(Service) of
+        true ->
+            [];
+
+        false when Service =:= op_worker ->
+            case service_ones3:exists() of
+                true -> [domain, oneS3Subdomain];
+                false -> [domain]
+            end;
+
+        false when Service =:= oz_worker ->
+            case expect_delegation() of
                 true -> [domain, dnsZone];
                 false -> [domain]
             end
@@ -246,12 +254,11 @@ get_checks(Service) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc Returns whether DNS zone delegation check is applicable.
+%% @doc Returns whether oz DNS zone delegation check is applicable.
 %% @end
 %%--------------------------------------------------------------------
--spec expect_delegation(worker_service()) -> boolean().
-expect_delegation(op_worker) -> false;
-expect_delegation(oz_worker) -> onepanel_env:get(dns_expect_zone_delegation).
+-spec expect_delegation() -> boolean().
+expect_delegation() -> onepanel_env:get(dns_expect_zone_delegation).
 
 
 %%--------------------------------------------------------------------
@@ -271,9 +278,9 @@ compute_results(Service, Checks) ->
 %% @doc Returns current time as unix epoch.
 %% @end
 %%--------------------------------------------------------------------
--spec get_timestamp() -> non_neg_integer().
+-spec get_timestamp() -> time:seconds().
 get_timestamp() ->
-    time_utils:system_time_seconds().
+    global_clock:timestamp_seconds().
 
 
 %%--------------------------------------------------------------------
@@ -291,6 +298,18 @@ check(Service, domain) ->
     DnsServers = get_dns_servers(),
 
     Result = onepanel_dns:check_any(IPs, [Domain], a, DnsServers),
+    Result#dns_check{
+        bind_records = Recommended
+    };
+
+check(_Service = op_worker, oneS3Subdomain) ->
+    OneS3Subdomain = service_ones3:get_domain(),
+    {_Hosts, Ips} = lists:unzip(service_ones3:get_hosts_ips()),
+    Recommended = domain_bind_records(OneS3Subdomain, Ips),
+
+    DnsServers = get_dns_servers(),
+
+    Result = onepanel_dns:check_any(Ips, [OneS3Subdomain], a, DnsServers),
     Result#dns_check{
         bind_records = Recommended
     };
@@ -326,7 +345,8 @@ check(_Service = oz_worker, dnsZone) ->
 -spec allow_missing_records(#dns_check{}) -> #dns_check{}.
 allow_missing_records(#dns_check{summary = missing_records} = Check) ->
     Check#dns_check{summary = ok};
-allow_missing_records(#dns_check{} = Check) -> Check.
+allow_missing_records(#dns_check{} = Check) ->
+    Check.
 
 
 %%--------------------------------------------------------------------
@@ -373,3 +393,14 @@ delegation_bind_records(Domain) ->
         onepanel_dns:build_bind_record(<<Domain/binary, $.>>, ns, Name),
         onepanel_dns:build_bind_record(<<Name/binary, $.>>, a, IP)
     ] end, OnezoneNS)).
+
+
+%% @private
+-spec dns_servers_to_json() -> [binary()].
+dns_servers_to_json() ->
+    lists:map(fun(ServerIpOrDomain) ->
+        case ip_utils:to_binary(ServerIpOrDomain) of
+            {ok, IpBin} -> IpBin;
+            {error, ?EINVAL} -> str_utils:to_binary(ServerIpOrDomain)
+        end
+    end, get_dns_servers()).

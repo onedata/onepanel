@@ -6,7 +6,7 @@
 %%% @end
 %%%--------------------------------------------------------------------
 %%% @doc
-%%% Unit tests for onepanel_user module.
+%%% Unit tests for onepanel_deployment module.
 %%% @end
 %%%--------------------------------------------------------------------
 -module(onepanel_deployment_test).
@@ -39,9 +39,9 @@ onepanel_deployment_test_() ->
 %%%===================================================================
 
 step_is_completed_only_when_marked() ->
-    ?assertNot(onepanel_deployment:is_completed(?M1)),
-    ?assertMatch(ok, onepanel_deployment:mark_completed(?M1)),
-    ?_assert(onepanel_deployment:is_completed(?M1)).
+    ?assertNot(onepanel_deployment:is_set(?M1)),
+    ?assertMatch(ok, onepanel_deployment:set_marker(?M1)),
+    ?_assert(onepanel_deployment:is_set(?M1)).
 
 %%%===================================================================
 %%% Test fixtures
@@ -51,7 +51,6 @@ start() ->
     error_logger:tty(false),
     onepanel_env:set(rpc_timeout, 1000),
     onepanel_env:set(create_tables_timeout, 10000),
-    onepanel_env:set(default_users, []),
     ?assertEqual(ok, service_onepanel:init_cluster(#{})),
     ok.
 

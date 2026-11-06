@@ -20,10 +20,13 @@
 -export([check_any/4, check_all/4, make_results_stub/2]).
 -export([build_bind_record/3]).
 
+%% Domain or ip as string or erlang tuple
+-type server() :: binary() | string() | inet:ip4_address().
+
 % allowed query types
 -type dns_type() :: a | txt.
 % names used in queries
--type dns_name() :: inet_res:dns_name().
+-type dns_name() :: binary() | string().
 % IP tuple for A queries, binary for TXT queries
 -type dns_value() :: inet:ip4_address() | binary().
 % Result type
@@ -49,7 +52,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec check_any(Expected :: [dns_value()], Names :: [dns_name()], Type :: dns_type(),
-    Servers :: [inet:ip4_address()]) -> dns_check().
+    Servers :: [server()]) -> dns_check().
 check_any(Expected, Names, Type, Servers) ->
     Diffs = check(Expected, Names, Type, Servers),
     Best = lists:last(lists:sort(fun compare/2, Diffs)),
@@ -64,7 +67,7 @@ check_any(Expected, Names, Type, Servers) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check_all(Expected :: [dns_value()], Names :: [dns_name()], Type :: dns_type(),
-    Servers :: [inet:ip4_address()]) -> dns_check().
+    Servers :: [server()]) -> dns_check().
 check_all(Expected, Names, Type, Servers) ->
     Diffs = check(Expected, Names, Type, Servers),
     Worst = hd(lists:sort(fun compare/2, Diffs)),
@@ -116,7 +119,7 @@ build_bind_record(Domain, Type, Value) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec check(Expected :: [dns_value()], Names :: [dns_name()], Type :: dns_type(),
-    Servers :: [inet:ip4_address() | default]) -> [dns_check()].
+    Servers :: [server() | default]) -> [dns_check()].
 check(Expected, Names, Type, []) ->
     check(Expected, Names, Type, [default]);
 
@@ -124,8 +127,8 @@ check([], [], _Type, _Servers) ->
     [#dns_check{summary = ok, expected = [], got = []}];
 
 check(Expected, Names, Type, Servers) ->
-    Results = utils:pmap(fun(Server) ->
-        check_on_server(Expected, Names, Type, Server)
+    Results = lists_utils:pmap(fun(Server) ->
+        check_on_server(Expected, Names, Type, resolve_server(Server))
     end, Servers),
     WithoutErrors = lists:filter(fun
         (error) -> false;
@@ -133,9 +136,24 @@ check(Expected, Names, Type, Servers) ->
     end, Results),
 
     case WithoutErrors of
-        [] -> ?throw_error(?ERR_DNS_CHECK_ERROR(
-            str_utils:format("No DNS server responded to DNS check. Tried: ~p", [Servers])));
+        [] -> throw(?ERR_DNS_SERVERS_UNREACHABLE(?err_ctx(), Servers));
         _ -> WithoutErrors
+    end.
+
+
+%% @private
+-spec resolve_server
+    (default) -> default;
+    (server()) -> inet:ip4_address().
+resolve_server(default) ->
+    default;
+resolve_server(ServerIpOrDomain) ->
+    case ip_utils:to_ip4_address(ServerIpOrDomain) of
+        {ok, ServerIp} ->
+            ServerIp;
+        {error, ?EINVAL} ->
+            {ok, ServerIp} = inet:getaddr(ServerIpOrDomain, inet),
+            ServerIp
     end.
 
 
@@ -150,11 +168,12 @@ check(Expected, Names, Type, Servers) ->
     Servers :: inet:ip4_address() | default) -> dns_check() | error.
 check_on_server(Expected, Names, Type, ServerIP) ->
     case lookup(Names, Type, ServerIP) of
-        error -> error;
+        error ->
+            error;
         Resolved ->
-            Correct = onepanel_lists:intersect(Resolved, Expected),
-            Missing = onepanel_lists:subtract(Expected, Resolved),
-            Additional = onepanel_lists:subtract(Resolved, Expected),
+            Correct = lists_utils:intersect(Resolved, Expected),
+            Missing = lists_utils:subtract(Expected, Resolved),
+            Additional = lists_utils:subtract(Resolved, Expected),
 
             Summary = if
                 Resolved == [] -> unresolvable;
@@ -178,9 +197,9 @@ check_on_server(Expected, Names, Type, ServerIP) ->
 %% @end
 %%--------------------------------------------------------------------
 -spec lookup(Quries :: [dns_name()], Type :: dns_type(),
-    DnsServerIP :: inet:ip4_address() | default) -> [inet_res:dns_data()] | error.
+    DnsServerIP :: inet:ip4_address() | default) -> [dns_value()] | error.
 lookup(Names, Type, DnsServerIP) ->
-    Results = lists:flatten(utils:pmap(fun(Name) ->
+    Results = lists:flatten(lists_utils:pmap(fun(Name) ->
         NameStr = onepanel_utils:convert(Name, list),
         Opts = case DnsServerIP of
             default -> [];
@@ -188,9 +207,12 @@ lookup(Names, Type, DnsServerIP) ->
         end,
         Resolved = inet_res:resolve(NameStr, in, Type, Opts),
         case Resolved of
-            {error, {_Reason, _DnsMsg}} -> [];
+            {error, {_Reason, _DnsMsg}} ->
+                [];
+            {error, nxdomain} ->
+                [];
             {error, Reason} ->
-                ?warning("Error querying server ~p for DNS check ~p of name ~p: ~p",
+                ?warning("Error querying server ~tp for DNS check ~tp of name ~tp: ~tp",
                     [DnsServerIP, Type, NameStr, Reason]),
                 error;
             {ok, Msg} ->
@@ -274,7 +296,7 @@ log_result(_Names, _Type, _Servers, #dns_check{summary = ok}) -> ok;
 
 log_result(Names, Type, Servers,
     #dns_check{summary = Summary, expected = Expected, got = Got}) ->
-    ?warning("DNS check for records ~s named ~p failed with \"~s\":~n"
-    "Servers used: ~p~nExpected values: ~p~nObtained values: ~p",
+    ?warning("DNS check for records ~ts named ~tp failed with \"~ts\":~n"
+    "Servers used: ~tp~nExpected values: ~tp~nObtained values: ~tp",
         [string:uppercase(atom_to_list(Type)), Names, Summary, Servers, Expected, Got]).
 

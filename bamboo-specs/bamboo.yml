@@ -1,0 +1,760 @@
+---
+version: 2
+plan:
+  key: VFS-OPF
+plan-permissions:
+  - users:
+      - plgdutka
+    groups:
+      - plggveildev
+    permissions:
+      - view
+      - edit
+      - build
+      - clone
+      - admin
+---
+version: 2
+plan:
+  project-key: VFS
+  key: OPF
+  name: onepanel
+variables:
+  coverOptionOverride: develop_only
+repositories:
+  - onepanel:
+      scope: global
+branches:
+  create: for-new-branch
+  delete:
+    after-deleted-days: 30
+    after-inactive-days: 30
+  link-to-jira: true
+notifications: [ ]
+labels: [ ]
+dependencies:
+  require-all-stages-passing: false
+  enabled-for-branches: true
+  block-strategy: none
+  plans: [ ]
+other:
+  concurrent-build-plugin: system-default
+stages:
+  - Build:
+      manual: false
+      final: false
+      jobs:
+        - Build
+  - Test:
+      manual: false
+      final: false
+      jobs:
+        - _Codetag Tracker
+        - _Dialyze
+        - _Unit Test
+        - api_common_cluster
+        - api_common_current_user
+        - api_common_emergency_passphrase
+        - api_common_emergency_passphrase_not_deployed
+        - api_common_internal
+        - api_network
+        - api_op_provider
+        - api_op_spaces_basic
+        - api_op_storage_ceph_deprecated
+        - api_op_storage_ceph
+        - api_op_storage_glusterfs
+        - api_op_storage_nulldevice
+        - api_op_storage_posix
+        - api_op_storage_s3
+        - api_op_storage_swift
+        - api_op_storage_webdav
+        - api_op_storages
+        - api_oz_service_configuration
+        - api_oz_user_management
+        - api_services
+        - cl_deploy_op_add_ones3_after_certification_with_le
+        - cl_deploy_op_add_ones3_after_certification_without_le
+        - cl_deploy_op_add_ones3_after_registration
+        - cl_deploy_op_add_ones3_before_registration
+        - cl_deploy_op_batch
+        - cl_deploy_oz_batch
+        - cl_misc
+        - cl_resize_op
+        - cl_resize_oz
+        - cl_services_op
+        - cl_services_oz
+        - db_disk_usage_monitor
+        - dns_op
+        - dns_oz
+        - model
+        - le_op
+        - le_oz
+        - rest_clusters
+        - rest_onepanel
+        - rest_oneprovider
+        - rest_onezone
+        - rest_service
+        - service
+        - service_onepanel
+        - services
+  - Coverage report:
+      manual: false
+      final: false
+      jobs:
+        - Coverage report
+Build:
+  key: JOB1
+  other: &common-opts
+    clean-working-dir: true
+    all-other-apps:
+      custom:
+        auto: { }
+        buildHangingConfig.enabled: 'false'
+  tasks:
+    - script:
+        interpreter: SHELL
+        scripts:
+          - |-
+            #!/bin/bash
+            if [[ ${bamboo_planRepository_branch} != "develop" && ! ${bamboo_planRepository_branch} =~ ^release/.* ]]; then
+              if [ -z ${bamboo_ManualBuildTriggerReason_userName+x} ]; then
+                echo "===========================================================================================================" >&2
+                echo "CAUTION: This branch (${bamboo_planRepository_branch}) should be run manually!" >&2
+                echo "Builds triggered automatically by changes in the repo will always fail." >&2
+                echo "===========================================================================================================" >&2
+                exit 1;
+              fi
+            fi
+        description: Trigger check
+    - checkout:
+        path: onepanel
+        force-clean-build: 'true'
+        description: Checkout Default Repository
+    - script:
+        interpreter: SHELL
+        scripts:
+          - |-
+            cd onepanel
+            git remote set-url origin ${bamboo.repository.git.repositoryUrl}
+            git remote -v
+            make submodules
+            cd ..
+        description: Init submodules
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            ./make.py -e REBAR_PROFILE=bamboo_default_rel -r ${bamboo.agentWorkingDirectory} rel
+            ./make.py -e REBAR_PROFILE=bamboo_oz_rel -r ${bamboo.agentWorkingDirectory} -c "make REL_TYPE=onezone rel"
+            ./make.py -e REBAR_PROFILE=bamboo_op_rel -r ${bamboo.agentWorkingDirectory} -c "make REL_TYPE=oneprovider rel"
+        working-dir: onepanel
+        description: Build
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - tar -czf onepanel.tar.gz onepanel/
+        description: Package
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            ./onepanel/bamboos/artifacts/push_artifact.py --hostname ${bamboo.artifactRepoHostname} --port ${bamboo.artifactRepoPort} \
+                --username ${bamboo.artifactRepoUsername} --branch ${bamboo.planRepository.branchName} --plan ${bamboo.planRepository.name} \
+                --artifact-name onepanel.tar.gz
+        description: Push artifact
+  final-tasks:
+    - script: &clear-env
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - curl ${bamboo.OnedataFinalTasksURL} | bash -
+        description: Clear env
+  artifacts:
+    - name: onepanel.tar.gz
+      pattern: onepanel.tar.gz
+      shared: true
+      required: false
+  requirements: &requirements
+    - system.docker.executable
+    - onedata
+  artifact-subscriptions: [ ]
+
+_Codetag Tracker:
+  key: CT
+  other: *common-opts
+  tasks:
+    # A workaround to disable the implicit checkout task
+    - checkout: &fake-checkout
+        conditions:
+          - variable:
+              exists: fake.var
+    - script: &unpack
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - tar -xzmf onepanel.tar.gz
+        description: Unpack
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - ./make.py -r ${bamboo.agentWorkingDirectory} codetag-tracker BRANCH=${bamboo.planRepository.branchName}
+        working-dir: onepanel
+        description: Codetag Tracker
+  final-tasks:
+    - test-parser: &parse-test-results
+        type: junit
+        ignore-time: 'false'
+        test-results: onepanel/test/codetag_tracker_results/TEST-*.xml
+        description: Parse test results
+    - script: *clear-env
+  requirements: []
+  artifact-subscriptions: &artifact-onepanel
+    - artifact: onepanel.tar.gz
+
+_Dialyze:
+  key: DO
+  other: *common-opts
+  tasks:
+    - checkout: *fake-checkout
+    - script: *unpack
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - ./make.py dialyzer
+        working-dir: onepanel
+        description: Dialyze
+  final-tasks:
+    - test-parser:
+        <<: *parse-test-results
+        test-results: onepanel/test/dialyzer_results/TEST-*.xml
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            rm -f onepanel.tar.gz
+            find onepanel/ -maxdepth 1 -not -name '.dialyzer.plt' -not -path 'onepanel/' -exec rm -rf '{}' +
+        description: Cleanup
+    - script: *clear-env
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+
+_Unit Test:
+  key: UTOP
+  other: *common-opts
+  tasks:
+    - checkout: *fake-checkout
+    - script: *unpack
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            if bamboos/scripts/should-skip-coverage.sh; then
+                echo "Running eunit tests without coverage..."
+                ./make.py -r ${bamboo.agentWorkingDirectory} eunit
+            else
+                echo "Running eunit tests with coverage..."
+                ./make.py -r ${bamboo.agentWorkingDirectory} eunit-with-cover
+            fi
+        working-dir: onepanel
+        description: Run EUnit
+  final-tasks:
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            mkdir -p cover_eunit
+            cp -r _build/test/cover/* cover_eunit
+            tar -czf cover_eunit.tar.gz cover_eunit/
+        working-dir: onepanel
+        description: Save cover results
+    - test-parser:
+        <<: *parse-test-results
+        test-results: onepanel/test/eunit_results/TEST-*.xml
+    - script: *clear-env
+  artifacts:
+    - name: cover_eunit.tar.gz
+      location: onepanel
+      pattern: cover_eunit.tar.gz
+      shared: true
+      required: false
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+
+api_common_cluster: &ct-onenv-job
+  key: APICOMMONCLUSTER
+  other: *common-opts
+  tasks:
+    - checkout: *fake-checkout
+    - script: *clear-env
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - sudo ${HOME}/restart_minikube.sh
+        description: Restart minikube
+    - script: *unpack
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            cd onepanel
+            one-env/onenv pull_artifacts --hostname ${bamboo.artifactRepoHostname} --port ${bamboo.artifactRepoPort} --path .. branchConfig.yaml
+        description: Download artifacts
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - ./ct_onenv.py --suite ${bamboo.shortJobName} --path-to-sources ..
+        description: Run CT onenv tests
+        working-dir: onepanel
+  final-tasks: &final-tasks
+    - test-parser:
+        <<: *parse-test-results
+        test-results: onepanel/test_distributed/logs/*/surefire.xml
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - tar -mczf ct_logs_${bamboo.shortJobName}.tar.gz onepanel/test_distributed/logs/
+        description: Pack test logs
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - curl ${bamboo.OnedataFinalTasksURL} | bash -
+        description: Clear env
+        working-dir: onepanel
+  artifacts:
+    - &ct_logs
+      name: ct_logs_api_common_cluster.tar.gz
+      pattern: ct_logs_${bamboo.shortJobName}.tar.gz
+      shared: true
+      required: false
+  requirements:
+    - minikube
+  artifact-subscriptions: *artifact-onepanel
+
+api_common_current_user:
+  <<: *ct-onenv-job
+  key: APICOMMONCURRENTUSER
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_current_user.tar.gz
+
+api_common_emergency_passphrase:
+  <<: *ct-onenv-job
+  key: ACEP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_emergency_passphrase.tar.gz
+
+api_common_emergency_passphrase_not_deployed:
+  <<: *ct-onenv-job
+  key: ACEPND
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
+
+api_common_internal:
+  <<: *ct-onenv-job
+  key: ACI
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_common_internal.tar.gz
+
+api_network:
+  <<: *ct-onenv-job
+  key: APIDNS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_network.tar.gz
+
+api_op_provider:
+  <<: *ct-onenv-job
+  key: APIOPPROVIDER
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_provider.tar.gz
+
+api_op_spaces_basic:
+  <<: *ct-onenv-job
+  key: SPAC
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_spaces_basic.tar.gz
+
+api_op_storage_ceph_deprecated:
+  <<: *ct-onenv-job
+  key: APISTORAGECEPHDEPRECATED
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_ceph_deprecated.tar.gz
+
+api_op_storage_ceph:
+  <<: *ct-onenv-job
+  key: APC
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_ceph.tar.gz
+
+api_op_storage_glusterfs:
+  <<: *ct-onenv-job
+  key: APISTORAGEGLUSTERFS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_glusterfs.tar.gz
+
+api_op_storage_nulldevice:
+  <<: *ct-onenv-job
+  key: APISTORAGENULLDEVICE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_nulldevice.tar.gz
+
+api_op_storage_posix:
+  <<: *ct-onenv-job
+  key: APSP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_posix.tar.gz
+
+api_op_storage_s3:
+  <<: *ct-onenv-job
+  key: APSS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_s3.tar.gz
+
+api_op_storage_swift:
+  <<: *ct-onenv-job
+  key: APISTORAGESWIFT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_swift.tar.gz
+
+api_op_storage_webdav:
+  <<: *ct-onenv-job
+  key: AOSW
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storage_webdav.tar.gz
+
+api_op_storages:
+  <<: *ct-onenv-job
+  key: STOR
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_op_storages.tar.gz
+
+api_oz_service_configuration:
+  <<: *ct-onenv-job
+  key: ASC
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_oz_service_configuration.tar.gz
+
+api_oz_user_management:
+  <<: *ct-onenv-job
+  key: AP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_oz_user_management.tar.gz
+
+api_services:
+  <<: *ct-onenv-job
+  key: APISERVICES
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_api_services.tar.gz
+
+cl_deploy_op_add_ones3_after_certification_with_le:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHLE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_deploy_op_add_ones3_after_certification_with_le.tar.gz
+
+cl_deploy_op_add_ones3_after_certification_without_le:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERCERTWITHOUTLE
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_deploy_op_add_ones3_after_certification_without_le.tar.gz
+
+cl_deploy_op_add_ones3_after_registration:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3AFTERREGISTRATION
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_deploy_op_add_ones3_after_registration.tar.gz
+
+cl_deploy_op_add_ones3_before_registration:
+  <<: *ct-onenv-job
+  key: CLUSTERDEPLOYMENTOPADDONES3BEFOREREGISTRATION
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_deploy_op_add_ones3_before_registration.tar.gz
+
+cl_deploy_op_batch:
+  <<: *ct-onenv-job
+  key: CLUSTEROPBATCHDEPLOYMENT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_deploy_op_batch.tar.gz
+
+cl_deploy_oz_batch:
+  <<: *ct-onenv-job
+  key: CLUSTEROZBATCHDEPLOYMENT
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_deploy_oz_batch.tar.gz
+
+cl_misc:
+  <<: *ct-onenv-job
+  key: CLUSTERMISC
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_misc.tar.gz
+
+cl_resize_op:
+  <<: *ct-onenv-job
+  key: CLUSTERRESIZEOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_resize_op.tar.gz
+
+cl_resize_oz:
+  <<: *ct-onenv-job
+  key: CLUSTERRESIZEOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_resize_oz.tar.gz
+
+cl_services_op:
+  <<: *ct-onenv-job
+  key: CLUSTERSERVICESOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_services_op.tar.gz
+
+cl_services_oz:
+  <<: *ct-onenv-job
+  key: CLUSTERSERVICESOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_cl_services_oz.tar.gz
+
+db_disk_usage_monitor:
+  <<: *ct-onenv-job
+  key: DBDISKMONITOR
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_db_disk_usage_monitor.tar.gz
+
+dns_op:
+  <<: *ct-onenv-job
+  key: DNSOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_dns_op.tar.gz
+
+dns_oz:
+  <<: *ct-onenv-job
+  key: DNSOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_dns_oz.tar.gz
+
+le_op:
+  <<: *ct-onenv-job
+  key: LETSENCRYPTOP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_le_op.tar.gz
+
+le_oz:
+  <<: *ct-onenv-job
+  key: LETSENCRYPTOZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_le_oz.tar.gz
+
+model: &ct-job
+  key: MOD
+  other: *common-opts
+  tasks:
+    - checkout: *fake-checkout
+    - script: *unpack
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - ./ct_run.py --suite ${bamboo.shortJobName}
+        working-dir: onepanel
+        description: Run CT env-up tests
+  final-tasks: *final-tasks
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_model.tar.gz
+  requirements: *requirements
+  artifact-subscriptions: *artifact-onepanel
+
+rest_clusters:
+  <<: *ct-job
+  key: RCLUSTER
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_rest_clusters.tar.gz
+
+rest_onepanel:
+  <<: *ct-job
+  key: RO
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_rest_onepanel.tar.gz
+
+rest_oneprovider:
+  <<: *ct-job
+  key: ROP
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_rest_oneprovider.tar.gz
+
+rest_onezone:
+  <<: *ct-job
+  key: RESZ
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_rest_onezone.tar.gz
+
+rest_service:
+  <<: *ct-job
+  key: RS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_rest_service.tar.gz
+
+service:
+  <<: *ct-job
+  key: SER
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_service.tar.gz
+
+service_onepanel:
+  <<: *ct-job
+  key: SO
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_service_onepanel.tar.gz
+
+services:
+  <<: *ct-job
+  key: SERS
+  artifacts:
+    - <<: *ct_logs
+      name: ct_logs_services.tar.gz
+
+Coverage report:
+  key: CROP
+  other: *common-opts
+  tasks:
+    - checkout: *fake-checkout
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            tar -xzmf onepanel.tar.gz
+            if onepanel/bamboos/scripts/should-skip-coverage.sh; then
+                echo \"Skipping coverage report collection\"
+            else
+                LOG_PATH=onepanel/test_distributed/logs
+                tar -xzmf cover_eunit.tar.gz
+                mkdir -p onepanel/_build/test/cover
+                mv cover_eunit/* onepanel/_build/test/cover
+                mkdir tmp
+                for archive in $(ls ct_logs_*.tar.gz)
+                do
+                    cp ${archive} tmp
+                    base=$(basename ${archive} .tar.gz)
+                    cd tmp
+                    tar -xzmf *.tar.gz
+                    LOG_DIR=$(ls -dt ${LOG_PATH}/ct_run* | head -1)
+                    echo $LOG_DIR
+                    cp -r ${LOG_DIR} ../${LOG_DIR}_${base}
+                    cd ..
+                    rm -rf tmp/*
+                done
+                rm -rf tmp
+            fi
+        description: Unpack
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |-
+            if bamboos/scripts/should-skip-coverage.sh; then
+                # generate some dummy artifact data so that the build can finish with success
+                mkdir test_coverage
+                echo "Test coverage was skipped. Run a custom build with coverOptionOverride set to true if you wish to collect a coverage report." > test_coverage/readme-coverage-skipped.txt
+            else
+                ./make.py on_bamboo=true coverage
+            fi
+        working-dir: onepanel
+        description: Generate coverage reports
+  final-tasks:
+    - script:
+        interpreter: BINSH_OR_CMDEXE
+        scripts:
+          - |
+            tar -czf test_coverage.tar.gz onepanel/test_coverage
+        description: Save coverage report
+    - script: *clear-env
+  artifacts:
+    - name: test_coverage.tar.gz
+      pattern: test_coverage.tar.gz
+      shared: false
+      required: false
+  requirements: *requirements
+  artifact-subscriptions:
+    - artifact: onepanel.tar.gz
+    - artifact: cover_eunit.tar.gz
+    - artifact: ct_logs_api_common_cluster.tar.gz
+    - artifact: ct_logs_api_common_current_user.tar.gz
+    - artifact: ct_logs_api_common_emergency_passphrase.tar.gz
+    - artifact: ct_logs_api_common_emergency_passphrase_not_deployed.tar.gz
+    - artifact: ct_logs_api_common_internal.tar.gz
+    - artifact: ct_logs_api_network.tar.gz
+    - artifact: ct_logs_api_op_provider.tar.gz
+    - artifact: ct_logs_api_op_spaces_basic.tar.gz
+    - artifact: ct_logs_api_op_storage_ceph_deprecated.tar.gz
+    - artifact: ct_logs_api_op_storage_ceph.tar.gz
+    - artifact: ct_logs_api_op_storage_glusterfs.tar.gz
+    - artifact: ct_logs_api_op_storage_nulldevice.tar.gz
+    - artifact: ct_logs_api_op_storage_posix.tar.gz
+    - artifact: ct_logs_api_op_storage_s3.tar.gz
+    - artifact: ct_logs_api_op_storage_swift.tar.gz
+    - artifact: ct_logs_api_op_storage_webdav.tar.gz
+    - artifact: ct_logs_api_op_storages.tar.gz
+    - artifact: ct_logs_api_oz_service_configuration.tar.gz
+    - artifact: ct_logs_api_oz_user_management.tar.gz
+    - artifact: ct_logs_api_services.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_with_le.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_after_certification_without_le.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_after_registration.tar.gz
+    - artifact: ct_logs_cl_deploy_op_add_ones3_before_registration.tar.gz
+    - artifact: ct_logs_cl_deploy_op_batch.tar.gz
+    - artifact: ct_logs_cl_deploy_oz_batch.tar.gz
+    - artifact: ct_logs_cl_misc.tar.gz
+    - artifact: ct_logs_cl_resize_op.tar.gz
+    # TODO VFS-12699 research hanging deploy new oz worker test
+    #    - artifact: ct_logs_cl_resize_oz.tar.gz
+    - artifact: ct_logs_cl_services_op.tar.gz
+    - artifact: ct_logs_cl_services_oz.tar.gz
+    - artifact: ct_logs_db_disk_usage_monitor.tar.gz
+    - artifact: ct_logs_dns_op.tar.gz
+    - artifact: ct_logs_dns_oz.tar.gz
+    - artifact: ct_logs_le_op.tar.gz
+    - artifact: ct_logs_le_oz.tar.gz
+    - artifact: ct_logs_model.tar.gz
+    - artifact: ct_logs_rest_clusters.tar.gz
+    - artifact: ct_logs_rest_onepanel.tar.gz
+    - artifact: ct_logs_rest_oneprovider.tar.gz
+    - artifact: ct_logs_rest_onezone.tar.gz
+    - artifact: ct_logs_rest_service.tar.gz
+    - artifact: ct_logs_service.tar.gz
+    - artifact: ct_logs_service_onepanel.tar.gz
+    - artifact: ct_logs_services.tar.gz
+...

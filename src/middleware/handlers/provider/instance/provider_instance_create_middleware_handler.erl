@@ -1,0 +1,81 @@
+%%%-------------------------------------------------------------------
+%%% @author Bartosz Walkowicz
+%%% @copyright (C) 2025 Onedata (onedata.org)
+%%% This software is released under the MIT license
+%%% cited in 'LICENSE.txt'.
+%%% @end
+%%%-------------------------------------------------------------------
+%%% @doc
+%%% Registers Oneprovider (op_panel only).
+%%% TODO VFS-13075 test endpoint
+%%% @end
+%%%-------------------------------------------------------------------
+-module(provider_instance_create_middleware_handler).
+-author("Bartosz Walkowicz").
+
+-behaviour(middleware_handler_behaviour).
+
+-include("middleware/middleware.hrl").
+
+% middleware_handler callbacks
+-export([
+    supported_interfaces/1,
+    service_availability_requirements/1,
+    preauthorize/1,
+    validate/1,
+    process/1
+]).
+
+-type t() :: ?MODULE.
+-type input() :: map().
+-type state() :: #onp_req_state{input :: input()}.
+-type output() :: undefined.
+
+-export_type([t/0, input/0, state/0, output/0]).
+
+
+%%%===================================================================
+%%% middleware_handler callbacks
+%%%===================================================================
+
+
+-spec supported_interfaces(middleware_handler_behaviour:req_ctx()) -> false | {true, [rest]}.
+supported_interfaces(_) ->
+    middleware_handler_utils:if_op_then([rest]).
+
+
+-spec service_availability_requirements(middleware_handler_behaviour:req_ctx()) ->
+    {true, [middleware_handler_behaviour:availability_level()]}.
+service_availability_requirements(_) ->
+    {true, [?SERVICE_OPW, all_healthy_ignoring_ones3]}.
+
+
+-spec preauthorize(state()) -> false.
+preauthorize(_) ->
+    % only root can register a provider (kept legacy behaviour here)
+    false.
+
+
+-spec validate(state()) -> ok | errors:error().
+validate(#onp_req_state{input = _}) ->
+    case service_oneprovider:is_registered() of
+        true -> ?ERROR_ALREADY_EXISTS;
+        false -> ok
+    end.
+
+
+-spec process(state()) -> ok | errors:error().
+process(#onp_req_state{input = Data}) ->
+    Ctx = kv_utils:copy_found([
+        {tokenProvisionMethod, oneprovider_token_provision_method},
+        {token, oneprovider_token},
+        {tokenFile, oneprovider_token_file},
+        {name, oneprovider_name},
+        {subdomainDelegation, oneprovider_subdomain_delegation},
+        {domain, oneprovider_domain},
+        {subdomain, oneprovider_subdomain},
+        {adminEmail, oneprovider_admin_email},
+        {geoLatitude, oneprovider_geo_latitude},
+        {geoLongitude, oneprovider_geo_longitude}
+    ], Data),
+    middleware_handler_utils:service_exec(?SERVICE_OP, register, Ctx).

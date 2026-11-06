@@ -95,7 +95,7 @@ cat > rpm.vars.config <<EOF
 EOF
 
 %build
-cat <<SCL_EOF_MACRO | scl enable devtoolset-6 %{scl} --
+cat <<SCL_EOF_MACRO | scl enable devtoolset-7 %{scl} --
 OVERLAY_VARS="--overlay_vars=rpm.vars.config" \
 LDFLAGS="-L/opt/onedata/{{scl}}/root/usr/lib64" \
 CFLAGS="-I/opt/onedata/{{scl}}/root/usr/include" \

@@ -1,51 +1,8 @@
 [
     % Range of ports that will be used by erlang nodes to communicate
-    {kernel,[
+    {kernel, [
         {inet_dist_listen_min, 9100},
         {inet_dist_listen_max, 9139}
-    ]},
-
-    %% lager config
-    {lager, [
-        {colored, true},
-        {handlers, [
-            %% show info level or higher level logs at console
-            {lager_console_backend, [{level, info}, {formatter, lager_default_formatter},
-                                     {formatter_config, [color, "[", sev, " ", time, " ", pid, "] ", message, "\e[0m\r\n"]}]},
-            %% rotate error log when it reaches 50 MB; keep 10 rotated logs
-            {lager_file_backend, [
-                {file, "{{platform_log_dir}}/error.log"},
-                {level, error},
-                {size, 52428800},
-                {count, 10},
-                {formatter, lager_default_formatter},
-                {formatter_config, ["[", sev, " ", date, " ", time, " ", pid, "] ", message, "\n"]}
-            ]},
-            %% rotate info log when it reaches 50 MB; keep 10 rotated logs
-            {lager_file_backend, [
-                {file, "{{platform_log_dir}}/info.log"},
-                {level, info},
-                {size, 52428800},
-                {count, 10},
-                {formatter, lager_default_formatter},
-                {formatter_config, ["[", sev, " ", date, " ", time, " ", pid, "] ", message, "\n"]}
-            ]},
-            %% rotate debug log when it reaches 50 MB; keep 10 rotated logs
-            {lager_file_backend, [
-                {file, "{{platform_log_dir}}/debug.log"},
-                {level, debug},
-                {size, 52428800},
-                {count, 10},
-                {formatter, lager_default_formatter},
-                {formatter_config, ["[", sev, " ", date, " ", time, " ", pid, "] ", message, "\n"]}
-            ]}
-        ]},
-        % Limit for the number of messages per second allowed from error_logger
-        {error_logger_hwm, 200},
-        % When lager should change mode to synchronous (log queue is longer than async_threshold)
-        {async_threshold, 500},
-        % When lager should return from synchronous mode to asynchronous (log queue is shorter than (async_threshold - async_threshold_window)
-        {async_threshold_window, 50}
     ]},
 
     %% mnesia config
@@ -54,32 +11,37 @@
     ]},
 
     {ctool, [
-        {verify_oz_cert, true}
+        {onedata_service, {{service_type}}},
+        {onedata_service_id, {{service_id}}},
+        {onedata_service_release_version, <<"{{{service_release_version}}}">>},
+        % Build version in form:
+        % <number of commits since last tag>-g<last commit hash abbrev>
+        % e.g. 19-g0d0fd5b
+        {onedata_service_build_version, <<"{{{service_build_version}}}">>},
+
+        % Backup file that stores the information needed to restore the
+        % previous clock synchronization.
+        {clock_sync_backup_file, "{{platform_etc_dir}}/time_synchronization_data.json"},
+
+        % Path to the JSON file holding information about services compatibility
+        % and verified gui hashes. This file evolves during service's lifetime -
+        % can be overwritten by a newer registry when such is available.
+        {current_compatibility_registry_file, "{{platform_etc_dir}}/compatibility.json"},
+        % Path to the default compatibility.json for current software version.
+        {default_compatibility_registry_file, "{{platform_data_dir}}/compatibility.default.json"},
+        {log_dir, "{{platform_log_dir}}"}
     ]},
 
     %% onepanel config
     {onepanel, [
-        %% ===================================================================
-        %% GENERAL
-        %% ===================================================================
-        % Build version in form:
-        % <number of commits since last tag>-g<last commit hash abbrev>
-        % e.g. 19-g0d0fd5b
-        {build_version, "{{{build_version}}}"},
+        {cluster_type, {{release_type}}},
 
         %% ===================================================================
-        %% PORTS
+        %% Ports
         %% ===================================================================
-        {advertise_port, 8888},
         {rest_port, 9443},
         {op_worker_nagios_port, 443},
         {oz_worker_nagios_port, 443},
-
-
-        {advertise_address, "239.255.0.1"},
-        {advertise_max_delay, 5000},
-
-        {release_type, {{release_type}} },
 
         %% ===================================================================
         %% Server certificates
@@ -93,9 +55,179 @@
         {web_cert_file, "{{platform_etc_dir}}/certs/web_cert.pem"},
         %% Path to certificate chain file used by web server
         {web_cert_chain_file, "{{platform_etc_dir}}/certs/web_chain.pem"},
+        %% Path to certificate full chain file used by e.g. OneS3
+        {web_cert_full_chain_file, "{{platform_etc_dir}}/certs/web_full_chain.pem"},
 
         %% Path to directory with trusted CA certificates
         {cacerts_dir, "{{platform_etc_dir}}/cacerts"},
+
+        %% ===================================================================
+        %% Test certificates
+        %% ===================================================================
+
+        %% If enabled, a new web cert will be generated with CN matching
+        %% the test_web_cert_domain and signed by CA cert found under
+        %% test_web_cert_ca_path.
+        %% NOTE: The generation will be performed upon every startup, any
+        %%  existing certs will be backed up and placed in the same directory.
+        %% NOTE: This functionality is devised for test purposes and must not
+        %%  be used in production.
+        {generate_test_web_cert, false},
+        %% The domain for which a test cert will be generated
+        {test_web_cert_domain, "onedata.org"},
+        %% The CA cert to sign auto generated test web certs. The file must
+        %% contain both the key and cert.
+        {test_web_cert_ca_path, "{{platform_etc_dir}}/OnedataTestWebServerCa.pem"},
+        %% If enabled, onepanel will trust any server that has a cert signed by
+        %% the OnedataTestWebServerCa.
+        %% NOTE: This functionality is devised for test purposes and must not
+        %%  be used in production.
+        {treat_test_ca_as_trusted, false},
+        %% If enabled, onepanel will trust any server that has a cert signed by
+        %% the TestPebbleMinicaCa (e.g. Pebble server used in LE tests).
+        %% NOTE: This functionality is devised for test purposes and MUST NOT
+        %%  be used in production.
+        {treat_test_pebble_minica_ca_as_trusted, false},
+        %% The Minica CA cert used to sign the test Pebble server certificate
+        %% (see the 'treat_test_pebble_minica_ca_as_trusted' env).
+        {test_pebble_minica_ca_web_cert_path, "{{platform_etc_dir}}/TestPebbleMinicaCa.pem"},
+
+        %% ===================================================================
+        %% General
+        %% ===================================================================
+
+        %% External IP of this node - used by DNS
+        %% can be set to a tuple or string, for example:
+        %% {external_ip, {10,0,0,1}}, or:
+        %% {external_ip, "10.0.0.1"},
+        {external_ip, undefined},
+
+        %% Initial clock sync is required for the cluster to successfully
+        %% initialize (consecutive syncs are best effort). Below parameters can
+        %% be used to tune the number of attempts and the interval.
+        %% 40 attempts every 15 seconds yield 10 minutes of waiting.
+        {initial_clock_synchronization_attempts, 40},
+        {initial_clock_synchronization_retry_delay, 15000},
+
+        %% How ofter the clocks of all nodes in the cluster are synchronized.
+        %% In Onezone, the clocks are synchronized with the master oz-panel node.
+        %% In Oneprovider, they are synchronized with Onezone's clock.
+        {clock_synchronization_interval_seconds, 600},  % 10 minutes
+
+        %% URL of service used for autodetecting external IP
+        {ip_check_url, "http://ip4.icanhazip.com"},
+
+        {onezone_configuration_urn, "/api/v3/onezone/configuration"},
+        {onezone_compatibility_registry_urn, "/compatibility.json"},
+
+        %% IPs of DNS servers used to validate domain configuration.
+        %% Empty list causes use of system defaults
+        {dns_check_servers, []},
+
+        %% Interval between DNS checks in seconds. Default: 6 hours
+        {dns_check_interval, 21600},
+
+        %% Boolean used in oz_panel. Indicates whether to check for
+        %% DNS zone delegation.
+        {dns_expect_zone_delegation, true},
+
+        %% Username of the admin user created after Onezone deployment
+        {zone_default_admin_username, <<"admin">>},
+
+        {rest_api_prefix, "/api/v3/onepanel"},
+        %% Number of accepting processes in HTTP listener
+        {rest_http_acceptors, 10},
+        %% Number of accepting processes in HTTPS listener
+        {rest_https_acceptors, 100},
+        %% Request timeout in milliseconds, meaning how long the server should
+        %% wait for an incoming request since the last activity until it closes
+        %% the connection.
+        {rest_http_request_timeout, 30000},
+        {rest_https_request_timeout, 30000},
+        {rest_listener_status_check_attempts, 30},
+
+        %% Worker https server port number on which http requests should be redirected
+        {worker_https_server_port, 443},
+
+        %% REST route needed for Let's Encrypt challenge responses
+        {letsencrypt_challenge_api_prefix, "/.well-known/acme-challenge"},
+        %% Static content root needed for Let's Encrypt challenge responses
+        {letsencrypt_challenge_static_root, "/tmp/onepanel/http/.well-known/acme-challenge/"},
+
+        %% Path to packaged GUI static files. They will be served
+        %% as the emergency GUI and uploaded to Onezone for normal operation.
+        {gui_package_path, "{{platform_data_dir}}/gui_static.tar.gz"},
+
+        %% Directory where static files of standalone GUI are served from.
+        {gui_static_root, "{{platform_etc_dir}}/gui_static"},
+
+        %% Enable debug logs in browser console
+        {gui_debug_mode, false},
+
+        {rpc_timeout, 1800000},
+        {create_tables_timeout, 10000},
+        {copy_tables_timeout, 10000},
+        {wait_for_tables_timeout, 10000},
+        {upgrade_tables_timeout, 60000},
+        {extend_cluster_timeout, 900000},
+        {extend_cluster_attempts, 20},
+        {task_ttl, 86400000},
+        {service_step_retry_delay, 30000},
+        {node_connection_attempts, 90},
+        {node_connection_retry_delay, 1000},
+        {session_ttl, 86400}, % 24h
+        {auth_token_ttl, 86400},
+        {wait_for_cluster_attempts, 120},
+        {wait_for_cluster_delay, 5000},
+
+        %% Time in seconds during which user tokens are cached in op_panel
+        {onezone_auth_cache_ttl_seconds, 60},
+
+        %% Time (in seconds) during which invite tokens will be valid after creation
+        {panel_authorization_nonce_ttl_sec, 3600},
+
+        % frequency of service healthcheck
+        {services_check_period, 60000},
+
+        % time in milliseconds after which cron jobs, such as service healthcheck
+        % or certificate renewal, are aborted
+        {cron_job_timeout, 3600000}, % 1 hour
+
+        % frequency of the cron ticks
+        {cron_period, 1000}, % 1 second
+
+        %% ===================================================================
+        %% OAI-PMH (Public Data advertisement)
+        %% ===================================================================
+
+        %% Prefix to the OAI-PMH API - all paths must begin with it
+        {oai_pmh_api_prefix, "/oai_pmh"},
+
+        %% Timeout when waiting for response from oz_worker -
+        %% concerns proxying oai requests to oz_worker via onepanel.
+        {oai_pmh_proxy_recv_timeout_sec, 30},
+
+        %% ===================================================================
+        %% DB disk usage monitor configuration
+        %% ===================================================================
+
+        %% Note the slash at the end; it's crucial as /opt/couchbase/var/lib/couchbase
+        %% is typically a symlink to the persistence directory.
+        {db_root_dir, "/opt/couchbase/var/lib/couchbase/"},
+
+        %% How ofter the db disk usage check on all couchbase nodes in the cluster is performed.
+        {db_disk_usage_check_interval_seconds, 300},  % 5 minutes
+
+        %% A threshold that, if exceeded, will result in a warning
+        {db_disk_usage_warning_threshold, 0.45},
+
+        %% A threshold that, if exceeded, will result in an alert
+        {db_disk_usage_alert_threshold, 0.75},
+
+        %% A threshold that, if exceeded, will result in halting processing any requests
+        {db_disk_usage_circuit_breaker_activation_threshold, 0.9},
+
+        {db_disk_monitor_verbose_logs, false},
 
         %% ===================================================================
         %% Let's Encrypt configuration
@@ -103,8 +235,8 @@
 
         %% The directory URL of a Certificate Authority server using the ACME protocol
         %% to be used for automated web certificate issuance
-        {letsencrypt_directory_url, "https://acme-v01.api.letsencrypt.org/directory"},
-        {letsencrypt_directory_url_staging, "https://acme-staging.api.letsencrypt.org/directory"},
+        {letsencrypt_directory_url, "https://acme-v02.api.letsencrypt.org/directory"},
+        {letsencrypt_directory_url_staging, "https://acme-staging-v02.api.letsencrypt.org/directory"},
 
         %% Mode of operation with the Let's Encrypt:
         %% - dry        - run full certification procedure against staging server but do NOT
@@ -113,7 +245,7 @@
         %% - production - obtain certificate from the main Let's Encrypt server
         %% - full       - check certification success as with dry and then obtain certificate
         %%                from the production server
-        {letsencrypt_mode, full},
+        {letsencrypt_mode, production},
 
         %% Directory for saving Let's Encrypt account keys (needed for renewal)
         {letsencrypt_keys_dir, "{{platform_etc_dir}}/certs/letsencrypt/"},
@@ -140,154 +272,105 @@
         {web_cert_renewal_check_delay, 3600},
 
         %% ===================================================================
-        %% Test certificates
+        %% Deployment-related variables
         %% ===================================================================
 
-        %% If enabled, a new web cert will be generated with CN matching
-        %% the test_web_cert_domain and signed by CA cert found under
-        %% test_web_cert_ca_path.
-        %% NOTE: The generation will be performed upon every startup, any
-        %%  existing certs will be backed up and placed in the same directory.
-        %% NOTE: This functionality is devised for test purposes and must not
-        %%  be used in production.
-        {generate_test_web_cert, false},
-        %% The domain for which a test cert will be generated
-        {test_web_cert_domain, "onedata.org"},
-        %% The CA cert to sign auto generated test web certs. The file must
-        %% contain both the key and cert.
-        {test_web_cert_ca_path, "{{platform_etc_dir}}/OnedataTestWebServerCa.pem"},
-        %% If enabled, onepanel will trust any server that has a cert signed by
-        %% the OnedataTestWebServerCa.
-        %% NOTE: This functionality is devised for test purposes and must not
-        %%  be used in production.
-        {treat_test_ca_as_trusted, false},
-
-        %% URL of service used for autodetecting external IP
-        {ip_check_url, "http://ip4.icanhazip.com"},
-
-        %% IPs of DNS servers used to validate domain configuration.
-        %% Empty list causes use of system defaults
-        {dns_check_servers, []},
-
-        %% Interval between DNS checks in seconds. Default: 6 hours
-        {dns_check_interval, 21600},
-
-        %% Boolean used in oz_panel. Indicates whether to check for
-        %% DNS zone delegation.
-        {dns_expect_zone_delegation, true},
-
-        {rest_api_prefix_template, "/api/v{version_number}/onepanel"},
-        %% Number of accepting processes in HTTPS listeners
-        {rest_https_acceptors, 100},
-        %% Request timeout in milliseconds, meaning how long the server should
-        %% wait for an incoming request since the last activity until it closes
-        %% the connection.
-        {rest_https_request_timeout, 30000},
-        {rest_listener_status_check_attempts, 30},
-
-        %% Directory where static files of default, embedded GUI are kept.
-        %% Used when gui_static_root_override is non-existent or empty.
-        {gui_default_static_root, "{{platform_data_dir}}/gui_static"},
-        %% Directory where onepanel tries to find static files of a custom GUI.
-        %% If the directory is not empty, it will serve the static files
-        %% from it. If not, it will fall back to default, embedded GUI.
-        {gui_static_root_override, "/var/www/html/onepanel"},
-
-        {rpc_timeout, 1800000},
-        {create_tables_timeout, 10000},
-        {copy_tables_timeout, 10000},
-        {extend_cluster_timeout, 900000},
-        {task_ttl, 86400000},
-        {service_step_retry_delay, 30000},
-        {services_check_delay, 60000},
-        {session_ttl, 86400000},
-        {wait_for_cluster_attempts, 20},
-
-        {onepanel_vm_args_file, "{{platform_etc_dir}}/vm.args"},
+        {onepanel_vm_args_file, "{{platform_etc_dir}}/autogenerated.vm.args"},
         {onepanel_legacy_config_file, "{{platform_etc_dir}}/app.config"},
         {onepanel_app_config_file, "{{platform_data_dir}}/app.config"},
         {onepanel_generated_config_file, "{{platform_etc_dir}}/autogenerated.config"},
         {onepanel_overlay_config_file, "{{platform_etc_dir}}/overlay.config"},
+        {onepanel_custom_config_dir, "{{platform_etc_dir}}/config.d/"},
 
-        {onepanel_status_cmd, default},
-        {onepanel_start_cmd, default},
-        {onepanel_stop_cmd, default},
-
-        {default_users, [{<<"admin">>, <<"password">>, admin}]},
-
-        {couchbase_init_timeout, 300000},
-        {couchbase_wait_for_init_attempts, 60},
+        {couchbase_cmd, "service couchbase-server"},
+        {couchbase_cluster_init_timeout, 300000},
+        {couchbase_wait_for_service_init_attempts, 60},
+        {couchbase_wait_for_service_init_interval_sec, 5},
+        {couchbase_wait_for_service_init_max_restarts, 2},
 
         % Couchbase reports healthy status before it's ready to serve requests.
         % This delay provides additional margin of error before starting workers.
-        {couchbase_after_init_delay, 2000}, % 2 seconds
-        {couchbase_connect_attempts, 30},
-        {couchbase_connect_timeout, 1000},
+        {couchbase_after_init_delay, 4000}, % 4 seconds
+        {couchbase_connect_timeout, 5000},  % 5 seconds
         {couchbase_user, "admin"},
         {couchbase_password, "password"},
         {couchbase_admin_port, 8091},
         {couchbase_port, 11211},
+
+        % Default quotas are mentioned in swagger and as such any changes to them
+        % should be reflected there
         {couchbase_server_quota, 4096},
         {couchbase_bucket_quota, 4096},
+
         {couchbase_open_files_limit, 65535},
         {couchbase_buckets, [
-            {oneprovider, [{"onedata", 4096}]},
-            {onezone, [{"onedata", 4096}]}
+            {oneprovider, ["onedata"]},
+            {onezone, ["onedata"]}
         ]},
 
-        {cluster_manager_vm_args_file, "{{platform_etc_dir}}/../cluster_manager/vm.args"},
+        {cluster_manager_vm_args_file, "{{platform_etc_dir}}/../cluster_manager/autogenerated.vm.args"},
         {cluster_manager_legacy_config_file, "{{platform_etc_dir}}/../cluster_manager/app.config"},
         {cluster_manager_app_config_file, "{{platform_data_dir}}/../cluster_manager/app.config"},
         {cluster_manager_generated_config_file, "{{platform_etc_dir}}/../cluster_manager/autogenerated.config"},
         {cluster_manager_overlay_config_file, "{{platform_etc_dir}}/../cluster_manager/overlay.config"},
+        {cluster_manager_custom_config_dir, "{{platform_etc_dir}}/../cluster_manager/config.d/"},
         {cluster_manager_env_file, "{{platform_lib_dir}}/../../cluster_manager/lib/env.sh"},
-        {cluster_manager_status_cmd, default},
-        {cluster_manager_start_cmd, default},
-        {cluster_manager_stop_cmd, default},
+        {cluster_manager_cmd, "service cluster_manager"},
+        {cluster_manager_wait_for_init_attempts, 30},
+        {cluster_manager_wait_for_init_delay, 2000},
         {cluster_manager_failover_timeout, 5000},
         {cluster_manager_sync_nodes_timeout, 120000},
         {cluster_manager_open_files_limit, 65535},
 
-        {op_worker_vm_args_file, "{{platform_etc_dir}}/../op_worker/vm.args"},
+        {op_worker_vm_args_file, "{{platform_etc_dir}}/../op_worker/autogenerated.vm.args"},
         {op_worker_legacy_config_file, "{{platform_etc_dir}}/../op_worker/app.config"},
         {op_worker_app_config_file, "{{platform_data_dir}}/../op_worker/app.config"},
         {op_worker_generated_config_file, "{{platform_etc_dir}}/../op_worker/autogenerated.config"},
         {op_worker_overlay_config_file, "{{platform_etc_dir}}/../op_worker/overlay.config"},
-        {op_worker_status_cmd, default},
-        {op_worker_start_cmd, default},
-        {op_worker_stop_cmd, default},
+        {op_worker_custom_config_dir, "{{platform_etc_dir}}/../op_worker/config.d/"},
+        {op_worker_cmd, "service op_worker"},
         {op_worker_open_files_limit, 65535},
         {op_worker_nagios_protocol, "https"},
-        {op_worker_wait_for_init_attempts, 60},
+        % 96 attempts every 5 seconds yield 8 minutes of waiting
+        {op_worker_wait_for_init_attempts, 96},
         {op_worker_wait_for_init_delay, 5000},
+        %% 360 attempts every 5 seconds yield 30 minutes of waiting.
+        {op_worker_wait_for_registration_token_file_attempts, 360},
+        {op_worker_wait_for_registration_token_file_delay, 5000},
+        % this variable is overridden after op-worker deployment with an absolute path.
+        {op_worker_root_token_path, "{{platform_etc_dir}}/../op_worker/provider_root_token.json"},
 
-
-        {oz_worker_vm_args_file, "{{platform_etc_dir}}/../oz_worker/vm.args"},
+        {oz_worker_vm_args_file, "{{platform_etc_dir}}/../oz_worker/autogenerated.vm.args"},
         {oz_worker_legacy_config_file, "{{platform_etc_dir}}/../oz_worker/app.config"},
         {oz_worker_app_config_file, "{{platform_data_dir}}/../oz_worker/app.config"},
-        {oz_worker_status_cmd, default},
-        {oz_worker_stop_cmd, default},
-        {oz_worker_start_cmd, default},
+        {oz_worker_cmd, "service oz_worker"},
         {oz_worker_generated_config_file, "{{platform_etc_dir}}/../oz_worker/autogenerated.config"},
         {oz_worker_overlay_config_file, "{{platform_etc_dir}}/../oz_worker/overlay.config"},
+        {oz_worker_custom_config_dir, "{{platform_etc_dir}}/../oz_worker/config.d/"},
         {oz_worker_open_files_limit, 65535},
         {oz_worker_nagios_protocol, "https"},
-        {oz_worker_wait_for_init_attempts, 60},
+        % 96 attempts every 5 seconds yield 8 minutes of waiting
+        {oz_worker_wait_for_init_attempts, 96},
         {oz_worker_wait_for_init_delay, 5000},
 
-        {onezone_name, "example"},
-        {onezone_domain, "onedata.org"},
-
-        {oneprovider_name, "example"},
-        {oneprovider_geo_latitude, 0.0},
-        {oneprovider_geo_longitude, 0.0},
         {connect_to_onezone_attempts, 5},
 
-        {oneprovider_sync_max_depth, 65535},
-        {oneprovider_sync_update_scan_interval, 10}, % in seconds
-        {oneprovider_sync_update_delete_enable, false},
-        {oneprovider_sync_update_write_once, false},
-        {oneprovider_sync_acl, false}
+        %% ===================================================================
+        %% OneS3 configuration
+        %% ===================================================================
+
+        {ones3_http_port, 4443},
+
+        {ones3_log_dir, "{{platform_log_dir}}/ones3/"},
+        {ones3_log_level, 1},
+
+        % Path to OneS3 config file
+        % NOTE: this value should mirror the one from /etc/init.d/ones3 script.
+        % Otherwise, it will not be used by OneS3 service.
+        {ones3_config_path, "/etc/ones3.conf"},
+
+        {ones3_cmd, "service ones3"},
+
+        {ones3_wait_for_init_attempts, 60}
     ]}
 ].
-
