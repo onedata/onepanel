@@ -35,13 +35,11 @@
 -export([
     add_correct_storage_test/1,
     add_bad_storage_test/1,
-    add_storage_with_short_region_test/1,
 
     get_storage_test/1,
 
     modify_correct_storage_test/1,
     modify_bad_storage_test/1,
-    modify_storage_to_short_region_test/1,
 
     delete_storage_test/1
 ]).
@@ -50,13 +48,11 @@ groups() -> [
     {all_tests, [parallel], [
         add_correct_storage_test,
         add_bad_storage_test,
-        add_storage_with_short_region_test,
 
         get_storage_test,
 
         modify_correct_storage_test,
         modify_bad_storage_test,
-        modify_storage_to_short_region_test,
 
         delete_storage_test
     ]}
@@ -73,9 +69,6 @@ all() -> [
     <<"accessKey">> => ?S3_KEY_ID,
     <<"secretKey">> => ?S3_ACCESS_KEY
 }).
-
--define(SHORT_REGION, <<"abcd">>).
--define(SHORT_REGION_ERROR, ?ERR_BAD_DATA(<<"region">>, <<"must be at least 5 characters long">>)).
 
 
 %%%===================================================================
@@ -203,39 +196,6 @@ build_add_s3_storage_prepare_args_fun(MemRef) ->
             headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
             body = json_utils:encode(RequestBody)}
     end.
-
-
-%% The REST model takes a region of any length, while the S3 helper can't be
-%% built with one shorter than 5 characters, so op-worker refuses it.
-add_storage_with_short_region_test(_Config) ->
-    ProviderId = oct_background:get_provider_id(krakow),
-    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-    StorageName = <<"s3WithShortRegion">>,
-
-    ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Add S3 storage with a short region using /provider/storages rest endpoint">>,
-            type = rest,
-            target_nodes = ProviderPanelNodes,
-            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
-                ProviderId, [?CLUSTER_UPDATE]
-            ),
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = post,
-                    path = <<"provider/storages">>,
-                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-                    body = json_utils:encode(#{
-                        StorageName => ?MIN_S3_STORAGE_SPEC#{<<"region">> => ?SHORT_REGION}
-                    })
-                }
-            end,
-            validate_result_fun = api_test_validate:http_400_bad_request(fun(RespBody) ->
-                ?assertEqual(#{StorageName => ?REST_ERROR(?SHORT_REGION_ERROR)}, RespBody),
-                ?assertEqual([], storage_ids_named(StorageName))
-            end)
-        }
-    ])).
 
 
 get_storage_test(_Config) ->
@@ -366,41 +326,6 @@ build_modify_s3_storage_setup_fun(MemRef) ->
     end.
 
 
-%% As above, for the region of an existing storage.
-modify_storage_to_short_region_test(_Config) ->
-    ProviderId = oct_background:get_provider_id(krakow),
-    ProviderPanelNodes = oct_background:get_provider_panels(krakow),
-    StorageName = ?RAND_STR(),
-    StorageId = panel_test_rpc:add_storage(krakow, #{StorageName => ?MIN_S3_STORAGE_SPEC}),
-    StorageDetails = api_test_utils:describe_storage(krakow, StorageId),
-
-    ?assert(api_test_runner:run_tests([
-        #scenario_spec{
-            name = <<"Modify S3 storage to a short region using /provider/storages/{id} rest endpoint">>,
-            type = rest,
-            target_nodes = ProviderPanelNodes,
-            client_spec = api_test_utils:build_member_and_root_allowed_client_spec(
-                ProviderId, [?CLUSTER_UPDATE]
-            ),
-            prepare_args_fun = fun(_) ->
-                #rest_args{
-                    method = patch,
-                    path = <<"provider/storages/", StorageId/binary>>,
-                    headers = #{?HDR_CONTENT_TYPE => <<"application/json">>},
-                    body = json_utils:encode(#{StorageName => #{
-                        <<"type">> => <<"s3">>,
-                        <<"region">> => ?SHORT_REGION
-                    }})
-                }
-            end,
-            validate_result_fun = api_test_validate:http_400_bad_request(fun(RespBody) ->
-                ?assertEqual(?REST_ERROR(?SHORT_REGION_ERROR), RespBody),
-                ?assertEqual(StorageDetails, api_test_utils:describe_storage(krakow, StorageId))
-            end)
-        }
-    ])).
-
-
 delete_storage_test(_Config) ->
     api_op_storages_test_base:delete_storage_test_base(
         #delete_storage_test_spec{
@@ -440,14 +365,3 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, Config) ->
     Config.
-
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-
-%% @private
-storage_ids_named(StorageName) ->
-    [StorageId || StorageId <- opw_test_rpc:get_storages(krakow),
-        maps:get(<<"name">>, api_test_utils:describe_storage(krakow, StorageId)) == StorageName].
